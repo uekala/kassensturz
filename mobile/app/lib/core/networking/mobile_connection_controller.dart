@@ -93,6 +93,28 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
+  Future<bool> checkServer(String serverUrl) async {
+    _isBusy = true;
+    _errorMessage = null;
+    _statusMessage = null;
+    _notifyIfMounted();
+    try {
+      final result = await _apiClient.health(serverUrl: serverUrl);
+      final server = result['server'];
+      final serverName = server is Map ? server['name'] : null;
+      _statusMessage = serverName is String
+          ? 'Server gefunden: $serverName.'
+          : 'Kassensturz-Server erfolgreich geprüft.';
+      return true;
+    } catch (error) {
+      _errorMessage = _messageFor(error);
+      return false;
+    } finally {
+      _isBusy = false;
+      _notifyIfMounted();
+    }
+  }
+
   Future<bool> checkConnection() async {
     _isBusy = true;
     _errorMessage = null;
