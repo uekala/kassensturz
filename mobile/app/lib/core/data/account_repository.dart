@@ -115,7 +115,7 @@ class EncryptedAccountRepository implements AccountRepository {
       database
         ..execute("PRAGMA cipher = 'sqlcipher';")
         ..execute('PRAGMA legacy = 4;')
-        ..execute('PRAGMA key = "x\'$keyHex\'";');
+        ..execute("PRAGMA key = \"x'$keyHex'\";");
 
       // Reading the schema forces SQLite to verify the key before any
       // application data can be read or modified.
