@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/data/budget_controller.dart';
+import '../core/data/budget_repository.dart';
 import '../core/widgets/demo_notice.dart';
 import '../features/accounts/accounts_page.dart';
 import '../features/budget/budget_page.dart';
@@ -8,7 +10,9 @@ import '../features/more/more_page.dart';
 import '../features/transactions/transactions_page.dart';
 
 class KassensturzShell extends StatefulWidget {
-  const KassensturzShell({super.key});
+  const KassensturzShell({super.key, this.budgetRepository});
+
+  final BudgetRepository? budgetRepository;
 
   @override
   State<KassensturzShell> createState() => _KassensturzShellState();
@@ -16,6 +20,22 @@ class KassensturzShell extends StatefulWidget {
 
 class _KassensturzShellState extends State<KassensturzShell> {
   int _selectedIndex = 0;
+  late final BudgetController _budgetController;
+
+  @override
+  void initState() {
+    super.initState();
+    _budgetController = BudgetController(
+      repository: widget.budgetRepository ?? InMemoryBudgetRepository(),
+    );
+    _budgetController.load();
+  }
+
+  @override
+  void dispose() {
+    _budgetController.dispose();
+    super.dispose();
+  }
 
   static const _destinations = [
     NavigationDestination(
@@ -69,9 +89,10 @@ class _KassensturzShellState extends State<KassensturzShell> {
       DashboardPage(
         onOpenTransactions: _openTransactions,
         onOpenBudget: _openBudget,
+        budgetController: _budgetController,
       ),
       const AccountsPage(),
-      const BudgetPage(),
+      BudgetPage(controller: _budgetController),
       const TransactionsPage(),
       const MorePage(),
     ];
