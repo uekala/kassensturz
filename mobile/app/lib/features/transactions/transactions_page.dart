@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../core/data/demo_finance_data.dart';
+import '../../core/networking/mobile_connection_controller.dart';
 
 enum _TransactionFilter { all, expenses, income }
 
 class TransactionsPage extends StatefulWidget {
-  const TransactionsPage({super.key});
+  const TransactionsPage({super.key, this.controller});
+
+  final MobileConnectionController? controller;
 
   @override
   State<TransactionsPage> createState() => _TransactionsPageState();
@@ -30,6 +33,17 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final controller = widget.controller;
+    if (controller == null) return _buildDemo(context);
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => controller.isConnected
+          ? _buildLive(context, controller)
+          : _buildDemo(context),
+    );
+  }
+
+  Widget _buildDemo(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final visible = _visibleTransactions;
 
@@ -90,6 +104,134 @@ class _TransactionsPageState extends State<TransactionsPage> {
           ...visible.map((transaction) => _TransactionTile(transaction)),
       ],
     );
+  }
+
+  Widget _buildLive(
+    BuildContext context,
+    MobileConnectionController controller,
+  ) {
+    final colors = Theme.of(context).colorScheme;
+    final items = controller.transactionItems;
+    final total = controller.transactionTotal;
+    return RefreshIndicator(
+      onRefresh: controller.refreshTransactions,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          Text(
+            'Buchungen',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'Live-Daten von deinem Kassensturz-Server.',
+            style: TextStyle(color: colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 13),
+          Text(
+            total.toString() + (total == 1 ? ' Buchung auf dem Server' : ' Buchungen auf dem Server'),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: colors.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (controller.financeError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              controller.financeError!,
+              style: TextStyle(color: colors.error, fontSize: 12),
+            ),
+          ],
+          if (items.isEmpty && controller.financeLoading)
+            const Padding(
+              padding: EdgeInsets.all(28),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 36),
+              child: Center(child: Text('Noch keine Buchungen vorhanden.')),
+            )
+          else
+            ...items.map((item) {
+              final amountValue = item['amount_cents'];
+              final cents = amountValue is int ? amountValue : 0;
+              final category = item['category'];
+              final categoryName = category is Map
+                  ? category['name']?.toString()
+                  : null;
+              final counterparty = item['counterparty']?.toString() ?? '';
+              final purpose = item['purpose']?.toString() ?? '';
+              final title = counterparty.isNotEmpty
+                  ? counterparty
+                  : purpose.isNotEmpty
+                  ? purpose
+                  : 'Buchung';
+              final subtitle = <String>[
+                if (categoryName != null && categoryName.isNotEmpty) categoryName,
+                if (item['account_name'] is String) item['account_name'] as String,
+                if (item['booking_date'] is String) _formatDate(item['booking_date'] as String),
+              ].join(' · ');
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 2),
+                leading: CircleAvatar(
+                  backgroundColor: colors.secondaryContainer,
+                  foregroundColor: colors.onSecondaryContainer,
+                  child: Icon(
+                    cents < 0 ? Icons.north_east_rounded : Icons.south_west_rounded,
+                    size: 19,
+                  ),
+                ),
+                title: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  subtitle.isEmpty ? 'Buchung' : subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Text(
+                  formatSignedEuro(cents / 100),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: cents < 0 ? colors.onSurface : colors.primary,
+                  ),
+                ),
+              );
+            }),
+          if (items.length < total) ...[
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: controller.financeLoading ? null : controller.loadMoreTransactions,
+              child: controller.financeLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Weitere Buchungen laden'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _formatDate(String value) {
+    final date = DateTime.tryParse(value);
+    if (date == null) return value;
+    return date.day.toString().padLeft(2, '0') +
+        '.' +
+        date.month.toString().padLeft(2, '0') +
+        '.' +
+        date.year.toString();
   }
 }
 
