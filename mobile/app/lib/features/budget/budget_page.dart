@@ -11,7 +11,7 @@ class BudgetPage extends StatefulWidget {
 }
 
 class _BudgetPageState extends State<BudgetPage> {
-  static const _months = [DateTime(2026, 11), DateTime(2026, 10)];
+  static final _months = [DateTime(2026, 11), DateTime(2026, 10)];
 
   int _selectedMonth = 0;
   late final Map<String, double> _limits =
