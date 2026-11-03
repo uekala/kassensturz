@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../core/data/demo_finance_data.dart';
 
 class BudgetPage extends StatefulWidget {
   const BudgetPage({super.key});
@@ -8,99 +11,182 @@ class BudgetPage extends StatefulWidget {
 }
 
 class _BudgetPageState extends State<BudgetPage> {
+  static const _months = [DateTime(2026, 11), DateTime(2026, 10)];
+
   int _selectedMonth = 0;
+  late final Map<String, double> _limits =
+      Map<String, double>.from(DemoFinanceData.defaultBudgetLimits);
 
-  static const _months = [
-    _BudgetMonth(
-      title: 'November 2026',
-      budget: 1000,
-      spent: 379.60,
-      categories: [
-        _BudgetCategory(
-          name: 'Lebensmittel',
-          spent: 248.26,
-          limit: 350,
-          icon: Icons.shopping_basket_outlined,
-          color: Color(0xFF20836F),
-        ),
-        _BudgetCategory(
-          name: 'Mobilität',
-          spent: 86,
-          limit: 200,
-          icon: Icons.directions_car_outlined,
-          color: Color(0xFF526A9B),
-        ),
-        _BudgetCategory(
-          name: 'Freizeit',
-          spent: 45.34,
-          limit: 150,
-          icon: Icons.sports_esports_outlined,
-          color: Color(0xFF9A6A35),
-        ),
-        _BudgetCategory(
-          name: 'Haushalt',
-          spent: 0,
-          limit: 100,
-          icon: Icons.chair_outlined,
-          color: Color(0xFF8065A5),
-        ),
-        _BudgetCategory(
-          name: 'Sonstiges',
-          spent: 0,
-          limit: 200,
-          icon: Icons.more_horiz_rounded,
-          color: Color(0xFF64736F),
-        ),
-      ],
-    ),
-    _BudgetMonth(
-      title: 'Oktober 2026',
-      budget: 1000,
-      spent: 512.30,
-      categories: [
-        _BudgetCategory(
-          name: 'Lebensmittel',
-          spent: 302.10,
-          limit: 350,
-          icon: Icons.shopping_basket_outlined,
-          color: Color(0xFF20836F),
-        ),
-        _BudgetCategory(
-          name: 'Mobilität',
-          spent: 120,
-          limit: 200,
-          icon: Icons.directions_car_outlined,
-          color: Color(0xFF526A9B),
-        ),
-        _BudgetCategory(
-          name: 'Freizeit',
-          spent: 64.20,
-          limit: 150,
-          icon: Icons.sports_esports_outlined,
-          color: Color(0xFF9A6A35),
-        ),
-        _BudgetCategory(
-          name: 'Haushalt',
-          spent: 26,
-          limit: 100,
-          icon: Icons.chair_outlined,
-          color: Color(0xFF8065A5),
-        ),
-        _BudgetCategory(
-          name: 'Sonstiges',
-          spent: 0,
-          limit: 200,
-          icon: Icons.more_horiz_rounded,
-          color: Color(0xFF64736F),
-        ),
-      ],
-    ),
-  ];
+  DateTime get _month => _months[_selectedMonth];
+  String get _monthLabel =>
+      _month.month == 11 ? 'November 2026' : 'Oktober 2026';
+  double get _totalBudget => DemoFinanceData.totalBudget(_limits);
+  double get _totalSpent => DemoFinanceData.spentForBudgets(_month, _limits);
+  double get _remaining => _totalBudget - _totalSpent;
+  double get _progress => _totalBudget <= 0
+      ? 0
+      : (_totalSpent / _totalBudget).clamp(0.0, 1.0).toDouble();
 
-  _BudgetMonth get _month => _months[_selectedMonth];
-  double get _remaining => _month.budget - _month.spent;
-  double get _progress =>
-      (_month.spent / _month.budget).clamp(0.0, 1.0).toDouble();
+  List<DemoCategory> get _budgetCategories => DemoFinanceData.categories
+      .where((category) => _limits.containsKey(category.id))
+      .toList();
+
+  Future<void> _addBudget() async {
+    final draft = await _editBudgetDialog();
+    if (draft == null) return;
+    setState(() => _limits[draft.categoryId] = draft.limit);
+  }
+
+  Future<void> _editBudget(String categoryId) async {
+    final draft = await _editBudgetDialog(
+      currentCategoryId: categoryId,
+      currentLimit: _limits[categoryId],
+    );
+    if (draft == null) return;
+
+    setState(() {
+      if (draft.categoryId != categoryId) {
+        _limits.remove(categoryId);
+      }
+      _limits[draft.categoryId] = draft.limit;
+    });
+  }
+
+  Future<void> _deleteBudget(String categoryId) async {
+    final category = DemoFinanceData.category(categoryId);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Budget löschen?'),
+        content: Text('Das Budget für ${category.name} wird entfernt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      setState(() => _limits.remove(categoryId));
+    }
+  }
+
+  Future<_BudgetDraft?> _editBudgetDialog({
+    String? currentCategoryId,
+    double? currentLimit,
+  }) {
+    final availableCategories = DemoFinanceData.categories.where((category) {
+      final isBudgetable =
+          category.id != 'housing' && category.id != 'income';
+      final isCurrent = category.id == currentCategoryId;
+      return isBudgetable && (!_limits.containsKey(category.id) || isCurrent);
+    }).toList();
+
+    if (availableCategories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Für alle verfügbaren Kategorien gibt es bereits Budgets.'),
+        ),
+      );
+      return Future.value(null);
+    }
+
+    var selectedCategoryId =
+        currentCategoryId ?? availableCategories.first.id;
+    var amountText = currentLimit?.toStringAsFixed(2) ?? '';
+    final formKey = GlobalKey<FormState>();
+
+    return showDialog<_BudgetDraft>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            currentCategoryId == null
+                ? 'Budget hinzufügen'
+                : 'Budget bearbeiten',
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: selectedCategoryId,
+                  decoration: const InputDecoration(
+                    labelText: 'Kategorie',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: availableCategories
+                      .map(
+                        (category) => DropdownMenuItem(
+                          value: category.id,
+                          child: Text(category.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selectedCategoryId = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  initialValue: amountText,
+                  autofocus: true,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: 'Monatliches Limit',
+                    suffixText: '€',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSaved: (value) => amountText = value ?? '',
+                  validator: (value) {
+                    final normalized = (value ?? '').replaceAll(',', '.');
+                    final amount = double.tryParse(normalized);
+                    if (amount == null || amount <= 0) {
+                      return 'Bitte einen Betrag größer 0 eingeben.';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                formKey.currentState!.save();
+                final limit = double.parse(amountText.replaceAll(',', '.'));
+                Navigator.pop(
+                  dialogContext,
+                  _BudgetDraft(
+                    categoryId: selectedCategoryId,
+                    limit: limit,
+                  ),
+                );
+              },
+              child: const Text('Speichern'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,38 +211,50 @@ class _BudgetPageState extends State<BudgetPage> {
         const SizedBox(height: 16),
         Wrap(
           spacing: 8,
-          children: List.generate(_months.length, (index) {
-            return ChoiceChip(
-              label: Text(_months[index].title),
-              selected: _selectedMonth == index,
-              showCheckmark: false,
-              onSelected: (_) => setState(() => _selectedMonth = index),
-              labelStyle: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: _selectedMonth == index
-                    ? colors.onPrimary
-                    : colors.onSurface,
-              ),
-              selectedColor: colors.primary,
-              backgroundColor: Colors.white,
-              side: BorderSide(
-                color: _selectedMonth == index
-                    ? colors.primary
-                    : colors.outlineVariant,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            );
-          }),
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ...List.generate(_months.length, (index) {
+              final label = _months[index].month == 11
+                  ? 'November 2026'
+                  : 'Oktober 2026';
+              return ChoiceChip(
+                label: Text(label),
+                selected: _selectedMonth == index,
+                showCheckmark: false,
+                onSelected: (_) => setState(() => _selectedMonth = index),
+                labelStyle: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: _selectedMonth == index
+                      ? colors.onPrimary
+                      : colors.onSurface,
+                ),
+                selectedColor: colors.primary,
+                backgroundColor: Colors.white,
+                side: BorderSide(
+                  color: _selectedMonth == index
+                      ? colors.primary
+                      : colors.outlineVariant,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              );
+            }),
+            FilledButton.tonalIcon(
+              onPressed: _addBudget,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Hinzufügen'),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
         _BudgetSummaryCard(
-          budget: _month.budget,
-          spent: _month.spent,
+          budget: _totalBudget,
+          spent: _totalSpent,
           remaining: _remaining,
           progress: _progress,
-          month: _month.title,
+          month: _monthLabel,
         ),
         const SizedBox(height: 22),
         Row(
@@ -171,7 +269,7 @@ class _BudgetPageState extends State<BudgetPage> {
               ),
             ),
             Text(
-              '${_month.categories.length} Kategorien',
+              '${_budgetCategories.length} Kategorien',
               style: textTheme.labelSmall?.copyWith(
                 color: colors.onSurfaceVariant,
               ),
@@ -179,9 +277,24 @@ class _BudgetPageState extends State<BudgetPage> {
           ],
         ),
         const SizedBox(height: 9),
-        ..._month.categories.map((category) => _CategoryBudgetCard(
+        if (_budgetCategories.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 28),
+            child: Center(child: Text('Noch keine Budgets angelegt.')),
+          )
+        else
+          ..._budgetCategories.map((category) {
+            final limit = _limits[category.id]!;
+            final spent =
+                DemoFinanceData.spentForCategory(category.id, _month);
+            return _CategoryBudgetCard(
               category: category,
-            )),
+              spent: spent,
+              limit: limit,
+              onEdit: () => _editBudget(category.id),
+              onDelete: () => _deleteBudget(category.id),
+            );
+          }),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(15),
@@ -201,8 +314,8 @@ class _BudgetPageState extends State<BudgetPage> {
               Expanded(
                 child: Text(
                   _remaining >= 0
-                      ? 'Du hast in ${_month.title} noch ${_formatEuro(_remaining)} deines variablen Budgets übrig.'
-                      : 'Dein variables Budget ist um ${_formatEuro(_remaining.abs())} überschritten.',
+                      ? 'Im $_monthLabel sind noch ${formatEuro(_remaining)} deines Budgets übrig.'
+                      : 'Dein Budget ist um ${formatEuro(_remaining.abs())} überschritten.',
                   style: const TextStyle(
                     color: Color(0xFF24584E),
                     fontSize: 12,
@@ -217,7 +330,8 @@ class _BudgetPageState extends State<BudgetPage> {
         const SizedBox(height: 12),
         Center(
           child: Text(
-            'Alle Beträge sind Beispieldaten.',
+            'Ausgaben aus den Buchungen berechnet. Änderungen gelten nur in dieser Demo-Sitzung.',
+            textAlign: TextAlign.center,
             style: textTheme.labelSmall?.copyWith(
               color: colors.onSurfaceVariant,
             ),
@@ -277,7 +391,7 @@ class _BudgetSummaryCard extends StatelessWidget {
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
-              _formatEuro(remaining),
+              formatEuro(remaining),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 31,
@@ -300,11 +414,13 @@ class _BudgetSummaryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _SummaryValue(label: 'Ausgegeben', value: _formatEuro(spent)),
-              _SummaryValue(label: 'Gesamtbudget', value: _formatEuro(budget)),
+              _SummaryValue(label: 'Ausgegeben', value: formatEuro(spent)),
+              _SummaryValue(label: 'Gesamtbudget', value: formatEuro(budget)),
               _SummaryValue(
                 label: 'Genutzt',
-                value: '${(progress * 100).round()} %',
+                value: budget <= 0
+                    ? '0 %'
+                    : '${(spent / budget * 100).round()} %',
                 alignEnd: true,
               ),
             ],
@@ -351,21 +467,31 @@ class _SummaryValue extends StatelessWidget {
 }
 
 class _CategoryBudgetCard extends StatelessWidget {
-  const _CategoryBudgetCard({required this.category});
+  const _CategoryBudgetCard({
+    required this.category,
+    required this.spent,
+    required this.limit,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
-  final _BudgetCategory category;
+  final DemoCategory category;
+  final double spent;
+  final double limit;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final rawProgress = category.spent / category.limit;
+    final rawProgress = limit <= 0 ? 0.0 : spent / limit;
     final progress = rawProgress.clamp(0.0, 1.0).toDouble();
     final overBudget = rawProgress > 1;
     final progressColor = overBudget ? colors.error : category.color;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
@@ -397,15 +523,27 @@ class _CategoryBudgetCard extends StatelessWidget {
                 ),
               ),
               Text(
-                _formatEuro(category.spent),
+                formatEuro(spent),
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 13,
                 ),
               ),
+              IconButton(
+                tooltip: 'Budget bearbeiten: ${category.name}',
+                onPressed: onEdit,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.edit_outlined, size: 17),
+              ),
+              IconButton(
+                tooltip: 'Budget löschen: ${category.name}',
+                onPressed: onDelete,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              ),
             ],
           ),
-          const SizedBox(height: 11),
+          const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: LinearProgressIndicator(
@@ -430,7 +568,7 @@ class _CategoryBudgetCard extends StatelessWidget {
                 ),
               ),
               Text(
-                'von ${_formatEuro(category.limit)}',
+                'von ${formatEuro(limit)}',
                 style: TextStyle(
                   color: colors.onSurfaceVariant,
                   fontSize: 10,
@@ -444,42 +582,12 @@ class _CategoryBudgetCard extends StatelessWidget {
   }
 }
 
-class _BudgetMonth {
-  const _BudgetMonth({
-    required this.title,
-    required this.budget,
-    required this.spent,
-    required this.categories,
-  });
-
-  final String title;
-  final double budget;
-  final double spent;
-  final List<_BudgetCategory> categories;
-}
-
-class _BudgetCategory {
-  const _BudgetCategory({
-    required this.name,
-    required this.spent,
+class _BudgetDraft {
+  const _BudgetDraft({
+    required this.categoryId,
     required this.limit,
-    required this.icon,
-    required this.color,
   });
 
-  final String name;
-  final double spent;
+  final String categoryId;
   final double limit;
-  final IconData icon;
-  final Color color;
-}
-
-String _formatEuro(double value) {
-  final parts = value.abs().toStringAsFixed(2).split('.');
-  final whole = parts[0].replaceAllMapped(
-    RegExp(r'\B(?=(\d{3})+(?!\d))'),
-    (_) => '.',
-  );
-  final sign = value < 0 ? '−' : '';
-  return '$sign$whole,${parts[1]} €';
 }
