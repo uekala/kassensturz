@@ -6,6 +6,8 @@ Kassensturz Mobile wird gleichzeitig für beide Plattformen entwickelt. Oberflä
 
 Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/architecture/0006-flutter-mobile-client.md) festgehalten.
 
+Die erste Serverplattform ist der vorhandene **Home Assistant Green**. Kassensturz läuft dort als bestehende Home-Assistant-App; ein separater Server wird zunächst nicht beschafft. Die Deployment-Entscheidung und die Sicherheitsgrenzen sind in [ADR 0007 – Home Assistant Green](../docs/architecture/0007-home-assistant-green-deployment.md) festgehalten.
+
 ## Produkt- und Vertrauensmodell
 
 - Die App verbindet sich direkt mit genau einer vom Nutzer verwalteten Kassensturz-Installation.
