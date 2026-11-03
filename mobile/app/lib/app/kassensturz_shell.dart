@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/widgets/demo_notice.dart';
 import '../features/accounts/accounts_page.dart';
+import '../features/budget/budget_page.dart';
 import '../features/dashboard/dashboard_page.dart';
 import '../features/more/more_page.dart';
 import '../features/transactions/transactions_page.dart';
@@ -28,6 +29,11 @@ class _KassensturzShellState extends State<KassensturzShell> {
       label: 'Konten',
     ),
     NavigationDestination(
+      icon: Icon(Icons.pie_chart_outline_rounded),
+      selectedIcon: Icon(Icons.pie_chart_rounded),
+      label: 'Budget',
+    ),
+    NavigationDestination(
       icon: Icon(Icons.receipt_long_outlined),
       selectedIcon: Icon(Icons.receipt_long_rounded),
       label: 'Buchungen',
@@ -42,11 +48,16 @@ class _KassensturzShellState extends State<KassensturzShell> {
   static const _titles = [
     'Kassensturz',
     'Deine Konten',
+    'Budgets & Auswertung',
     'Buchungen',
     'Einstellungen',
   ];
 
   void _openTransactions() {
+    setState(() => _selectedIndex = 3);
+  }
+
+  void _openBudget() {
     setState(() => _selectedIndex = 2);
   }
 
@@ -55,8 +66,12 @@ class _KassensturzShellState extends State<KassensturzShell> {
     final textTheme = Theme.of(context).textTheme;
 
     final pages = [
-      DashboardPage(onOpenTransactions: _openTransactions),
+      DashboardPage(
+        onOpenTransactions: _openTransactions,
+        onOpenBudget: _openBudget,
+      ),
       const AccountsPage(),
+      const BudgetPage(),
       const TransactionsPage(),
       const MorePage(),
     ];
@@ -80,12 +95,16 @@ class _KassensturzShellState extends State<KassensturzShell> {
               ),
             ),
             const SizedBox(width: 10),
-            Text(
-              _titles[_selectedIndex],
-              style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF152A27),
-                letterSpacing: -0.3,
+            Expanded(
+              child: Text(
+                _titles[_selectedIndex],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF152A27),
+                  letterSpacing: -0.3,
+                ),
               ),
             ),
           ],
