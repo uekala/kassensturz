@@ -44,6 +44,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Apply canonical Dart formatting for review
+        run: dart format lib test
+
+      - name: Show canonical formatter changes
+        run: git diff -- lib test
+
       - name: Check Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
 
