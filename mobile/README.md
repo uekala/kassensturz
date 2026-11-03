@@ -32,6 +32,16 @@ mobile/
 
 Package versions must be selected and pinned when the Flutter workspace is created; this README intentionally does not imply that a Flutter project already exists.
 
+## API and security specifications
+
+The server/client contract is documented in:
+
+- [Mobile API contract](../docs/architecture/0003-mobile-api-contract.md)
+- [Mobile API security requirements](../docs/architecture/0002-mobile-api-security.md)
+- [DTOs, token lifecycle and test matrix](../docs/architecture/0004-mobile-api-dto-state-machine.md)
+
+These documents are specifications only. Pairing routes, token rotation, and the Flutter client are not implemented yet.
+
 ## Build order
 
 1. Finalize the API DTOs and pairing protocol.
