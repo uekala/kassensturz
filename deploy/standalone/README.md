@@ -57,15 +57,26 @@ Danach im lokalen Browser [http://127.0.0.1:8099](http://127.0.0.1:8099) öffnen
 - SQLite-Datenbank und lokale Geheimnisse: `./data`
 - Import-Eingangsordner: `./imports`
 
-Der Datenordner enthält Finanzdaten und Zugangsdaten. Er muss durch Dateisystemrechte geschützt und in verschlüsselte, zugriffsbeschränkte Backups aufgenommen werden. Die aktuelle Speicherung der Bankgeheimnisse ist noch nicht anwendungsseitig verschlüsselt. Die Compose-Härtung ersetzt keine Verschlüsselung der Daten oder Backups.
+Der Datenordner enthält die SQLite-Datenbank sowie die Banking-Geheimnisse:
 
-Für ein konsistentes Dateisystem-Backup den Dienst zuerst anhalten:
+- `secrets.json`: AES-256-GCM-verschlüsselte FinTS-PINs und der Enable-Banking-Private-Key.
+- `secrets.key`: zufälliger 256-Bit-Installationsschlüssel, Modus `0600`.
+- `kassensturz.sqlite`: Finanzdatenbank, Modus `0600`; das Datenverzeichnis ist auf `0700` beschränkt.
+
+Beim ersten Speichern wird `secrets.key` automatisch angelegt. Alternativ kann in der lokalen, von Git ignorierten `.env` ein externer Schlüssel mit genau 64 Hex-Zeichen als `KASSENSTURZ_MASTER_KEY` gesetzt werden. Ein externer Schlüssel hat Vorrang vor `secrets.key`; wechselt er, kann die bisherige Geheimnisdatei nicht mehr entschlüsselt werden.
+
+**Wichtig für Backups:** Verschlüsselte Geheimnisdatei und Schlüssel dürfen nicht gemeinsam in einem ungeschützten Backup liegen. Lege eine Sicherung des Schlüssels getrennt ab, zum Beispiel in einem administrativen Secret-Manager oder auf einem getrennten verschlüsselten Offline-Medium. Verliert man den Schlüssel, können gespeicherte PINs und der private Open-Banking-Schlüssel nicht rekonstruiert werden; sie müssen bei den Banken erneut eingerichtet werden. Die Finanztransaktionen in SQLite bleiben davon unberührt.
+
+Für ein konsistentes Dateisystem-Backup den Dienst zuerst anhalten. Sichere Datenbank, Importe und verschlüsselte Geheimnisdatei mit deinem Backup-Werkzeug; bewahre den Schlüssel separat und geschützt auf:
 
 ```bash
 docker compose stop
-# ./data und ./imports jetzt mit einem geeigneten Backup-Werkzeug sichern
+# ./data und ./imports jetzt mit einem geeigneten Backup-Werkzeug sichern.
+# secrets.key separat in einem sicheren, getrennten Schlüssel-Backup aufbewahren.
 docker compose start
 ```
+
+Bei einer Wiederherstellung muss der passende Schlüssel vor dem ersten Start wieder unter `./data/secrets.key` liegen – außer du nutzt stattdessen dieselbe `KASSENSTURZ_MASTER_KEY` aus der geschützten `.env`.
 
 ## Aktualisieren
 
