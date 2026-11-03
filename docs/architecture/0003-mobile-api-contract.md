@@ -1,6 +1,6 @@
 # Mobile API contract (v1)
 
-- Status: Teilweise implementiert – Pairing-/Session-/Read-Routen vorhanden; zusätzliche Sicherheits- und Clientintegration bleibt offen
+- Status: Teilweise implementiert – Health-, Pairing-, Session-, Geräte- und Read-Routen vorhanden; Flutter-Verbindung und Green-Remote-Freigabe in Arbeit
 - Ziel: iOS- und Android-Clients einer einzelnen lokalen Kassensturz-Installation
 - Sicherheit: siehe [Mobile API security requirements](0002-mobile-api-security.md) und [DTOs / Zustandsmodell](0004-mobile-api-dto-state-machine.md)
 
@@ -8,7 +8,7 @@ Dieser Vertrag beschreibt die Schnittstelle und ihre Sicherheitssemantik. Die Pa
 
 ## 1. Deployment und Transport
 
-- Mobile API und Pairing sind standardmäßig deaktiviert.
+- Mobile-Routen sind im Backend registriert. Der Remote-Zugriff bleibt standardmäßig geschlossen: Die optionale Host-Port-Zuordnung ist deaktiviert, und die Proxy-/Client-Allowlists sind leer.
 - Jeder Pairing- und authentifizierte Request benötigt HTTPS mit gültiger Zertifikatsprüfung auf dem Client.
 - Für Remote-Zugriff wird ausschließlich ein vom Kunden verwaltetes VPN empfohlen.
 - Keine direkte öffentliche Portfreigabe und kein Kassensturz-Relay.
@@ -135,6 +135,7 @@ Erfolgsantwort enthält die gleichen Tokenfelder wie die Pairing-Antwort, jedoch
 | POST | `/api/v1/pair` | Pairing einlösen | gültiges One-Time-Secret |
 | POST | `/api/v1/auth/refresh` | Tokens rotieren | gültiges Refresh-Token |
 | POST | `/api/v1/auth/logout` | Gerät abmelden | gültiges Access-Token |
+| GET | `/api/v1/health` | nicht vertraulicher Healthcheck vor dem Pairing | kein Token; HTTPS und Netzfreigabe erforderlich |
 | GET | `/api/v1/me` | Geräteidentität und Serverstatus | gültiges Access-Token |
 | GET | `/api/v1/overview` | Finanzübersicht | gültiges Access-Token |
 | GET | `/api/v1/transactions` | paginierte Buchungen | gültiges Access-Token |
@@ -180,6 +181,7 @@ Aktueller Implementierungsbaseline für das Netzwerk-Limit (pro ermittelter Clie
 | Pairing einlösen | 10 | 5 Minuten |
 | Refresh | 30 | 1 Minute |
 | Logout | 20 | 1 Minute |
+| Healthcheck | 60 | 1 Minute |
 | Geräte-/Status-/Übersicht-/Buchungs-Lesezugriff | 120 | 1 Minute |
 | Pairing erzeugen | 5 | 15 Minuten |
 | Gerät widerrufen | 10 | 5 Minuten |
@@ -216,11 +218,12 @@ Folgende Routen sind im Backend registriert:
 | POST | `/api/v1/pair` | Einmaliges Pairing einlösen, Token ausgeben |
 | POST | `/api/v1/auth/refresh` | Refresh-Token rotieren |
 | POST | `/api/v1/auth/logout` | Aktuelles Gerät abmelden |
+| GET | `/api/v1/health` | nicht vertraulicher Healthcheck; vor Pairing erreichbar |
 | GET | `/api/v1/me` | Geräteidentität und Serverfähigkeiten |
 | GET | `/api/v1/overview` | Allowlist-Dashboard-DTO |
 | GET | `/api/v1/transactions` | Allowlist-Buchungs-DTO mit Pagination/Filtern |
 
-Die Routen sind durch `tests/test_mobile_api.py` und `tests/test_network_boundary.py` abgedeckt. Die Flutter-App ruft diese Endpunkte noch nicht auf. Die Standard-Netz-Allowlist ist leer; die Standalone-Compose-Variante bleibt auf `127.0.0.1` gebunden. Die In-Memory-Rate-Limits sind nur für einen Prozess vorgesehen und müssen vor Mehrprozessbetrieb durch gemeinsamen transaktionalen Zustand ersetzt werden.
+Die Routen sind durch `tests/test_mobile_api.py` und `tests/test_network_boundary.py` abgedeckt. Die Flutter-App kann Serverstatus, Pairing, Tokenrotation, Dashboard und paginierte Buchungen bereits über den Mobile-API-Client abrufen. Der neue Healthcheck liefert ausschließlich Status, API-Version und Produktversion; er benötigt vor dem Pairing kein Token. Die Standard-Netz-Allowlist ist leer; die Standalone-Compose-Variante bleibt auf `127.0.0.1` gebunden. Der Remote-Zugriff auf dem Home Assistant Green wird erst nach Prüfung des Tailscale-Service-Proxys freigegeben. Die In-Memory-Rate-Limits sind nur für einen Prozess vorgesehen und müssen vor Mehrprozessbetrieb durch gemeinsamen transaktionalen Zustand ersetzt werden.
 
 ## 10. Verbindliche Freigabekriterien
 
