@@ -12,9 +12,7 @@ void main() {
         store: SharedPreferencesStringKeyValueStore(),
       ),
       accountRepository: EncryptedAccountRepository(
-        keyStore: SecureAccountKeyStore(
-          store: FlutterSecureValueStore(),
-        ),
+        keyStore: SecureAccountKeyStore(store: FlutterSecureValueStore()),
       ),
     ),
   );
