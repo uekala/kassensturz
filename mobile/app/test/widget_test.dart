@@ -44,6 +44,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const KassensturzApp());
+    await tester.pumpAndSettle();
 
     expect(find.text('886,74 €'), findsOneWidget);
     await tester.scrollUntilVisible(
