@@ -18,9 +18,7 @@ void main() {
         keyStore: SecureAccountKeyStore(store: FlutterSecureValueStore()),
       ),
       mobileConnectionController: MobileConnectionController(
-        apiClient: MobileApiClient(
-          sessionStore: SecureMobileSessionStore(),
-        ),
+        apiClient: MobileApiClient(sessionStore: SecureMobileSessionStore()),
       ),
     ),
   );
