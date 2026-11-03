@@ -229,7 +229,17 @@ def now_iso() -> str:
 
 class Database:
     def __init__(self, path: Path):
-        path.parent.mkdir(parents=True, exist_ok=True)
+        # Financial data lives in a private directory. Restrict the directory
+        # as well as the main database file so SQLite WAL/SHM sidecars inherit
+        # a private access boundary even when their own mode depends on umask.
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(path.parent, 0o700)
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(path, flags, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+        finally:
+            os.close(fd)
         self.path = path
         self.lock = threading.RLock()
         self.conn = sqlite3.connect(str(path), check_same_thread=False, isolation_level=None)
