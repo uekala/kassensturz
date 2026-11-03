@@ -23,19 +23,21 @@ Kassensturz läuft als bestehende Home-Assistant-App (Add-on) auf dem Green. Die
 
 ## Netz- und Freigabegrenzen
 
-Die bestehende Home-Assistant-Ingress-Oberfläche bleibt der administrative Weg für die Kassensturz-Weboberfläche. Native Mobile-Clients erhalten später einen eigenen HTTPS-Zugriffsweg auf die versionierte Mobile-API.
+Die bestehende Home-Assistant-Ingress-Oberfläche bleibt der administrative Weg für die Kassensturz-Weboberfläche. Native Mobile-Clients erhalten einen separaten HTTPS-Zugriffsweg über einen Tailscale Service. Dieser Dienst hat einen eigenen Tailscale-Service-Namen und verändert die bestehende Home-Assistant-Adresse nicht.
 
 Wichtige Grenzen:
 
-1. Die Add-on-Portfreigabe bleibt standardmäßig deaktiviert. ingress_port ist der interne Port des Add-ons und allein keine Freigabe für LAN- oder VPN-Clients.
-2. KASSENSTURZ_MOBILE_CLIENT_NETWORKS bleibt leer, bis die tatsächliche VPN-/LAN-Topologie bekannt und der Zugriff gezielt eingerichtet ist.
-3. Es wird kein Router-Portforwarding und kein öffentlich erreichbarer Kassensturz-Port eingerichtet.
-4. Native Clients akzeptieren ausschließlich HTTPS mit gültiger Zertifikatsprüfung.
-5. Für HTTPS-Terminierung vor dem Add-on wird ein explizit vertrauenswürdiger Proxy benötigt. Dessen unmittelbare Peer-IP muss in KASSENSTURZ_TRUSTED_PROXIES stehen. Weitergeleitete Header von nicht vertrauenswürdigen Gegenstellen sind nicht zulässig.
-6. Die bestehende Ingress-Sitzung wird nicht als Ersatz für die Geräteauthentifizierung der Mobile-API verwendet.
-7. Die lokale Geräteverwaltung (Pairing-Secret erzeugen, Geräte auflisten/widerrufen) bleibt dem authentifizierten Home-Assistant-Ingress-/Loopback-Administrationspfad vorbehalten.
+1. Die neue Container-Portfreigabe für 8099/TCP ist in `config.yaml` mit `null` standardmäßig deaktiviert. `ingress_port: 8099` ist weiterhin nur der interne Ingress-Port.
+2. Erst für den Tailscale-Service wird in der HA-App-Netzwerkverwaltung ein dedizierter Host-Port (vorgesehen: 18099) auf den Container-Port 8099 abgebildet.
+3. Das Tailscale-Add-on veröffentlicht einen eigenen Service `svc:kassensturz`, der intern auf `http://127.0.0.1:18099` zeigt und nach außen HTTPS auf Port 443 bereitstellt. Das Tailscale-Add-on muss die `services`-Option unterstützen und im Host-Netzwerk laufen.
+4. Der Service muss in der Tailscale-Admin-Konsole definiert und der Home-Assistant-Knoten als Service-Host freigegeben werden. Er wird mit einer Tailscale-Grant-Regel ausschließlich für den gewünschten eigenen Nutzer bzw. eine ausdrücklich ausgewählte Gruppe erreichbar gemacht.
+5. Die `trusted_proxies`- und `mobile_client_networks`-Optionen des Kassensturz-Add-ons bleiben leer, bis die tatsächliche Proxy-Gegenstelle und die vom Proxy weitergereichte Client-Adresse am Green überprüft wurden. Danach werden nur die exakt beobachteten Proxy-/Client-CIDRs eingetragen; keine pauschale Freigabe des gesamten Supervisor-Netzes.
+6. Die App-Middleware verweigert direkte Requests von nicht freigegebenen LAN-/VPN-Peers. Die Portfreigabe wird von außen nicht am Router weitergeleitet und es wird kein Funnel für Kassensturz aktiviert.
+7. Native Clients akzeptieren ausschließlich HTTPS mit gültiger Zertifikatsprüfung.
+8. Die bestehende Ingress-Sitzung wird nicht als Ersatz für die Geräteauthentifizierung der Mobile-API verwendet.
+9. Die lokale Geräteverwaltung (Pairing-Secret erzeugen, Geräte auflisten/widerrufen) bleibt dem Home-Assistant-Ingress-/Loopback-Administrationspfad vorbehalten.
 
-Die Home-Assistant-App-Konfiguration unterstützt explizite Container-Port-Mappings; ein Mapping kann deaktiviert bleiben. Die genaue Netzwerk- und TLS-Integration wird vor der Freigabe für native Clients separat umgesetzt und getestet. Siehe [Home Assistant App configuration](https://developers.home-assistant.io/docs/apps/configuration/).
+Home Assistant unterstützt deaktivierte Port-Mappings mit `null`; die Tailscale-Addon-Dokumentation beschreibt den `services`-Mechanismus für weitere lokale Dienste. Siehe [Home Assistant App configuration](https://developers.home-assistant.io/docs/apps/configuration/) und [Tailscale-Addon services](https://github.com/hassio-addons/app-tailscale/blob/main/tailscale/DOCS.md#option-services).
 
 ## Datenhaltung und Backup
 
@@ -54,12 +56,13 @@ Die derzeitige In-Memory-Rate-Limit-Implementierung ist nur für einen einzelnen
 ## Umsetzungsreihenfolge
 
 1. Backend-API und Sicherheitsprüfungen im separaten Feature-Branch fertigstellen.
-2. Sicheren, dedizierten HTTPS-Zugriffsweg über das bestehende VPN entwerfen; keine Portfreigabe standardmäßig aktivieren.
+2. Optionales Add-on-Port-Mapping und die Tailscale-Service-Definition vorbereiten, standardmäßig weiterhin deaktiviert lassen.
 3. HA-App-Build für die Green-Architektur (aarch64) in CI verifizieren.
 4. Pairing-Erzeugung ausschließlich für Home-Assistant-Administratoren in der Ingress-Oberfläche bereitstellen.
 5. Flutter-Verbindungsassistent, Healthcheck, QR-Pairing und Secure Storage integrieren.
 6. End-to-End-Tests auf dem realen Green mit iOS und Android ausführen.
-7. Erst nach Backup-/Restore-, Widerrufs- und Netzwerktests den Zugriff für die persönliche Nutzung aktivieren.
+7. Tailscale-Service und Proxy-Header auf dem realen Green prüfen; LAN-Direktzugriff muss mit 403 abgewiesen und der HTTPS-Service im Tailnet erfolgreich erreichbar sein.
+8. Erst nach Backup-/Restore-, Widerrufs- und Netzwerktests den Zugriff für die persönliche Nutzung aktivieren.
 
 ## Konsequenzen
 
