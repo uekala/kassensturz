@@ -182,3 +182,89 @@ def test_rate_limiter_rejects_invalid_parameters():
         limiter.hit("device", limit=0, window_seconds=60)
     with pytest.raises(ValueError):
         limiter.hit("device", limit=1, window_seconds=0)
+
+def test_addon_proxy_options_default_to_empty_and_accept_explicit_networks(
+    monkeypatch,
+):
+    from kassensturz import options
+
+    monkeypatch.setattr(
+        options,
+        "load",
+        lambda: {"trusted_proxies": "", "mobile_client_networks": ""},
+    )
+    monkeypatch.delenv("KASSENSTURZ_TRUSTED_PROXIES", raising=False)
+    monkeypatch.delenv("KASSENSTURZ_MOBILE_CLIENT_NETWORKS", raising=False)
+
+    assert options.network_security_settings() == {
+        "trusted_proxies": "",
+        "mobile_client_networks": "",
+    }
+
+    monkeypatch.setenv("KASSENSTURZ_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("KASSENSTURZ_MOBILE_CLIENT_NETWORKS", "127.0.0.1/32")
+    assert options.network_security_settings() == {
+        "trusted_proxies": "127.0.0.1/32",
+        "mobile_client_networks": "127.0.0.1/32",
+    }
+
+
+def test_addon_network_options_are_used_when_environment_is_unset(monkeypatch):
+    from kassensturz import options
+
+    monkeypatch.setattr(
+        options,
+        "load",
+        lambda: {
+            "trusted_proxies": "172.30.32.1/32",
+            "mobile_client_networks": "172.30.32.1/32",
+        },
+    )
+    monkeypatch.delenv("KASSENSTURZ_TRUSTED_PROXIES", raising=False)
+    monkeypatch.delenv("KASSENSTURZ_MOBILE_CLIENT_NETWORKS", raising=False)
+
+    settings = options.network_security_settings()
+    assert settings == {
+        "trusted_proxies": "172.30.32.1/32",
+        "mobile_client_networks": "172.30.32.1/32",
+    }
+    assert len(parse_trusted_proxy_networks(settings["trusted_proxies"])) == 1
+    assert len(parse_trusted_proxy_networks(settings["mobile_client_networks"])) == 1
+
+
+def test_environment_can_explicitly_override_addon_network_options_with_empty(
+    monkeypatch,
+):
+    from kassensturz import options
+
+    monkeypatch.setattr(
+        options,
+        "load",
+        lambda: {
+            "trusted_proxies": "127.0.0.1/32",
+            "mobile_client_networks": "127.0.0.1/32",
+        },
+    )
+    monkeypatch.setenv("KASSENSTURZ_TRUSTED_PROXIES", "")
+    monkeypatch.setenv("KASSENSTURZ_MOBILE_CLIENT_NETWORKS", "")
+
+    assert options.network_security_settings() == {
+        "trusted_proxies": "",
+        "mobile_client_networks": "",
+    }
+
+
+def test_addon_network_options_reject_non_string_values(monkeypatch):
+    from kassensturz import options
+
+    monkeypatch.setattr(
+        options,
+        "load",
+        lambda: {"trusted_proxies": [], "mobile_client_networks": ""},
+    )
+    monkeypatch.delenv("KASSENSTURZ_TRUSTED_PROXIES", raising=False)
+    monkeypatch.delenv("KASSENSTURZ_MOBILE_CLIENT_NETWORKS", raising=False)
+
+    with pytest.raises(ValueError):
+        options.network_security_settings()
+
