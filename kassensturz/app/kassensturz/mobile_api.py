@@ -145,6 +145,16 @@ def revoke_device(device_id: str, request: Request):
     return {"ok": True}
 
 
+@router.get("/api/v1/health")
+def mobile_health():
+    """Return non-sensitive API health data for pre-pairing connection checks."""
+    return {
+        "status": "ok",
+        "api_version": 1,
+        "server": {"name": "Kassensturz", "version": options.VERSION},
+    }
+
+
 @router.post("/api/v1/pair")
 async def redeem_pairing(request: Request):
     """Redeem a one-time pairing secret and issue device credentials."""
