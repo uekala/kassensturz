@@ -24,7 +24,8 @@ SQLite stores financial transactions and connection metadata. The data directory
 | Access-/refresh-token HTTP routes | Not implemented |
 | Mobile device listing and revocation routes | Not implemented |
 | Authenticated mobile DTO routes | Not implemented; only internal DTO-building functions exist |
-| HTTPS enforcement for a mobile listener | Not implemented |
+| HTTPS enforcement for mobile namespaces | Middleware gate for `/api/v1/*` and `/api/mobile/*`; accepts direct TLS or `X-Forwarded-Proto: https` from explicitly allowlisted proxies. The listener remains restricted to Ingress/loopback. |
+| Network rate limiting | Bounded, process-local sliding-window limiter wired to reserved pairing, refresh, logout, read and device-management paths; routes remain unregistered. Per-device refresh limits and shared multi-worker storage remain outstanding. |
 | Flutter client | UI prototype; no server connection or mobile authentication |
 | Local account store | Encrypted SQLite3MultipleCiphers database; random 256-bit key in platform secure storage; manual account data only |
 | Local budget preferences | SharedPreferences; category IDs and limits only, not encrypted |
@@ -32,7 +33,7 @@ SQLite stores financial transactions and connection metadata. The data directory
 
 The current FastAPI application has only the existing Home Assistant / loopback network boundary. It does not register the mobile routes in the API contract. The prepared database tables do not provide authentication by themselves. The existing `/api/*` routes must not be treated as device-authenticated routes, and the standalone deployment remains bound to loopback only.
 
-The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The `mobile_auth.py` module implements only the internal credential lifecycle and `mobile_read.py` builds allowlisted overview/transaction responses; neither is registered as an HTTP router and neither can be reached over the network. Pairing administration authorization, rate limiting, HTTPS enforcement, authenticated DTO routes and the Flutter connection flow are still outstanding.
+The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The `mobile_auth.py` module implements only the internal credential lifecycle and `mobile_read.py` builds allowlisted overview/transaction responses; neither is registered as an HTTP router and neither can be reached over the network. The reserved mobile namespaces now reject cleartext requests. Forwarded transport/client headers are considered only when the immediate peer is in `KASSENSTURZ_TRUSTED_PROXIES`. Network rate limits are wired before route dispatch, but the in-memory limiter is single-process only. Pairing administration authorization, per-device rate limits, persistent shared rate-limit state, authenticated DTO routes and the Flutter connection flow remain outstanding.
 
 
 ## Required controls before a mobile listener is enabled
@@ -66,7 +67,7 @@ The detailed contract in [0003](0003-mobile-api-contract.md) and state machine i
 - Require authorization for all financial data and mutation endpoints.
 - Default-deny unknown routes and methods.
 - Enforce request DTO validation, pagination limits and upload limits.
-- Apply per-device rate limits to pairing, login/refresh and expensive operations.
+- Apply network rate limits before dispatch and per-device rate limits to pairing, login/refresh and expensive operations. The current in-memory implementation is only valid for one process; use shared transactional state before multi-worker deployment.
 - Keep CORS disabled unless a documented browser client requires specific origins.
 - Prefer bearer authorization headers over cookie-based sessions for native clients.
 
@@ -93,7 +94,7 @@ The detailed contract in [0003](0003-mobile-api-contract.md) and state machine i
 - Confirm the provider's commercial / customer usage terms before enabling third-party users.
 
 ## Security testing
-- Unit tests for pairing expiry, single use, rate limits, token rotation and revocation.
+- Unit tests for pairing expiry, single use, token rotation, revocation, trusted proxy parsing, HTTPS enforcement and rate-limit boundaries.
 - API tests proving unauthenticated clients cannot read or modify financial data.
 - Tests for tenant isolation if multi-user support is ever introduced.
 - Import tests for oversized and malformed ZIP archives and XML files.
