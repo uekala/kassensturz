@@ -18,10 +18,16 @@ from fastapi.staticfiles import StaticFiles
 from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
                secrets_store, services)
 from .db import get_db, now_iso
+from .mobile_security import parse_trusted_proxy_networks, request_is_https
 
 log = logging.getLogger("kassensturz")
 STATIC = Path(__file__).parent / "static"
 INGRESS_IP = "172.30.32.2"
+# Proxy addresses are trusted only when explicitly configured by an administrator.
+TRUSTED_PROXY_NETWORKS = parse_trusted_proxy_networks(
+    os.environ.get("KASSENSTURZ_TRUSTED_PROXIES")
+)
+MOBILE_API_PREFIXES = ("/api/v1", "/api/mobile")
 
 @asynccontextmanager
 async def lifespan(_app):
@@ -43,8 +49,22 @@ _imports: dict[str, dict] = {}
 @app.middleware("http")
 async def only_ingress(request: Request, call_next):
     client = request.client.host if request.client else ""
-    # Development mode never bypasses the network boundary. Only the
-    # Home Assistant Ingress peer and local loopback clients are accepted.
+
+    # Mobile namespaces require direct TLS or an HTTPS assertion from an
+    # explicitly trusted proxy. The routes are not registered yet; this is a
+    # fail-closed transport gate, not permission to expose a new listener.
+    is_mobile_api = request.url.path == "/api/v1" or request.url.path.startswith(
+        tuple(prefix + "/" for prefix in MOBILE_API_PREFIXES)
+    )
+    if is_mobile_api and not request_is_https(request, TRUSTED_PROXY_NETWORKS):
+        return JSONResponse(
+            {"error": {"code": "https_required", "message": "HTTPS ist erforderlich."}},
+            status_code=426,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    # Development mode never bypasses the existing network boundary. Only
+    # the Home Assistant Ingress peer and local loopback clients are accepted.
     if client not in (INGRESS_IP, "127.0.0.1", "::1"):
         return JSONResponse({"detail": "Nur über Home Assistant erreichbar."}, status_code=403)
     response = await call_next(request)
