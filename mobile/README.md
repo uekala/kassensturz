@@ -27,6 +27,8 @@ Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/
 - [ ] Verbindungsassistent und Server-Healthcheck.
 - [ ] QR-Pairing und Geräteverwaltung über HTTP-Endpunkte.
 - [x] Serverseitiger Pairing-/Token-Lifecycle als HTTP-freier Service mit Tests (Einmal-Secrets, Tokenrotation, Replay-Erkennung und Gerätewiderruf).
+- [x] HTTPS-Sperre für reservierte Mobile-API-Pfade und Prüfung explizit vertrauenswürdiger Proxy-Header.
+- [x] Netzwerk-Rate-Limits vor dem Route-Dispatch für Pairing, Refresh, Logout, Lesezugriffe und Geräteverwaltung.
 - [ ] Sichere Credential-Ablage im Flutter-Client und Tokenrotation über die API.
 - [x] Demo-Oberflächen für Dashboard, Konten, Buchungen und Budgets mit klar gekennzeichneten Beispieldaten.
 - [x] Manuelle lokale Kontenpflege mit verschlüsselter SQLite-Datenbank und Schlüsselablage im Betriebssystem.
@@ -36,7 +38,7 @@ Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/
 - [ ] Integrationstests auf iOS und Android.
 - [ ] Signierte Builds und Store-Veröffentlichungen.
 
-**Aktueller Implementierungsstand:** Das Flutter-Dart-Projekt enthält Demo-Oberflächen, lokale Kontenpflege und Budgetlimits. Im Python-Backend existieren interne Services für Geräte-Pairing/Token-Lifecycle sowie für allowlist-basierte Mobile-DTOs der Übersicht und Buchungsliste. Beide sind getestet, aber noch nicht als HTTP-Routen registriert. Es gibt weiterhin keine produktiven Mobile-API- oder Pairing-HTTP-Endpunkte und keine echte Serververbindung. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
+**Aktueller Implementierungsstand:** Das Flutter-Dart-Projekt enthält Demo-Oberflächen, lokale Kontenpflege und Budgetlimits. Im Python-Backend existieren interne Services für Pairing/Token-Lifecycle und allowlist-basierte Mobile-DTOs. Die reservierten Mobile-API-Pfade sind bereits mit einer HTTPS-Sperre und Netzwerk-Rate-Limits versehen. Es gibt weiterhin keine produktiven Mobile-API- oder Pairing-HTTP-Endpunkte und keine echte Serververbindung. Der aktuelle Rate-Limiter ist prozesslokal und setzt einen einzelnen App-Prozess voraus; gerätebezogene Limits und gemeinsamer Zustand für Mehrprozessbetrieb stehen noch aus. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
 
 ## Geplante Projektstruktur
 
