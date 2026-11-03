@@ -5,6 +5,7 @@ import '../core/data/account_repository.dart';
 import '../core/data/budget_controller.dart';
 import '../core/data/budget_repository.dart';
 import '../core/widgets/demo_notice.dart';
+import '../core/networking/mobile_connection_controller.dart';
 import '../features/accounts/accounts_page.dart';
 import '../features/budget/budget_page.dart';
 import '../features/dashboard/dashboard_page.dart';
@@ -16,10 +17,12 @@ class KassensturzShell extends StatefulWidget {
     super.key,
     this.budgetRepository,
     this.accountRepository,
+    this.mobileConnectionController,
   });
 
   final BudgetRepository? budgetRepository;
   final AccountRepository? accountRepository;
+  final MobileConnectionController? mobileConnectionController;
 
   @override
   State<KassensturzShell> createState() => _KassensturzShellState();
@@ -29,6 +32,7 @@ class _KassensturzShellState extends State<KassensturzShell> {
   int _selectedIndex = 0;
   late final BudgetController _budgetController;
   late final AccountController _accountController;
+  late final MobileConnectionController _mobileConnectionController;
 
   @override
   void initState() {
@@ -41,12 +45,16 @@ class _KassensturzShellState extends State<KassensturzShell> {
       repository: widget.accountRepository ?? InMemoryAccountRepository(),
     );
     _accountController.load();
+    _mobileConnectionController =
+        widget.mobileConnectionController ?? MobileConnectionController.preview();
+    _mobileConnectionController.restore();
   }
 
   @override
   void dispose() {
     _budgetController.dispose();
     _accountController.dispose();
+    _mobileConnectionController.dispose();
     super.dispose();
   }
 
@@ -107,7 +115,7 @@ class _KassensturzShellState extends State<KassensturzShell> {
       AccountsPage(controller: _accountController),
       BudgetPage(controller: _budgetController),
       const TransactionsPage(),
-      const MorePage(),
+      MorePage(controller: _mobileConnectionController),
     ];
 
     return Scaffold(
