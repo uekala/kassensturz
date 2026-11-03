@@ -19,6 +19,7 @@ Kassensturz läuft als bestehende Home-Assistant-App (Add-on) auf dem Green. Die
 - **Datenbank:** lokale SQLite-Datenbank im persistenten Add-on-Datenverzeichnis.
 - **Mobile Client:** gemeinsame Flutter-App für iOS und Android.
 - **Zugriff:** lokal im WLAN oder über das vom Nutzer verwaltete VPN.
+- **Pairing:** QR-Code wird nur erzeugt, wenn die optionale Add-on-Option `mobile_server_url` eine gültige HTTPS-Origin enthält. Sie ist standardmäßig leer und wird erst nach Verifikation der Tailscale-Service-Adresse gepflegt.
 - **Vertrauensmodell:** ein Haushalt, eine lokale Installation, kein Kassensturz-Cloudkonto, kein Relay und kein öffentlicher Port.
 
 ## Netz- und Freigabegrenzen
