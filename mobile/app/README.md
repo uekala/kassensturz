@@ -15,6 +15,12 @@ The current navigation contains:
 
 Every screen displays a persistent notice that the visible values are example data.
 
+Budget limits are stored on the device using the asynchronous SharedPreferences API.
+Only category IDs and budget amounts are stored there; credentials, bank details and
+transaction data are not. SharedPreferences is lightweight app storage and is not an
+authoritative financial database. The repository abstraction is designed so the
+storage implementation can be replaced when the Kassensturz server is available.
+
 ## Requirements
 
 - Flutter SDK 3.47.9 from the stable channel (same version as CI)
