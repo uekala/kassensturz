@@ -94,7 +94,8 @@ class _AccountCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.35)),
+        border:
+            Border.all(color: colors.outlineVariant.withValues(alpha: 0.35)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
