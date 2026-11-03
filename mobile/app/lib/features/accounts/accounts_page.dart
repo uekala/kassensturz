@@ -4,12 +4,27 @@ class AccountsPage extends StatelessWidget {
   const AccountsPage({super.key});
 
   static const _accounts = [
-    _Account('Girokonto', 'Musterbank · •• 4821', '2.486,30 €',
-        Icons.account_balance_rounded, 'Giro'),
-    _Account('Tagesgeld', 'Musterbank · •• 1093', '8.250,00 €',
-        Icons.savings_outlined, 'Sparen'),
-    _Account('Kreditkarte', 'Beispiel Visa · •• 7712', '−324,80 €',
-        Icons.credit_card_rounded, 'Kredit'),
+    _Account(
+      'Girokonto',
+      'Musterbank · •• 4821',
+      '2.486,30 €',
+      Icons.account_balance_rounded,
+      'Giro',
+    ),
+    _Account(
+      'Tagesgeld',
+      'Musterbank · •• 1093',
+      '8.250,00 €',
+      Icons.savings_outlined,
+      'Sparen',
+    ),
+    _Account(
+      'Kreditkarte',
+      'Beispiel Visa · •• 7712',
+      '−324,80 €',
+      Icons.credit_card_rounded,
+      'Kredit',
+    ),
   ];
 
   @override
@@ -94,8 +109,9 @@ class _AccountCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border:
-            Border.all(color: colors.outlineVariant.withValues(alpha: 0.35)),
+        border: Border.all(
+          color: colors.outlineVariant.withValues(alpha: 0.35),
+        ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -130,13 +146,7 @@ class _AccountCard extends StatelessWidget {
 }
 
 class _Account {
-  const _Account(
-    this.name,
-    this.details,
-    this.balance,
-    this.icon,
-    this.type,
-  );
+  const _Account(this.name, this.details, this.balance, this.icon, this.type);
 
   final String name;
   final String details;
