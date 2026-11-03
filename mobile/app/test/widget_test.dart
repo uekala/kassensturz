@@ -290,19 +290,7 @@ void main() {
     expect(find.text('Gehalt'), findsNothing);
     expect(find.text('REWE'), findsOneWidget);
   });
-}
 
-class _FailingBudgetRepository implements BudgetRepository {
-  @override
-  Future<Map<String, double>> loadLimits() async {
-    throw const FormatException('Corrupted local budget data');
-  }
-
-  @override
-  Future<void> saveLimits(Map<String, double> limits) async {
-    throw StateError('Local storage is unavailable');
-  }
-}
 
   testWidgets('pairing form requires HTTPS server URL and a one-time code', (
     tester,
@@ -322,4 +310,16 @@ class _FailingBudgetRepository implements BudgetRepository {
     expect(find.text('Der Pairing-Code ist ungültig.'), findsOneWidget);
     expect(find.text('OFFLINE'), findsOneWidget);
   });
+}
 
+class _FailingBudgetRepository implements BudgetRepository {
+  @override
+  Future<Map<String, double>> loadLimits() async {
+    throw const FormatException('Corrupted local budget data');
+  }
+
+  @override
+  Future<void> saveLimits(Map<String, double> limits) async {
+    throw StateError('Local storage is unavailable');
+  }
+}
