@@ -12,7 +12,7 @@ void main() {
 
       final limits = await repository.loadLimits();
 
-      expect(limits, DemoFinanceData.defaultBudgetLimits);
+      expect(limits, equals(DemoFinanceData.defaultBudgetLimits));
     });
 
     test('round-trips limits across repository instances', () async {
