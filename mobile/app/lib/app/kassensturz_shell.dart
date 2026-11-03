@@ -112,10 +112,11 @@ class _KassensturzShellState extends State<KassensturzShell> {
         onOpenTransactions: _openTransactions,
         onOpenBudget: _openBudget,
         budgetController: _budgetController,
+        mobileController: _mobileConnectionController,
       ),
       AccountsPage(controller: _accountController),
       BudgetPage(controller: _budgetController),
-      const TransactionsPage(),
+      TransactionsPage(controller: _mobileConnectionController),
       MorePage(controller: _mobileConnectionController),
     ];
 
@@ -153,43 +154,82 @@ class _KassensturzShellState extends State<KassensturzShell> {
           ],
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1D6),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.science_outlined,
-                      size: 13,
-                      color: Color(0xFF865B12),
+          AnimatedBuilder(
+            animation: _mobileConnectionController,
+            builder: (context, _) {
+              final connected = _mobileConnectionController.isConnected;
+              final color = connected
+                  ? const Color(0xFF22613D)
+                  : const Color(0xFF865B12);
+              return Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 5,
                     ),
-                    SizedBox(width: 5),
-                    Text(
-                      'DEMO',
-                      style: TextStyle(
-                        color: Color(0xFF865B12),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
-                      ),
+                    decoration: BoxDecoration(
+                      color: connected
+                          ? const Color(0xFFE8F5EE)
+                          : const Color(0xFFFFF1D6),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          connected
+                              ? Icons.cloud_done_outlined
+                              : Icons.science_outlined,
+                          size: 13,
+                          color: color,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          connected ? 'SERVER' : 'DEMO',
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
       body: Column(
         children: [
-          const DemoNotice(),
+          AnimatedBuilder(
+            animation: _mobileConnectionController,
+            builder: (context, _) {
+              if (!_mobileConnectionController.isConnected) {
+                return const DemoNotice();
+              }
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 9,
+                ),
+                color: const Color(0xFFE8F5EE),
+                child: const Text(
+                  'Server verbunden: Übersicht und Buchungen zeigen Serverdaten. Konten und Budgets sind noch lokale App-Funktionen.',
+                  style: TextStyle(
+                    color: Color(0xFF22613D),
+                    fontSize: 11,
+                    height: 1.35,
+                  ),
+                ),
+              );
+            },
+          ),
           Expanded(
             child: IndexedStack(index: _selectedIndex, children: pages),
           ),
