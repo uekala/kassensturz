@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/data/budget_controller.dart';
 import '../../core/data/demo_finance_data.dart';
 
 class BudgetPage extends StatefulWidget {
-  const BudgetPage({super.key});
+  const BudgetPage({
+    super.key,
+    required this.controller,
+  });
+
+  final BudgetController controller;
 
   @override
   State<BudgetPage> createState() => _BudgetPageState();
@@ -14,9 +20,8 @@ class _BudgetPageState extends State<BudgetPage> {
   static final _months = [DateTime(2026, 11), DateTime(2026, 10)];
 
   int _selectedMonth = 0;
-  late final Map<String, double> _limits =
-      Map<String, double>.from(DemoFinanceData.defaultBudgetLimits);
 
+  Map<String, double> get _limits => widget.controller.limits;
   DateTime get _month => _months[_selectedMonth];
   String get _monthLabel =>
       _month.month == 11 ? 'November 2026' : 'Oktober 2026';
@@ -31,10 +36,24 @@ class _BudgetPageState extends State<BudgetPage> {
       .where((category) => _limits.containsKey(category.id))
       .toList();
 
+  Future<void> _saveLimits(Map<String, double> nextLimits) async {
+    final saved = await widget.controller.saveLimits(nextLimits);
+    if (!saved && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Budget konnte nicht gespeichert werden. Bitte erneut versuchen.'),
+        ),
+      );
+    }
+  }
+
   Future<void> _addBudget() async {
     final draft = await _editBudgetDialog();
     if (draft == null) return;
-    setState(() => _limits[draft.categoryId] = draft.limit);
+
+    final next = Map<String, double>.from(_limits)
+      ..[draft.categoryId] = draft.limit;
+    await _saveLimits(next);
   }
 
   Future<void> _editBudget(String categoryId) async {
@@ -44,12 +63,12 @@ class _BudgetPageState extends State<BudgetPage> {
     );
     if (draft == null) return;
 
-    setState(() {
-      if (draft.categoryId != categoryId) {
-        _limits.remove(categoryId);
-      }
-      _limits[draft.categoryId] = draft.limit;
-    });
+    final next = Map<String, double>.from(_limits);
+    if (draft.categoryId != categoryId) {
+      next.remove(categoryId);
+    }
+    next[draft.categoryId] = draft.limit;
+    await _saveLimits(next);
   }
 
   Future<void> _deleteBudget(String categoryId) async {
@@ -72,7 +91,8 @@ class _BudgetPageState extends State<BudgetPage> {
       ),
     );
     if (confirmed == true) {
-      setState(() => _limits.remove(categoryId));
+      final next = Map<String, double>.from(_limits)..remove(categoryId);
+      await _saveLimits(next);
     }
   }
 
@@ -152,7 +172,7 @@ class _BudgetPageState extends State<BudgetPage> {
                   validator: (value) {
                     final normalized = (value ?? '').replaceAll(',', '.');
                     final amount = double.tryParse(normalized);
-                    if (amount == null || amount <= 0) {
+                    if (amount == null || amount <= 0 || !amount.isFinite) {
                       return 'Bitte einen Betrag größer 0 eingeben.';
                     }
                     return null;
@@ -189,6 +209,54 @@ class _BudgetPageState extends State<BudgetPage> {
 
   @override
   Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: widget.controller,
+      builder: (context, child) {
+        if (widget.controller.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (widget.controller.loadError != null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 34),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Deine Budgets konnten nicht geladen werden.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Die gespeicherten Werte bleiben unverändert. '
+                    'Prüfe den Gerätespeicher und versuche es erneut.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.tonalIcon(
+                    onPressed: widget.controller.load,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Erneut laden'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return _buildBudgetList(context);
+      },
+    );
+  }
+
+  Widget _buildBudgetList(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -220,7 +288,9 @@ class _BudgetPageState extends State<BudgetPage> {
                 label: Text(label),
                 selected: _selectedMonth == index,
                 showCheckmark: false,
-                onSelected: (_) => setState(() => _selectedMonth = index),
+                onSelected: widget.controller.isSaving
+                    ? null
+                    : (_) => setState(() => _selectedMonth = index),
                 labelStyle: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: _selectedMonth == index
@@ -240,7 +310,7 @@ class _BudgetPageState extends State<BudgetPage> {
               );
             }),
             FilledButton.tonalIcon(
-              onPressed: _addBudget,
+              onPressed: widget.controller.isSaving ? null : _addBudget,
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Hinzufügen'),
             ),
@@ -288,6 +358,7 @@ class _BudgetPageState extends State<BudgetPage> {
               category: category,
               spent: spent,
               limit: limit,
+              enabled: !widget.controller.isSaving,
               onEdit: () => _editBudget(category.id),
               onDelete: () => _deleteBudget(category.id),
             );
@@ -327,7 +398,7 @@ class _BudgetPageState extends State<BudgetPage> {
         const SizedBox(height: 12),
         Center(
           child: Text(
-            'Ausgaben aus den Buchungen berechnet. Änderungen gelten nur in dieser Demo-Sitzung.',
+            'Budgetlimits werden auf diesem Gerät gespeichert. Demo-Buchungen bleiben Beispieldaten.',
             textAlign: TextAlign.center,
             style: textTheme.labelSmall?.copyWith(
               color: colors.onSurfaceVariant,
@@ -467,6 +538,7 @@ class _CategoryBudgetCard extends StatelessWidget {
     required this.category,
     required this.spent,
     required this.limit,
+    required this.enabled,
     required this.onEdit,
     required this.onDelete,
   });
@@ -474,6 +546,7 @@ class _CategoryBudgetCard extends StatelessWidget {
   final DemoCategory category;
   final double spent;
   final double limit;
+  final bool enabled;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -527,13 +600,13 @@ class _CategoryBudgetCard extends StatelessWidget {
               ),
               IconButton(
                 tooltip: 'Budget bearbeiten: ${category.name}',
-                onPressed: onEdit,
+                onPressed: enabled ? onEdit : null,
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.edit_outlined, size: 17),
               ),
               IconButton(
                 tooltip: 'Budget löschen: ${category.name}',
-                onPressed: onDelete,
+                onPressed: enabled ? onDelete : null,
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.delete_outline_rounded, size: 18),
               ),
