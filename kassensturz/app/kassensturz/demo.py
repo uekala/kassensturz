@@ -42,7 +42,7 @@ def load_demo(db: Database) -> dict:
         y, mo = m.year, m.month
         def day(n):
             return date(y, mo, min(n, 28))
-        add(giro, day(1), -105000, "Wohnbau Niederrhein eG", "Miete Wohnung 3.OG links", "DAUERAUFTRAG", iban="DE89370400440532013000")
+        add(giro, day(1), -105000, "Wohnbau Musterstadt eG", "Miete Wohnung 3.OG links", "DAUERAUFTRAG", iban="DE89370400440532013000")
         add(giro, day(28), 345012, "Muster Systemhaus GmbH", f"LOHN/GEHALT {mo:02d}/{y}", "LOHN, GEHALT, RENTE")
         add(giro, day(15), -8900, "Stadtwerke Musterstadt AG", "Abschlag Strom Vertragskonto 400123", "FOLGELASTSCHRIFT",
             cred="DE62ZZZ00000012345", mref="SWK-400123")

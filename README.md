@@ -4,7 +4,7 @@ Haushaltsbuch als Home-Assistant-App: Umsätze per Open Banking, FinTS oder Eing
 Abo-Erkennung mit Preiserhöhungs-Hinweis, Monatsbudgets, Kontostand-Prognose bis zum nächsten Gehalt und
 Kündigungsschreiben auf Knopfdruck. Läuft vollständig lokal – ohne Cloud, ohne Werbung, ohne Vertragswechsel-Angebote.
 
-![Kassensturz](kassensturz/logo.png)
+![Kassensturz: Übersicht am Rechner und auf dem Handy](docs/screenshot.png)
 
 ## Installation
 
@@ -18,6 +18,10 @@ App Store *Nach Updates suchen* und unter „Lokale Apps“ installieren.
 
 Für den automatischen Abruf gibt es zwei Wege: Open Banking über Enable Banking (für eigene Konten kostenlos, auch für N26
 und Revolut) oder FinTS mit einer kostenlosen Produkt-ID. Alles Weitere steht in der [Anleitung](kassensturz/DOCS.md).
+
+![Verträge, Budgets und Umsätze auf dem Handy](docs/screenshots-mobil.png)
+
+*Die Bilder zeigen die Beispieldaten, die sich in der App mit einem Klick laden lassen.*
 
 ## Was anders ist als bei den bekannten Finanz-Apps
 

@@ -4,6 +4,8 @@ Kassensturz ist ein Haushaltsbuch für Home Assistant. Es sammelt die Umsätze d
 erkennt Verträge und Abos und rechnet aus, wie viel bis zum nächsten Gehalt noch frei ist. Alle Daten bleiben auf deinem
 Home-Assistant-Gerät.
 
+![Kassensturz: Übersicht](https://raw.githubusercontent.com/uekala/kassensturz/main/docs/screenshot.png)
+
 ## Erste Schritte
 
 1. App starten, unter *Info* „In der Seitenleiste anzeigen“ einschalten und **Kassensturz** öffnen.
