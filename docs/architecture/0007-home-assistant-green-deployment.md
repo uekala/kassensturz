@@ -46,7 +46,8 @@ Wichtige Grenzen:
 6. Die App-Middleware verweigert direkte Requests von nicht freigegebenen LAN-/VPN-Peers. Die Portfreigabe wird von außen nicht am Router weitergeleitet und es wird kein Funnel für Kassensturz aktiviert.
 7. Native Clients akzeptieren ausschließlich HTTPS mit gültiger Zertifikatsprüfung.
 8. Die bestehende Ingress-Sitzung wird nicht als Ersatz für die Geräteauthentifizierung der Mobile-API verwendet.
-9. Die lokale Geräteverwaltung (Pairing-Secret erzeugen, Geräte auflisten/widerrufen) bleibt dem Home-Assistant-Ingress-/Loopback-Administrationspfad vorbehalten.
+9. `panel_admin: true` beschränkt den Home-Assistant-Ingress-Einstieg ausdrücklich auf Administratoren. Die Supervisor-Kennung `X-Remote-User-Id` muss bei Ingress-Aufrufen vorhanden sein; sie wird vom Supervisor gesetzt und von nicht vertrauenswürdigen Aufrufern entfernt. Fehlt sie, werden Pairing-Erzeugung, Geräteauflistung und -widerruf abgewiesen. Loopback bleibt ausschließlich für lokale Prozesse freigegeben.
+10. Die lokale Geräteverwaltung (Pairing-Secret erzeugen, Geräte auflisten/widerrufen) bleibt dem authentifizierten Home-Assistant-Ingress-/Loopback-Administrationspfad vorbehalten.
 
 Home Assistant unterstützt deaktivierte Port-Mappings mit `null`; die Tailscale-Addon-Dokumentation beschreibt den `services`-Mechanismus für weitere lokale Dienste. Siehe [Home Assistant App configuration](https://developers.home-assistant.io/docs/apps/configuration/) und [Tailscale-Addon services](https://github.com/hassio-addons/app-tailscale/blob/main/tailscale/DOCS.md#option-services).
 
@@ -69,7 +70,7 @@ Die derzeitige In-Memory-Rate-Limit-Implementierung ist nur für einen einzelnen
 1. Backend-API und Sicherheitsprüfungen im separaten Feature-Branch fertigstellen.
 2. Optionales Add-on-Port-Mapping und die Tailscale-Service-Definition vorbereiten, standardmäßig weiterhin deaktiviert lassen.
 3. HA-App-Build für die Green-Architektur (aarch64) in CI verifizieren.
-4. Pairing-Erzeugung ausschließlich für Home-Assistant-Administratoren in der Ingress-Oberfläche bereitstellen.
+4. Pairing-Erzeugung in der Ingress-Oberfläche bereitstellen; `panel_admin: true` und `X-Remote-User-Id` serverseitig prüfen.
 5. Flutter-Verbindungsassistent, Healthcheck, QR-Pairing und Secure Storage integrieren.
 6. End-to-End-Tests auf dem realen Green mit iOS und Android ausführen.
 7. Tailscale-Service und Proxy-Header auf dem realen Green prüfen; LAN-Direktzugriff muss mit 403 abgewiesen und der HTTPS-Service im Tailnet erfolgreich erreichbar sein.
