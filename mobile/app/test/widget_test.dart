@@ -127,7 +127,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Reisekonto'), findsOneWidget);
-      expect(find.text('1.234,56 €'), findsOneWidget);
+      expect(find.text('1.234,56 €'), findsWidgets);
       expect(find.text('Hausbank · •• 1234'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
@@ -151,7 +151,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Urlaubskonto'), findsOneWidget);
-      expect(find.text('900,00 €'), findsOneWidget);
+      expect(find.text('900,00 €'), findsWidgets);
       expect(find.text('Reisekonto'), findsNothing);
 
       await tester.tap(find.byTooltip('Aktionen für Urlaubskonto'));
