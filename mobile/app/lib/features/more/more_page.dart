@@ -12,7 +12,10 @@ class MorePage extends StatelessWidget {
       children: [
         Text(
           'Verbindung & Einstellungen',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
         Text(
@@ -43,7 +46,10 @@ class MorePage extends StatelessWidget {
         const SizedBox(height: 18),
         Text(
           'Kassensturz Mobile · Prototyp',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant),
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(color: colors.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
       ],
