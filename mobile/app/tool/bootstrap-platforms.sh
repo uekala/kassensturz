@@ -18,5 +18,19 @@ flutter create \
   --platforms android,ios \
   .
 
+python3 - <<'PY'
+from pathlib import Path
+import plistlib
+
+info_path = Path("ios/Runner/Info.plist")
+with info_path.open("rb") as source:
+    info = plistlib.load(source)
+info["NSCameraUsageDescription"] = (
+    "Kassensturz verwendet die Kamera, um den einmaligen Geräte-Pairing-QR-Code zu scannen."
+)
+with info_path.open("wb") as target:
+    plistlib.dump(info, target, fmt=plistlib.FMT_XML, sort_keys=False)
+PY
+
 echo "Android- und iOS-Projektdateien wurden erstellt."
 echo "Nächster Schritt: flutter pub get && flutter test"
