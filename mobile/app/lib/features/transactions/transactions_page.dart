@@ -24,8 +24,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         case _TransactionFilter.income:
           return !transaction.isExpense;
       }
-    }).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    }).toList()..sort((a, b) => b.date.compareTo(a.date));
     return result;
   }
 
@@ -40,9 +39,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
         Text(
           'Buchungen',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
         ),
         const SizedBox(height: 5),
         Text(
@@ -77,9 +76,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
         Text(
           '${visible.length} ${visible.length == 1 ? 'Buchung' : 'Buchungen'} · Beispieldaten',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: colors.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
+            color: colors.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 5),
         if (visible.isEmpty)
@@ -151,9 +150,7 @@ class _TransactionTile extends StatelessWidget {
         transaction.title,
         style: const TextStyle(fontWeight: FontWeight.w700),
       ),
-      subtitle: Text(
-        '${category.name} · ${formatDemoDate(transaction.date)}',
-      ),
+      subtitle: Text('${category.name} · ${formatDemoDate(transaction.date)}'),
       trailing: Text(
         formatSignedEuro(transaction.amount),
         style: TextStyle(
