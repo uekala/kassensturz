@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/data/account.dart';
 import '../../core/data/account_controller.dart';
 import '../../core/data/demo_finance_data.dart';
+import '../../core/design/app_theme.dart';
 
 class AccountsPage extends StatefulWidget {
   const AccountsPage({super.key, required this.controller});
@@ -113,7 +114,7 @@ class _AccountsPageState extends State<AccountsPage> {
     final accounts = widget.controller.accounts;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,8 +126,8 @@ class _AccountsPageState extends State<AccountsPage> {
                   Text(
                     'Deine Konten',
                     style: textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.55,
                     ),
                   ),
                   const SizedBox(height: 5),
@@ -138,7 +139,7 @@ class _AccountsPageState extends State<AccountsPage> {
               ),
             ),
             const SizedBox(width: 8),
-            FilledButton.tonalIcon(
+            FilledButton.icon(
               onPressed: widget.controller.isSaving ? null : _addAccount,
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Konto'),
@@ -164,8 +165,8 @@ class _AccountsPageState extends State<AccountsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: colors.outlineVariant),
             ),
             child: Column(
@@ -425,8 +426,8 @@ class _AccountSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF104E46),
-        borderRadius: BorderRadius.circular(18),
+        color: AppTheme.brand,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -481,30 +482,41 @@ class _AccountCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 9),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: colors.outlineVariant.withValues(alpha: 0.35),
         ),
       ),
       child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
         child: ListTile(
           onTap: enabled ? onEdit : null,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 14,
             vertical: 5,
           ),
-          leading: CircleAvatar(
-            backgroundColor: colors.primaryContainer,
-            foregroundColor: colors.onPrimaryContainer,
-            child: Icon(account.type.icon, size: 20),
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(
+              account.type.icon,
+              size: 19,
+              color: colors.onSurfaceVariant,
+            ),
           ),
           title: Text(
             account.name,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 14),
           ),
-          subtitle: Text(account.details, style: const TextStyle(fontSize: 11)),
+          subtitle: Text(
+            account.details,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -515,8 +527,8 @@ class _AccountCard extends StatelessWidget {
                   Text(
                     formatEuro(account.balanceCents / 100),
                     style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
                   const SizedBox(height: 3),
