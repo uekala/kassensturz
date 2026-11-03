@@ -219,7 +219,7 @@ class _KassensturzShellState extends State<KassensturzShell> {
                 child: const Text(
                   'Server verbunden: Übersicht und Buchungen zeigen Serverdaten. Konten und Budgets sind noch lokale App-Funktionen.',
                   style: TextStyle(
-                    color: Color(0xFF22613D),
+                    color: AppTheme.brand,
                     fontSize: 11,
                     height: 1.35,
                   ),
