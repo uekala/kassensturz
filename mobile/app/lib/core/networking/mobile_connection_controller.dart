@@ -5,15 +5,12 @@ import 'mobile_session.dart';
 import 'mobile_session_store.dart';
 
 class MobileConnectionController extends ChangeNotifier {
-  MobileConnectionController({
-    required MobileApiClient apiClient,
-  }) : _apiClient = apiClient;
+  MobileConnectionController({required MobileApiClient apiClient})
+    : _apiClient = apiClient;
 
   factory MobileConnectionController.preview() {
     return MobileConnectionController(
-      apiClient: MobileApiClient(
-        sessionStore: InMemoryMobileSessionStore(),
-      ),
+      apiClient: MobileApiClient(sessionStore: InMemoryMobileSessionStore()),
     );
   }
 
