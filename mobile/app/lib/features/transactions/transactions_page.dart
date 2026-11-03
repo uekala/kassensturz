@@ -45,7 +45,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
   }
 
   Widget _buildDemo(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final visible = _visibleTransactions;
 
     return ListView(
