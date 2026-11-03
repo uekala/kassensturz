@@ -5,27 +5,25 @@ class DemoNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: colors.tertiaryContainer,
+        color: const Color(0xFFFFF8E9),
+        border: Border.all(color: const Color(0xFFF4E3BD)),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          Icon(Icons.science_outlined,
-              size: 18, color: colors.onTertiaryContainer),
-          const SizedBox(width: 9),
+          Icon(Icons.info_outline_rounded, size: 17, color: Color(0xFF865B12)),
+          SizedBox(width: 9),
           Expanded(
             child: Text(
-              'Prototyp mit Beispieldaten – noch nicht verbunden',
+              'Beispieldaten – noch nicht mit deinem Server verbunden',
               style: TextStyle(
-                color: colors.onTertiaryContainer,
-                fontSize: 12,
+                color: Color(0xFF765319),
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
