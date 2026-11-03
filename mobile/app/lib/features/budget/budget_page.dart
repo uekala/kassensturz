@@ -402,7 +402,7 @@ class _BudgetPageState extends State<BudgetPage> {
                   _remaining >= 0
                       ? 'Im $_monthLabel sind noch ${formatEuro(_remaining)} deines Budgets übrig.'
                       : 'Dein Budget ist um ${formatEuro(_remaining.abs())} überschritten.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: colors.onSurface,
                     fontSize: 13,
                     height: 1.45,
