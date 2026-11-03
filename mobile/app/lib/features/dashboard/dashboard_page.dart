@@ -89,7 +89,9 @@ class DashboardPage extends StatelessWidget {
                     Expanded(
                       child: _MetricCard(
                         label: 'Budget frei',
-                        value: budgetAvailable ? formatEuro(budgetRemaining) : '–',
+                        value: budgetAvailable
+                            ? formatEuro(budgetRemaining)
+                            : '–',
                         caption: budgetAvailable
                             ? 'diesen Monat'
                             : budgetLoading
