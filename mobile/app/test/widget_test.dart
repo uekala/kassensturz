@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kassensturz_mobile/app/kassensturz_app.dart';
 import 'package:kassensturz_mobile/features/budget/budget_page.dart';
 
-Finder _budgetScrollable() => find.descendant(
-      of: find.byType(BudgetPage),
-      matching: find.byType(Scrollable),
-    );
+void _useTallViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1000, 1800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
 
 void main() {
   testWidgets('shows prototype dashboard and demo status by default',
@@ -86,6 +88,7 @@ void main() {
 
   testWidgets('can add a budget for a previously unbudgeted category',
       (tester) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
 
     await tester.tap(find.text('Budget').last);
@@ -100,23 +103,18 @@ void main() {
     await tester.tap(find.text('Speichern'));
     await tester.pumpAndSettle();
 
-    await tester.drag(_budgetScrollable(), const Offset(0, -900));
-    await tester.pumpAndSettle();
     expect(find.text('Gesundheit'), findsOneWidget);
-    await tester.drag(_budgetScrollable(), const Offset(0, 1200));
-    await tester.pumpAndSettle();
     expect(find.text('1.100,00 €'), findsOneWidget);
     expect(find.text('18,70 €'), findsOneWidget);
   });
 
   testWidgets('can edit an existing budget limit', (tester) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
 
     await tester.tap(find.text('Budget').last);
     await tester.pumpAndSettle();
 
-    await tester.drag(_budgetScrollable(), const Offset(0, -420));
-    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '400');
@@ -127,13 +125,12 @@ void main() {
   });
 
   testWidgets('can delete a budget category', (tester) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
 
     await tester.tap(find.text('Budget').last);
     await tester.pumpAndSettle();
 
-    await tester.drag(_budgetScrollable(), const Offset(0, -420));
-    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Budget löschen: Lebensmittel'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Löschen'));
