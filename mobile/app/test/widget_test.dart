@@ -11,12 +11,15 @@ void _useTallViewport(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('shows prototype dashboard and demo status by default',
-      (tester) async {
+  testWidgets('shows prototype dashboard and demo status by default', (
+    tester,
+  ) async {
     await tester.pumpWidget(const KassensturzApp());
 
-    expect(find.text('Beispieldaten – noch nicht mit deinem Server verbunden'),
-        findsOneWidget);
+    expect(
+      find.text('Beispieldaten – noch nicht mit deinem Server verbunden'),
+      findsOneWidget,
+    );
     expect(find.text('Dein Überblick'), findsOneWidget);
     expect(find.text('2.486,30 €'), findsOneWidget);
     expect(find.text('DEMO'), findsOneWidget);
@@ -37,8 +40,9 @@ void main() {
     expect(find.text('10 Buchungen · Beispieldaten'), findsOneWidget);
   });
 
-  testWidgets('dashboard budget card uses calculated transaction totals',
-      (tester) async {
+  testWidgets('dashboard budget card uses calculated transaction totals', (
+    tester,
+  ) async {
     await tester.pumpWidget(const KassensturzApp());
 
     expect(find.text('886,74 €'), findsOneWidget);
@@ -51,8 +55,9 @@ void main() {
     expect(find.text('113,26 € ausgegeben'), findsOneWidget);
   });
 
-  testWidgets('bottom navigation opens accounts, budget and settings',
-      (tester) async {
+  testWidgets('bottom navigation opens accounts, budget and settings', (
+    tester,
+  ) async {
     await tester.pumpWidget(const KassensturzApp());
 
     await tester.tap(find.text('Konten').last);
@@ -72,22 +77,25 @@ void main() {
     expect(find.text('Pairing noch nicht verfügbar'), findsOneWidget);
   });
 
-  testWidgets('budget month selection recalculates spending from transactions',
-      (tester) async {
-    await tester.pumpWidget(const KassensturzApp());
+  testWidgets(
+    'budget month selection recalculates spending from transactions',
+    (tester) async {
+      await tester.pumpWidget(const KassensturzApp());
 
-    await tester.tap(find.text('Budget').last);
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Budget').last);
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Oktober 2026'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Oktober 2026'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('202,14 €'), findsOneWidget);
-    expect(find.text('797,86 €'), findsOneWidget);
-  });
+      expect(find.text('202,14 €'), findsOneWidget);
+      expect(find.text('797,86 €'), findsOneWidget);
+    },
+  );
 
-  testWidgets('can add a budget for a previously unbudgeted category',
-      (tester) async {
+  testWidgets('can add a budget for a previously unbudgeted category', (
+    tester,
+  ) async {
     _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
 
@@ -140,40 +148,39 @@ void main() {
     expect(find.text('650,00 €'), findsOneWidget);
   });
 
-  testWidgets('budget limits survive recreating the app with the same repository',
-      (tester) async {
-    _useTallViewport(tester);
-    final repository = InMemoryBudgetRepository();
+  testWidgets(
+    'budget limits survive recreating the app with the same repository',
+    (tester) async {
+      _useTallViewport(tester);
+      final repository = InMemoryBudgetRepository();
 
-    await tester.pumpWidget(
-      KassensturzApp(budgetRepository: repository),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(KassensturzApp(budgetRepository: repository));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Budget').last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField), '425');
-    await tester.tap(find.text('Speichern'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Budget').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), '425');
+      await tester.tap(find.text('Speichern'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('1.075,00 €'), findsOneWidget);
+      expect(find.text('1.075,00 €'), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpWidget(
-      KassensturzApp(budgetRepository: repository),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(KassensturzApp(budgetRepository: repository));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Budget').last);
-    await tester.pumpAndSettle();
-    expect(find.text('1.075,00 €'), findsOneWidget);
-    expect(find.text('425,00 €'), findsOneWidget);
-  });
+      await tester.tap(find.text('Budget').last);
+      await tester.pumpAndSettle();
+      expect(find.text('1.075,00 €'), findsOneWidget);
+      expect(find.text('425,00 €'), findsOneWidget);
+    },
+  );
 
-  testWidgets('transaction filters use shared demo transaction data',
-      (tester) async {
+  testWidgets('transaction filters use shared demo transaction data', (
+    tester,
+  ) async {
     await tester.pumpWidget(const KassensturzApp());
 
     await tester.tap(find.text('Buchungen').last);
