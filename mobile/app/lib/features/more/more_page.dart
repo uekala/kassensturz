@@ -33,6 +33,10 @@ class _MorePageState extends State<MorePage> {
     super.dispose();
   }
 
+  Future<void> _checkServer() async {
+    await widget.controller.checkServer(_server.text);
+  }
+
   Future<void> _pair() async {
     if (!_formKey.currentState!.validate()) return;
     final result = await widget.controller.pair(
@@ -122,6 +126,14 @@ class _MorePageState extends State<MorePage> {
                           }
                           return null;
                         },
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: state.isBusy ? null : _checkServer,
+                          icon: const Icon(Icons.wifi_tethering_rounded),
+                          label: const Text('Server prüfen'),
+                        ),
                       ),
                       const SizedBox(height: 14),
                       _fieldLabel('Einmaliger Pairing-Code'),
