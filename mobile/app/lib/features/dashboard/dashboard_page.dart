@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/data/demo_finance_data.dart';
+
 class DashboardPage extends StatelessWidget {
   const DashboardPage({
     super.key,
@@ -14,6 +16,15 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    const currentMonth = DateTime(2026, 11);
+    const defaultLimits = DemoFinanceData.defaultBudgetLimits;
+    final budgetTotal = DemoFinanceData.totalBudget(defaultLimits);
+    final budgetSpent =
+        DemoFinanceData.spentForBudgets(currentMonth, defaultLimits);
+    final budgetRemaining = budgetTotal - budgetSpent;
+    final budgetProgress = budgetTotal <= 0
+        ? 0.0
+        : (budgetSpent / budgetTotal).clamp(0.0, 1.0).toDouble();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
@@ -35,9 +46,9 @@ class DashboardPage extends StatelessWidget {
         const SizedBox(height: 22),
         const _SectionHeading(title: 'Kurzüberblick'),
         const SizedBox(height: 10),
-        const Row(
+        Row(
           children: [
-            Expanded(
+            const Expanded(
               child: _MetricCard(
                 label: 'Fixkosten',
                 value: '1.120,00 €',
@@ -46,20 +57,25 @@ class DashboardPage extends StatelessWidget {
                 accent: Color(0xFF526A9B),
               ),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(
               child: _MetricCard(
                 label: 'Budget frei',
-                value: '620,40 €',
+                value: formatEuro(budgetRemaining),
                 caption: 'diesen Monat',
                 icon: Icons.pie_chart_outline_rounded,
-                accent: Color(0xFF20836F),
+                accent: const Color(0xFF20836F),
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        _BudgetCard(onTap: onOpenBudget),
+        _BudgetCard(
+          onTap: onOpenBudget,
+          budget: budgetTotal,
+          spent: budgetSpent,
+          progress: budgetProgress,
+        ),
         const SizedBox(height: 24),
         _SectionHeading(
           title: 'Letzte Aktivitäten',
@@ -308,9 +324,17 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _BudgetCard extends StatelessWidget {
-  const _BudgetCard({required this.onTap});
+  const _BudgetCard({
+    required this.onTap,
+    required this.budget,
+    required this.spent,
+    required this.progress,
+  });
 
   final VoidCallback onTap;
+  final double budget;
+  final double spent;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -345,7 +369,7 @@ class _BudgetCard extends StatelessWidget {
                   ),
                   const Icon(Icons.chevron_right_rounded, size: 18),
                   Text(
-                    '38 % genutzt',
+                    '${(progress * 100).round()} % genutzt',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
@@ -355,24 +379,30 @@ class _BudgetCard extends StatelessWidget {
               const SizedBox(height: 13),
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: const LinearProgressIndicator(
-                  value: 0.38,
+                child: LinearProgressIndicator(
+                  value: progress,
                   minHeight: 8,
                   backgroundColor: Color(0xFFE8EFEC),
                   valueColor: AlwaysStoppedAnimation(Color(0xFF20836F)),
                 ),
               ),
               const SizedBox(height: 9),
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '379,60 € ausgegeben',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF65736F)),
+                    '${formatEuro(spent)} ausgegeben',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF65736F),
+                    ),
                   ),
                   Text(
-                    '1.000,00 €',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                    formatEuro(budget),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
