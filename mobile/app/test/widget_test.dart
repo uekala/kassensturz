@@ -2,10 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kassensturz_mobile/app/kassensturz_app.dart';
 
 void main() {
-  testWidgets('shows prototype notice and dashboard by default', (tester) async {
+  testWidgets('shows prototype notice and dashboard by default',
+      (tester) async {
     await tester.pumpWidget(const KassensturzApp());
 
-    expect(find.text('Prototyp mit Beispieldaten – noch nicht verbunden'), findsOneWidget);
+    expect(find.text('Prototyp mit Beispieldaten – noch nicht verbunden'),
+        findsOneWidget);
     expect(find.text('Dein Überblick'), findsOneWidget);
     expect(find.text('2.486,30 €'), findsOneWidget);
   });
