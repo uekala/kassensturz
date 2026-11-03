@@ -317,3 +317,38 @@ def test_trusted_loopback_proxy_cannot_use_local_device_admin_routes(
 
     assert response.status_code == 403
 
+def test_ingress_pairing_requires_supervisor_authenticated_user_identity(
+    db, monkeypatch
+):
+    reset_mobile_guards(monkeypatch)
+    with TestClient(main.app, client=(main.INGRESS_IP, 50123)) as client:
+        no_identity = client.post("/api/mobile/pairings")
+        with_identity = client.post(
+            "/api/mobile/pairings",
+            headers={"X-Remote-User-Id": "ha-user-123"},
+        )
+
+    assert no_identity.status_code == 403
+    assert with_identity.status_code == 201
+
+
+def test_untrusted_remote_client_cannot_spoof_ingress_user_identity(db, monkeypatch):
+    reset_mobile_guards(monkeypatch)
+    with https_client("203.0.113.25") as client:
+        response = client.post(
+            "/api/mobile/pairings",
+            headers={"X-Remote-User-Id": "ha-admin"},
+        )
+
+    assert response.status_code == 403
+
+
+def test_addon_ingress_is_explicitly_admin_only():
+    from pathlib import Path
+
+    config_path = (
+        Path(__file__).resolve().parent.parent / "kassensturz" / "config.yaml"
+    )
+    config_text = config_path.read_text("utf-8")
+    assert "\npanel_admin: true\n" in config_text
+
