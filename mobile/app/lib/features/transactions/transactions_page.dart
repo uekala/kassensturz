@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/data/demo_finance_data.dart';
+
 enum _TransactionFilter { all, expenses, income }
 
 class TransactionsPage extends StatefulWidget {
@@ -12,28 +14,19 @@ class TransactionsPage extends StatefulWidget {
 class _TransactionsPageState extends State<TransactionsPage> {
   _TransactionFilter _filter = _TransactionFilter.all;
 
-  static const _transactions = [
-    _Transaction('REWE', 'Lebensmittel · 03.11.2026', '−48,26 €',
-        Icons.shopping_basket_outlined, true),
-    _Transaction(
-        'Miete', 'Wohnen · 02.11.2026', '−980,00 €', Icons.home_outlined, true),
-    _Transaction('Gehalt', 'Einkommen · 01.11.2026', '+2.750,00 €',
-        Icons.payments_outlined, false),
-    _Transaction('LIDL', 'Lebensmittel · 31.10.2026', '−32,14 €',
-        Icons.shopping_cart_outlined, true),
-    _Transaction('Stadtwerke', 'Versorger · 30.10.2026', '−86,00 €',
-        Icons.bolt_outlined, true),
-  ];
-
-  List<_Transaction> get _visibleTransactions {
-    switch (_filter) {
-      case _TransactionFilter.all:
-        return _transactions;
-      case _TransactionFilter.expenses:
-        return _transactions.where((item) => item.isExpense).toList();
-      case _TransactionFilter.income:
-        return _transactions.where((item) => !item.isExpense).toList();
-    }
+  List<DemoTransaction> get _visibleTransactions {
+    final result = DemoFinanceData.transactions.where((transaction) {
+      switch (_filter) {
+        case _TransactionFilter.all:
+          return true;
+        case _TransactionFilter.expenses:
+          return transaction.isExpense;
+        case _TransactionFilter.income:
+          return !transaction.isExpense;
+      }
+    }).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return result;
   }
 
   @override
@@ -140,11 +133,12 @@ class _FilterChip extends StatelessWidget {
 class _TransactionTile extends StatelessWidget {
   const _TransactionTile(this.transaction);
 
-  final _Transaction transaction;
+  final DemoTransaction transaction;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final category = DemoFinanceData.category(transaction.categoryId);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 2),
@@ -157,9 +151,11 @@ class _TransactionTile extends StatelessWidget {
         transaction.title,
         style: const TextStyle(fontWeight: FontWeight.w700),
       ),
-      subtitle: Text(transaction.subtitle),
+      subtitle: Text(
+        '${category.name} · ${formatDemoDate(transaction.date)}',
+      ),
       trailing: Text(
-        transaction.amount,
+        formatSignedEuro(transaction.amount),
         style: TextStyle(
           fontWeight: FontWeight.w700,
           color: transaction.isExpense ? colors.onSurface : colors.primary,
@@ -167,20 +163,4 @@ class _TransactionTile extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Transaction {
-  const _Transaction(
-    this.title,
-    this.subtitle,
-    this.amount,
-    this.icon,
-    this.isExpense,
-  );
-
-  final String title;
-  final String subtitle;
-  final String amount;
-  final IconData icon;
-  final bool isExpense;
 }
