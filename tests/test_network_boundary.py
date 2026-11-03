@@ -145,3 +145,90 @@ def test_mobile_pairing_rate_limit_is_enforced_before_route_dispatch(monkeypatch
     assert third.headers["retry-after"] == "60"
     assert third.headers["cache-control"] == "no-store"
 
+def test_mobile_client_network_allowlist_is_empty_by_default(monkeypatch, db):
+    from kassensturz.mobile_security import parse_trusted_proxy_networks
+
+    monkeypatch.setattr(main, "MOBILE_CLIENT_NETWORKS", ())
+    with TestClient(
+        main.app,
+        base_url="https://testserver",
+        client=("100.64.0.25", 50123),
+    ) as client:
+        response = client.get("/api/v1/not-enabled")
+
+    assert response.status_code == 403
+
+
+def test_mobile_client_from_explicit_private_network_is_allowed_only_on_mobile_paths(
+    monkeypatch, db
+):
+    from kassensturz.mobile_security import parse_trusted_proxy_networks
+
+    monkeypatch.setattr(
+        main,
+        "MOBILE_CLIENT_NETWORKS",
+        parse_trusted_proxy_networks("100.64.0.0/10"),
+    )
+    with TestClient(
+        main.app,
+        base_url="https://testserver",
+        client=("100.64.0.25", 50123),
+    ) as client:
+        mobile_response = client.get("/api/v1/not-enabled")
+        browser_response = client.get("/")
+
+    assert mobile_response.status_code == 404
+    assert browser_response.status_code == 403
+
+
+def test_trusted_reverse_proxy_can_forward_an_allowlisted_vpn_client(
+    monkeypatch, db
+):
+    from kassensturz.mobile_security import parse_trusted_proxy_networks
+
+    monkeypatch.setattr(
+        main,
+        "TRUSTED_PROXY_NETWORKS",
+        parse_trusted_proxy_networks("127.0.0.2"),
+    )
+    monkeypatch.setattr(
+        main,
+        "MOBILE_CLIENT_NETWORKS",
+        parse_trusted_proxy_networks("100.64.0.0/10"),
+    )
+    with TestClient(
+        main.app,
+        base_url="http://testserver",
+        client=("127.0.0.2", 50123),
+    ) as client:
+        response = client.get(
+            "/api/v1/not-enabled",
+            headers={
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-For": "100.64.0.25",
+            },
+        )
+
+    assert response.status_code == 404
+
+
+def test_untrusted_peer_cannot_spoof_membership_in_mobile_allowlist(db, monkeypatch):
+    from kassensturz.mobile_security import parse_trusted_proxy_networks
+
+    monkeypatch.setattr(
+        main,
+        "MOBILE_CLIENT_NETWORKS",
+        parse_trusted_proxy_networks("100.64.0.0/10"),
+    )
+    with TestClient(
+        main.app,
+        base_url="https://testserver",
+        client=("203.0.113.25", 50123),
+    ) as client:
+        response = client.get(
+            "/api/v1/not-enabled",
+            headers={"X-Forwarded-For": "100.64.0.25"},
+        )
+
+    assert response.status_code == 403
+
