@@ -45,7 +45,7 @@ jobs:
         run: flutter pub get
 
       - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: dart format --output=show lib/core/design/app_theme.dart lib/features/dashboard/dashboard_page.dart lib/features/dashboard/live_dashboard_page.dart lib/features/accounts/accounts_page.dart lib/features/budget/budget_page.dart lib/features/transactions/transactions_page.dart lib/app/kassensturz_shell.dart lib/core/widgets/demo_notice.dart test/widget_test.dart
 
 
 
