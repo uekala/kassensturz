@@ -78,13 +78,18 @@ Die derzeitige In-Memory-Rate-Limit-Implementierung ist nur für einen einzelnen
 ## Umsetzungsreihenfolge
 
 1. Backend-API und Sicherheitsprüfungen im separaten Feature-Branch fertigstellen.
-2. Optionales Add-on-Port-Mapping und die Tailscale-Service-Definition vorbereiten, standardmäßig weiterhin deaktiviert lassen.
-3. HA-App-Build für die Green-Architektur (aarch64) in CI verifizieren.
-4. Pairing-Erzeugung in der Ingress-Oberfläche bereitstellen; `panel_admin: true` und `X-Remote-User-Id` serverseitig prüfen.
-5. Flutter-Verbindungsassistent, Healthcheck, QR-Pairing und Secure Storage integrieren.
-6. End-to-End-Tests auf dem realen Green mit iOS und Android ausführen.
+2. ARM64-Build für die Green-Architektur in CI verifizieren.
+3. Einen zweiten lokalen Test-Add-on-Slug `kassensturz-mobile-test` mit eigener Supervisor-Datenablage erzeugen; Produktions-App und -Daten bleiben unverändert.
+4. Test-Add-on manuell installieren und starten; keine Banking-Secrets übernehmen, Hintergrund-Scheduler und Sensoren deaktivieren, keine Host-Portfreigabe setzen.
+5. Mit synthetischen Beispieldaten die Ingress-Oberfläche, Mobile-API und Geräteverwaltung prüfen.
+6. Optionales Add-on-Port-Mapping und Tailscale-Service vorbereiten, standardmäßig weiterhin deaktiviert lassen.
 7. Tailscale-Service und Proxy-Header auf dem realen Green prüfen; LAN-Direktzugriff muss mit 403 abgewiesen und der HTTPS-Service im Tailnet erfolgreich erreichbar sein.
-8. Erst nach Backup-/Restore-, Widerrufs- und Netzwerktests den Zugriff für die persönliche Nutzung aktivieren.
+8. Flutter-Verbindungsassistent, Healthcheck, QR-Pairing und Secure Storage mit iOS und Android end-to-end testen.
+9. Erst nach Backup-/Restore-, Widerrufs- und Netzwerktests entscheiden, ob die Mobile-API in die bestehende Produktionsinstanz übernommen wird.
+
+## Isolierter Green-Test-Rollout
+
+Für den ersten realen Test wird ein separates lokales Add-on unter dem Slug `kassensturz-mobile-test` verwendet. Das Paket wird im CI aus demselben Backend-Quellcode gebaut und als GitHub Actions Artifact bereitgestellt. Die Test-App ist `boot: manual`, nur für `aarch64`, hat eigene Supervisor-Datenhaltung, deaktivierte Sensoren und keinen automatischen Hintergrundabruf. `trusted_proxies`, `mobile_client_networks` und `mobile_server_url` bleiben leer; `8099/tcp` ist nicht auf einen Host-Port gemappt. Die Installation erfolgt neben der bestehenden App über `/addons/local/kassensturz-mobile-test/`. Siehe [Green-Test-Installationsanleitung](../../deploy/home-assistant-green/README.md).
 
 ## Konsequenzen
 
