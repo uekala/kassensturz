@@ -228,7 +228,6 @@ void main() {
   });
 }
 
-
 class _FailingBudgetRepository implements BudgetRepository {
   @override
   Future<Map<String, double>> loadLimits() async {
