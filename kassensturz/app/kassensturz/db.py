@@ -364,6 +364,12 @@ class Database:
             cur = self.conn.execute(sql, params)
             return cur.lastrowid
 
+    def execute_count(self, sql: str, params=()) -> int:
+        """Führt ein Statement aus und gibt die Anzahl geänderter Zeilen zurück."""
+        with self.lock:
+            cur = self.conn.execute(sql, params)
+            return cur.rowcount
+
     def executemany(self, sql: str, seq) -> None:
         with self.lock:
             self.conn.executemany(sql, seq)
