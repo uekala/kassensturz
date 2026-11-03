@@ -16,6 +16,11 @@ void main() {
   testWidgets('dashboard action opens the transaction tab', (tester) async {
     await tester.pumpWidget(const KassensturzApp());
 
+    await tester.scrollUntilVisible(
+      find.text('Alle Buchungen anzeigen'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Alle Buchungen anzeigen'));
     await tester.pumpAndSettle();
 
