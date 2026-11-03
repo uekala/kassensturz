@@ -49,7 +49,7 @@ beschreibt Installation, Datenablage und Backup.
 
 ## Mobile-App für iOS und Android
 
-Kassensturz erhält eine gemeinsame Flutter-App für iOS und Android. Ein erster UI-Prototyp mit Übersicht, Konten, Buchungen und Einstellungen liegt unter `mobile/app`; alle sichtbaren Finanzwerte sind fiktive Beispieldaten. Eine Serververbindung und sichere Geräteanmeldung sind noch nicht implementiert. Details: [Mobile-Client-Roadmap](mobile/README.md) und [Flutter-Architekturentscheidung](docs/architecture/0006-flutter-mobile-client.md).
+Kassensturz erhält eine gemeinsame Flutter-App für iOS und Android. Die App kann Geräte per HTTPS mit einem eigenen Kassensturz-Server koppeln, Sitzungen sicher speichern, die Verbindung prüfen und Tokens automatisch erneuern. Dashboard, Konten und Buchungen verwenden derzeit weiterhin Demo- bzw. lokale Daten; die Integration der echten Serverdaten folgt. Der vorgesehene erste Server ist ein vorhandener Home Assistant Green. Details: [Mobile-Client-Roadmap](mobile/README.md), [API-Spezifikation](docs/architecture/0003-mobile-api-contract.md), [Flutter-Architekturentscheidung](docs/architecture/0006-flutter-mobile-client.md) und [Green-Deployment](docs/architecture/0007-home-assistant-green-deployment.md).
 
 ## Entwicklung
 
