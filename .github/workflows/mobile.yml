@@ -50,8 +50,8 @@ jobs:
       - name: Print formatter diff for current files
         if: always()
         run: |
-          dart format lib/features/dashboard/dashboard_page.dart lib/features/more/more_page.dart test/mobile_pairing_payload_test.dart
-          git --no-pager diff -- lib/features/dashboard/dashboard_page.dart lib/features/more/more_page.dart test/mobile_pairing_payload_test.dart
+          dart format lib/features/dashboard/dashboard_page.dart lib/features/more/more_page.dart lib/features/more/pairing_scanner_page.dart test/mobile_pairing_payload_test.dart
+          git --no-pager diff -- lib/features/dashboard/dashboard_page.dart lib/features/more/more_page.dart lib/features/more/pairing_scanner_page.dart test/mobile_pairing_payload_test.dart
 
 
       - name: Analyze Flutter application
