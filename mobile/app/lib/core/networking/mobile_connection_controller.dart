@@ -43,6 +43,7 @@ class MobileConnectionController extends ChangeNotifier {
     if (items is! List) return const [];
     return items.whereType<Map>().map(Map<String, dynamic>.from).toList();
   }
+
   int get transactionTotal => (_transactionPage?['total'] as int?) ?? 0;
   bool get financeLoading => _financeLoading;
   String? get financeError => _financeError;
@@ -191,8 +192,8 @@ class MobileConnectionController extends ChangeNotifier {
       await loadFinancialData();
       return;
     }
-    final offset = (current['offset'] as int? ?? 0) +
-        (current['limit'] as int? ?? 50);
+    final offset =
+        (current['offset'] as int? ?? 0) + (current['limit'] as int? ?? 50);
     if (offset >= transactionTotal) return;
     _financeLoading = true;
     _financeError = null;
