@@ -47,6 +47,12 @@ jobs:
       - name: Check Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
 
+      - name: Print formatter diff for current files
+        if: always()
+        run: |
+          dart format lib/features/dashboard/dashboard_page.dart lib/features/more/more_page.dart test/mobile_pairing_payload_test.dart
+          git --no-pager diff -- lib/features/dashboard/dashboard_page.dart lib/features/more/more_page.dart test/mobile_pairing_payload_test.dart
+
 
       - name: Analyze Flutter application
         run: flutter analyze --fatal-infos
