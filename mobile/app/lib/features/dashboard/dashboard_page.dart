@@ -16,7 +16,7 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    const currentMonth = DateTime(2026, 11);
+    final currentMonth = DateTime(2026, 11);
     const defaultLimits = DemoFinanceData.defaultBudgetLimits;
     final budgetTotal = DemoFinanceData.totalBudget(defaultLimits);
     final budgetSpent =
