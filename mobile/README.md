@@ -27,7 +27,8 @@ Die erste Serverplattform ist der vorhandene **Home Assistant Green**. Kassenstu
 - [x] Flutter-Dart-Projekt mit Demo-Oberfläche und Widget-Tests angelegt.
 - [x] CI für Flutter-Formatierung, statische Analyse und Widget-Tests eingerichtet.
 - [x] Reproduzierbares Erzeugen von Android- und iOS-Projektdateien ergänzt.
-- [ ] Verbindungsassistent und Server-Healthcheck.
+- [x] Serverseitiger, nicht authentifizierter Healthcheck mit HTTPS-Prüfung und API-Versionskontrolle.
+- [x] Verbindungstest aus dem Flutter-Einrichtungsformular vor dem Pairing.
 - [x] Admin-Oberfläche zum Erzeugen einmaliger Pairing-Codes und Widerrufen gekoppelter Geräte.
 - [x] Server-Endpunkte für Pairing, Refresh, Logout und lokale Geräteverwaltung.
 - [x] Serverseitiger Pairing-/Token-Lifecycle mit Tests (Einmal-Secrets, Tokenrotation, Replay-Erkennung und Gerätewiderruf).
