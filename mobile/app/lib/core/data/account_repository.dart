@@ -3,7 +3,8 @@ import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import 'account.dart';
 
@@ -35,12 +36,12 @@ class FlutterSecureValueStore implements SecureValueStore {
       _storage.write(key: key, value: value);
 }
 
-/// Creates one random SQLCipher key and keeps it in platform secure storage.
-class SecureAccountEncryptionKeyStore {
-  SecureAccountEncryptionKeyStore({required SecureValueStore store})
-    : _store = store;
+/// Creates one random 256-bit database key and keeps it in platform secure
+/// storage (Android Keystore-backed storage / Apple Keychain).
+class SecureAccountKeyStore {
+  SecureAccountKeyStore({required SecureValueStore store}) : _store = store;
 
-  static const _keyName = 'kassensturz.mobile.accounts.sqlcipher-key.v1';
+  static const _keyName = 'kassensturz.mobile.accounts.database-key.v1';
 
   final SecureValueStore _store;
 
@@ -68,14 +69,18 @@ class SecureAccountEncryptionKeyStore {
   }
 }
 
-/// Encrypted local account storage. The database key is never stored alongside
-/// the database file and must remain recoverable from platform secure storage.
-class SqlCipherAccountRepository implements AccountRepository {
-  SqlCipherAccountRepository({
-    required SecureAccountEncryptionKeyStore keyStore,
-  }) : _keyStore = keyStore;
+/// Encrypted SQLite storage using SQLite3MultipleCiphers in SQLCipher
+/// compatibility mode. The random database key is kept separately in
+/// platform secure storage and is never written beside the database file.
+class EncryptedAccountRepository implements AccountRepository {
+  EncryptedAccountRepository({
+    required SecureAccountKeyStore keyStore,
+    Future<String> Function()? databasePathProvider,
+  }) : _keyStore = keyStore,
+       _databasePathProvider = databasePathProvider;
 
-  final SecureAccountEncryptionKeyStore _keyStore;
+  final SecureAccountKeyStore _keyStore;
+  final Future<String> Function()? _databasePathProvider;
   Future<Database>? _databaseFuture;
 
   Future<Database> _database() async {
@@ -90,18 +95,35 @@ class SqlCipherAccountRepository implements AccountRepository {
 
   Future<Database> _openDatabase() async {
     final key = await _keyStore.getOrCreateKey();
-    final databaseDirectory = await getDatabasesPath();
-    final databasePath = p.join(databaseDirectory, 'kassensturz_accounts.db');
+    final keyBytes = base64Url.decode(base64Url.normalize(key));
+    final keyHex = keyBytes
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join();
+    final directoryPath = _databasePathProvider == null
+        ? (await getApplicationSupportDirectory()).path
+        : await _databasePathProvider!();
+    final databasePath = p.join(directoryPath, 'kassensturz_accounts.db');
+    final database = sqlite3.open(databasePath);
 
-    return openDatabase(
-      databasePath,
-      password: key,
-      version: 1,
-      onConfigure: (database) async {
-        await database.execute('PRAGMA secure_delete = ON');
-      },
-      onCreate: (database, version) async {
-        await database.execute('''
+    try {
+      if (database.select('PRAGMA cipher;').isEmpty) {
+        throw StateError(
+          'Encrypted SQLite support is unavailable. The database was not used.',
+        );
+      }
+
+      database
+        ..execute("PRAGMA cipher = 'sqlcipher';")
+        ..execute('PRAGMA legacy = 4;')
+        ..execute('PRAGMA key = "x\'$keyHex\'";');
+
+      // Reading the schema forces SQLite to verify the key before any
+      // application data can be read or modified.
+      database.select('SELECT count(*) FROM sqlite_master;');
+      database.execute('PRAGMA secure_delete = ON;');
+
+      if (database.userVersion == 0) {
+        database.execute('''
           CREATE TABLE accounts (
             id TEXT PRIMARY KEY NOT NULL,
             name TEXT NOT NULL,
@@ -112,39 +134,58 @@ class SqlCipherAccountRepository implements AccountRepository {
             currency TEXT NOT NULL CHECK (currency = 'EUR')
           )
         ''');
-      },
-    );
+        database.userVersion = 1;
+      } else if (database.userVersion != 1) {
+        throw FormatException(
+          'Unsupported account database version: ${database.userVersion}.',
+        );
+      }
+
+      return database;
+    } catch (_) {
+      database.dispose();
+      rethrow;
+    }
   }
 
   @override
   Future<List<Account>> loadAccounts() async {
     final database = await _database();
-    final rows = await database.query(
-      'accounts',
-      orderBy: 'name COLLATE NOCASE ASC',
+    final rows = database.select(
+      'SELECT id, name, institution, account_suffix, type, '
+      'balance_cents, currency FROM accounts '
+      'ORDER BY name COLLATE NOCASE ASC',
     );
-    return rows.map(Account.fromDatabaseMap).toList(growable: false);
+    return rows
+        .map((row) => Account.fromDatabaseMap(Map<String, Object?>.from(row)))
+        .toList(growable: false);
   }
 
   @override
   Future<void> saveAccount(Account account) async {
     account.validate();
     final database = await _database();
-    await database.insert(
-      'accounts',
-      account.toDatabaseMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+    final values = account.toDatabaseMap();
+    database.execute(
+      'INSERT OR REPLACE INTO accounts '
+      '(id, name, institution, account_suffix, type, balance_cents, currency) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        values['id'],
+        values['name'],
+        values['institution'],
+        values['account_suffix'],
+        values['type'],
+        values['balance_cents'],
+        values['currency'],
+      ],
     );
   }
 
   @override
   Future<void> deleteAccount(String accountId) async {
     final database = await _database();
-    await database.delete(
-      'accounts',
-      where: 'id = ?',
-      whereArgs: [accountId],
-    );
+    database.execute('DELETE FROM accounts WHERE id = ?', [accountId]);
   }
 
   Future<void> close() async {
@@ -152,15 +193,15 @@ class SqlCipherAccountRepository implements AccountRepository {
     _databaseFuture = null;
     if (pending == null) return;
     try {
-      await (await pending).close();
+      (await pending).dispose();
     } catch (_) {
-      // An unopened or failed database has nothing to close.
+      // An unopened or failed database has no live connection to close.
     }
   }
 }
 
 /// In-memory repository used by widget tests and the prototype preview.
-/// Production startup injects [SqlCipherAccountRepository].
+/// Production startup injects [EncryptedAccountRepository].
 class InMemoryAccountRepository implements AccountRepository {
   InMemoryAccountRepository({List<Account>? initialAccounts})
     : _accounts = List<Account>.from(initialAccounts ?? sampleAccounts);
