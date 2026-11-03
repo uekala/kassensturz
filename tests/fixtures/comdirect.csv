@@ -1,0 +1,10 @@
+;
+"Umsätze Girokonto";"Zeitraum: 30 Tage";
+"Neuer Kontostand";"3.210,99 EUR";
+
+"Buchungstag";"Wertstellung (Valuta)";"Vorgang";"Buchungstext";"Umsatz in EUR";
+"offen";"--";"Visa-Umsatz";" Auftraggeber: AMAZON Buchungstext: Bestellung";"-19,99";
+"30.10.2026";"30.10.2026";"Lastschrift / Belastung";" Auftraggeber: Telekom Deutschland GmbH Buchungstext: Mobilfunk 10/2026 Ref. 123";"-29,95";
+"29.10.2026";"29.10.2026";"Übertrag / Überweisung";" Empfänger: Max Muster Kto/IBAN: DE88370605900000000001 BLZ/BIC: GENODED1SPK  Buchungstext: Konzertkarte";"-45,00";
+
+"Alter Kontostand";"3.285,93 EUR";

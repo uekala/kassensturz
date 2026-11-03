@@ -1,0 +1,7 @@
+﻿"Datum","Uhrzeit","Zeitzone","Name","Typ","Status","Währung","Brutto","Gebühr","Netto","Absender E-Mail-Adresse","Empfänger E-Mail-Adresse","Transaktionscode","Artikelbezeichnung","Guthaben","Betreff","Hinweis"
+"30.10.2026","10:12:00","Europe/Berlin","Zalando SE","Express-Checkout-Zahlung","Abgeschlossen","EUR","-59,95","0,00","-59,95","max@example.org","pay@zalando.de","1AB","Sneaker","-59,95","",""
+"30.10.2026","10:12:00","Europe/Berlin","","Bankgutschrift auf PayPal-Konto","Abgeschlossen","EUR","59,95","0,00","59,95","","","1AC","","0,00","",""
+"20.10.2026","08:00:00","Europe/Berlin","Spotify AB","Händlerzahlung (Abo)","Abgeschlossen","EUR","-10,99","0,00","-10,99","","","1AD","Spotify Premium","-10,99","",""
+"20.10.2026","08:00:00","Europe/Berlin","","Bankgutschrift auf PayPal-Konto","Abgeschlossen","EUR","10,99","0,00","10,99","","","1AE","","0,00","",""
+"18.10.2026","09:00:00","Europe/Berlin","Steam","Express-Checkout-Zahlung","Abgeschlossen","USD","-20,00","0,00","-20,00","","","1AF","Spiel","0","",""
+"17.10.2026","09:00:00","Europe/Berlin","eBay","Express-Checkout-Zahlung","Ausstehend","EUR","-5,00","0,00","-5,00","","","1AG","","0","",""

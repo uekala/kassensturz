@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+ <BkToCstmrStmt><GrpHdr><MsgId>1</MsgId><CreDtTm>2026-11-03T08:00:00</CreDtTm></GrpHdr>
+  <Stmt><Id>1</Id><Acct><Id><IBAN>DE12320500000012345678</IBAN></Id><Ccy>EUR</Ccy></Acct>
+   <Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">2500.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-10-31</Dt></Dt></Bal>
+   <Ntry><Amt Ccy="EUR">89.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts>BOOK</Sts><BookgDt><Dt>2026-10-15</Dt></BookgDt><ValDt><Dt>2026-10-15</Dt></ValDt>
+    <AddtlNtryInf>FOLGELASTSCHRIFT</AddtlNtryInf>
+    <NtryDtls><TxDtls><Refs><EndToEndId>E2E-1</EndToEndId><MndtId>SWK-400123</MndtId></Refs>
+     <RltdPties><Cdtr><Nm>Stadtwerke Musterstadt AG</Nm><Id><PrvtId><Othr><Id>DE62ZZZ00000012345</Id></Othr></PrvtId></Id></Cdtr><CdtrAcct><Id><IBAN>DE11320500000000111111</IBAN></Id></CdtrAcct></RltdPties>
+     <RmtInf><Ustrd>Abschlag Strom Oktober</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>
+   <Ntry><Amt Ccy="EUR">3450.12</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts>BOOK</Sts><BookgDt><Dt>2026-10-28</Dt></BookgDt><ValDt><Dt>2026-10-28</Dt></ValDt>
+    <NtryDtls><TxDtls><RltdPties><Dbtr><Nm>Muster Systemhaus GmbH</Nm></Dbtr><DbtrAcct><Id><IBAN>DE44500105175407324931</IBAN></Id></DbtrAcct></RltdPties>
+     <RmtInf><Ustrd>Gehalt Oktober 2026</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>
+   <Ntry><Amt Ccy="EUR">12.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts>PDNG</Sts><BookgDt><Dt>2026-11-02</Dt></BookgDt></Ntry>
+  </Stmt></BkToCstmrStmt></Document>

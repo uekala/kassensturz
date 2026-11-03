@@ -1,0 +1,16 @@
+configuration:
+  fints_product_id:
+    name: FinTS product ID
+    description: Registration number from Deutsche Kreditwirtschaft (fints.org). Without it only file import works.
+  sync_time:
+    name: Time of the automatic sync
+    description: Daily sync for bank logins with a saved PIN (HH:MM).
+  sensors:
+    name: Create sensors in Home Assistant
+    description: Provide balance, forecast, fixed costs and budgets as sensor.kassensturz_*.
+  notify_service:
+    name: Notification service
+    description: "Optional, e.g. notify.mobile_app_pixel. Leave empty for persistent notifications."
+  warn_threshold:
+    name: Warning threshold in euros
+    description: Warn when the forecast balance drops below this amount.
