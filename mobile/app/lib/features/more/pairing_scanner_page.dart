@@ -63,6 +63,28 @@ class _PairingScannerPageState extends State<PairingScannerPage> {
           MobileScanner(
             controller: _scannerController,
             onDetect: _handleDetection,
+            errorBuilder: (context, error) {
+              final message = switch (error.errorCode) {
+                MobileScannerErrorCode.permissionDenied =>
+                  'Kassensturz benötigt Kamerazugriff. Erlaube die Kamera-Berechtigung in den App-Einstellungen oder nutze die manuelle Code-Eingabe.',
+                MobileScannerErrorCode.unsupported =>
+                  'Auf diesem Gerät ist keine unterstützte Kamera verfügbar. Nutze die manuelle Code-Eingabe.',
+                _ => 'Die Kamera konnte nicht gestartet werden. Prüfe die Berechtigung und versuche es erneut.',
+              };
+              return ColoredBox(
+                color: Colors.black,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           IgnorePointer(
             child: Center(
