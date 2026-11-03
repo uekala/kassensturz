@@ -14,6 +14,7 @@ services:
       KASSENSTURZ_PORT: "8099"
       KASSENSTURZ_DATA: /data
       KASSENSTURZ_LOG: INFO
+      KASSENSTURZ_MASTER_KEY: ${KASSENSTURZ_MASTER_KEY:-}
     volumes:
       - ./data:/data
       - ./imports:/share/kassensturz
