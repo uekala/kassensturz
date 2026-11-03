@@ -55,6 +55,32 @@ void main() {
     expect(find.text('113,26 € ausgegeben'), findsOneWidget);
   });
 
+  testWidgets(
+    'dashboard hides fallback budget totals when local storage fails',
+    (tester) async {
+      await tester.pumpWidget(
+        KassensturzApp(budgetRepository: _FailingBudgetRepository()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nicht verfügbar'), findsWidgets);
+      expect(find.text('886,74 €'), findsNothing);
+
+      await tester.scrollUntilVisible(
+        find.text('Variable Ausgaben'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(
+        find.text(
+          'Budgetinformationen können derzeit nicht angezeigt werden.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('113,26 € ausgegeben'), findsNothing);
+    },
+  );
+
   testWidgets('bottom navigation opens accounts, budget and settings', (
     tester,
   ) async {
@@ -199,4 +225,17 @@ void main() {
     expect(find.text('Gehalt'), findsNothing);
     expect(find.text('REWE'), findsOneWidget);
   });
+}
+
+
+class _FailingBudgetRepository implements BudgetRepository {
+  @override
+  Future<Map<String, double>> loadLimits() async {
+    throw const FormatException('Corrupted local budget data');
+  }
+
+  @override
+  Future<void> saveLimits(Map<String, double> limits) async {
+    throw StateError('Local storage is unavailable');
+  }
 }
