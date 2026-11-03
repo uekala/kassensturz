@@ -332,7 +332,10 @@ class _SummaryValue extends StatelessWidget {
       crossAxisAlignment:
           alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 10),
+        ),
         const SizedBox(height: 3),
         Text(
           value,
@@ -358,8 +361,7 @@ class _CategoryBudgetCard extends StatelessWidget {
     final rawProgress = category.spent / category.limit;
     final progress = rawProgress.clamp(0.0, 1.0).toDouble();
     final overBudget = rawProgress > 1;
-    final progressColor =
-        overBudget ? colors.error : category.color;
+    final progressColor = overBudget ? colors.error : category.color;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
