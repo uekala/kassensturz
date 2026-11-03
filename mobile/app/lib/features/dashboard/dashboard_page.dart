@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/data/budget_controller.dart';
 import '../../core/data/demo_finance_data.dart';
+import '../../core/networking/mobile_connection_controller.dart';
+import 'live_dashboard_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({
@@ -9,11 +11,13 @@ class DashboardPage extends StatelessWidget {
     required this.onOpenTransactions,
     required this.onOpenBudget,
     required this.budgetController,
+    required this.mobileController,
   });
 
   final VoidCallback onOpenTransactions;
   final VoidCallback onOpenBudget;
   final BudgetController budgetController;
+  final MobileConnectionController mobileController;
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +25,18 @@ class DashboardPage extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return AnimatedBuilder(
-      animation: budgetController,
-      builder: (context, child) {
+      animation: mobileController,
+      builder: (context, _) {
+        if (mobileController.isConnected) {
+          return LiveDashboardPage(
+            controller: mobileController,
+            onOpenTransactions: onOpenTransactions,
+            onOpenBudget: onOpenBudget,
+          );
+        }
+        return AnimatedBuilder(
+          animation: budgetController,
+          builder: (context, child) {
         final currentMonth = DateTime(2026, 11);
         final budgetLoading = budgetController.isLoading;
         final budgetAvailable =
@@ -143,6 +157,8 @@ class DashboardPage extends StatelessWidget {
               ),
             ),
           ],
+        );
+          },
         );
       },
     );
