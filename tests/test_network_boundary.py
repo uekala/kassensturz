@@ -97,7 +97,7 @@ def test_mobile_namespace_accepts_https_asserted_by_explicitly_trusted_proxy(
             headers={"X-Forwarded-Proto": "https"},
         )
 
-    # Transport is accepted, but no mobile HTTP route is registered yet.
+    # The reserved path is not a registered API endpoint; transport succeeds and the router returns 404.
     assert response.status_code == 404
 
 
