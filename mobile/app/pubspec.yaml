@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_secure_storage: ^11.2.0
+  mobile_scanner: ^7.5.0
   path: ^1.9.1
   path_provider: ^2.1.5
   shared_preferences: ^2.5.6
