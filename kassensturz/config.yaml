@@ -13,7 +13,7 @@ ingress_port: 8099
 ports:
   8099/tcp: null
 ports_description:
-  8099/tcp: Optionaler interner Zugang für einen Tailscale-Service; standardmäßig deaktiviert
+  8099/tcp: Nur für den privaten Tailscale-Service; standardmäßig deaktiviert und nicht am Router freigeben
 panel_icon: mdi:cash-register
 panel_title: Kassensturz
 homeassistant_api: true
