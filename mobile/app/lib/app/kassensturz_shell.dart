@@ -169,7 +169,9 @@ class _KassensturzShellState extends State<KassensturzShell> {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: connected ? AppTheme.softBrand : const Color(0xFFEFF1EF),
+                      color: connected
+                          ? AppTheme.softBrand
+                          : const Color(0xFFEFF1EF),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
