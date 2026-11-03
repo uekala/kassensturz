@@ -5,10 +5,8 @@ import 'demo_finance_data.dart';
 
 class BudgetController extends ChangeNotifier {
   BudgetController({required BudgetRepository repository})
-      : _repository = repository,
-        _limits = Map<String, double>.from(
-          DemoFinanceData.defaultBudgetLimits,
-        );
+    : _repository = repository,
+      _limits = Map<String, double>.from(DemoFinanceData.defaultBudgetLimits);
 
   final BudgetRepository _repository;
   Map<String, double> _limits;
