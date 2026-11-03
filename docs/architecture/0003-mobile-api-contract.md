@@ -1,10 +1,10 @@
 # Mobile API contract (v1)
 
-- Status: Spezifikation, nicht implementiert
+- Status: Teilweise implementiert – Pairing-/Session-/Read-Routen vorhanden; zusätzliche Sicherheits- und Clientintegration bleibt offen
 - Ziel: iOS- und Android-Clients einer einzelnen lokalen Kassensturz-Installation
 - Sicherheit: siehe [Mobile API security requirements](0002-mobile-api-security.md) und [DTOs / Zustandsmodell](0004-mobile-api-dto-state-machine.md)
 
-Dieser Vertrag beschreibt die Schnittstelle und ihre Sicherheitssemantik. Er ist **keine Aussage**, dass die Endpunkte bereits vorhanden oder zur Nutzung freigegeben sind.
+Dieser Vertrag beschreibt die Schnittstelle und ihre Sicherheitssemantik. Die Pairing-, Session-, Geräteverwaltungs- und Read-Endpunkte sind im Backend registriert; Flutter-Clientintegration, zusätzliche Sicherheitsprüfungen und eine breitere Netzfreigabe bleiben offen.
 
 ## 1. Deployment und Transport
 
@@ -204,9 +204,27 @@ Die konkreten Schwellwerte sind vor Implementierung zu konfigurieren und im Test
 - Mobile Clients müssen nicht auf interne Tabellen- oder Domain-Änderungen reagieren.
 - Das Vorhandensein vorbereiteter Mobile-Datenbanktabellen aktiviert keinen Listener.
 
-## 9. Verbindliche Freigabekriterien
+## 9. Implementierungsstand (03.11.2026)
 
-Die mobile API bleibt deaktiviert, bis:
+Folgende Routen sind im Backend registriert:
+
+| Methode | Pfad | Implementierung |
+|---|---|---|
+| POST | `/api/mobile/pairings` | Pairing-Secret erzeugen; nur Ingress/Loopback |
+| GET | `/api/mobile/devices` | Geräte-Metadaten auflisten; nur Ingress/Loopback |
+| DELETE | `/api/mobile/devices/{id}` | Gerät und alle Token widerrufen; nur Ingress/Loopback |
+| POST | `/api/v1/pair` | Einmaliges Pairing einlösen, Token ausgeben |
+| POST | `/api/v1/auth/refresh` | Refresh-Token rotieren |
+| POST | `/api/v1/auth/logout` | Aktuelles Gerät abmelden |
+| GET | `/api/v1/me` | Geräteidentität und Serverfähigkeiten |
+| GET | `/api/v1/overview` | Allowlist-Dashboard-DTO |
+| GET | `/api/v1/transactions` | Allowlist-Buchungs-DTO mit Pagination/Filtern |
+
+Die Routen sind durch `tests/test_mobile_api.py` und `tests/test_network_boundary.py` abgedeckt. Die Flutter-App ruft diese Endpunkte noch nicht auf. Die Standard-Netz-Allowlist ist leer; die Standalone-Compose-Variante bleibt auf `127.0.0.1` gebunden. Die In-Memory-Rate-Limits sind nur für einen Prozess vorgesehen und müssen vor Mehrprozessbetrieb durch gemeinsamen transaktionalen Zustand ersetzt werden.
+
+## 10. Verbindliche Freigabekriterien
+
+Eine breitere Freigabe für LAN-/VPN-Clients bleibt deaktiviert, bis:
 
 - Pairing-Secrets zufällig, kurzlebig, einmalig und atomar konsumiert werden;
 - Token opaque, hochentropisch, gehasht, ablaufend, rotierend und widerrufbar sind;
@@ -217,4 +235,4 @@ Die mobile API bleibt deaktiviert, bis:
 - Replay-, Parallelitäts-, Ablauf-, Widerrufs- und Regressionstests im CI bestehen;
 - Backup und Wiederherstellung die Wiederherstellung der lokalen Geräteverwaltung sicher berücksichtigen.
 
-Bis dahin dürfen die Datenbankgrundlagen vorbereitet sein, aber keine Mobile-API-Route und kein neuer Netzwerk-Listener aktiviert werden.
+Die Routen sind bereits registriert, werden aber standardmäßig nicht für entfernte Client-Netze freigegeben. Die Standalone-Compose-Variante bleibt an Loopback gebunden; es gibt keinen öffentlichen Port und keinen Kassensturz-Relay.
