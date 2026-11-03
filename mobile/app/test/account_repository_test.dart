@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kassensturz_mobile/core/data/account.dart';
@@ -70,6 +71,101 @@ void main() {
         store.values['kassensturz.mobile.accounts.database-key.v1'],
         'invalid',
       );
+    });
+  });
+
+  group('EncryptedAccountRepository', () {
+    test('persists accounts in an encrypted database across instances', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'kassensturz-accounts-',
+      );
+      final secureStore = FakeSecureValueStore();
+      final keyStore = SecureAccountKeyStore(store: secureStore);
+      const account = Account(
+        id: 'acc-encrypted',
+        name: 'Privatkonto',
+        institution: 'Hausbank',
+        accountSuffix: '5678',
+        type: AccountType.checking,
+        balanceCents: 123456,
+      );
+
+      final firstRepository = EncryptedAccountRepository(
+        keyStore: keyStore,
+        databasePathProvider: () async => directory.path,
+      );
+      try {
+        await firstRepository.saveAccount(account);
+      } finally {
+        await firstRepository.close();
+      }
+
+      final databaseFile = File(
+        '${directory.path}/kassensturz_accounts.db',
+      );
+      final bytes = await databaseFile.readAsBytes();
+      expect(
+        bytes.take(16).toList(),
+        isNot(equals(ascii.encode('SQLite format 3\u0000'))),
+      );
+
+      final secondRepository = EncryptedAccountRepository(
+        keyStore: keyStore,
+        databasePathProvider: () async => directory.path,
+      );
+      try {
+        expect(await secondRepository.loadAccounts(), [account]);
+      } finally {
+        await secondRepository.close();
+        await directory.delete(recursive: true);
+      }
+    });
+
+    test('does not open an existing database with the wrong key', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'kassensturz-wrong-key-',
+      );
+      final firstRepository = EncryptedAccountRepository(
+        keyStore: SecureAccountKeyStore(store: FakeSecureValueStore()),
+        databasePathProvider: () async => directory.path,
+      );
+      try {
+        await firstRepository.saveAccount(
+          const Account(
+            id: 'acc-protected',
+            name: 'Geschuetzt',
+            institution: '',
+            accountSuffix: '',
+            type: AccountType.savings,
+            balanceCents: 10000,
+          ),
+        );
+      } finally {
+        await firstRepository.close();
+      }
+
+      final wrongKeyStore = FakeSecureValueStore()
+        ..values['kassensturz.mobile.accounts.database-key.v1'] =
+            base64UrlEncode(List<int>.generate(32, (index) => index));
+      final wrongRepository = EncryptedAccountRepository(
+        keyStore: SecureAccountKeyStore(store: wrongKeyStore),
+        databasePathProvider: () async => directory.path,
+      );
+      try {
+        await expectLater(
+          wrongRepository.loadAccounts(),
+          throwsA(anything),
+        );
+      } finally {
+        await wrongRepository.close();
+        expect(
+          await File(
+            '${directory.path}/kassensturz_accounts.db',
+          ).exists(),
+          isTrue,
+        );
+        await directory.delete(recursive: true);
+      }
     });
   });
 
