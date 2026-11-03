@@ -1,0 +1,4 @@
+Bezeichnung Auftragskonto;IBAN Auftragskonto;BIC Auftragskonto;Bankname Auftragskonto;Buchungstag;Valutadatum;Name Zahlungsbeteiligter;IBAN Zahlungsbeteiligter;BIC (SWIFT-Code) Zahlungsbeteiligter;Buchungstext;Verwendungszweck;Betrag;Waehrung;Saldo nach Buchung;Bemerkung;Kategorie;Steuerrelevant;Glaeubiger ID;Mandatsreferenz
+Girokonto;DE55370605901234567890;GENODED1SPK;Volksbank Musterstadt;31.10.2026;31.10.2026;Telekom Deutschland GmbH;DE21300700100123456789;DEUTDEDDXXX;Lastschrift;Kd-Nr 512345678 Rechnung 10/2026;-44,95;EUR;1.955,05;;;;DE76ZZZ00000002341;TK512345678
+Girokonto;DE55370605901234567890;GENODED1SPK;Volksbank Musterstadt;30.10.2026;30.10.2026;Netflix International B.V.;NL00INGB0000000000;INGBNL2A;Lastschrift;Netflix Abo;-15,99;EUR;2.000,00;;;;;
+Girokonto;DE55370605901234567890;GENODED1SPK;Volksbank Musterstadt;30.10.2026;30.10.2026;Max Muster;DE88370605900000000001;GENODED1SPK;Gutschrift;Rueckzahlung Konzertkarte;45,00;EUR;2.015,99;;;;;

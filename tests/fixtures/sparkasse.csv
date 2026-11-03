@@ -1,0 +1,6 @@
+"Auftragskonto";"Buchungstag";"Valutadatum";"Buchungstext";"Verwendungszweck";"Glaeubiger ID";"Mandatsreferenz";"Kundenreferenz (End-to-End)";"Sammlerreferenz";"Lastschrift Ursprungsbetrag";"Auslagenersatz Ruecklastschrift";"Beguenstigter/Zahlungspflichtiger";"Kontonummer/IBAN";"BIC (SWIFT-Code)";"Betrag";"Waehrung";"Info"
+"DE12320500000012345678";"30.10.26";"30.10.26";"KARTENZAHLUNG";"2026-10-29T18:12 Debitk.1 2029-12";"";"";"";"";"";"";"REWE Markt GmbH";"DE00000000000000000000";"";"-34,17";"EUR";"Umsatz gebucht"
+"DE12320500000012345678";"28.10.26";"28.10.26";"LOHN, GEHALT";"Gehalt Oktober 2026";"";"";"NOTPROVIDED";"";"";"";"Muster Systemhaus GmbH";"DE44500105175407324931";"INGDDEFFXXX";"3.450,12";"EUR";"Umsatz gebucht"
+"DE12320500000012345678";"15.10.26";"15.10.26";"FOLGELASTSCHRIFT";"Abschlag Strom Oktober";"DE62ZZZ00000012345";"SWK-400123";"E2E-1";"";"";"";"Stadtwerke Musterstadt AG";"DE11320500000000111111";"SPKRDE33XXX";"-89,00";"EUR";"Umsatz gebucht"
+"DE12320500000012345678";"02.11.26";"02.11.26";"KARTENZAHLUNG";"vorgemerkt";"";"";"";"";"";"";"ALDI SUED";"";"";"-12,00";"EUR";"Umsatz vorgemerkt"
+"DE12320500000012345678";"01.10.26";"01.10.26";"UMBUCHUNG";"Uebertrag Tagesgeld";"";"";"";"";"";"";"Max Muster";"DE12320500000087654321";"";"-500,00";"EUR";"Umsatz gebucht"

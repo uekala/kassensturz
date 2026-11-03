@@ -1,0 +1,173 @@
+"""Buchungen speichern, Duplikate vermeiden, Kontostände berechnen."""
+from __future__ import annotations
+
+from collections import Counter, defaultdict
+from datetime import date, timedelta
+
+from . import categorize
+from .db import Database, now_iso
+from .util import tx_hash
+
+TX_COLUMNS = ("booking_date", "value_date", "amount_cents", "currency", "counterparty", "counterparty_iban", "purpose",
+              "booking_text", "creditor_id", "mandate_ref", "end_to_end")
+
+
+def import_rows(db: Database, account_id: int, rows: list[dict], source: str, filename: str | None = None,
+                meta: dict | None = None) -> dict:
+    """Speichert neue Buchungen. Überlappende Zeiträume werden erkannt: pro (Tag, Betrag) wird nur der
+    Überschuss gegenüber dem Bestand eingefügt – so stören auch Mischungen aus FinTS und CSV nicht."""
+    rows = [r for r in rows if r.get("booking_date") and r.get("amount_cents")]
+    added_ids: list[int] = []
+    skipped = 0
+    if rows:
+        first = min(r["booking_date"] for r in rows)
+        last = max(r["booking_date"] for r in rows)
+        existing = db.query(
+            "SELECT booking_date, amount_cents, hash FROM transactions WHERE account_id = ? AND booking_date BETWEEN ? AND ?",
+            (account_id, first, last),
+        )
+        have_keys = Counter((e["booking_date"], e["amount_cents"]) for e in existing)
+        have_hashes = {e["hash"] for e in existing}
+        groups: dict[tuple, list[dict]] = defaultdict(list)
+        for r in rows:
+            r["hash"] = tx_hash(account_id, r["booking_date"], r["amount_cents"], r.get("counterparty"), r.get("purpose"))
+            groups[(r["booking_date"], r["amount_cents"])].append(r)
+        with db.tx():
+            import_id = db.insert("imports", {"account_id": account_id, "source": source, "filename": filename, "created": now_iso(),
+                                               "added": 0, "skipped": 0})
+            created = now_iso()
+            for key, group in groups.items():
+                n_insert = len(group) - have_keys.get(key, 0)
+                if n_insert <= 0:
+                    skipped += len(group)
+                    continue
+                group.sort(key=lambda r: r["hash"] in have_hashes)
+                for r in group[:n_insert]:
+                    data = {c: r.get(c) for c in TX_COLUMNS}
+                    data.update({"account_id": account_id, "source": source, "import_id": import_id, "hash": r["hash"], "created": created})
+                    added_ids.append(db.insert("transactions", data))
+                skipped += len(group) - n_insert
+            db.update("imports", "id", import_id, {"added": len(added_ids), "skipped": skipped})
+        categorize.recategorize(db, added_ids)
+    if meta and meta.get("balance_cents") is not None and meta.get("balance_date"):
+        set_balance_anchor(db, account_id, meta["balance_cents"], meta["balance_date"], only_if_newer=True)
+    return {"added": len(added_ids), "skipped": skipped, "ids": added_ids}
+
+
+def set_balance_anchor(db: Database, account_id: int, cents: int, on: str, only_if_newer: bool = False) -> None:
+    acc = db.one("SELECT balance_date FROM accounts WHERE id = ?", (account_id,))
+    if not acc:
+        return
+    if only_if_newer and acc["balance_date"] and acc["balance_date"] > on:
+        return
+    db.update("accounts", "id", account_id, {"balance_cents": int(cents), "balance_date": on})
+
+
+def current_balance(db: Database, account: dict) -> int:
+    if account.get("balance_date") is not None and account.get("balance_cents") is not None:
+        after = db.scalar("SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE account_id = ? AND booking_date > ?",
+                          (account["id"], account["balance_date"]))
+        return account["balance_cents"] + after
+    return db.scalar("SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE account_id = ?", (account["id"],))
+
+
+def accounts_with_balance(db: Database, include_archived: bool = False) -> list[dict]:
+    sql = "SELECT * FROM accounts" + ("" if include_archived else " WHERE archived = 0") + " ORDER BY sort, id"
+    out = []
+    for a in db.query(sql):
+        a["balance_now"] = current_balance(db, a)
+        a["balance_known"] = a["balance_date"] is not None
+        stats = db.one("SELECT COUNT(*) AS n, MIN(booking_date) AS first, MAX(booking_date) AS last FROM transactions WHERE account_id = ?",
+                       (a["id"],))
+        a.update({"tx_count": stats["n"], "first_date": stats["first"], "last_date": stats["last"]})
+        a.pop("fints_ref", None)
+        out.append(a)
+    return out
+
+
+def balance_series(db: Database, account_ids: list[int], start: date, end: date) -> list[tuple[str, int]]:
+    """Tagesend-Salden (Summe der Konten) zwischen start und end."""
+    if not account_ids:
+        return [(d.isoformat(), 0) for d in _days(start, end)]
+    accounts = db.query(f"SELECT * FROM accounts WHERE id IN ({','.join('?' * len(account_ids))})", tuple(account_ids))
+    total_now = 0
+    for a in accounts:
+        total_now += current_balance(db, a)
+    # Rückwärts vom heutigen Stand rechnen
+    today = date.today()
+    rows = db.query(
+        f"SELECT booking_date, SUM(amount_cents) AS s FROM transactions WHERE account_id IN ({','.join('?' * len(account_ids))}) "
+        "AND booking_date > ? GROUP BY booking_date",
+        (*account_ids, start.isoformat()),
+    )
+    per_day = {r["booking_date"]: r["s"] for r in rows}
+    future_sum = sum(v for k, v in per_day.items() if k > today.isoformat())
+    bal = total_now - future_sum  # Stand Ende heute ohne zukünftig datierte Buchungen
+    series = {}
+    d = today
+    while d >= start:
+        series[d.isoformat()] = bal
+        bal -= per_day.get(d.isoformat(), 0)
+        d -= timedelta(days=1)
+    return [(d.isoformat(), series[d.isoformat()]) for d in _days(start, min(end, today))]
+
+
+def _days(a: date, b: date):
+    d = a
+    while d <= b:
+        yield d
+        d += timedelta(days=1)
+
+
+def entries(db: Database, start: str | None = None, end: str | None = None, account_ids: list[int] | None = None) -> list[dict]:
+    """Buchungen inklusive Aufteilungen als flache Einträge für Auswertungen."""
+    sql = ("SELECT t.id, t.account_id, t.booking_date, t.amount_cents, t.category_id, t.is_transfer, t.contract_key, t.counterparty, "
+           "c.kind AS cat_kind, c.parent_id AS cat_parent FROM transactions t LEFT JOIN categories c ON c.id = t.category_id "
+           "JOIN accounts a ON a.id = t.account_id WHERE a.archived = 0")
+    params: list = []
+    if start:
+        sql += " AND t.booking_date >= ?"
+        params.append(start)
+    if end:
+        sql += " AND t.booking_date <= ?"
+        params.append(end)
+    if account_ids:
+        sql += f" AND t.account_id IN ({','.join('?' * len(account_ids))})"
+        params += account_ids
+    txs = db.query(sql, tuple(params))
+    if not txs:
+        return []
+    split_rows = db.query(
+        "SELECT s.tx_id, s.amount_cents, s.category_id, c.kind AS cat_kind, c.parent_id AS cat_parent FROM splits s "
+        "LEFT JOIN categories c ON c.id = s.category_id"
+    )
+    by_tx = defaultdict(list)
+    for s in split_rows:
+        by_tx[s["tx_id"]].append(s)
+    out = []
+    for t in txs:
+        parts = by_tx.get(t["id"])
+        if not parts:
+            t["is_transfer"] = 1 if (t["is_transfer"] or t["cat_kind"] == "transfer") else 0
+            out.append(t)
+            continue
+        rest = t["amount_cents"] - sum(p["amount_cents"] for p in parts)
+        for p in parts:
+            e = dict(t)
+            e.update({"amount_cents": p["amount_cents"], "category_id": p["category_id"], "cat_kind": p["cat_kind"],
+                      "cat_parent": p["cat_parent"], "is_transfer": 1 if p["cat_kind"] == "transfer" else 0})
+            out.append(e)
+        if rest:
+            e = dict(t)
+            e["amount_cents"] = rest
+            e["is_transfer"] = 1 if (t["is_transfer"] or t["cat_kind"] == "transfer") else 0
+            out.append(e)
+    return out
+
+
+def delete_account(db: Database, account_id: int) -> None:
+    with db.tx():
+        db.execute("DELETE FROM splits WHERE tx_id IN (SELECT id FROM transactions WHERE account_id = ?)", (account_id,))
+        db.execute("DELETE FROM transactions WHERE account_id = ?", (account_id,))
+        db.execute("DELETE FROM imports WHERE account_id = ?", (account_id,))
+        db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))

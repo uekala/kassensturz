@@ -1,0 +1,8 @@
+"Girokonto";"DE12 1203 0000 1234 5678 90"
+""
+"Kontostand vom 02.11.2026:";"2.345,67 €"
+""
+"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"
+"02.11.26";"02.11.26";"Vorgemerkt";"Max Muster";"Lidl";"Lidl sagt danke";"Ausgang";"";"-23,10";"";"";""
+"31.10.26";"31.10.26";"Gebucht";"Max Muster";"HUK-COBURG";"Kfz-Versicherung 2026";"Ausgang";"DE12345678901234567890";"-412,38";"DE33ZZZ00000004444";"HUK-1";""
+"30.10.26";"30.10.26";"Gebucht";"Muster Systemhaus GmbH";"Max Muster";"Gehalt";"Eingang";"DE44500105175407324931";"3.450,12";"";"";""

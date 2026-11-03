@@ -1,0 +1,16 @@
+configuration:
+  fints_product_id:
+    name: FinTS-Produkt-ID
+    description: Registrierungsnummer von der Deutschen Kreditwirtschaft (fints.org). Ohne sie funktioniert nur der Datei-Import.
+  sync_time:
+    name: Uhrzeit für den automatischen Abruf
+    description: Täglicher Abruf für Bankzugänge mit gespeicherter PIN (HH:MM).
+  sensors:
+    name: Sensoren in Home Assistant anlegen
+    description: Kontostand, Prognose, Fixkosten und Budgets als sensor.kassensturz_* bereitstellen.
+  notify_service:
+    name: Benachrichtigungsdienst
+    description: "Optional, z. B. notify.mobile_app_pixel. Leer lassen für persistente Benachrichtigungen in Home Assistant."
+  warn_threshold:
+    name: Warnschwelle in Euro
+    description: Warnen, wenn der prognostizierte Kontostand unter diesen Betrag fällt.
