@@ -58,13 +58,21 @@ async def _json_object(request: Request) -> dict[str, Any] | None:
 
 
 def _local_admin_allowed(request: Request) -> bool:
-    """Only HA Ingress or a local process may create/manage device pairings."""
+    """Require an identified, admin-only HA Ingress session or local access."""
     peer = socket_peer(request)
     # A trusted reverse proxy may itself connect over loopback. Do not mistake
     # a tailnet-proxied request for a local HA administrator session.
     if address_in_networks(peer, TRUSTED_PROXY_NETWORKS):
         return False
-    return bool(peer and (peer.is_loopback or peer.compressed == INGRESS_IP))
+    if peer is None:
+        return False
+    if peer.compressed == INGRESS_IP:
+        # The Supervisor strips untrusted copies of these headers and sets
+        # X-Remote-User-Id for the authenticated Ingress session. The add-on
+        # also declares panel_admin: true so only HA administrators get one.
+        user_id = request.headers.get("x-remote-user-id", "").strip()
+        return bool(user_id)
+    return peer.is_loopback
 
 
 def _authenticated_device(request: Request):
