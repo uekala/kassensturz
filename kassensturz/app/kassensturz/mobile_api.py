@@ -19,13 +19,16 @@ from .mobile_auth import (
     PairingLimitReached,
     PairingRejected,
 )
-from .mobile_security import socket_peer
+from .mobile_security import address_in_networks, parse_trusted_proxy_networks, socket_peer
 
 
 router = APIRouter()
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
 MAX_TOKEN_LENGTH = 128
+TRUSTED_PROXY_NETWORKS = parse_trusted_proxy_networks(
+    options.network_security_settings()["trusted_proxies"]
+)
 
 
 def _error(
@@ -57,6 +60,10 @@ async def _json_object(request: Request) -> dict[str, Any] | None:
 def _local_admin_allowed(request: Request) -> bool:
     """Only HA Ingress or a local process may create/manage device pairings."""
     peer = socket_peer(request)
+    # A trusted reverse proxy may itself connect over loopback. Do not mistake
+    # a tailnet-proxied request for a local HA administrator session.
+    if address_in_networks(peer, TRUSTED_PROXY_NETWORKS):
+        return False
     return bool(peer and (peer.is_loopback or peer.compressed == INGRESS_IP))
 
 
