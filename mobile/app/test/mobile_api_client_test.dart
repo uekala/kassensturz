@@ -11,7 +11,8 @@ class FakeTransport implements MobileTransport {
   FakeTransport(this.responses);
 
   final List<MobileHttpResponse> responses;
-  final requests = <({String method, Uri uri, Map<String, String> headers, String? body})>[];
+  final requests =
+      <({String method, Uri uri, Map<String, String> headers, String? body})>[];
 
   @override
   Future<MobileHttpResponse> send({
@@ -36,10 +37,7 @@ class FakeTransport implements MobileTransport {
 MobileHttpResponse jsonResponse(int status, Map<String, dynamic> body) =>
     MobileHttpResponse(statusCode: status, body: jsonEncode(body));
 
-Map<String, dynamic> tokenResponse({
-  String? access,
-  String? refresh,
-}) => {
+Map<String, dynamic> tokenResponse({String? access, String? refresh}) => {
   'access_token': access ?? token('a'),
   'access_expires_in': 600,
   'refresh_token': refresh ?? token('r'),
@@ -67,7 +65,9 @@ void main() {
       throwsFormatException,
     );
     expect(
-      () => MobileSession.normalizeServerUrl('https://user:secret@example.ts.net'),
+      () => MobileSession.normalizeServerUrl(
+        'https://user:secret@example.ts.net',
+      ),
       throwsFormatException,
     );
     expect(
@@ -186,30 +186,33 @@ void main() {
     client.close();
   });
 
-  test('transaction filters are query parameters, credentials stay in header', () async {
-    final store = InMemoryMobileSessionStore();
-    await store.write(session());
-    final transport = FakeTransport([
-      jsonResponse(200, {'items': [], 'total': 0, 'limit': 25, 'offset': 50}),
-    ]);
-    final client = MobileApiClient(sessionStore: store, transport: transport);
+  test(
+    'transaction filters are query parameters, credentials stay in header',
+    () async {
+      final store = InMemoryMobileSessionStore();
+      await store.write(session());
+      final transport = FakeTransport([
+        jsonResponse(200, {'items': [], 'total': 0, 'limit': 25, 'offset': 50}),
+      ]);
+      final client = MobileApiClient(sessionStore: store, transport: transport);
 
-    await client.transactions(
-      limit: 25,
-      offset: 50,
-      month: '2026-11',
-      accountId: 7,
-      categoryId: 3,
-    );
+      await client.transactions(
+        limit: 25,
+        offset: 50,
+        month: '2026-11',
+        accountId: 7,
+        categoryId: 3,
+      );
 
-    final request = transport.requests.single;
-    expect(request.uri.path, '/api/v1/transactions');
-    expect(request.uri.queryParameters['month'], '2026-11');
-    expect(request.uri.queryParameters['account_id'], '7');
-    expect(request.headers['Authorization'], 'Bearer ' + token('a'));
-    expect(request.uri.query, isNot(contains(token('a'))));
-    client.close();
-  });
+      final request = transport.requests.single;
+      expect(request.uri.path, '/api/v1/transactions');
+      expect(request.uri.queryParameters['month'], '2026-11');
+      expect(request.uri.queryParameters['account_id'], '7');
+      expect(request.headers['Authorization'], 'Bearer ' + token('a'));
+      expect(request.uri.query, isNot(contains(token('a'))));
+      client.close();
+    },
+  );
 
   test('logout always removes the local session', () async {
     final store = InMemoryMobileSessionStore();
