@@ -116,3 +116,24 @@ def test_delete_session_keeps_bookings(client, db, bank):
     assert client.get("/api/eb").json()["sessions"] == []
     assert db.scalar("SELECT COUNT(*) FROM transactions") > 0
     assert db.scalar("SELECT eb_uid FROM accounts") is None
+
+
+def test_open_banking_callback_requires_exact_state(db, monkeypatch):
+    from kassensturz import openbanking
+
+    state = "expected-state"
+    openbanking._pending[state] = {
+        "aspsp": "N26", "country": "DE", "renew": None, "created": time.time(), "days": 180,
+    }
+    calls = []
+    monkeypatch.setattr(openbanking, "call", lambda *args, **kwargs: calls.append((args, kwargs)))
+
+    with pytest.raises(openbanking.EBError, match="state"):
+        openbanking.complete_auth(db, "https://enablebanking.com/?code=unexpected-code")
+
+    with pytest.raises(openbanking.EBError, match="offenen Vorgang"):
+        openbanking.complete_auth(db, "https://enablebanking.com/?code=unexpected-code&state=attacker-state")
+
+    assert calls == []
+    assert state in openbanking._pending
+
