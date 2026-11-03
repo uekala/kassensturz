@@ -18,8 +18,9 @@ SQLite stores financial transactions and connection metadata. The data directory
 | Component | Status |
 |---|---|
 | Mobile pairing/device/token tables | Schema present; migration and constraints tested |
+| Pairing and token lifecycle service | Implemented as an internal HTTP-free service; unit tests cover one-time pairing, expiry, rotation, replay detection and revocation |
 | Pairing-secret creation and redemption routes | Not implemented |
-| Access-/refresh-token issue, rotation and replay detection | Not implemented |
+| Access-/refresh-token HTTP routes | Not implemented |
 | Mobile device listing and revocation routes | Not implemented |
 | Authenticated mobile DTO routes | Not implemented |
 | HTTPS enforcement for a mobile listener | Not implemented |
@@ -30,7 +31,7 @@ SQLite stores financial transactions and connection metadata. The data directory
 
 The current FastAPI application has only the existing Home Assistant / loopback network boundary. It does not register the mobile routes in the API contract. The prepared database tables do not provide authentication by themselves. The existing `/api/*` routes must not be treated as device-authenticated routes, and the standalone deployment remains bound to loopback only.
 
-The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) are specifications for a future implementation, not currently available capabilities.
+The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The new `mobile_auth.py` module implements only the internal credential lifecycle; it is not registered as an HTTP router and cannot be reached over the network. Pairing administration authorization, rate limiting, HTTPS enforcement, authenticated DTO routes and the Flutter connection flow are still outstanding.
 
 
 ## Required controls before a mobile listener is enabled
