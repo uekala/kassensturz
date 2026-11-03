@@ -44,9 +44,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Inspect formatted budget source
-        run: dart format --output=show lib/features/budget/budget_page.dart
-
       - name: Check Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
 
