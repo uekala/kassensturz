@@ -25,8 +25,8 @@ Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/
 - [x] CI für Flutter-Formatierung, statische Analyse und Widget-Tests eingerichtet.
 - [x] Reproduzierbares Erzeugen von Android- und iOS-Projektdateien ergänzt.
 - [ ] Verbindungsassistent und Server-Healthcheck.
-- [ ] QR-Pairing und Geräteverwaltung über HTTP-Endpunkte.
-- [x] Serverseitiger Pairing-/Token-Lifecycle als HTTP-freier Service mit Tests (Einmal-Secrets, Tokenrotation, Replay-Erkennung und Gerätewiderruf).
+- [x] Server-Endpunkte für Pairing, Refresh, Logout und lokale Geräteverwaltung.
+- [x] Serverseitiger Pairing-/Token-Lifecycle mit Tests (Einmal-Secrets, Tokenrotation, Replay-Erkennung und Gerätewiderruf).
 - [x] HTTPS-Sperre für reservierte Mobile-API-Pfade und Prüfung explizit vertrauenswürdiger Proxy-Header.
 - [x] Netzwerk-Rate-Limits vor dem Route-Dispatch für Pairing, Refresh, Logout, Lesezugriffe und Geräteverwaltung.
 - [x] Leere Standard-Allowlist für private mobile Client-Netze; optionale CIDR-Freigabe für VPN/LAN nur auf Mobile-Pfaden.
@@ -34,12 +34,12 @@ Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/
 - [x] Demo-Oberflächen für Dashboard, Konten, Buchungen und Budgets mit klar gekennzeichneten Beispieldaten.
 - [x] Manuelle lokale Kontenpflege mit verschlüsselter SQLite-Datenbank und Schlüsselablage im Betriebssystem.
 - [x] Lokale Speicherung der Budgetlimits.
-- [x] Interne, allowlist-basierte DTO-Services für Dashboard-Übersicht, Konten, Budgets und paginierte Buchungsliste.
-- [ ] Flutter-Anbindung der echten Daten; Verträge und weitere Live-Funktionen.
+- [x] Allowlist-DTOs und geschützte Server-Endpunkte für Übersicht, Konten, Budgets und paginierte Buchungsliste.
+- [ ] Flutter-Anbindung an echte Serverdaten; Verträge und weitere Live-Funktionen.
 - [ ] Integrationstests auf iOS und Android.
 - [ ] Signierte Builds und Store-Veröffentlichungen.
 
-**Aktueller Implementierungsstand:** Das Flutter-Dart-Projekt enthält Demo-Oberflächen, lokale Kontenpflege und Budgetlimits. Im Python-Backend existieren interne Services für Pairing/Token-Lifecycle und allowlist-basierte Mobile-DTOs. Die reservierten Mobile-API-Pfade sind bereits mit einer HTTPS-Sperre und Netzwerk-Rate-Limits versehen. Es gibt weiterhin keine produktiven Mobile-API- oder Pairing-HTTP-Endpunkte und keine echte Serververbindung. Der aktuelle Rate-Limiter ist prozesslokal und setzt einen einzelnen App-Prozess voraus; gerätebezogene Limits und gemeinsamer Zustand für Mehrprozessbetrieb stehen noch aus. Die optionale Umgebungsvariable `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` ist standardmäßig leer und öffnet weder einen Port noch registriert sie API-Routen. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
+**Aktueller Implementierungsstand:** Das Python-Backend stellt Mobile-Endpunkte für Pairing, Tokenrotation, Logout, lokale Geräteverwaltung, Geräteidentität, Übersicht und Buchungen bereit. Finanzdaten sind per Bearer-Token geschützt; Geräteverwaltung ist Ingress/Loopback vorbehalten. HTTPS, private Client-Netz-Allowlist und Netzwerk-Rate-Limits sind in der Middleware umgesetzt. Die Flutter-App ist noch nicht mit dem Server verbunden und nutzt für Dashboard/Buchungen weiterhin Beispieldaten. Der aktuelle Rate-Limiter ist prozesslokal und setzt einen einzelnen App-Prozess voraus; gerätebezogene Limits und gemeinsamer Zustand für Mehrprozessbetrieb stehen noch aus. Die optionale Umgebungsvariable `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` ist standardmäßig leer und öffnet weder einen Port noch registriert sie API-Routen. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
 
 ## Geplante Projektstruktur
 
