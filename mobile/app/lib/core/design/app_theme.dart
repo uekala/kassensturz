@@ -16,33 +16,34 @@ abstract final class AppTheme {
   static const Color softBrand = Color(0xFFE7F0EC);
 
   static ThemeData light() {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: brand,
-      brightness: Brightness.light,
-      surface: surface,
-    ).copyWith(
-      primary: brand,
-      onPrimary: Colors.white,
-      primaryContainer: softBrand,
-      onPrimaryContainer: brand,
-      secondary: accent,
-      onSecondary: Colors.white,
-      secondaryContainer: const Color(0xFFEAF2EE),
-      onSecondaryContainer: brand,
-      surface: surface,
-      onSurface: ink,
-      surfaceContainerLowest: Colors.white,
-      surfaceContainerLow: const Color(0xFFFAFBFA),
-      surfaceContainer: canvas,
-      surfaceContainerHigh: const Color(0xFFEEF2EF),
-      onSurfaceVariant: mutedInk,
-      outline: const Color(0xFFB8C4BD),
-      outlineVariant: border,
-      error: const Color(0xFFB54745),
-      onError: Colors.white,
-      errorContainer: const Color(0xFFFCEBE9),
-      onErrorContainer: const Color(0xFF7A2826),
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: brand,
+          brightness: Brightness.light,
+          surface: surface,
+        ).copyWith(
+          primary: brand,
+          onPrimary: Colors.white,
+          primaryContainer: softBrand,
+          onPrimaryContainer: brand,
+          secondary: accent,
+          onSecondary: Colors.white,
+          secondaryContainer: const Color(0xFFEAF2EE),
+          onSecondaryContainer: brand,
+          surface: surface,
+          onSurface: ink,
+          surfaceContainerLowest: Colors.white,
+          surfaceContainerLow: const Color(0xFFFAFBFA),
+          surfaceContainer: canvas,
+          surfaceContainerHigh: const Color(0xFFEEF2EF),
+          onSurfaceVariant: mutedInk,
+          outline: const Color(0xFFB8C4BD),
+          outlineVariant: border,
+          error: const Color(0xFFB54745),
+          onError: Colors.white,
+          errorContainer: const Color(0xFFFCEBE9),
+          onErrorContainer: const Color(0xFF7A2826),
+        );
 
     const radius = 14.0;
 
@@ -155,10 +156,7 @@ abstract final class AppTheme {
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
-          return IconThemeData(
-            color: selected ? brand : mutedInk,
-            size: 22,
-          );
+          return IconThemeData(color: selected ? brand : mutedInk, size: 22);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
@@ -178,10 +176,7 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -193,10 +188,7 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -234,9 +226,7 @@ abstract final class AppTheme {
         selectedColor: softBrand,
         disabledColor: canvas,
         side: const BorderSide(color: border),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         labelStyle: const TextStyle(
           color: ink,
           fontSize: 12,
