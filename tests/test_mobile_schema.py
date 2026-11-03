@@ -213,3 +213,65 @@ def test_legacy_mobile_tables_are_migrated_without_data_loss(tmp_path):
         "mobile_tokens_device",
         "mobile_tokens_expiry",
     } <= indexes
+
+
+
+def test_invalid_legacy_mobile_data_rolls_back_entire_migration(tmp_path):
+    from kassensturz.db import Database
+
+    path = tmp_path / "invalid-legacy.sqlite"
+    legacy = sqlite3.connect(path)
+    legacy.executescript(
+        """
+        CREATE TABLE mobile_pairings(
+          id INTEGER PRIMARY KEY,
+          secret_hash TEXT NOT NULL UNIQUE,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          consumed_at TEXT
+        );
+        CREATE TABLE mobile_devices(
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          last_used_at TEXT,
+          revoked_at TEXT
+        );
+        CREATE TABLE mobile_tokens(
+          token_hash TEXT PRIMARY KEY,
+          device_id TEXT NOT NULL,
+          token_type TEXT NOT NULL CHECK(token_type IN ('access', 'refresh')),
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          revoked_at TEXT,
+          replaced_by_hash TEXT
+        );
+        INSERT INTO mobile_pairings VALUES
+          (1, 'pair-hash', '2026-11-03T10:00:00+01:00', '2026-11-03T10:05:00+01:00', NULL);
+        INSERT INTO mobile_devices VALUES
+          ('device-1', '   ', '2026-11-03T10:00:00+01:00', NULL, NULL);
+        INSERT INTO mobile_tokens VALUES
+          ('token-hash', 'device-1', 'access', '2026-11-03T10:00:00+01:00',
+           '2026-11-03T10:10:00+01:00', NULL, NULL);
+        """
+    )
+    legacy.commit()
+    legacy.close()
+
+    with pytest.raises(sqlite3.IntegrityError):
+        Database(path)
+
+    check = sqlite3.connect(path)
+    try:
+        pairing_sql = check.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'mobile_pairings'"
+        ).fetchone()[0]
+        assert "CHECK(length(trim(secret_hash)) > 0)" not in pairing_sql
+        assert check.execute("SELECT secret_hash FROM mobile_pairings WHERE id = 1").fetchone()[0] == "pair-hash"
+        assert check.execute("SELECT name FROM mobile_devices WHERE id = 'device-1'").fetchone()[0] == "   "
+        assert check.execute("SELECT token_hash FROM mobile_tokens WHERE device_id = 'device-1'").fetchone()[0] == "token-hash"
+        assert check.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'mobile_devices__migration'"
+        ).fetchone() is None
+    finally:
+        check.close()
