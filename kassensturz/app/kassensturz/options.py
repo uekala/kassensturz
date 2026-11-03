@@ -15,6 +15,7 @@ DEFAULTS = {
     "import_folder": "/share/kassensturz",
     "trusted_proxies": "",
     "mobile_client_networks": "",
+    "mobile_server_url": "",
 }
 
 VERSION = "0.2.0"
