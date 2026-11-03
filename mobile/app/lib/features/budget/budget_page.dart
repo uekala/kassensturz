@@ -81,8 +81,7 @@ class _BudgetPageState extends State<BudgetPage> {
     double? currentLimit,
   }) {
     final availableCategories = DemoFinanceData.categories.where((category) {
-      final isBudgetable =
-          category.id != 'housing' && category.id != 'income';
+      final isBudgetable = category.id != 'housing' && category.id != 'income';
       final isCurrent = category.id == currentCategoryId;
       return isBudgetable && (!_limits.containsKey(category.id) || isCurrent);
     }).toList();
@@ -90,14 +89,14 @@ class _BudgetPageState extends State<BudgetPage> {
     if (availableCategories.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Für alle verfügbaren Kategorien gibt es bereits Budgets.'),
+          content:
+              Text('Für alle verfügbaren Kategorien gibt es bereits Budgets.'),
         ),
       );
       return Future.value(null);
     }
 
-    var selectedCategoryId =
-        currentCategoryId ?? availableCategories.first.id;
+    var selectedCategoryId = currentCategoryId ?? availableCategories.first.id;
     var amountText = currentLimit?.toStringAsFixed(2) ?? '';
     final formKey = GlobalKey<FormState>();
 
@@ -215,9 +214,8 @@ class _BudgetPageState extends State<BudgetPage> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             ...List.generate(_months.length, (index) {
-              final label = _months[index].month == 11
-                  ? 'November 2026'
-                  : 'Oktober 2026';
+              final label =
+                  _months[index].month == 11 ? 'November 2026' : 'Oktober 2026';
               return ChoiceChip(
                 label: Text(label),
                 selected: _selectedMonth == index,
@@ -285,8 +283,7 @@ class _BudgetPageState extends State<BudgetPage> {
         else
           ..._budgetCategories.map((category) {
             final limit = _limits[category.id]!;
-            final spent =
-                DemoFinanceData.spentForCategory(category.id, _month);
+            final spent = DemoFinanceData.spentForCategory(category.id, _month);
             return _CategoryBudgetCard(
               category: category,
               spent: spent,
@@ -418,9 +415,8 @@ class _BudgetSummaryCard extends StatelessWidget {
               _SummaryValue(label: 'Gesamtbudget', value: formatEuro(budget)),
               _SummaryValue(
                 label: 'Genutzt',
-                value: budget <= 0
-                    ? '0 %'
-                    : '${(spent / budget * 100).round()} %',
+                value:
+                    budget <= 0 ? '0 %' : '${(spent / budget * 100).round()} %',
                 alignEnd: true,
               ),
             ],
@@ -591,3 +587,4 @@ class _BudgetDraft {
   final String categoryId;
   final double limit;
 }
+
