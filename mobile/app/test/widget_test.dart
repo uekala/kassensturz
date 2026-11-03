@@ -38,7 +38,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Buchungen'), findsWidgets);
-    expect(find.text('10 Buchungen · Beispieldaten'), findsOneWidget);
+    expect(find.text('10 Buchungen'), findsOneWidget);
   });
 
   testWidgets('dashboard budget card uses calculated transaction totals', (
@@ -276,17 +276,17 @@ void main() {
 
     await tester.tap(find.text('Buchungen').last);
     await tester.pumpAndSettle();
-    expect(find.text('10 Buchungen · Beispieldaten'), findsOneWidget);
+    expect(find.text('10 Buchungen'), findsOneWidget);
 
     await tester.tap(find.text('Einnahmen'));
     await tester.pumpAndSettle();
-    expect(find.text('1 Buchung · Beispieldaten'), findsOneWidget);
+    expect(find.text('1 Buchung'), findsOneWidget);
     expect(find.text('Gehalt'), findsOneWidget);
     expect(find.text('REWE'), findsNothing);
 
     await tester.tap(find.text('Ausgaben'));
     await tester.pumpAndSettle();
-    expect(find.text('9 Buchungen · Beispieldaten'), findsOneWidget);
+    expect(find.text('9 Buchungen'), findsOneWidget);
     expect(find.text('Gehalt'), findsNothing);
     expect(find.text('REWE'), findsOneWidget);
   });
