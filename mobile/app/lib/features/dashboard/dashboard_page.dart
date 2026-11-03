@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/data/budget_controller.dart';
 import '../../core/data/demo_finance_data.dart';
 
 class DashboardPage extends StatelessWidget {
@@ -7,26 +8,32 @@ class DashboardPage extends StatelessWidget {
     super.key,
     required this.onOpenTransactions,
     required this.onOpenBudget,
+    required this.budgetController,
   });
 
   final VoidCallback onOpenTransactions;
   final VoidCallback onOpenBudget;
+  final BudgetController budgetController;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final currentMonth = DateTime(2026, 11);
-    const defaultLimits = DemoFinanceData.defaultBudgetLimits;
-    final budgetTotal = DemoFinanceData.totalBudget(defaultLimits);
-    final budgetSpent =
-        DemoFinanceData.spentForBudgets(currentMonth, defaultLimits);
-    final budgetRemaining = budgetTotal - budgetSpent;
-    final budgetProgress = budgetTotal <= 0
-        ? 0.0
-        : (budgetSpent / budgetTotal).clamp(0.0, 1.0).toDouble();
 
-    return ListView(
+    return AnimatedBuilder(
+      animation: budgetController,
+      builder: (context, child) {
+        final currentMonth = DateTime(2026, 11);
+        final budgetLimits = budgetController.limits;
+        final budgetTotal = DemoFinanceData.totalBudget(budgetLimits);
+        final budgetSpent =
+            DemoFinanceData.spentForBudgets(currentMonth, budgetLimits);
+        final budgetRemaining = budgetTotal - budgetSpent;
+        final budgetProgress = budgetTotal <= 0
+            ? 0.0
+            : (budgetSpent / budgetTotal).clamp(0.0, 1.0).toDouble();
+
+        return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       children: [
         Text(
@@ -123,6 +130,8 @@ class DashboardPage extends StatelessWidget {
           ),
         ),
       ],
+        );
+      },
     );
   }
 }
