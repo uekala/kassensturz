@@ -103,6 +103,7 @@ void main() {
     expect(find.text('Einmaliger Pairing-Code'), findsOneWidget);
     expect(find.text('Gerät sicher koppeln'), findsOneWidget);
     expect(find.text('https://dein-server.ts.net'), findsOneWidget);
+    expect(find.text('Server prüfen'), findsOneWidget);
   });
 
   testWidgets(
