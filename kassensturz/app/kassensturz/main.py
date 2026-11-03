@@ -22,7 +22,6 @@ from .db import get_db, now_iso
 log = logging.getLogger("kassensturz")
 STATIC = Path(__file__).parent / "static"
 INGRESS_IP = "172.30.32.2"
-DEV = os.environ.get("KASSENSTURZ_DEV") == "1"
 
 @asynccontextmanager
 async def lifespan(_app):
@@ -44,7 +43,9 @@ _imports: dict[str, dict] = {}
 @app.middleware("http")
 async def only_ingress(request: Request, call_next):
     client = request.client.host if request.client else ""
-    if not DEV and client not in (INGRESS_IP, "127.0.0.1", "::1"):
+    # Development mode never bypasses the network boundary. Only the
+    # Home Assistant Ingress peer and local loopback clients are accepted.
+    if client not in (INGRESS_IP, "127.0.0.1", "::1"):
         return JSONResponse({"detail": "Nur über Home Assistant erreichbar."}, status_code=403)
     response = await call_next(request)
     if request.url.path.startswith("/api/"):
