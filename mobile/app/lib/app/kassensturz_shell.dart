@@ -46,7 +46,8 @@ class _KassensturzShellState extends State<KassensturzShell> {
     );
     _accountController.load();
     _mobileConnectionController =
-        widget.mobileConnectionController ?? MobileConnectionController.preview();
+        widget.mobileConnectionController ??
+        MobileConnectionController.preview();
     _mobileConnectionController.restore();
   }
 
