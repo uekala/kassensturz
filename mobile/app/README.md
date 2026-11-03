@@ -4,9 +4,9 @@ Flutter client source for iOS and Android. Both platforms share the Dart applica
 
 ## Current status
 
-The repository contains an initial local-first UI prototype with synthetic demo data and automated tests. It is **not connected to a Kassensturz server**. Pairing, login, API calls, bank connections and live financial information are not implemented.
+The repository contains a local-first Flutter prototype. It is **not connected to a Kassensturz server**. Pairing, login, API calls, bank connections and live financial information are not implemented.
 
-The current navigation contains:
+The navigation contains:
 
 - Overview dashboard
 - Accounts
@@ -14,15 +14,25 @@ The current navigation contains:
 - Budgets
 - More / settings
 
-Every screen that displays financial values clearly identifies them as example data. Do not interpret these values as a real account balance, transaction history or bank feed.
+Dashboard, transactions and budget spending are based on synthetic example data. Account records created in the production app are manually entered by the user. They are not imported from a bank, synchronized with a server or reconciled against transactions.
+
+## Local account management
+
+Accounts can be created, edited and deleted on the device. Each record contains a name, account type, optional institution, optional final four digits and a manually entered EUR balance. Balances are stored as signed integer cents to avoid floating-point storage errors.
+
+The app deliberately rejects complete account/card numbers. It does not ask for or store an IBAN, card number, PIN, TAN or online-banking credentials.
+
+In the production entry point, account records are stored in an SQLite database encrypted with SQLite3MultipleCiphers in SQLCipher compatibility mode. A random 256-bit database key is kept separately using flutter_secure_storage (Android secure storage / iOS Keychain). The test and preview app constructor uses an in-memory repository with synthetic example accounts.
+
+This storage design protects the account database at rest; it is not a complete security certification. Operating-system backups, device compromise, memory exposure, recovery and key-loss handling still require a dedicated release review. Losing the platform-stored database key can make the local account database unreadable.
 
 ## Budgets and local persistence
 
-Budget category limits can be created, edited and deleted. The prototype calculates spending against its shared synthetic transaction examples and displays the result for the selected month. The dashboard and budget screen use the same budget state.
+Budget category limits can be created, edited and deleted. The prototype calculates spending against shared synthetic transaction examples and displays the result for the selected month. The dashboard and budget screen use the same budget state.
 
-Budget limits are stored on the device using the asynchronous SharedPreferences API and are restored when the app is reopened. Only category IDs and budget amounts are stored there; credentials, bank details and transaction data are not.
+Budget limits are currently stored on the device using the asynchronous SharedPreferences API. Only category IDs and budget amounts are stored there; credentials, bank details and transaction data are not. SharedPreferences is lightweight app storage and is not encrypted. It is not used for account balances or other account records.
 
-SharedPreferences is lightweight app storage, not an encrypted financial database or an authoritative store for critical financial data. The repository abstraction is designed so that this storage implementation can be replaced when the Kassensturz server and its mobile API are available.
+The repository abstractions allow storage implementations to evolve when the Kassensturz server and its mobile API are available.
 
 ## Requirements
 
@@ -42,7 +52,7 @@ flutter test
 flutter analyze
 ```
 
-The current automated suite contains repository tests for local budget persistence and widget tests for the app's main flows.
+The automated suite covers account model validation, secure-key handling, encrypted database persistence and wrong-key rejection, budget persistence, and the app's main widget flows.
 
 Generate the native Android and iOS project files once:
 
@@ -50,7 +60,7 @@ Generate the native Android and iOS project files once:
 bash tool/bootstrap-platforms.sh
 ```
 
-The bootstrap script refuses to overwrite existing platform folders. After the first generation, keep the generated `android/` and `ios/` directories under version control when preparing a real developer workspace.
+The bootstrap script refuses to overwrite existing platform folders. After the first generation, keep the generated android/ and ios/ directories under version control when preparing a real developer workspace.
 
 Run on a connected device or simulator:
 
@@ -61,6 +71,6 @@ flutter run
 
 ## Security and API integration
 
-No networking or credential storage is wired into this prototype yet. Do not add placeholder tokens, fake authentication, or insecure certificate exceptions. The API integration must use the approved contract and platform-secure credential storage once the server-side mobile authentication is implemented.
+No networking, pairing, mobile authentication or credential exchange is wired into this prototype yet. Do not add placeholder tokens, fake authentication, or insecure certificate exceptions. The API integration must use the approved contract and platform-secure credential storage once the server-side mobile authentication is implemented.
 
 See [Mobile architecture](../../docs/architecture/0006-flutter-mobile-client.md) and [Mobile security requirements](../../docs/architecture/0002-mobile-api-security.md).
