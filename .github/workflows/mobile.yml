@@ -44,6 +44,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Inspect budget formatting diff
+        run: |
+          cp lib/features/budget/budget_page.dart /tmp/budget-original.dart
+          dart format lib/features/budget/budget_page.dart
+          diff -u /tmp/budget-original.dart lib/features/budget/budget_page.dart || true
+
       - name: Check Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
 
