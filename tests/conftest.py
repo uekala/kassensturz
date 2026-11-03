@@ -20,6 +20,7 @@ def db(tmp_path, monkeypatch):
 
     monkeypatch.setattr(dbmod, "DATA_DIR", tmp_path)
     monkeypatch.setattr(secrets_store, "_PATH", tmp_path / "secrets.json")
+    monkeypatch.setattr(secrets_store, "_KEY_PATH", tmp_path / "secrets.key")
     database = dbmod.reset_db_for_tests(tmp_path / "test.sqlite")
     categorize.ensure_categories(database)
     return database
