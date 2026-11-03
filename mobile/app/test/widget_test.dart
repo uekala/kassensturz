@@ -22,7 +22,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Dein Überblick'), findsOneWidget);
-    expect(find.text('2.486,30 €'), findsOneWidget);
+    expect(find.text('+1.656,74 €'), findsOneWidget);
     expect(find.text('DEMO'), findsOneWidget);
   });
 
