@@ -173,10 +173,23 @@ Ungültige, abgelaufene und widerrufene Tokens dürfen nicht durch unterschiedli
 
 ## 7. Rate-Limits und Missbrauchsschutz
 
+Aktueller Implementierungsbaseline für das Netzwerk-Limit (pro ermittelter Client-IP):
+
+| Aktion | Limit | Zeitfenster |
+|---|---:|---:|
+| Pairing einlösen | 10 | 5 Minuten |
+| Refresh | 30 | 1 Minute |
+| Logout | 20 | 1 Minute |
+| Geräte-/Status-/Übersicht-/Buchungs-Lesezugriff | 120 | 1 Minute |
+| Pairing erzeugen | 5 | 15 Minuten |
+| Gerät widerrufen | 10 | 5 Minuten |
+
+Die Werte sind konservative Startwerte und müssen anhand realer Nutzung überprüft werden. Die aktuelle Implementierung ist ein begrenzter In-Memory-Sliding-Window-Limiter für einen einzelnen Prozess. Vor Mehrprozessbetrieb muss ein gemeinsamer, transaktionaler Rate-Limit-Speicher eingesetzt werden. Zusätzlich sind bei Refresh und Pairing gerätebezogene bzw. installationsbezogene Limits vorzusehen. Die Netzwerkidentität wird aus dem Socket-Peer oder – ausschließlich bei einem explizit vertrauenswürdigen Proxy – aus einer validierten `X-Forwarded-For`-Kette abgeleitet.
+
 - Pairing-Erzeugung: begrenzte Anzahl aktiver Pairing-Secrets je Installation.
 - Pairing-Einlösung: begrenzte Fehlversuche pro tatsächlicher Netzwerk-Gegenstelle und Zeitfenster.
 - Refresh: begrenzte Anfragen pro Geräteidentität.
-- Limits gelten serverseitig; vom Client gelieferte IP-Header dürfen den Rate-Limit-Schlüssel nicht bestimmen.
+- Limits gelten serverseitig; vom Client gelieferte IP-Header dürfen den Rate-Limit-Schlüssel nicht bestimmen. Forwarding-Header werden nur akzeptiert, wenn die unmittelbare Gegenstelle in `KASSENSTURZ_TRUSTED_PROXIES` konfiguriert ist.
 - Bei Überschreitung erfolgt `429` mit `Retry-After`.
 - Rate-Limit-Daten dürfen keine Pairing-Secrets oder Token im Klartext enthalten.
 - Fehlversuche und Sicherheitsereignisse werden protokolliert, niemals aber die Credentials selbst.
