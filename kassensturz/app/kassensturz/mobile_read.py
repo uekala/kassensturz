@@ -38,11 +38,16 @@ def _integer(value: Any, *, default: int, minimum: int, maximum: int, name: str)
         return default
     if isinstance(value, bool):
         raise MobileQueryError(f"{name} must be an integer.")
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError) as exc:
-        raise MobileQueryError(f"{name} must be an integer.") from exc
-    if parsed != value or not minimum <= parsed <= maximum:
+    if isinstance(value, str):
+        normalized = value.strip()
+        if not re.fullmatch(r"[+-]?\\d+", normalized):
+            raise MobileQueryError(f"{name} must be an integer.")
+        parsed = int(normalized)
+    elif isinstance(value, int):
+        parsed = value
+    else:
+        raise MobileQueryError(f"{name} must be an integer.")
+    if not minimum <= parsed <= maximum:
         raise MobileQueryError(f"{name} is outside the permitted range.")
     return parsed
 
