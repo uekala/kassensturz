@@ -204,10 +204,7 @@ class DemoFinanceData {
     return limits.values.fold<double>(0, (total, limit) => total + limit);
   }
 
-  static double spentForBudgets(
-    DateTime month,
-    Map<String, double> limits,
-  ) {
+  static double spentForBudgets(DateTime month, Map<String, double> limits) {
     return limits.keys.fold<double>(
       0,
       (total, categoryId) => total + spentForCategory(categoryId, month),
