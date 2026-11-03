@@ -39,3 +39,14 @@ def test_home_assistant_ingress_client_can_reach_service(db):
         response = client.get("/api/state")
 
     assert response.status_code == 200
+
+
+
+def test_forwarded_header_cannot_spoof_ingress_address(db):
+    with _client_with_address("203.0.113.25") as client:
+        response = client.get(
+            "/api/state",
+            headers={"X-Forwarded-For": main.INGRESS_IP},
+        )
+
+    assert response.status_code == 403
