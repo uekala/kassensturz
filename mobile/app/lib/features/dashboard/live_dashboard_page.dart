@@ -32,7 +32,11 @@ class LiveDashboardPage extends StatelessWidget {
                   if (controller.financeLoading)
                     const CircularProgressIndicator()
                   else
-                    Icon(Icons.cloud_off_outlined, size: 42, color: colors.error),
+                    Icon(
+                      Icons.cloud_off_outlined,
+                      size: 42,
+                      color: colors.error,
+                    ),
                   const SizedBox(height: 14),
                   Text(
                     controller.financeLoading
@@ -126,7 +130,9 @@ class LiveDashboardPage extends StatelessWidget {
               _SectionTitle('DEINE KONTEN'),
               const SizedBox(height: 8),
               if (accounts.isEmpty)
-                const _EmptyText('Auf dem Server sind noch keine Konten angelegt.')
+                const _EmptyText(
+                  'Auf dem Server sind noch keine Konten angelegt.',
+                )
               else
                 ...accounts.map((account) {
                   final known = account['balance_known'] == true;
@@ -200,7 +206,11 @@ class LiveDashboardPage extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.info_outline_rounded, color: color, size: 18),
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: color,
+                          size: 18,
+                        ),
                         const SizedBox(width: 9),
                         Expanded(
                           child: Column(
@@ -208,7 +218,9 @@ class LiveDashboardPage extends StatelessWidget {
                             children: [
                               Text(
                                 alert['title']?.toString() ?? 'Hinweis',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -278,9 +290,16 @@ class _BalanceCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.account_balance_wallet_outlined, color: Colors.white70, size: 17),
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: Colors.white70,
+                size: 17,
+              ),
               SizedBox(width: 7),
-              Text('Frei verfügbar', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              Text(
+                'Frei verfügbar',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
               Spacer(),
               Text(
                 'SERVER',
@@ -375,7 +394,10 @@ class _MetricCard extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 18),
           const SizedBox(height: 8),
-          Text(title, style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11)),
+          Text(
+            title,
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
+          ),
           const SizedBox(height: 3),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -435,7 +457,10 @@ class _BudgetRow extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                child: Text(
+                  name,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
               Text(
                 spent + ' / ' + limit,
