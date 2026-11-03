@@ -14,5 +14,5 @@ In der CSV-Datei finden Sie alle bereits gebuchten Umsätze. Die vorgemerkten Ums
 
 Buchung;Wertstellungsdatum;Auftraggeber/Empfänger;Buchungstext;Verwendungszweck;Saldo;Währung;Betrag;Währung
 02.11.2026;02.11.2026;Spotify AB;Lastschrift;Spotify Premium P1234;1.234,56;EUR;-10,99;EUR
-01.11.2026;01.11.2026;Wohnbau Niederrhein eG;Dauerauftrag / Terminueberweisung;Miete November;1.245,55;EUR;-1.050,00;EUR
+01.11.2026;01.11.2026;Wohnbau Musterstadt eG;Dauerauftrag / Terminueberweisung;Miete November;1.245,55;EUR;-1.050,00;EUR
 28.10.2026;28.10.2026;Muster Systemhaus GmbH;Gehalt/Rente;Gehalt Oktober;2.295,55;EUR;3.450,12;EUR

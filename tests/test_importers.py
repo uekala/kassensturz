@@ -30,7 +30,7 @@ def test_sepa_purpose():
 EXPECTED = {
     "sparkasse.csv": ("Sparkasse", 4, {"-8900": "Stadtwerke Musterstadt AG"}),
     "volksbank.csv": ("Volksbank / Raiffeisenbank", 3, {"-4495": "Telekom Deutschland GmbH"}),
-    "ing.csv": ("ING", 3, {"-105000": "Wohnbau Niederrhein eG"}),
+    "ing.csv": ("ING", 3, {"-105000": "Wohnbau Musterstadt eG"}),
     "dkb.csv": ("DKB", 2, {"-41238": "HUK-COBURG", "345012": "Muster Systemhaus GmbH"}),
     "comdirect.csv": ("comdirect", 2, {"-2995": "Telekom Deutschland GmbH"}),
     "n26.csv": ("N26", 3, {"-1245": "dm-drogerie markt"}),
