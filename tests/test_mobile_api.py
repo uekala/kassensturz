@@ -385,3 +385,84 @@ def test_mobile_health_has_a_separate_network_rate_limit(db, monkeypatch):
     assert third.status_code == 429
     assert third.headers["retry-after"] == "60"
 
+def test_mobile_pairing_returns_svg_qr_for_configured_https_origin(
+    db, monkeypatch
+):
+    import base64
+    import json
+
+    from kassensturz import mobile_api
+
+    reset_mobile_guards(monkeypatch)
+    monkeypatch.setattr(
+        mobile_api.options,
+        "load",
+        lambda: {"mobile_server_url": "https://green.example.ts.net"},
+    )
+    captured = {}
+    original_generator = mobile_api._pairing_qr_svg_base64
+
+    def capture_payload(payload):
+        captured["payload"] = payload
+        return original_generator(payload)
+
+    monkeypatch.setattr(mobile_api, "_pairing_qr_svg_base64", capture_payload)
+    with https_client() as client:
+        response = client.post("/api/mobile/pairings")
+
+    assert response.status_code == 201
+    result = response.json()
+    assert result["server_url"] == "https://green.example.ts.net"
+    assert result["expires_at"]
+    svg = base64.b64decode(result["qr_svg_base64"], validate=True).decode("utf-8")
+    assert "<svg" in svg
+    assert "<path" in svg
+
+    qr_payload = json.loads(captured["payload"])
+    assert qr_payload == {
+        "type": "kassensturz-pairing",
+        "version": 1,
+        "server_url": "https://green.example.ts.net",
+        "pairing_secret": result["pairing_secret"],
+    }
+    assert result["pairing_secret"] not in result["server_url"]
+
+
+def test_pairing_qr_is_omitted_when_mobile_server_url_is_unconfigured(
+    db, monkeypatch
+):
+    from kassensturz import mobile_api
+
+    reset_mobile_guards(monkeypatch)
+    monkeypatch.setattr(
+        mobile_api.options,
+        "load",
+        lambda: {"mobile_server_url": ""},
+    )
+    with https_client() as client:
+        response = client.post("/api/mobile/pairings")
+
+    assert response.status_code == 201
+    assert response.json()["server_url"] is None
+    assert "qr_svg_base64" not in response.json()
+    assert len(response.json()["pairing_secret"]) >= 43
+
+
+def test_pairing_qr_rejects_non_https_or_path_server_url_before_creating_secret(
+    db, monkeypatch
+):
+    from kassensturz import mobile_api
+
+    reset_mobile_guards(monkeypatch)
+    monkeypatch.setattr(
+        mobile_api.options,
+        "load",
+        lambda: {"mobile_server_url": "http://green.local/api"},
+    )
+    with https_client() as client:
+        response = client.post("/api/mobile/pairings")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "mobile_server_url_invalid"
+    assert db.scalar("SELECT COUNT(*) FROM mobile_pairings") == 0
+
