@@ -1424,7 +1424,7 @@ async function renderSettings(view, _params, seq) {
       button.disabled = false;
     }
   };
-  $("[data-mobile-revoke]", view).forEach((button) => confirmButton(button, "Wirklich widerrufen?", async () => {
+  $$("[data-mobile-revoke]", view).forEach((button) => confirmButton(button, "Wirklich widerrufen?", async () => {
     try {
       await api(`mobile/devices/${encodeURIComponent(button.dataset.mobileRevoke)}`, { method: "DELETE" });
       toast("Gerät wurde widerrufen");
