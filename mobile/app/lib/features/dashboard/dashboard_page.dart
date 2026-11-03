@@ -305,9 +305,7 @@ class _CashFlowMetric extends StatelessWidget {
                 color: positive ? AppTheme.accent : colors.onSurfaceVariant,
               ),
               const SizedBox(width: 7),
-              Text(label, style: colors.onSurfaceVariant == null
-                  ? const TextStyle(fontSize: 12)
-                  : Theme.of(context).textTheme.labelMedium),
+              Text(label, style: Theme.of(context).textTheme.labelMedium),
             ],
           ),
           const SizedBox(height: 13),
