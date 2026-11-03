@@ -26,22 +26,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Buchungen'), findsWidgets);
-    expect(find.text('5 Buchungen · Beispieldaten'), findsOneWidget);
+    expect(find.text('10 Buchungen · Beispieldaten'), findsOneWidget);
   });
 
-  testWidgets('dashboard budget card opens the budget tab', (tester) async {
+  testWidgets('dashboard budget card uses calculated transaction totals',
+      (tester) async {
     await tester.pumpWidget(const KassensturzApp());
 
+    expect(find.text('886,74 €'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Variable Ausgaben'),
       180,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('Variable Ausgaben'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Deine Budgets'), findsOneWidget);
-    expect(find.text('620,40 €'), findsOneWidget);
+    expect(find.text('11 % genutzt'), findsOneWidget);
+    expect(find.text('113,26 € ausgegeben'), findsOneWidget);
   });
 
   testWidgets('bottom navigation opens accounts, budget and settings',
@@ -57,6 +56,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('1.000,00 €'), findsOneWidget);
     expect(find.text('Lebensmittel'), findsOneWidget);
+    expect(find.text('113,26 €'), findsOneWidget);
 
     await tester.tap(find.text('Mehr').last);
     await tester.pumpAndSettle();
@@ -64,7 +64,7 @@ void main() {
     expect(find.text('Pairing noch nicht verfügbar'), findsOneWidget);
   });
 
-  testWidgets('budget month selection updates the shown figures',
+  testWidgets('budget month selection recalculates spending from transactions',
       (tester) async {
     await tester.pumpWidget(const KassensturzApp());
 
@@ -74,17 +74,69 @@ void main() {
     await tester.tap(find.text('Oktober 2026'));
     await tester.pumpAndSettle();
 
-    expect(find.text('512,30 €'), findsOneWidget);
-    expect(find.text('487,70 €'), findsOneWidget);
+    expect(find.text('202,14 €'), findsOneWidget);
+    expect(find.text('797,86 €'), findsOneWidget);
   });
 
-  testWidgets('transaction filters separate expenses and income',
+  testWidgets('can add a budget for a previously unbudgeted category',
+      (tester) async {
+    await tester.pumpWidget(const KassensturzApp());
+
+    await tester.tap(find.text('Budget').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Hinzufügen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gesundheit').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '100');
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gesundheit'), findsOneWidget);
+    expect(find.text('1.100,00 €'), findsOneWidget);
+    expect(find.text('18,70 €'), findsOneWidget);
+  });
+
+  testWidgets('can edit an existing budget limit', (tester) async {
+    await tester.pumpWidget(const KassensturzApp());
+
+    await tester.tap(find.text('Budget').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '400');
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1.050,00 €'), findsOneWidget);
+  });
+
+  testWidgets('can delete a budget category', (tester) async {
+    await tester.pumpWidget(const KassensturzApp());
+
+    await tester.tap(find.text('Budget').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Budget löschen: Lebensmittel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Löschen'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lebensmittel'), findsNothing);
+    expect(find.text('650,00 €'), findsOneWidget);
+  });
+
+  testWidgets('transaction filters use shared demo transaction data',
       (tester) async {
     await tester.pumpWidget(const KassensturzApp());
 
     await tester.tap(find.text('Buchungen').last);
     await tester.pumpAndSettle();
-    expect(find.text('5 Buchungen · Beispieldaten'), findsOneWidget);
+    expect(find.text('10 Buchungen · Beispieldaten'), findsOneWidget);
 
     await tester.tap(find.text('Einnahmen'));
     await tester.pumpAndSettle();
@@ -94,7 +146,7 @@ void main() {
 
     await tester.tap(find.text('Ausgaben'));
     await tester.pumpAndSettle();
-    expect(find.text('4 Buchungen · Beispieldaten'), findsOneWidget);
+    expect(find.text('9 Buchungen · Beispieldaten'), findsOneWidget);
     expect(find.text('Gehalt'), findsNothing);
     expect(find.text('REWE'), findsOneWidget);
   });
