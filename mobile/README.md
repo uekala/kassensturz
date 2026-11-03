@@ -25,14 +25,17 @@ Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/
 - [x] CI für Flutter-Formatierung, statische Analyse und Widget-Tests eingerichtet.
 - [x] Reproduzierbares Erzeugen von Android- und iOS-Projektdateien ergänzt.
 - [ ] Verbindungsassistent und Server-Healthcheck.
-- [ ] QR-Pairing und Geräteverwaltung.
-- [ ] Sichere Credential-Ablage und Tokenrotation.
-- [ ] Dashboard, Konten und Buchungsliste.
-- [ ] Budgets und Verträge.
+- [ ] QR-Pairing und Geräteverwaltung über HTTP-Endpunkte.
+- [x] Serverseitiger Pairing-/Token-Lifecycle als HTTP-freier Service mit Tests (Einmal-Secrets, Tokenrotation, Replay-Erkennung und Gerätewiderruf).
+- [ ] Sichere Credential-Ablage im Flutter-Client und Tokenrotation über die API.
+- [x] Demo-Oberflächen für Dashboard, Konten, Buchungen und Budgets mit klar gekennzeichneten Beispieldaten.
+- [x] Manuelle lokale Kontenpflege mit verschlüsselter SQLite-Datenbank und Schlüsselablage im Betriebssystem.
+- [x] Lokale Speicherung der Budgetlimits.
+- [ ] Produktive Datenansicht über authentifizierte Mobile-API; Verträge und Live-Buchungen.
 - [ ] Integrationstests auf iOS und Android.
 - [ ] Signierte Builds und Store-Veröffentlichungen.
 
-**Aktueller Implementierungsstand:** Das Flutter-Dart-Projekt und ein UI-Prototyp mit Beispieldaten sind vorhanden. Es gibt noch keine produktiven Mobile-API- oder Pairing-Endpunkte und keine echte Serververbindung. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
+**Aktueller Implementierungsstand:** Das Flutter-Dart-Projekt enthält Demo-Oberflächen, lokale Kontenpflege und Budgetlimits. Im Python-Backend ist der Pairing-/Token-Lifecycle als interner Service mit Tests vorbereitet. Es gibt weiterhin keine produktiven Mobile-API- oder Pairing-HTTP-Endpunkte und keine echte Serververbindung. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
 
 ## Geplante Projektstruktur
 
