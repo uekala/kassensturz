@@ -38,6 +38,8 @@ Alle Zeitstempel werden als UTC in einem einheitlichen ISO-8601-Format gespeiche
 1. Der Eigentümer öffnet die lokale Kassensturz-Administration.
 2. Der Server erzeugt ein kryptografisch zufälliges Pairing-Secret.
 3. Das Secret ist fünf Minuten gültig und wird genau einmal angezeigt, vorzugsweise als QR-Code.
+
+Der QR-Code ist ein JSON-Payload mit `type: kassensturz-pairing`, `version: 1`, `server_url` und `pairing_secret`. `server_url` muss eine gültige HTTPS-Origin ohne Pfad sein und wird über die optionale Home-Assistant-App-Einstellung `mobile_server_url` vorgegeben. Der QR-Code enthält weder Access- noch Refresh-Token. Ist die Option leer, bleibt die manuelle Eingabe des Codes möglich und die Administration erzeugt kein QR-Bild.
 4. Die mobile App sendet das Secret zusammen mit einem Gerätenamen im HTTPS-Body.
 5. Der Server verbraucht das Secret atomar, erstellt eine Geräte-ID und stellt ein erstes Access-/Refresh-Token-Paar aus.
 6. Das Gerät erscheint in der lokalen Geräteverwaltung und kann einzeln widerrufen werden.
