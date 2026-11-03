@@ -4,7 +4,7 @@ Flutter client source for iOS and Android. Both platforms share the Dart applica
 
 ## Current status
 
-The repository contains a local-first Flutter prototype. It is **not connected to a Kassensturz server**. Pairing, login, API calls, bank connections and live financial information are not implemented.
+The repository contains a local-first Flutter prototype. It is **not yet connected to a Kassensturz server**. The server-side pairing, login/session and read API routes exist, but this Flutter client does not call them yet. Bank connections and live financial information are not implemented in the app.
 
 The navigation contains:
 
@@ -32,7 +32,7 @@ Budget category limits can be created, edited and deleted. The prototype calcula
 
 Budget limits are currently stored on the device using the asynchronous SharedPreferences API. Only category IDs and budget amounts are stored there; credentials, bank details and transaction data are not. SharedPreferences is lightweight app storage and is not encrypted. It is not used for account balances or other account records.
 
-The repository abstractions allow storage implementations to evolve when the Kassensturz server and its mobile API are available.
+The repository abstractions allow storage implementations to evolve as the Flutter client is connected to the existing Kassensturz server and mobile API.
 
 ## Requirements
 
@@ -71,6 +71,6 @@ flutter run
 
 ## Security and API integration
 
-No networking, pairing, mobile authentication or credential exchange is wired into this prototype yet. Do not add placeholder tokens, fake authentication, or insecure certificate exceptions. The API integration must use the approved contract and platform-secure credential storage once the server-side mobile authentication is implemented.
+No networking, pairing, mobile authentication or credential exchange is wired into the Flutter prototype yet. Do not add placeholder tokens, fake authentication, or insecure certificate exceptions. The Flutter integration must use the approved API contract, HTTPS certificate validation and platform-secure credential storage.
 
 See [Mobile architecture](../../docs/architecture/0006-flutter-mobile-client.md) and [Mobile security requirements](../../docs/architecture/0002-mobile-api-security.md).
