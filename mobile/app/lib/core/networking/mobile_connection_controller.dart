@@ -109,6 +109,7 @@ class MobileConnectionController extends ChangeNotifier {
       return true;
     } catch (error) {
       _errorMessage = _messageFor(error);
+      await _clearLocalSessionIfExpired(error);
       return false;
     } finally {
       _isBusy = false;
@@ -192,6 +193,7 @@ class MobileConnectionController extends ChangeNotifier {
       };
     } catch (error) {
       _financeError = _messageFor(error);
+      await _clearLocalSessionIfExpired(error);
     } finally {
       _financeLoading = false;
       _notifyIfMounted();
@@ -207,6 +209,7 @@ class MobileConnectionController extends ChangeNotifier {
       _transactionPage = await _apiClient.transactions();
     } catch (error) {
       _financeError = _messageFor(error);
+      await _clearLocalSessionIfExpired(error);
     } finally {
       _financeLoading = false;
       _notifyIfMounted();
