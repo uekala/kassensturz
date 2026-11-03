@@ -117,3 +117,31 @@ def test_mobile_namespace_rejects_http_asserted_by_trusted_proxy(monkeypatch, db
 
     assert response.status_code == 426
 
+def test_mobile_pairing_rate_limit_is_enforced_before_route_dispatch(monkeypatch, db):
+    from kassensturz.mobile_security import InMemoryRateLimiter
+
+    monkeypatch.setattr(main, "MOBILE_RATE_LIMITER", InMemoryRateLimiter())
+    monkeypatch.setattr(
+        main,
+        "MOBILE_RATE_LIMITS",
+        {("POST", "/api/v1/pair"): ("pair-test", 2, 60)},
+    )
+
+    with TestClient(
+        main.app,
+        base_url="https://testserver",
+        client=("127.0.0.1", 50123),
+    ) as client:
+        first = client.post("/api/v1/pair", json={"pairing_secret": "not-real"})
+        second = client.post("/api/v1/pair", json={"pairing_secret": "not-real"})
+        third = client.post("/api/v1/pair", json={"pairing_secret": "not-real"})
+
+    # The path is intentionally not registered yet: the first two requests
+    # pass transport and rate controls and then receive the normal 404.
+    assert first.status_code == 404
+    assert second.status_code == 404
+    assert third.status_code == 429
+    assert third.json()["error"]["code"] == "rate_limited"
+    assert third.headers["retry-after"] == "60"
+    assert third.headers["cache-control"] == "no-store"
+
