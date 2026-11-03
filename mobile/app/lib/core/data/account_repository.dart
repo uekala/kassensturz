@@ -101,7 +101,7 @@ class EncryptedAccountRepository implements AccountRepository {
         .join();
     final directoryPath = _databasePathProvider == null
         ? (await getApplicationSupportDirectory()).path
-        : await _databasePathProvider!();
+        : await _databasePathProvider();
     final databasePath = p.join(directoryPath, 'kassensturz_accounts.db');
     final database = sqlite3.open(databasePath);
 
@@ -143,7 +143,7 @@ class EncryptedAccountRepository implements AccountRepository {
 
       return database;
     } catch (_) {
-      database.dispose();
+      database.close();
       rethrow;
     }
   }
@@ -193,7 +193,7 @@ class EncryptedAccountRepository implements AccountRepository {
     _databaseFuture = null;
     if (pending == null) return;
     try {
-      (await pending).dispose();
+      (await pending).close();
     } catch (_) {
       // An unopened or failed database has no live connection to close.
     }
