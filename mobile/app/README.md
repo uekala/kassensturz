@@ -4,22 +4,25 @@ Flutter client source for iOS and Android. Both platforms share the Dart applica
 
 ## Current status
 
-The repository contains an initial UI prototype with demo data and widget tests. It is **not connected to a Kassensturz server**. Pairing, login, API calls and live financial information are not implemented.
+The repository contains an initial local-first UI prototype with synthetic demo data and automated tests. It is **not connected to a Kassensturz server**. Pairing, login, API calls, bank connections and live financial information are not implemented.
 
 The current navigation contains:
 
 - Overview dashboard
 - Accounts
 - Transactions
-- Connection and settings placeholder
+- Budgets
+- More / settings
 
-Every screen displays a persistent notice that the visible values are example data.
+Every screen that displays financial values clearly identifies them as example data. Do not interpret these values as a real account balance, transaction history or bank feed.
 
-Budget limits are stored on the device using the asynchronous SharedPreferences API.
-Only category IDs and budget amounts are stored there; credentials, bank details and
-transaction data are not. SharedPreferences is lightweight app storage and is not an
-authoritative financial database. The repository abstraction is designed so the
-storage implementation can be replaced when the Kassensturz server is available.
+## Budgets and local persistence
+
+Budget category limits can be created, edited and deleted. The prototype calculates spending against its shared synthetic transaction examples and displays the result for the selected month. The dashboard and budget screen use the same budget state.
+
+Budget limits are stored on the device using the asynchronous SharedPreferences API and are restored when the app is reopened. Only category IDs and budget amounts are stored there; credentials, bank details and transaction data are not.
+
+SharedPreferences is lightweight app storage, not an encrypted financial database or an authoritative store for critical financial data. The repository abstraction is designed so that this storage implementation can be replaced when the Kassensturz server and its mobile API are available.
 
 ## Requirements
 
@@ -38,6 +41,8 @@ flutter pub get
 flutter test
 flutter analyze
 ```
+
+The current automated suite contains repository tests for local budget persistence and widget tests for the app's main flows.
 
 Generate the native Android and iOS project files once:
 
