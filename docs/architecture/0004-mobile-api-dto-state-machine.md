@@ -1,6 +1,6 @@
 # Mobile API: DTOs, Zustandsmodell und Testmatrix
 
-- Status: Entwurf zur Umsetzung
+- Status: Teilweise umgesetzt – interne DTO-Mapper vorhanden; HTTP-Endpunkte und Freigabe fehlen weiterhin
 - Geltungsbereich: API v1 und lokale Geräteverwaltung
 - Voraussetzung: ADR 0002 (Sicherheitsanforderungen) und ADR 0003 (API-Vertrag)
 
@@ -164,7 +164,7 @@ Die Tabellen `mobile_pairings`, `mobile_devices` und `mobile_tokens` sind im SQL
 | `mobile_devices` | `id`, `name`, `created_at`, `last_used_at`, `revoked_at` | Geräteidentität und Gerätewiderruf |
 | `mobile_tokens` | `token_hash`, `device_id`, `token_type`, `created_at`, `expires_at`, `revoked_at`, `replaced_by_hash` | Access-/Refresh-Token und Refresh-Replay-Erkennung |
 
-Vor produktiver Verwendung müssen Service und Tests folgende Regeln zwingend einhalten:
+Die internen Funktionen in `kassensturz/app/kassensturz/mobile_read.py` bilden bereits die Übersicht und Buchungsliste auf explizite, getestete Allowlist-DTOs ab. Sie registrieren keine HTTP-Routen. Vor produktiver Verwendung müssen Service und Tests folgende Regeln zwingend einhalten:
 
 - `secret_hash` und `token_hash` enthalten ausschließlich typgebundene Hashes der 256-Bit-Zufallswerte, nie die Rohwerte.
 - Zeitstempel werden einheitlich in UTC gespeichert, damit Ablaufvergleiche nicht von lokalen Zeitzonen oder unterschiedlichen ISO-Offsets abhängen.
@@ -226,6 +226,19 @@ Datenbankmigrationen müssen rückwärtsverträglich sein und auf einer Kopie ei
 | Transport | HTTP ohne TLS außerhalb Loopback | abgewiesen |
 | Limits | übergroßes Limit / häufiges Pairing | validiert bzw. 429 |
 | Regression | HA-Oberfläche und bestehende Endpunkte | bisherige Funktion bleibt erhalten |
+
+### Implementierte DTO-Allowlists (Stand 03.11.2026)
+
+Die internen Read-Services liefern derzeit folgende Felder:
+
+- Übersicht: `as_of`, `currency`, `accounts`, `forecast`, `month`, `budgets`, `alerts`.
+- Konto: ID, Anzeigename, Typ, Saldo in Cent, Kennzeichen für bekannten Saldo, Saldo-Datum und Buchungsanzahl.
+- Prognose: freie Mittel, Tagesbetrag, Zeitraum, Fixkosten, erwartete variable Ausgaben, Puffer, Tiefpunkt und kommende Zahlungen.
+- Budget: Kategorie-ID, Anzeigename, Limit, bisherige Ausgaben, Restbetrag und Status.
+- Buchungen: ID, Buchungs-/Wertstellungsdatum, Betrag in Cent, Währung, Zahlungspartner, gekürzter Verwendungszweck, Kontoname und Kategorie.
+- Buchungspagination: `total`, `limit`, `offset`; Standardlimit 50, Höchstlimit 100.
+
+Vollständige IBANs, Gegenkonten-IBANs, Banking-Referenzen, Import-Hashes, Quellinformationen, Vertrags-Keys und rohe Datenbankzeilen werden nicht ausgegeben. Die Mapper sind durch `tests/test_mobile_read.py` gegen versehentliche Feldweitergabe abgesichert. Es existiert weiterhin kein HTTP-Endpunkt, der diese DTOs ausliefert.
 
 ## 7. Freigabeentscheidung
 
