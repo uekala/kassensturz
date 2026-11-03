@@ -122,14 +122,8 @@ class Account {
           other.balanceCents == balanceCents;
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    name,
-    institution,
-    accountSuffix,
-    type,
-    balanceCents,
-  );
+  int get hashCode =>
+      Object.hash(id, name, institution, accountSuffix, type, balanceCents);
 
   Account copyWith({
     String? name,
