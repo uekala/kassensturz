@@ -19,6 +19,8 @@ Kassensturz läuft als bestehende Home-Assistant-App (Add-on) auf dem Green. Die
 - **Datenbank:** lokale SQLite-Datenbank im persistenten Add-on-Datenverzeichnis.
 - **Mobile Client:** gemeinsame Flutter-App für iOS und Android.
 - **Zugriff:** lokal im WLAN oder über das vom Nutzer verwaltete VPN.
+- **Tailscale-Host:** `tag:homeassistant` wurde am bestehenden Home-Assistant-Knoten gesetzt; die aktuelle Admin-Konsole zeigt den Knoten als verbunden.
+- **Tailscale-Service:** `svc:kassensturz` wurde mit `tcp:443` definiert; der Service hat noch keinen beworbenen oder genehmigten Host.
 - **Pairing:** QR-Code wird nur erzeugt, wenn die optionale Add-on-Option `mobile_server_url` eine gültige HTTPS-Origin enthält. Sie ist standardmäßig leer und wird erst nach Verifikation der Tailscale-Service-Adresse gepflegt.
 - **Vertrauensmodell:** ein Haushalt, eine lokale Installation, kein Kassensturz-Cloudkonto, kein Relay und kein öffentlicher Port.
 
@@ -57,7 +59,7 @@ Wichtige Grenzen:
 
 Home Assistant unterstützt deaktivierte Port-Mappings mit `null`; die Tailscale-Addon-Dokumentation beschreibt den `services`-Mechanismus für weitere lokale Dienste.
 
-Die Tailscale-Service-Ressource wurde in der Admin-Konsole bereits als `svc:kassensturz` mit `tcp:443` angelegt. Der aktuelle Status zeigt noch keine Service-Hosts. Die Community-App-Dokumentation beschreibt die `services`-Option, die Loopback-Zieladresse und die Pflicht einer tagbasierten Identität; die Host-Freigabe erfolgt nach dem Advertise manuell. Siehe [Home Assistant App configuration](https://developers.home-assistant.io/docs/apps/configuration/) und [Tailscale-Addon services](https://github.com/hassio-addons/app-tailscale/blob/main/tailscale/DOCS.md#option-services).
+Der Tailscale-Knoten zeigt inzwischen `tag:homeassistant` als ACL-Tag und `Connected` als Gerätestatus. Die zuletzt bereitgestellten Tailscale-Protokolle bestätigen `tags=tag:homeassistant` sowie die weiter geladenen Routen `0.0.0.0/0`, `::/0` und `192.168.50.0/24`. Der anfängliche Startfehler wurde durch Deaktivieren der separaten `share_homeassistant`-Serve/Funnel-Freigabe behoben. Die Tailscale-Service-Ressource wurde in der Admin-Konsole bereits als `svc:kassensturz` mit `tcp:443` angelegt. Der aktuelle Status zeigt noch keine Service-Hosts. Die Community-App-Dokumentation beschreibt die `services`-Option, die Loopback-Zieladresse und die Pflicht einer tagbasierten Identität; die Host-Freigabe erfolgt nach dem Advertise manuell. Siehe [Home Assistant App configuration](https://developers.home-assistant.io/docs/apps/configuration/) und [Tailscale-Addon services](https://github.com/hassio-addons/app-tailscale/blob/main/tailscale/DOCS.md#option-services).
 
 ## Datenhaltung und Backup
 
