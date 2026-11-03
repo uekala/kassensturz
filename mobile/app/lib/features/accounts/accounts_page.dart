@@ -460,8 +460,11 @@ class _AccountCard extends StatelessWidget {
           color: colors.outlineVariant.withValues(alpha: 0.35),
         ),
       ),
-      child: ListTile(
-        onTap: enabled ? onEdit : null,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        child: ListTile(
+          onTap: enabled ? onEdit : null,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
         leading: CircleAvatar(
           backgroundColor: colors.primaryContainer,
@@ -510,6 +513,7 @@ class _AccountCard extends StatelessWidget {
               ],
             ),
           ],
+          ),
         ),
       ),
     );
