@@ -198,7 +198,8 @@ class MobileAuthService:
         except ValueError as exc:
             raise InvalidCredential("Authentication required.") from exc
 
-        now_text = _stamp(self._now())
+        now = self._now()
+        now_text = _stamp(now)
         with self._db.tx(immediate=True):
             row = self._db.one(
                 """
@@ -214,7 +215,7 @@ class MobileAuthService:
                 row is None
                 or row["revoked_at"] is not None
                 or row["device_revoked_at"] is not None
-                or _parse_stamp(row["expires_at"]) <= self._now()
+                or _parse_stamp(row["expires_at"]) <= now
             ):
                 raise InvalidCredential("Authentication required.")
 
