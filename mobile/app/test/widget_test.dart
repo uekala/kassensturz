@@ -174,7 +174,7 @@ void main() {
       await tester.tap(find.text('Budget').last);
       await tester.pumpAndSettle();
       expect(find.text('1.075,00 €'), findsOneWidget);
-      expect(find.text('425,00 €'), findsOneWidget);
+      expect(find.text('von 425,00 €'), findsOneWidget);
     },
   );
 
