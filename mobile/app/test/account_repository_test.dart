@@ -47,10 +47,10 @@ void main() {
     });
   });
 
-  group('SecureAccountEncryptionKeyStore', () {
+  group('SecureAccountKeyStore', () {
     test('creates a random 256-bit key and reuses it', () async {
       final store = FakeSecureValueStore();
-      final keyStore = SecureAccountEncryptionKeyStore(store: store);
+      final keyStore = SecureAccountKeyStore(store: store);
 
       final first = await keyStore.getOrCreateKey();
       final second = await keyStore.getOrCreateKey();
@@ -62,12 +62,12 @@ void main() {
 
     test('does not replace an invalid existing key', () async {
       final store = FakeSecureValueStore()
-        ..values['kassensturz.mobile.accounts.sqlcipher-key.v1'] = 'invalid';
-      final keyStore = SecureAccountEncryptionKeyStore(store: store);
+        ..values['kassensturz.mobile.accounts.database-key.v1'] = 'invalid';
+      final keyStore = SecureAccountKeyStore(store: store);
 
       await expectLater(keyStore.getOrCreateKey(), throwsFormatException);
       expect(
-        store.values['kassensturz.mobile.accounts.sqlcipher-key.v1'],
+        store.values['kassensturz.mobile.accounts.database-key.v1'],
         'invalid',
       );
     });
