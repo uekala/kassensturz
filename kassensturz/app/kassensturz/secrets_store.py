@@ -142,13 +142,45 @@ def _decode_envelope(envelope: dict) -> dict:
     return data
 
 
-def _load() -> dict:
+def _read_secret_file() -> str | None:
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
     try:
-        raw = _PATH.read_text("utf-8")
+        fd = os.open(_PATH, flags)
     except FileNotFoundError:
-        return {}
+        return None
+    except OSError as exc:
+        raise SecretsStoreError("Die lokale Geheimnisdatei kann nicht sicher geöffnet werden.") from exc
+
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise SecretsStoreError("Die lokale Geheimnisdatei ist keine reguläre Datei.")
+        os.fchmod(fd, 0o600)
+        chunks = []
+        total = 0
+        while True:
+            block = os.read(fd, 65536)
+            if not block:
+                break
+            total += len(block)
+            if total > 1024 * 1024:
+                raise SecretsIntegrityError("Die lokale Geheimnisdatei überschreitet die zulässige Größe.")
+            chunks.append(block)
     except OSError as exc:
         raise SecretsStoreError("Die lokale Geheimnisdatei kann nicht gelesen werden.") from exc
+    finally:
+        os.close(fd)
+
+    try:
+        return b"".join(chunks).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise SecretsIntegrityError("Die lokale Geheimnisdatei ist nicht UTF-8-kodiert.") from exc
+
+
+def _load() -> dict:
+    raw = _read_secret_file()
+    if raw is None:
+        return {}
 
     try:
         stored = json.loads(raw)
