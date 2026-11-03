@@ -19,10 +19,11 @@ SQLite stores financial transactions and connection metadata. The data directory
 |---|---|
 | Mobile pairing/device/token tables | Schema present; migration and constraints tested |
 | Pairing and token lifecycle service | Implemented as an internal HTTP-free service; unit tests cover one-time pairing, expiry, rotation, replay detection and revocation |
+| Overview and transaction DTO mappers | Implemented as internal read services with field allowlists, pagination and query validation tests |
 | Pairing-secret creation and redemption routes | Not implemented |
 | Access-/refresh-token HTTP routes | Not implemented |
 | Mobile device listing and revocation routes | Not implemented |
-| Authenticated mobile DTO routes | Not implemented |
+| Authenticated mobile DTO routes | Not implemented; only internal DTO-building functions exist |
 | HTTPS enforcement for a mobile listener | Not implemented |
 | Flutter client | UI prototype; no server connection or mobile authentication |
 | Local account store | Encrypted SQLite3MultipleCiphers database; random 256-bit key in platform secure storage; manual account data only |
@@ -31,7 +32,7 @@ SQLite stores financial transactions and connection metadata. The data directory
 
 The current FastAPI application has only the existing Home Assistant / loopback network boundary. It does not register the mobile routes in the API contract. The prepared database tables do not provide authentication by themselves. The existing `/api/*` routes must not be treated as device-authenticated routes, and the standalone deployment remains bound to loopback only.
 
-The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The new `mobile_auth.py` module implements only the internal credential lifecycle; it is not registered as an HTTP router and cannot be reached over the network. Pairing administration authorization, rate limiting, HTTPS enforcement, authenticated DTO routes and the Flutter connection flow are still outstanding.
+The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The `mobile_auth.py` module implements only the internal credential lifecycle and `mobile_read.py` builds allowlisted overview/transaction responses; neither is registered as an HTTP router and neither can be reached over the network. Pairing administration authorization, rate limiting, HTTPS enforcement, authenticated DTO routes and the Flutter connection flow are still outstanding.
 
 
 ## Required controls before a mobile listener is enabled
