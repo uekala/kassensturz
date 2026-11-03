@@ -9,6 +9,7 @@ on:
       - "kassensturz/**"
       - "tests/**"
       - ".github/workflows/tests.yml"
+      - "deploy/standalone/**"
   pull_request:
     branches:
       - main
@@ -16,6 +17,7 @@ on:
       - "kassensturz/**"
       - "tests/**"
       - ".github/workflows/tests.yml"
+      - "deploy/standalone/**"
 
 permissions:
   contents: read
@@ -45,3 +47,11 @@ jobs:
           KASSENSTURZ_DEV: "1"
           KASSENSTURZ_NO_BACKGROUND: "1"
         run: python -m pytest -q tests
+
+  standalone-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Validate standalone Compose configuration
+        run: docker compose -f deploy/standalone/docker-compose.yml config --quiet
