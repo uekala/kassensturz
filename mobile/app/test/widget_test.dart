@@ -85,6 +85,9 @@ void main() {
     await tester.tap(find.text('Budget').last);
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Oktober 2026'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Hinzufügen'));
     await tester.pumpAndSettle();
     await tester.tap(find.byType(DropdownButtonFormField<String>));
