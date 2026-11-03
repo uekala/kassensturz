@@ -6,8 +6,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "kassensturz" / "app"))
+sys.path.insert(0, str(ROOT / "tests"))
 os.environ.setdefault("KASSENSTURZ_DEV", "1")
 os.environ.setdefault("KASSENSTURZ_NO_BACKGROUND", "1")
+os.environ.setdefault("KASSENSTURZ_INBOX", "")
 
 FIXTURES = ROOT / "tests" / "fixtures"
 

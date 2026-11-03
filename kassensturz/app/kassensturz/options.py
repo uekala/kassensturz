@@ -1,4 +1,4 @@
-"""Add-on-Optionen aus /data/options.json (von Home Assistant gepflegt)."""
+"""App-Optionen aus /data/options.json (von Home Assistant gepflegt)."""
 from __future__ import annotations
 
 import json
@@ -12,9 +12,10 @@ DEFAULTS = {
     "sensors": True,
     "notify_service": "",
     "warn_threshold": 200,
+    "import_folder": "/share/kassensturz",
 }
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def load() -> dict:

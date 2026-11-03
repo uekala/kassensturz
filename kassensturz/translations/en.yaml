@@ -14,3 +14,6 @@ configuration:
   warn_threshold:
     name: Warning threshold in euros
     description: Warn when the forecast balance drops below this amount.
+  import_folder:
+    name: Import folder
+    description: Statement files placed here are imported automatically. Leave empty to disable.

@@ -47,3 +47,22 @@ def delete_pin(connection_id: int) -> None:
 
 def has_pin(connection_id: int) -> bool:
     return get_pin(connection_id) is not None
+
+
+def get_secret(name: str) -> str | None:
+    with _lock:
+        return _load().get(f"secret:{name}")
+
+
+def set_secret(name: str, value: str) -> None:
+    with _lock:
+        data = _load()
+        data[f"secret:{name}"] = value
+        _save(data)
+
+
+def delete_secret(name: str) -> None:
+    with _lock:
+        data = _load()
+        if data.pop(f"secret:{name}", None) is not None:
+            _save(data)

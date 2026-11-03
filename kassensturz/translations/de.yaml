@@ -14,3 +14,6 @@ configuration:
   warn_threshold:
     name: Warnschwelle in Euro
     description: Warnen, wenn der prognostizierte Kontostand unter diesen Betrag fällt.
+  import_folder:
+    name: Eingangsordner
+    description: Kontoauszug-Dateien, die hier landen, werden automatisch importiert. Leer lassen zum Abschalten.

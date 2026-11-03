@@ -1,7 +1,7 @@
 name: Kassensturz
-version: "0.1.0"
+version: "0.2.0"
 slug: kassensturz
-description: Haushaltsbuch mit Bankabruf per FinTS, CSV-Import, Vertragserkennung, Budgets und Kontostand-Prognose
+description: Haushaltsbuch mit Bankabruf per FinTS und Open Banking, Eingangsordner, Vertragserkennung, Budgets und Prognose
 url: https://github.com/uekala/kassensturz
 arch:
   - aarch64
@@ -13,6 +13,9 @@ ingress_port: 8099
 panel_icon: mdi:cash-register
 panel_title: Kassensturz
 homeassistant_api: true
+map:
+  - type: share
+    read_only: false
 backup_exclude:
   - "secrets.json"
 options:
@@ -21,9 +24,11 @@ options:
   sensors: true
   notify_service: ""
   warn_threshold: 200
+  import_folder: /share/kassensturz
 schema:
   fints_product_id: str?
   sync_time: match(^([01]\d|2[0-3]):[0-5]\d$)
   sensors: bool
   notify_service: str?
   warn_threshold: int
+  import_folder: str?

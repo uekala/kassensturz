@@ -1,6 +1,6 @@
 # Kassensturz
 
-Haushaltsbuch als Home-Assistant-Add-on: Umsätze per FinTS oder Datei-Import, automatische Kategorien, Vertrags- und
+Haushaltsbuch als Home-Assistant-App: Umsätze per Open Banking, FinTS oder Eingangsordner, automatische Kategorien, Vertrags- und
 Abo-Erkennung mit Preiserhöhungs-Hinweis, Monatsbudgets, Kontostand-Prognose bis zum nächsten Gehalt und
 Kündigungsschreiben auf Knopfdruck. Läuft vollständig lokal – ohne Cloud, ohne Werbung, ohne Vertragswechsel-Angebote.
 
@@ -8,20 +8,21 @@ Kündigungsschreiben auf Knopfdruck. Läuft vollständig lokal – ohne Cloud, o
 
 ## Installation
 
-1. In Home Assistant *Einstellungen → Add-ons → Add-on Store* öffnen (in neueren Versionen „Apps“).
+1. In Home Assistant *Einstellungen → Apps → App Store* öffnen.
 2. Oben rechts im Menü *Repositories* wählen und `https://github.com/uekala/kassensturz` hinzufügen.
-3. **Kassensturz** installieren und starten. Das Add-on wird auf dem Gerät gebaut; das dauert beim ersten Mal einige Minuten.
+3. **Kassensturz** installieren und starten. Die App wird auf dem Gerät gebaut; das dauert beim ersten Mal einige Minuten.
 4. Über die Seitenleiste öffnen.
 
 Ohne GitHub geht es auch lokal: den Ordner `kassensturz/` per Samba oder SSH nach `/addons/kassensturz` kopieren, im
-Add-on Store *Nach Updates suchen* und unter „Lokale Add-ons“ installieren.
+App Store *Nach Updates suchen* und unter „Lokale Apps“ installieren.
 
-Für den automatischen Bankabruf braucht es eine kostenlose FinTS-Produkt-ID. Alles Weitere steht in der
-[Anleitung](kassensturz/DOCS.md).
+Für den automatischen Abruf gibt es zwei Wege: Open Banking über Enable Banking (für eigene Konten kostenlos, auch für N26
+und Revolut) oder FinTS mit einer kostenlosen Produkt-ID. Alles Weitere steht in der [Anleitung](kassensturz/DOCS.md).
 
 ## Was anders ist als bei den bekannten Finanz-Apps
 
-- **Lokal:** Daten bleiben auf dem Home-Assistant-Gerät, Bankzugang direkt per FinTS ohne Zwischenanbieter.
+- **Lokal:** Daten bleiben auf dem Home-Assistant-Gerät. Bankabruf direkt per FinTS oder über die offizielle
+  EU-Schnittstelle (Open Banking); für alles andere ein Eingangsordner, der Exporte selbst importiert.
 - **Frei bis zum Gehalt:** Statt nur Kontostand zeigt die Übersicht die Rechnung Kontostand − feste Abbuchungen bis zum
   nächsten Gehaltseingang, dazu eine Tagesprognose.
 - **Keine Doppelzählung:** PayPal-, Klarna- und Kreditkartenumsätze werden mit den Abbuchungen auf dem Girokonto verrechnet.
@@ -35,8 +36,9 @@ Für den automatischen Bankabruf braucht es eine kostenlose FinTS-Produkt-ID. Al
 
 ## Unterstützte Banken
 
+Open Banking: alle Banken, die Enable Banking anbindet – darunter N26.
 FinTS: Sparkassen, Volks- und Raiffeisenbanken, ING, DKB, comdirect und alle weiteren Banken mit FinTS-PIN/TAN.
-Datei-Import: zusätzlich N26, Revolut, PayPal, American Express, Klarna, Advanzia sowie CAMT.052/.053 und MT940.
+Datei-Import und Eingangsordner: zusätzlich PayPal, American Express, Revolut, Klarna, Advanzia sowie CAMT.052/.053 und MT940.
 
 ## Entwicklung
 
@@ -57,4 +59,4 @@ FINTS_TESTS_DIR=/pfad/zu/python-fints/tests pytest tests/test_fints_mock.py
 ```
 
 Aufbau: FastAPI und SQLite im Backend (`kassensturz/app/kassensturz`), eine Oberfläche ohne Build-Schritt in `static/`.
-FinTS übernimmt [python-fints](https://github.com/raphaelm/python-fints). Die Schrift Archivo steht unter der SIL Open Font License.
+FinTS übernimmt [python-fints](https://github.com/raphaelm/python-fints), Open Banking läuft über die API von Enable Banking. Die Schrift Archivo steht unter der SIL Open Font License.

@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import analytics, contracts, fints_sync, ha, ledger, options, secrets_store
+from . import analytics, contracts, fints_sync, ha, inbox, ledger, openbanking, options, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -62,6 +62,20 @@ def alerts(db: Database, summary: dict) -> list[dict]:
         if b["state"] == "over":
             out.append({"key": f"budget:{b['category_id']}:{today:%Y-%m}", "level": "warning", "title": f"Budget {b['name']} überschritten",
                         "text": f"{euro(b['spent_cents'])} von {euro(b['budget_cents'])} ausgegeben."})
+    for s in openbanking.list_sessions(db):
+        if s["status"] == "expired" or (s["days_left"] is not None and s["days_left"] < 0):
+            out.append({"key": f"eb-expired:{s['id']}:{s['valid_until']}", "level": "warning", "eb": s["id"],
+                        "title": f"Freigabe für {s['aspsp_name']} abgelaufen",
+                        "text": "Neue Umsätze kommen erst wieder, wenn du die Freigabe erneuerst."})
+        elif s["days_left"] is not None and s["days_left"] <= 7:
+            out.append({"key": f"eb-expiring:{s['id']}:{s['valid_until']}", "level": "warning", "eb": s["id"],
+                        "title": f"Freigabe für {s['aspsp_name']} läuft ab",
+                        "text": f"Noch {max(0, s['days_left'])} Tage. Erneuern dauert eine Minute in der Banking-App."})
+    pending = db.scalar("SELECT COUNT(*) FROM inbox")
+    if pending:
+        out.append({"key": f"inbox:{pending}", "level": "info", "inbox": True,
+                    "title": "Dateien im Eingangsordner warten",
+                    "text": f"{pending} {'Datei braucht' if pending == 1 else 'Dateien brauchen'} eine Zuordnung zu einem Konto."})
     for a in summary["accounts"]:
         if a["in_forecast"] and not a["balance_known"] and a["tx_count"]:
             out.append({"key": f"balance:{a['id']}", "level": "info", "title": f"Kontostand für {a['name']} fehlt",
@@ -112,6 +126,10 @@ def _scheduler_loop() -> None:
             if now.strftime("%H:%M") >= (opts.get("sync_time") or "06:30") and last_sync_day != now.date():
                 last_sync_day = now.date()
                 run_daily_sync()
+            if inbox.folder():
+                res = inbox.scan(get_db())
+                if res["imported"]:
+                    schedule_refresh()
             if time.time() - last_push > 900:
                 last_push = time.time()
                 schedule_refresh()
@@ -130,6 +148,12 @@ def run_daily_sync() -> None:
             continue
         job = fints_sync.start(conn["id"], None, background=True, on_done=schedule_refresh)
         threading.Thread(target=_watch_background_job, args=(job,), daemon=True).start()
+    if openbanking.is_configured(db):
+        for s in openbanking.list_sessions(db):
+            if s["status"] != "active" or (s["last_sync"] or "")[:10] == date.today().isoformat():
+                continue
+            job = openbanking.start_sync(s["id"], background=True, on_done=schedule_refresh)
+            threading.Thread(target=_watch_background_job, args=(job,), daemon=True).start()
 
 
 def _watch_background_job(job) -> None:
