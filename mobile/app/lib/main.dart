@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'app/kassensturz_app.dart';
+import 'core/data/account_repository.dart';
 import 'core/data/budget_repository.dart';
 
 void main() {
@@ -9,6 +10,11 @@ void main() {
     KassensturzApp(
       budgetRepository: LocalBudgetRepository(
         store: SharedPreferencesStringKeyValueStore(),
+      ),
+      accountRepository: SqlCipherAccountRepository(
+        keyStore: SecureAccountEncryptionKeyStore(
+          store: FlutterSecureValueStore(),
+        ),
       ),
     ),
   );
