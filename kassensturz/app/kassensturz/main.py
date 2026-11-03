@@ -83,7 +83,20 @@ async def only_ingress(request: Request, call_next):
     is_mobile_api = request.url.path in MOBILE_API_PREFIXES or request.url.path.startswith(
         tuple(prefix + "/" for prefix in MOBILE_API_PREFIXES)
     )
-    if is_mobile_api and not request_is_https(request, TRUSTED_PROXY_NETWORKS):
+    peer = request.client.host if request.client else ""
+    existing_local_peer = peer in (INGRESS_IP, "127.0.0.1", "::1")
+    is_local_admin_path = (
+        request.url.path in ("/api/mobile/pairings", "/api/mobile/devices")
+        or request.url.path.startswith("/api/mobile/devices/")
+    )
+    # The HA Ingress and loopback admin plane is already protected by the
+    # trusted local boundary; TLS is terminated by HA in front of Ingress.
+    # Native mobile traffic must always use direct TLS or a trusted HTTPS proxy.
+    if (
+        is_mobile_api
+        and not request_is_https(request, TRUSTED_PROXY_NETWORKS)
+        and not (is_local_admin_path and existing_local_peer)
+    ):
         return JSONResponse(
             {"error": {"code": "https_required", "message": "HTTPS ist erforderlich."}},
             status_code=426,
@@ -93,7 +106,6 @@ async def only_ingress(request: Request, call_next):
     # Existing browser/API traffic remains restricted to Ingress and loopback.
     # Mobile namespaces additionally allow only explicitly configured private
     # client networks; an empty allowlist therefore keeps remote access closed.
-    existing_local_peer = client in (INGRESS_IP, "127.0.0.1", "::1")
     mobile_peer_allowed = is_mobile_api and address_in_networks(
         effective_client_ip(request, TRUSTED_PROXY_NETWORKS),
         MOBILE_CLIENT_NETWORKS,
