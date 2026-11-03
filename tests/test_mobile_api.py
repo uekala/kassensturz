@@ -368,3 +368,20 @@ def test_mobile_health_is_available_before_pairing_without_sensitive_data(
     assert "authorization" not in response.text.lower()
     assert "database" not in response.text.lower()
 
+def test_mobile_health_has_a_separate_network_rate_limit(db, monkeypatch):
+    reset_mobile_guards(monkeypatch)
+    monkeypatch.setattr(
+        main,
+        "MOBILE_RATE_LIMITS",
+        {("GET", "/api/v1/health"): ("health-test", 2, 60)},
+    )
+    with https_client() as client:
+        first = client.get("/api/v1/health")
+        second = client.get("/api/v1/health")
+        third = client.get("/api/v1/health")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert third.status_code == 429
+    assert third.headers["retry-after"] == "60"
+
