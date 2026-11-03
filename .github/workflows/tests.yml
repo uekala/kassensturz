@@ -42,6 +42,9 @@ jobs:
           python -m pip install -r kassensturz/app/requirements.txt
           python -m pip install pytest httpx
 
+      - name: Check dashboard JavaScript syntax
+        run: node --check kassensturz/app/kassensturz/static/app.js
+
       - name: Run tests
         env:
           KASSENSTURZ_DEV: "1"
