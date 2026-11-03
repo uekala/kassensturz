@@ -41,6 +41,10 @@ def test_mobile_device_identifier_is_unique(db):
     with pytest.raises(sqlite3.IntegrityError):
         db.insert("mobile_devices", device)
 
+    missing_id = {key: value for key, value in device.items() if key != "id"}
+    with pytest.raises(sqlite3.IntegrityError):
+        db.insert("mobile_devices", missing_id)
+
 
 def test_mobile_tokens_only_allow_access_and_refresh_types(db):
     db.insert(
