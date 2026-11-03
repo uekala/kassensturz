@@ -369,12 +369,12 @@ class Database:
             self.conn.executemany(sql, seq)
 
     @contextmanager
-    def tx(self):
-        """Verschachtelbare Transaktion."""
+    def tx(self, *, immediate: bool = False):
+        """Verschachtelbare Transaktion; immediate reserviert frühzeitig den Schreibzugriff."""
         with self.lock:
             outer = self._depth == 0
             if outer:
-                self.conn.execute("BEGIN")
+                self.conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
             self._depth += 1
             try:
                 yield self
