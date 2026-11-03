@@ -433,8 +433,10 @@ def _match_account(db, res: dict, signature: str | None) -> int | None:
 
 @app.post("/api/import/analyze")
 async def import_analyze(file: UploadFile = File(...)):
-    data = await file.read()
-    if len(data) > 25 * 1024 * 1024:
+    # Stop reading as soon as the upload limit is exceeded instead of first
+    # allocating the complete untrusted upload in memory.
+    data = await file.read(importers.MAX_IMPORT_BYTES + 1)
+    if len(data) > importers.MAX_IMPORT_BYTES:
         _err(400, "Die Datei ist größer als 25 MB.")
     db = get_db()
     for tok in [t for t, v in _imports.items() if time.time() - v["created"] > 1800]:
