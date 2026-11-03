@@ -28,13 +28,15 @@ Die bestehende Home-Assistant-Ingress-Oberfläche bleibt der administrative Weg 
 
 Wichtige Grenzen:
 
-1. Die neue Container-Portfreigabe für 8099/TCP ist in `config.yaml` mit `null` standardmäßig deaktiviert. `ingress_port: 8099` ist weiterhin nur der interne Ingress-Port.
-2. Erst für den Tailscale-Service wird in der HA-App-Netzwerkverwaltung ein dedizierter Host-Port (vorgesehen: 18099) auf den Container-Port 8099 abgebildet.
-3. Das Tailscale-Add-on veröffentlicht einen eigenen Service `svc:kassensturz`, der intern auf `http://127.0.0.1:18099` zeigt und nach außen HTTPS auf Port 443 bereitstellt. Das Tailscale-Add-on muss die `services`-Option unterstützen und im Host-Netzwerk laufen. Die aktuelle Add-on-Konfiguration beschränkt `target` ausdrücklich auf lokale Loopback-Adressen.
-
-   Beispiel für die `services`-Option:
+1. Die Kassensturz-Container-Portfreigabe für 8099/TCP bleibt in `config.yaml` mit `null` standardmäßig deaktiviert. `ingress_port: 8099` ist weiterhin nur der interne Ingress-Port.
+2. Für den Tailscale-Service wird in der Kassensturz-HA-App-Netzwerkverwaltung ein dedizierter Host-Port (vorgesehen: 18099) auf den Container-Port 8099 abgebildet. Die Anwendung lässt direkte Anfragen über diesen Port durch ihre Netzwerk-Middleware weiterhin nur von lokalen oder ausdrücklich vertrauenswürdigen Gegenstellen zu.
+3. Das offizielle Home Assistant Community Tailscale Add-on läuft mit `host_network: true` und unterstützt die Optionen `advertise_tags` und `services`. Sein Service-Ziel muss eine lokale Loopback-Adresse sein. Es wird deshalb auf `http://127.0.0.1:18099` verwiesen.
+   
+   Die Service-Ressource `svc:kassensturz` ist bereits in der Tailscale-Admin-Konsole definiert. Ihr Endpunkt ist `tcp:443`; das Add-on konfiguriert dazu den HTTPS-Layer-7-Endpunkt und stellt intern eine HTTP-Verbindung zum Kassensturz-Backend her:
 
    ```yaml
+   advertise_tags:
+     - tag:homeassistant
    services:
      - name: svc:kassensturz
        target: http://127.0.0.1:18099
@@ -42,15 +44,20 @@ Wichtige Grenzen:
        port: 443
        path: /
    ```
-4. Der Tailscale-Knoten benötigt ein in der bestehenden Tailnet-Policy erlaubtes `advertise_tags`-Tag. Der Service muss auf der Services-Seite der Tailscale-Admin-Konsole definiert, der Home-Assistant-Knoten als Service-Host freigegeben und mit einer Grant-Regel ausschließlich für den eigenen Nutzer bzw. eine ausdrücklich ausgewählte Gruppe erreichbar gemacht werden. MagicDNS und HTTPS-Zertifikate müssen im Tailscale-DNS-Bereich aktiviert sein.
-5. Die `trusted_proxies`-Option wird erst nach der Prüfung der tatsächlichen TCP-Gegenstelle des Tailscale-Services gesetzt (voraussichtlich `127.0.0.1/32`, am Green zu verifizieren). `mobile_client_networks` bleibt für diesen Proxy-Weg leer. Die Middleware verlangt bei einem vertrauenswürdigen Proxy zusätzlich exakt `X-Forwarded-Proto: https`; ob der Tailscale-Service diesen Header im konkreten Add-on-Build setzt, muss vor Freigabe geprüft werden. Keine pauschale Freigabe des Supervisor-Netzes.
-6. Die App-Middleware verweigert direkte Requests von nicht freigegebenen LAN-/VPN-Peers. Die Portfreigabe wird von außen nicht am Router weitergeleitet und es wird kein Funnel für Kassensturz aktiviert.
-7. Native Clients akzeptieren ausschließlich HTTPS mit gültiger Zertifikatsprüfung.
-8. Die bestehende Ingress-Sitzung wird nicht als Ersatz für die Geräteauthentifizierung der Mobile-API verwendet.
-9. `panel_admin: true` beschränkt den Home-Assistant-Ingress-Einstieg ausdrücklich auf Administratoren. Die Supervisor-Kennung `X-Remote-User-Id` muss bei Ingress-Aufrufen vorhanden sein; sie wird vom Supervisor gesetzt und von nicht vertrauenswürdigen Aufrufern entfernt. Fehlt sie, werden Pairing-Erzeugung, Geräteauflistung und -widerruf abgewiesen. Loopback bleibt ausschließlich für lokale Prozesse freigegeben.
-10. Die lokale Geräteverwaltung (Pairing-Secret erzeugen, Geräte auflisten/widerrufen) bleibt dem authentifizierten Home-Assistant-Ingress-/Loopback-Administrationspfad vorbehalten.
 
-Home Assistant unterstützt deaktivierte Port-Mappings mit `null`; die Tailscale-Addon-Dokumentation beschreibt den `services`-Mechanismus für weitere lokale Dienste. Siehe [Home Assistant App configuration](https://developers.home-assistant.io/docs/apps/configuration/) und [Tailscale-Addon services](https://github.com/hassio-addons/app-tailscale/blob/main/tailscale/DOCS.md#option-services).
+   Tailscale provisioniert das TLS-Zertifikat für `https://kassensturz.tail1966da.ts.net`. MagicDNS und HTTPS-Zertifikate müssen im Tailnet aktiviert sein. Funnel bleibt deaktiviert.
+4. Der bestehende Home-Assistant-Tailscale-Knoten wechselt durch `advertise_tags: [tag:homeassistant]` von persönlicher Benutzeridentität zu einer tagbasierten Geräteidentität. Tailscale Services erfordern diese Identität; das ist keine rein zusätzliche Kennzeichnung. Daher werden vorher in der Policy `tagOwners` sowie automatische Genehmigungen für die bestehende Subnetzroute `192.168.50.0/24` und den Exit-Node vorbereitet. Die vorhandene `advertise_routes`-, `advertise_exit_node`-, SNAT- und TUN-Konfiguration bleibt erhalten. Die allgemeine Zugriffsregel wird während dieses Schritts nicht verändert.
+5. Der Kassensturz-Service-Host wird zunächst **manuell** auf der Services-Seite freigegeben, nicht automatisch über `autoApprovers.services`. So bleibt die erste Aktivierung ein bewusster administrativer Schritt. Die Service-Definition ist bereits angelegt; der Host ist zum aktuellen Stand noch nicht advertised.
+6. Die `trusted_proxies`-Option wird erst nach der Prüfung der tatsächlichen TCP-Gegenstelle und der vom Tailscale-Service gelieferten `X-Forwarded-Proto`-Header gesetzt. `mobile_client_networks` bleibt für diesen Proxy-Weg leer. Die Middleware verlangt von einem vertrauenswürdigen Proxy exakt `X-Forwarded-Proto: https`; keine pauschale Freigabe des Supervisor-Netzes.
+7. Die App-Middleware verweigert direkte Requests von nicht freigegebenen LAN-/VPN-Peers. Die Portfreigabe wird nicht am Router weitergeleitet und es wird kein Funnel für Kassensturz aktiviert.
+8. Native Clients akzeptieren ausschließlich HTTPS mit gültiger Zertifikatsprüfung.
+9. Die bestehende Ingress-Sitzung wird nicht als Ersatz für die Geräteauthentifizierung der Mobile-API verwendet.
+10. `panel_admin: true` beschränkt den Home-Assistant-Ingress-Einstieg ausdrücklich auf Administratoren. Die Supervisor-Kennung `X-Remote-User-Id` muss bei Ingress-Aufrufen vorhanden sein; fehlt sie, werden Pairing-Erzeugung, Geräteauflistung und -widerruf abgewiesen. Loopback bleibt ausschließlich für lokale Prozesse freigegeben.
+11. Die lokale Geräteverwaltung bleibt dem authentifizierten Home-Assistant-Ingress-/Loopback-Administrationspfad vorbehalten.
+
+Home Assistant unterstützt deaktivierte Port-Mappings mit `null`; die Tailscale-Addon-Dokumentation beschreibt den `services`-Mechanismus für weitere lokale Dienste.
+
+Die Tailscale-Service-Ressource wurde in der Admin-Konsole bereits als `svc:kassensturz` mit `tcp:443` angelegt. Der aktuelle Status zeigt noch keine Service-Hosts. Die Community-App-Dokumentation beschreibt die `services`-Option, die Loopback-Zieladresse und die Pflicht einer tagbasierten Identität; die Host-Freigabe erfolgt nach dem Advertise manuell. Siehe [Home Assistant App configuration](https://developers.home-assistant.io/docs/apps/configuration/) und [Tailscale-Addon services](https://github.com/hassio-addons/app-tailscale/blob/main/tailscale/DOCS.md#option-services).
 
 ## Datenhaltung und Backup
 
