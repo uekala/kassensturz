@@ -51,6 +51,14 @@ def _is_trusted(address: IPAddress | None, networks: Iterable[IPNetwork]) -> boo
     return any(address.version == network.version and address in network for network in networks)
 
 
+def address_in_networks(
+    address: IPAddress | None,
+    networks: Iterable[IPNetwork],
+) -> bool:
+    """Check an IP address against an explicit allowlist of networks."""
+    return _is_trusted(address, networks)
+
+
 def socket_peer(request: Request) -> IPAddress | None:
     """Return only the TCP peer address; never consult forwarding headers."""
     return _parse_ip(request.client.host if request.client else None)
