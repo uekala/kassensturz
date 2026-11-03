@@ -12,6 +12,13 @@ from datetime import date
 
 from .util import clean_purpose, norm, parse_amount, parse_date
 
+
+# Resource limits apply to uploads and watched-folder imports alike.
+MAX_IMPORT_BYTES = 25 * 1024 * 1024
+MAX_ZIP_ENTRIES = 100
+MAX_ZIP_EXPANDED_BYTES = 50 * 1024 * 1024
+MAX_XML_FILE_BYTES = 20 * 1024 * 1024
+
 FIELDS = [
     "date", "value_date", "amount", "debit", "credit", "fee", "counterparty", "counterparty_in",
     "counterparty_out", "purpose", "booking_text", "iban", "currency", "balance", "status",
@@ -484,18 +491,36 @@ def _guess_preset_by_filename(filename: str, preset):
 
 def analyze(data: bytes, filename: str, mapping_override: dict | None = None) -> dict:
     """Liest eine Datei und liefert erkannte Buchungen samt Zuordnung."""
+    if len(data) > MAX_IMPORT_BYTES:
+        raise ValueError(f"Die Datei überschreitet das Importlimit von {MAX_IMPORT_BYTES // (1024 * 1024)} MB.")
     name = (filename or "").lower()
     if zipfile.is_zipfile(io.BytesIO(data)):
         rows, meta = [], {}
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
-            for info in zf.infolist():
-                if info.filename.lower().endswith(".xml"):
-                    r, m = parse_camt(zf.read(info))
-                    rows += r
-                    for k, v in m.items():
-                        if k == "balance_date" and meta.get("balance_date") and v and v < meta["balance_date"]:
-                            continue
-                        meta[k] = v if k != "iban" or "iban" not in meta else meta["iban"]
+            infos = zf.infolist()
+            if len(infos) > MAX_ZIP_ENTRIES:
+                raise ValueError(f"Das ZIP-Archiv enthält mehr als {MAX_ZIP_ENTRIES} Einträge.")
+            expanded_size = sum(info.file_size for info in infos if not info.is_dir())
+            if expanded_size > MAX_ZIP_EXPANDED_BYTES:
+                raise ValueError("Das ZIP-Archiv überschreitet die zulässige entpackte Gesamtgröße.")
+            for info in infos:
+                if info.is_dir() or not info.filename.lower().endswith(".xml"):
+                    continue
+                if info.flag_bits & 0x1:
+                    raise ValueError("Verschlüsselte ZIP-Einträge werden nicht unterstützt.")
+                if info.file_size > MAX_XML_FILE_BYTES:
+                    raise ValueError("Eine XML-Datei im ZIP-Archiv ist zu groß.")
+                # Read at most one byte beyond the limit, even if ZIP metadata is misleading.
+                with zf.open(info) as member:
+                    xml_bytes = member.read(MAX_XML_FILE_BYTES + 1)
+                if len(xml_bytes) > MAX_XML_FILE_BYTES:
+                    raise ValueError("Eine XML-Datei im ZIP-Archiv überschreitet das Größenlimit.")
+                r, m = parse_camt(xml_bytes)
+                rows += r
+                for k, v in m.items():
+                    if k == "balance_date" and meta.get("balance_date") and v and v < meta["balance_date"]:
+                        continue
+                    meta[k] = v if k != "iban" or "iban" not in meta else meta[k]
         return _result("camt", "CAMT (ZIP)", rows, meta, None)
     head = data[:2048].lstrip()
     if head.startswith(b"<") or name.endswith(".xml"):
