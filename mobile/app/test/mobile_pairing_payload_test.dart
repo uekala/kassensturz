@@ -21,9 +21,7 @@ void main() {
       throwsFormatException,
     );
     expect(
-      () => MobilePairingPayload.fromRawValue(
-        '{"type":"other","version":1}',
-      ),
+      () => MobilePairingPayload.fromRawValue('{"type":"other","version":1}'),
       throwsFormatException,
     );
   });
