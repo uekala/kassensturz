@@ -18,7 +18,7 @@ abstract interface class StringKeyValueStore {
 
 class SharedPreferencesStringKeyValueStore implements StringKeyValueStore {
   SharedPreferencesStringKeyValueStore({SharedPreferencesAsync? preferences})
-      : _preferences = preferences ?? SharedPreferencesAsync();
+    : _preferences = preferences ?? SharedPreferencesAsync();
 
   final SharedPreferencesAsync _preferences;
 
@@ -85,10 +85,7 @@ class LocalBudgetRepository implements BudgetRepository {
       }
     }
 
-    final payload = jsonEncode({
-      'version': _schemaVersion,
-      'limits': limits,
-    });
+    final payload = jsonEncode({'version': _schemaVersion, 'limits': limits});
     await _store.write(_storageKey, payload);
   }
 
@@ -106,11 +103,10 @@ class LocalBudgetRepository implements BudgetRepository {
 /// In-memory repository for widget previews and tests. Production uses the
 /// SharedPreferences-backed repository passed from main.dart.
 class InMemoryBudgetRepository implements BudgetRepository {
-  InMemoryBudgetRepository({
-    Map<String, double>? initialLimits,
-  }) : _limits = Map<String, double>.from(
-          initialLimits ?? DemoFinanceData.defaultBudgetLimits,
-        );
+  InMemoryBudgetRepository({Map<String, double>? initialLimits})
+    : _limits = Map<String, double>.from(
+        initialLimits ?? DemoFinanceData.defaultBudgetLimits,
+      );
 
   Map<String, double> _limits;
 
