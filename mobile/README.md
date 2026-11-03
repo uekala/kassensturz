@@ -31,11 +31,12 @@ Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/
 - [x] Demo-Oberflächen für Dashboard, Konten, Buchungen und Budgets mit klar gekennzeichneten Beispieldaten.
 - [x] Manuelle lokale Kontenpflege mit verschlüsselter SQLite-Datenbank und Schlüsselablage im Betriebssystem.
 - [x] Lokale Speicherung der Budgetlimits.
-- [ ] Produktive Datenansicht über authentifizierte Mobile-API; Verträge und Live-Buchungen.
+- [x] Interne, allowlist-basierte DTO-Services für Dashboard-Übersicht, Konten, Budgets und paginierte Buchungsliste.
+- [ ] Flutter-Anbindung der echten Daten; Verträge und weitere Live-Funktionen.
 - [ ] Integrationstests auf iOS und Android.
 - [ ] Signierte Builds und Store-Veröffentlichungen.
 
-**Aktueller Implementierungsstand:** Das Flutter-Dart-Projekt enthält Demo-Oberflächen, lokale Kontenpflege und Budgetlimits. Im Python-Backend ist der Pairing-/Token-Lifecycle als interner Service mit Tests vorbereitet. Es gibt weiterhin keine produktiven Mobile-API- oder Pairing-HTTP-Endpunkte und keine echte Serververbindung. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
+**Aktueller Implementierungsstand:** Das Flutter-Dart-Projekt enthält Demo-Oberflächen, lokale Kontenpflege und Budgetlimits. Im Python-Backend existieren interne Services für Geräte-Pairing/Token-Lifecycle sowie für allowlist-basierte Mobile-DTOs der Übersicht und Buchungsliste. Beide sind getestet, aber noch nicht als HTTP-Routen registriert. Es gibt weiterhin keine produktiven Mobile-API- oder Pairing-HTTP-Endpunkte und keine echte Serververbindung. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
 
 ## Geplante Projektstruktur
 
