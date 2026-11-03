@@ -4,9 +4,12 @@ class AccountsPage extends StatelessWidget {
   const AccountsPage({super.key});
 
   static const _accounts = [
-    _Account('Girokonto', 'Musterbank · •• 4821', '2.486,30 €', Icons.account_balance_rounded),
-    _Account('Tagesgeld', 'Musterbank · •• 1093', '8.250,00 €', Icons.savings_outlined),
-    _Account('Kreditkarte', 'Beispiel Visa · •• 7712', '−324,80 €', Icons.credit_card_rounded),
+    _Account('Girokonto', 'Musterbank · •• 4821', '2.486,30 €',
+        Icons.account_balance_rounded),
+    _Account('Tagesgeld', 'Musterbank · •• 1093', '8.250,00 €',
+        Icons.savings_outlined),
+    _Account('Kreditkarte', 'Beispiel Visa · •• 7712', '−324,80 €',
+        Icons.credit_card_rounded),
   ];
 
   @override
@@ -18,7 +21,10 @@ class AccountsPage extends StatelessWidget {
       children: [
         Text(
           'Deine Konten',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
         Text(
@@ -32,15 +38,18 @@ class AccountsPage extends StatelessWidget {
             color: Colors.white,
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               leading: CircleAvatar(
                 backgroundColor: colors.primaryContainer,
                 foregroundColor: colors.onPrimaryContainer,
                 child: Icon(account.icon),
               ),
-              title: Text(account.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+              title: Text(account.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(account.details),
-              trailing: Text(account.balance, style: const TextStyle(fontWeight: FontWeight.w800)),
+              trailing: Text(account.balance,
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
             ),
           ),
         ),
