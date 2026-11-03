@@ -20,10 +20,10 @@ SQLite stores financial transactions and connection metadata. The data directory
 | Mobile pairing/device/token tables | Schema present; migration and constraints tested |
 | Pairing and token lifecycle service | Implemented as an internal HTTP-free service; unit tests cover one-time pairing, expiry, rotation, replay detection and revocation |
 | Overview and transaction DTO mappers | Implemented as internal read services with field allowlists, pagination and query validation tests |
-| Pairing-secret creation and redemption routes | Not implemented |
-| Access-/refresh-token HTTP routes | Not implemented |
-| Mobile device listing and revocation routes | Not implemented |
-| Authenticated mobile DTO routes | Not implemented; only internal DTO-building functions exist |
+| Pairing-secret creation and redemption routes | Implemented: admin creation via trusted Ingress/loopback; single-use redemption via HTTPS mobile route |
+| Access-/refresh-token HTTP routes | Implemented: refresh rotation, bearer authentication and device logout |
+| Mobile device listing and revocation routes | Implemented: local admin only |
+| Authenticated mobile DTO routes | Implemented: `/api/v1/me`, `/overview` and paginated `/transactions` with field allowlists |
 | HTTPS enforcement for mobile namespaces | Middleware gate for `/api/v1/*` and `/api/mobile/*`; accepts direct TLS or `X-Forwarded-Proto: https` from explicitly allowlisted proxies. The listener remains restricted to Ingress/loopback plus the optional explicit mobile-network allowlist. |
 | Mobile client network allowlist | `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` accepts explicit IP/CIDR ranges; empty by default. Only reserved mobile namespaces can use it; the existing browser UI remains Ingress/loopback-only. |
 | Network rate limiting | Bounded, process-local sliding-window limiter wired to reserved pairing, refresh, logout, read and device-management paths; routes remain unregistered. Per-device refresh limits and shared multi-worker storage remain outstanding. |
@@ -32,9 +32,9 @@ SQLite stores financial transactions and connection metadata. The data directory
 | Local budget preferences | SharedPreferences; category IDs and limits only, not encrypted |
 | Bank account import / transaction sync | Not implemented |
 
-The current FastAPI application has only the existing Home Assistant / loopback network boundary. It does not register the mobile routes in the API contract. The prepared database tables do not provide authentication by themselves. The existing `/api/*` routes must not be treated as device-authenticated routes, and the standalone deployment remains bound to loopback only.
+The FastAPI application now registers the versioned mobile endpoints alongside the existing Home Assistant routes. The existing legacy `/api/*` routes remain separate and must not be treated as device-authenticated routes. Mobile financial routes require a bearer token. Device creation/listing/revocation is restricted to the trusted Ingress peer or loopback; remote private-network clients cannot invoke these administrative routes. The standalone deployment still binds to loopback only and therefore does not expose the mobile API to LAN/VPN clients.
 
-The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The `mobile_auth.py` module implements only the internal credential lifecycle and `mobile_read.py` builds allowlisted overview/transaction responses; neither is registered as an HTTP router and neither can be reached over the network. The reserved mobile namespaces now reject cleartext requests and accept remote peers only when their resolved client IP belongs to the explicitly configured `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` list. This list is empty by default and does not publish a port. Forwarded transport/client headers are considered only when the immediate peer is in `KASSENSTURZ_TRUSTED_PROXIES`. Network rate limits are wired before route dispatch, but the in-memory limiter is single-process only. Pairing administration authorization, per-device rate limits, persistent shared rate-limit state, authenticated DTO routes and the Flutter connection flow remain outstanding.
+The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The `mobile_auth.py` and `mobile_read.py` services are now exposed through `mobile_api.py`. The mobile routes require HTTPS for native clients and allow access only from explicitly configured `KASSENSTURZ_MOBILE_CLIENT_NETWORKS`; this list is empty by default. Local pairing/device administration is restricted to Ingress or loopback, where TLS may already be terminated by Home Assistant Ingress. Forwarded transport/client headers are considered only when the immediate peer is in `KASSENSTURZ_TRUSTED_PROXIES`. Network rate limits are wired before route dispatch, but the in-memory limiter is single-process only. Per-device rate limits, persistent shared rate-limit state, Flutter connection/pairing flow and release hardening remain outstanding.
 
 
 ## Required controls before a mobile listener is enabled
