@@ -20,6 +20,8 @@ from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers
 from .db import get_db, now_iso
 from .mobile_security import (
     InMemoryRateLimiter,
+    address_in_networks,
+    effective_client_ip,
     parse_trusted_proxy_networks,
     request_is_https,
     request_rate_limit_key,
@@ -31,6 +33,10 @@ INGRESS_IP = "172.30.32.2"
 # Proxy addresses are trusted only when explicitly configured by an administrator.
 TRUSTED_PROXY_NETWORKS = parse_trusted_proxy_networks(
     os.environ.get("KASSENSTURZ_TRUSTED_PROXIES")
+)
+# Empty by default: no remote mobile client network is permitted.
+MOBILE_CLIENT_NETWORKS = parse_trusted_proxy_networks(
+    os.environ.get("KASSENSTURZ_MOBILE_CLIENT_NETWORKS")
 )
 MOBILE_API_PREFIXES = ("/api/v1", "/api/mobile")
 
@@ -82,10 +88,16 @@ async def only_ingress(request: Request, call_next):
             headers={"Cache-Control": "no-store"},
         )
 
-    # Development mode never bypasses the existing network boundary. Only
-    # the Home Assistant Ingress peer and local loopback clients are accepted.
-    if client not in (INGRESS_IP, "127.0.0.1", "::1"):
-        return JSONResponse({"detail": "Nur über Home Assistant erreichbar."}, status_code=403)
+    # Existing browser/API traffic remains restricted to Ingress and loopback.
+    # Mobile namespaces additionally allow only explicitly configured private
+    # client networks; an empty allowlist therefore keeps remote access closed.
+    existing_local_peer = client in (INGRESS_IP, "127.0.0.1", "::1")
+    mobile_peer_allowed = is_mobile_api and address_in_networks(
+        effective_client_ip(request, TRUSTED_PROXY_NETWORKS),
+        MOBILE_CLIENT_NETWORKS,
+    )
+    if not existing_local_peer and not mobile_peer_allowed:
+        return JSONResponse({"detail": "Nur über Home Assistant oder ein freigegebenes privates Netz erreichbar."}, status_code=403)
 
     if is_mobile_api:
         policy = MOBILE_RATE_LIMITS.get((request.method.upper(), request.url.path))
