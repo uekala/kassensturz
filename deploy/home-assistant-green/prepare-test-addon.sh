@@ -4,11 +4,24 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SOURCE="$ROOT/kassensturz/app"
 ADDON_TEMPLATE="$ROOT/deploy/home-assistant-green/test-addon"
-DEST="${1:-$ROOT/dist/kassensturz-mobile-test}"
+if (( $# > 1 )); then
+  echo "Usage: $0 [destination-under-dist-or-RUNNER_TEMP]" >&2
+  exit 2
+fi
+
+if (( $# == 0 )); then
+  DEST="$ROOT/dist/kassensturz-mobile-test"
+else
+  DEST="$(realpath -m "$1")"
+fi
+ROOT_REAL="$(realpath "$ROOT")"
+RUNNER_TEMP_REAL="$(realpath -m "${RUNNER_TEMP:-/tmp}")"
 
 case "$DEST" in
-  "$ROOT"|"$ROOT/"|"$SOURCE"|"$ADDON_TEMPLATE")
-    echo "Refusing unsafe destination: $DEST" >&2
+  "$ROOT_REAL/dist/kassensturz-mobile-test"|"$RUNNER_TEMP_REAL"/*)
+    ;;
+  *)
+    echo "Refusing destination outside repository dist/ or RUNNER_TEMP: $DEST" >&2
     exit 2
     ;;
 esac
