@@ -31,7 +31,7 @@ def client(db):
 
     from kassensturz.main import app
 
-    with TestClient(app) as c:
+    with TestClient(app, client=("127.0.0.1", 50123)) as c:
         yield c
 
 
