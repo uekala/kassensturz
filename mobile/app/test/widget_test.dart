@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kassensturz_mobile/app/kassensturz_app.dart';
+import 'package:kassensturz_mobile/features/budget/budget_page.dart';
+
+Finder _budgetScrollable() => find.descendant(
+      of: find.byType(BudgetPage),
+      matching: find.byType(Scrollable),
+    );
 
 void main() {
   testWidgets('shows prototype dashboard and demo status by default',
@@ -94,6 +100,11 @@ void main() {
     await tester.tap(find.text('Speichern'));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('Gesundheit'),
+      160,
+      scrollable: _budgetScrollable(),
+    );
     expect(find.text('Gesundheit'), findsOneWidget);
     expect(find.text('1.100,00 €'), findsOneWidget);
     expect(find.text('18,70 €'), findsOneWidget);
@@ -108,7 +119,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byTooltip('Budget bearbeiten: Lebensmittel'),
       160,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: _budgetScrollable(),
     );
     await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
     await tester.pumpAndSettle();
@@ -128,7 +139,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byTooltip('Budget löschen: Lebensmittel'),
       160,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: _budgetScrollable(),
     );
     await tester.tap(find.byTooltip('Budget löschen: Lebensmittel'));
     await tester.pumpAndSettle();
