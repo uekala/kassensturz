@@ -1,53 +1,114 @@
-# Mobile client (iOS and Android)
+# Kassensturz Mobile – Flutter für iOS und Android
 
-This directory is reserved for the Flutter client. No application code is added until the local API and device-pairing contract is implemented and tested.
+<status>Beschlossen: eine gemeinsame Flutter-Codebasis für iOS und Android.</status>
 
-## Product contract
+Kassensturz Mobile wird gleichzeitig für beide Plattformen entwickelt. Oberfläche, API-Client, DTOs und Sitzungslogik werden gemeinsam in Dart umgesetzt; plattformspezifische Funktionen bleiben hinter Adaptern.
 
-- Connect directly to one customer-controlled Kassensturz instance.
-- No Kassensturz cloud account and no central transaction store.
-- The first release is a companion client, not a separate bank connector.
-- Store device credentials in iOS Keychain / Android Keystore.
-- Use HTTPS only; remote access is expected to use the customer's VPN.
-- Show connection state and the timestamp of the last successful synchronization.
-- Support disconnecting and revoking a device from the local Kassensturz UI.
+Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/architecture/0006-flutter-mobile-client.md) festgehalten.
 
-## Planned structure
+## Produkt- und Vertrauensmodell
+
+- Die App verbindet sich direkt mit genau einer vom Nutzer verwalteten Kassensturz-Installation.
+- Unterstützte Zugriffswege sind das lokale Netzwerk und ein vom Nutzer verwaltetes VPN.
+- Kein Kassensturz-Cloudkonto, kein Relay und kein zentraler Transaktionsspeicher.
+- Die erste App-Version ist ein Companion-Client und kein eigener Bankconnector.
+- FinTS-PINs, TANs, Bank-Sessions und Open-Banking-Private-Keys bleiben auf dem Server.
+- Geräte-Credentials liegen auf iOS in der Keychain und auf Android in einer Keystore-geschützten Ablage.
+- HTTPS und normale Zertifikatsprüfung sind zwingend. Es gibt keinen „unsichere Zertifikate ignorieren“-Schalter.
+- Kein Finanzdaten-Offlinecache in Version 1; dafür ist zuerst eine eigene Datenschutz- und Verschlüsselungsentscheidung nötig.
+
+## Status am 03.11.2026
+
+- [x] Flutter als gemeinsamer Client für iOS und Android beschlossen.
+- [x] Zielarchitektur, Sicherheitsgrenzen und erste UI-Funktionen dokumentiert.
+- [ ] Flutter-Projekt-Bootstrap mit festgelegter Toolchain.
+- [ ] CI für Flutter-Formatierung, statische Analyse und Tests.
+- [ ] Verbindungsassistent und Server-Healthcheck.
+- [ ] QR-Pairing und Geräteverwaltung.
+- [ ] Sichere Credential-Ablage und Tokenrotation.
+- [ ] Dashboard, Konten und Buchungsliste.
+- [ ] Budgets und Verträge.
+- [ ] Integrationstests auf iOS und Android.
+- [ ] Signierte Builds und Store-Veröffentlichungen.
+
+**Noch nicht implementiert:** Es gibt derzeit kein ausführbares Flutter-Projekt und keine produktiven Mobile-API- oder Pairing-Endpunkte. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
+
+## Geplante Projektstruktur
 
 ```text
 mobile/
   README.md
-  app/                 # Flutter workspace (created with the API contract)
-  docs/
-    pairing-and-api.md
+  app/
+    pubspec.yaml
+    lib/
+      main.dart
+      app/
+      core/
+        config/
+        networking/
+        security/
+        routing/
+        design/
+      features/
+        server_connection/
+        pairing/
+        dashboard/
+        accounts/
+        transactions/
+        budgets/
+        contracts/
+    test/
+    integration_test/
+    android/
+    ios/
 ```
 
-## Suggested client stack
+Die Verzeichnisse und Projektdateien unter `mobile/app` werden beim Flutter-Bootstrap erzeugt. Die Struktur oben ist ein Zielbild, kein bereits vorhandener App-Quellcode.
 
-- Flutter / Dart for one iOS and Android codebase.
-- Riverpod (or an equivalent state-management approach).
-- Dio or a typed HTTP client for the versioned REST API.
-- Keychain / Android Keystore through a maintained secure-storage package.
-- Drift / SQLite only when the offline-cache threat model and encryption choice are approved.
+## Geplanter App-Umfang – erste Version
 
-Package versions must be selected and pinned when the Flutter workspace is created; this README intentionally does not imply that a Flutter project already exists.
+1. Serveradresse eingeben oder QR-Einrichtung starten.
+2. Verbindung und Serverstatus anzeigen.
+3. Pairing und Verwaltung des eigenen Geräts.
+4. Dashboard und Kontenübersicht.
+5. Buchungsliste mit Filtern und Pagination.
+6. Budgets, Kategorien und Verträge.
+7. Logout und klare Anzeige eines Gerätewiderrufs.
 
-## API and security specifications
+Die erste Version bleibt überwiegend lesend. Schreibende Funktionen werden erst ergänzt, wenn API-Berechtigungen und Sicherheitsprüfungen dafür freigegeben sind.
 
-The server/client contract is documented in:
+## Vorgesehene technische Bereiche
+
+- `core/config`: Serveradresse und App-Konfiguration.
+- `core/networking`: HTTPS-API-Client, DTOs, Fehlerbehandlung und Refresh-Single-Flight.
+- `core/security`: Plattformadapter für Keychain und Android Keystore.
+- `core/routing`: Navigation und geschützte App-Bereiche.
+- `core/design`: gemeinsames Designsystem.
+- `features/*`: fachliche Funktionen mit gemeinsamer Plattformlogik.
+
+Die konkrete Auswahl und Versionierung von State-Management, Routing, HTTP-Client und QR-Paket erfolgt beim Bootstrap anhand der dann aktuellen Flutter-/Dart-Versionen. Das wird nicht vorab durch ungetestete Paketversionen festgeschrieben.
+
+## API und Sicherheitsvorgaben
+
+- Die App kommuniziert ausschließlich mit den versionierten Endpunkten unter `/api/v1`.
+- Pairing-Secrets werden nie in URLs oder Query-Parametern übertragen.
+- Access-Tokens kommen ausschließlich in den Authorization-Header.
+- Refresh-Aufrufe laufen pro App-Instanz als Single-Flight.
+- Nach Widerruf oder fehlgeschlagenem Refresh wird die lokale Sitzung gelöscht und erneutes Pairing verlangt.
+- Credentials, Kontodaten und Verwendungszwecke dürfen nicht in Logs, Analytics oder Crash-Reports gelangen.
+
+Die Spezifikation steht in:
 
 - [Mobile API contract](../docs/architecture/0003-mobile-api-contract.md)
 - [Mobile API security requirements](../docs/architecture/0002-mobile-api-security.md)
-- [DTOs, token lifecycle and test matrix](../docs/architecture/0004-mobile-api-dto-state-machine.md)
+- [DTOs, Token-Lifecycle und Testmatrix](../docs/architecture/0004-mobile-api-dto-state-machine.md)
 
-These documents are specifications only. Pairing routes, token rotation, and the Flutter client are not implemented yet.
+## Build- und Freigabereihenfolge
 
-## Build order
-
-1. Finalize the API DTOs and pairing protocol.
-2. Implement the server's pairing, device-session and revocation endpoints.
-3. Add API contract tests and security tests.
-4. Generate the Flutter application skeleton.
-5. Implement server pairing and a read-only dashboard.
-6. Add transaction, budget and contract workflows.
-7. Add offline cache only after data-at-rest protections are tested.
+1. Mobile-API mit Pairing, Gerätewiderruf, Tokenrotation und Authentifizierung implementieren.
+2. Sicherheits-Release-Gates und API-Tests bestehen lassen.
+3. Flutter-Projekt für beide Plattformen bootstrappen und CI ergänzen.
+4. UI-Grundgerüst und API-Mocks parallel entwickeln.
+5. Den ersten echten End-to-End-Ablauf vom Pairing bis zum Dashboard integrieren.
+6. Auf realen iOS- und Android-Geräten testen.
+7. Signierte Builds und App-Store-/Google-Play-Veröffentlichung vorbereiten.
