@@ -7,7 +7,7 @@ This document defines requirements, not a claim that the current API already mee
 
 ## Current state
 
-The current FastAPI application is designed for Home Assistant Ingress. Existing non-mobile routes remain restricted to the Ingress peer and IPv4/IPv6 loopback. Mobile namespaces require HTTPS and accept either an explicitly configured client CIDR or a request from an explicitly trusted reverse-proxy peer. Both settings are empty by default, and development mode does not bypass the boundary. The API routes implement bearer-token authentication, but remote access is not enabled by default: the HA app port mapping remains disabled.
+The current FastAPI application is designed for Home Assistant Ingress. Existing non-mobile routes remain restricted to the Ingress peer and IPv4/IPv6 loopback. Mobile namespaces require HTTPS and accept either an explicitly configured client CIDR or a request from an explicitly trusted reverse-proxy peer. Both settings are configurable through the Home Assistant add-on options or standalone environment variables, and are empty by default. Development mode does not bypass the boundary. The API routes implement bearer-token authentication, but remote access is not enabled by default: the HA app port mapping remains disabled.
 
 FinTS PINs and the Enable Banking private key are now stored in an AES-256-GCM encrypted envelope. The installation uses a local 256-bit key file with mode 0600 by default, or an externally supplied 64-hex-character `KASSENSTURZ_MASTER_KEY`. Home Assistant backups exclude both the encrypted secret file and its local key. See [local secret encryption](0005-local-secret-encryption.md) for migration, recovery and threat limitations.
 
@@ -104,4 +104,4 @@ The detailed contract in [0003](0003-mobile-api-contract.md) and state machine i
 
 ## Release gate
 
-Remote access must remain disabled until the controls in the sections "Transport", "Pairing and device identity", "Session credentials" and "API authorization" are implemented and covered by tests. Before enabling the optional HA host-port mapping, configure the exact Tailscale reverse-proxy peer, verify forwarded HTTPS/client headers on the Green, configure a tailnet-only Tailscale Service grant, and prove that direct LAN requests are denied. Do not configure router port forwarding or Tailscale Funnel.
+Remote access must remain disabled until the controls in the sections "Transport", "Pairing and device identity", "Session credentials" and "API authorization" are implemented and covered by tests. Before enabling the optional HA host-port mapping, configure the exact Tailscale Services reverse-proxy peer in the add-on `trusted_proxies` option, verify `X-Forwarded-Proto: https` and source-address behavior on the Green, configure a tailnet-only Tailscale Service grant, and prove that direct LAN requests are denied. Do not configure router port forwarding or Tailscale Funnel.
