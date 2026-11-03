@@ -44,27 +44,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Export canonical Dart formatting
-        run: |
-          dart format lib test
-          for file in \
-            lib/app/kassensturz_shell.dart \
-            lib/core/data/budget_controller.dart \
-            lib/core/data/budget_repository.dart \
-            lib/core/data/demo_finance_data.dart \
-            lib/features/accounts/accounts_page.dart \
-            lib/features/budget/budget_page.dart \
-            lib/features/dashboard/dashboard_page.dart \
-            lib/features/more/more_page.dart \
-            lib/features/transactions/transactions_page.dart \
-            test/budget_repository_test.dart \
-            test/widget_test.dart; do
-            echo "FILE_START:$file"
-            base64 -w0 "$file"
-            echo
-            echo "FILE_END:$file"
-          done
-
       - name: Check Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
 
