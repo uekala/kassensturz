@@ -31,13 +31,14 @@ from .mobile_security import (
 log = logging.getLogger("kassensturz")
 STATIC = Path(__file__).parent / "static"
 INGRESS_IP = "172.30.32.2"
-# Proxy addresses are trusted only when explicitly configured by an administrator.
+# HA app options and standalone environment variables both support explicit
+# proxy/client CIDR allowlists. Both values remain empty by default.
+NETWORK_SECURITY_SETTINGS = options.network_security_settings()
 TRUSTED_PROXY_NETWORKS = parse_trusted_proxy_networks(
-    os.environ.get("KASSENSTURZ_TRUSTED_PROXIES")
+    NETWORK_SECURITY_SETTINGS["trusted_proxies"]
 )
-# Empty by default: no remote mobile client network is permitted.
 MOBILE_CLIENT_NETWORKS = parse_trusted_proxy_networks(
-    os.environ.get("KASSENSTURZ_MOBILE_CLIENT_NETWORKS")
+    NETWORK_SECURITY_SETTINGS["mobile_client_networks"]
 )
 MOBILE_API_PREFIXES = ("/api/v1", "/api/mobile")
 
@@ -78,8 +79,8 @@ async def only_ingress(request: Request, call_next):
     client = request.client.host if request.client else ""
 
     # Mobile namespaces require direct TLS or an HTTPS assertion from an
-    # explicitly trusted proxy. The routes are not registered yet; this is a
-    # fail-closed transport gate, not permission to expose a new listener.
+    # explicitly trusted proxy. Route registration does not publish a port;
+    # the add-on port mapping remains disabled until an administrator opts in.
     is_mobile_api = request.url.path in MOBILE_API_PREFIXES or request.url.path.startswith(
         tuple(prefix + "/" for prefix in MOBILE_API_PREFIXES)
     )
