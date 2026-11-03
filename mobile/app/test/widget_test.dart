@@ -100,12 +100,11 @@ void main() {
     await tester.tap(find.text('Speichern'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.text('Gesundheit'),
-      160,
-      scrollable: _budgetScrollable(),
-    );
+    await tester.drag(_budgetScrollable(), const Offset(0, -900));
+    await tester.pumpAndSettle();
     expect(find.text('Gesundheit'), findsOneWidget);
+    await tester.drag(_budgetScrollable(), const Offset(0, 1200));
+    await tester.pumpAndSettle();
     expect(find.text('1.100,00 €'), findsOneWidget);
     expect(find.text('18,70 €'), findsOneWidget);
   });
@@ -116,11 +115,8 @@ void main() {
     await tester.tap(find.text('Budget').last);
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.byTooltip('Budget bearbeiten: Lebensmittel'),
-      160,
-      scrollable: _budgetScrollable(),
-    );
+    await tester.drag(_budgetScrollable(), const Offset(0, -420));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '400');
@@ -136,11 +132,8 @@ void main() {
     await tester.tap(find.text('Budget').last);
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.byTooltip('Budget löschen: Lebensmittel'),
-      160,
-      scrollable: _budgetScrollable(),
-    );
+    await tester.drag(_budgetScrollable(), const Offset(0, -420));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Budget löschen: Lebensmittel'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Löschen'));
