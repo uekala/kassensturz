@@ -54,6 +54,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Validate standalone Compose configuration
-        run: docker compose -f deploy/standalone/docker-compose.yml config --quiet
+        run: bash deploy/standalone/check-config.sh
       - name: Build standalone Docker image
         run: docker compose -f deploy/standalone/docker-compose.yml build
