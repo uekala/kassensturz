@@ -21,6 +21,10 @@ class MobileConnectionController extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   String? _statusMessage;
+  Map<String, dynamic>? _overview;
+  Map<String, dynamic>? _transactionPage;
+  bool _financeLoading = false;
+  String? _financeError;
   bool _disposed = false;
 
   void _notifyIfMounted() {
@@ -33,6 +37,15 @@ class MobileConnectionController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get statusMessage => _statusMessage;
   bool get isConnected => _session != null;
+  Map<String, dynamic>? get overviewData => _overview;
+  List<Map<String, dynamic>> get transactionItems {
+    final items = _transactionPage?['items'];
+    if (items is! List) return const [];
+    return items.whereType<Map>().map(Map<String, dynamic>.from).toList();
+  }
+  int get transactionTotal => (_transactionPage?['total'] as int?) ?? 0;
+  bool get financeLoading => _financeLoading;
+  String? get financeError => _financeError;
 
   Future<void> restore() async {
     _isLoading = true;
@@ -40,6 +53,7 @@ class MobileConnectionController extends ChangeNotifier {
     _notifyIfMounted();
     try {
       _session = await _apiClient.loadSession();
+      if (_session != null) await loadFinancialData();
     } catch (_) {
       _session = null;
       _errorMessage =
@@ -66,6 +80,7 @@ class MobileConnectionController extends ChangeNotifier {
         deviceName: deviceName,
       );
       _statusMessage = 'Gerät wurde sicher mit Kassensturz gekoppelt.';
+      await loadFinancialData();
       return true;
     } catch (error) {
       _errorMessage = _messageFor(error);
@@ -89,6 +104,7 @@ class MobileConnectionController extends ChangeNotifier {
           ? 'Verbunden mit ' + serverName + '.'
           : 'Verbindung erfolgreich geprüft.';
       _session = await _apiClient.loadSession();
+      await loadFinancialData();
       return true;
     } catch (error) {
       _errorMessage = _messageFor(error);
@@ -112,7 +128,85 @@ class MobileConnectionController extends ChangeNotifier {
           _messageFor(error) + ' Die lokale Sitzung wurde trotzdem entfernt.';
     } finally {
       _session = await _apiClient.loadSession();
+      if (_session == null) {
+        _overview = null;
+        _transactionPage = null;
+        _financeError = null;
+      }
       _isBusy = false;
+      _notifyIfMounted();
+    }
+  }
+
+  Future<void> loadFinancialData() async {
+    if (_session == null) return;
+    _financeLoading = true;
+    _financeError = null;
+    _notifyIfMounted();
+    try {
+      final results = await Future.wait([
+        _apiClient.overview(),
+        _apiClient.transactions(),
+      ]);
+      _overview = results[0];
+      _transactionPage = results[1];
+    } catch (error) {
+      _financeError = _messageFor(error);
+    } finally {
+      _financeLoading = false;
+      _notifyIfMounted();
+    }
+  }
+
+  Future<void> loadMoreTransactions() async {
+    if (_session == null || _financeLoading) return;
+    final current = _transactionPage;
+    if (current == null) {
+      await loadFinancialData();
+      return;
+    }
+    final offset = (current['offset'] as int? ?? 0) +
+        (current['limit'] as int? ?? 50);
+    if (offset >= transactionTotal) return;
+    _financeLoading = true;
+    _financeError = null;
+    _notifyIfMounted();
+    try {
+      final next = await _apiClient.transactions(offset: offset);
+      final combined = <Map<String, dynamic>>[
+        ...transactionItems,
+        if (next['items'] is List)
+          ...List<Map<String, dynamic>>.from(
+            (next['items'] as List).whereType<Map>().map(
+              Map<String, dynamic>.from,
+            ),
+          ),
+      ];
+      _transactionPage = {
+        ...next,
+        'items': combined,
+        'offset': 0,
+        'limit': combined.length,
+      };
+    } catch (error) {
+      _financeError = _messageFor(error);
+    } finally {
+      _financeLoading = false;
+      _notifyIfMounted();
+    }
+  }
+
+  Future<void> refreshTransactions() async {
+    if (_session == null) return;
+    _financeLoading = true;
+    _financeError = null;
+    _notifyIfMounted();
+    try {
+      _transactionPage = await _apiClient.transactions();
+    } catch (error) {
+      _financeError = _messageFor(error);
+    } finally {
+      _financeLoading = false;
       _notifyIfMounted();
     }
   }
