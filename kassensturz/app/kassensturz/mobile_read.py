@@ -40,7 +40,7 @@ def _integer(value: Any, *, default: int, minimum: int, maximum: int, name: str)
         raise MobileQueryError(f"{name} must be an integer.")
     if isinstance(value, str):
         normalized = value.strip()
-        if not re.fullmatch(r"[+-]?\\d+", normalized):
+        if not re.fullmatch(r"[+-]?\d+", normalized):
             raise MobileQueryError(f"{name} must be an integer.")
         parsed = int(normalized)
     elif isinstance(value, int):
