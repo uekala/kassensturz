@@ -13,6 +13,23 @@ FinTS PINs and the Enable Banking private key are now stored in an AES-256-GCM e
 
 SQLite stores financial transactions and connection metadata. The data directory is restricted to mode 0700 and the main database file to mode 0600. These controls do not encrypt the SQLite database or its backups. The local key file protects an isolated copy of the encrypted secrets file, but does not protect against an attacker who can read the entire live data directory.
 
+### Current mobile implementation status (2026-11-03)
+
+| Component | Status |
+|---|---|
+| Mobile pairing/device/token tables | Schema present; migration and constraints tested |
+| Pairing-secret creation and redemption routes | Not implemented |
+| Access-/refresh-token issue, rotation and replay detection | Not implemented |
+| Mobile device listing and revocation routes | Not implemented |
+| Authenticated mobile DTO routes | Not implemented |
+| HTTPS enforcement for a mobile listener | Not implemented |
+| Flutter client | Not started |
+
+The current FastAPI application has only the existing Home Assistant / loopback network boundary. It does not register the mobile routes in the API contract. The prepared database tables do not provide authentication by themselves. The existing `/api/*` routes must not be treated as device-authenticated routes, and the standalone deployment remains bound to loopback only.
+
+The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) are specifications for a future implementation, not currently available capabilities.
+
+
 ## Required controls before a mobile listener is enabled
 
 ### Transport
