@@ -112,3 +112,25 @@ def test_tampered_encrypted_secrets_are_rejected(db):
 
     with pytest.raises(secrets_store.SecretsIntegrityError):
         secrets_store.get_pin(5)
+
+
+
+def test_secrets_store_does_not_follow_existing_symlink(db, tmp_path, monkeypatch):
+    import pytest
+
+    from kassensturz import secrets_store
+
+    target = tmp_path / "unrelated-secret.txt"
+    target.write_text("do not modify", encoding="utf-8")
+    link = tmp_path / "secrets-link.json"
+    try:
+        link.symlink_to(target)
+    except (NotImplementedError, OSError):
+        pytest.skip("Symlinks are not available on this platform.")
+
+    monkeypatch.setattr(secrets_store, "_PATH", link)
+
+    with pytest.raises(secrets_store.SecretsStoreError):
+        secrets_store.get_pin(1)
+
+    assert target.read_text("utf-8") == "do not modify"
