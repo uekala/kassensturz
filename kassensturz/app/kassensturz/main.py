@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
                secrets_store, services)
 from .db import get_db, now_iso
+from .mobile_api import router as mobile_api_router
 from .mobile_security import (
     InMemoryRateLimiter,
     address_in_networks,
@@ -67,6 +68,7 @@ async def lifespan(_app):
 
 app = FastAPI(title="Kassensturz", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+app.include_router(mobile_api_router)
 
 _imports: dict[str, dict] = {}
 
