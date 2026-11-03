@@ -50,3 +50,70 @@ def test_forwarded_header_cannot_spoof_ingress_address(db):
         )
 
     assert response.status_code == 403
+
+def test_mobile_namespace_rejects_cleartext_http_even_on_loopback(db):
+    with _client_with_address("127.0.0.1") as client:
+        response = client.get("/api/v1/not-enabled")
+
+    assert response.status_code == 426
+    assert response.json()["error"]["code"] == "https_required"
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_mobile_namespace_does_not_trust_forwarded_proto_from_untrusted_peer(db):
+    with _client_with_address("203.0.113.25") as client:
+        response = client.get(
+            "/api/v1/not-enabled",
+            headers={"X-Forwarded-Proto": "https"},
+        )
+
+    assert response.status_code == 426
+
+
+def test_mobile_namespace_accepts_direct_https_but_does_not_register_routes(db):
+    with TestClient(
+        main.app,
+        base_url="https://testserver",
+        client=("127.0.0.1", 50123),
+    ) as client:
+        response = client.get("/api/v1/not-enabled")
+
+    assert response.status_code == 404
+
+
+def test_mobile_namespace_accepts_https_asserted_by_explicitly_trusted_proxy(
+    monkeypatch, db
+):
+    from kassensturz.mobile_security import parse_trusted_proxy_networks
+
+    monkeypatch.setattr(
+        main,
+        "TRUSTED_PROXY_NETWORKS",
+        parse_trusted_proxy_networks(main.INGRESS_IP),
+    )
+    with _client_with_address(main.INGRESS_IP) as client:
+        response = client.get(
+            "/api/v1/not-enabled",
+            headers={"X-Forwarded-Proto": "https"},
+        )
+
+    # Transport is accepted, but no mobile HTTP route is registered yet.
+    assert response.status_code == 404
+
+
+def test_mobile_namespace_rejects_http_asserted_by_trusted_proxy(monkeypatch, db):
+    from kassensturz.mobile_security import parse_trusted_proxy_networks
+
+    monkeypatch.setattr(
+        main,
+        "TRUSTED_PROXY_NETWORKS",
+        parse_trusted_proxy_networks(main.INGRESS_IP),
+    )
+    with _client_with_address(main.INGRESS_IP) as client:
+        response = client.get(
+            "/api/v1/not-enabled",
+            headers={"X-Forwarded-Proto": "http"},
+        )
+
+    assert response.status_code == 426
+
