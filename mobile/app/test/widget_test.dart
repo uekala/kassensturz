@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kassensturz_mobile/app/kassensturz_app.dart';
+import 'package:kassensturz_mobile/core/data/account_repository.dart';
 import 'package:kassensturz_mobile/core/data/budget_repository.dart';
 
 void _useTallViewport(WidgetTester tester) {
@@ -87,7 +88,7 @@ void main() {
 
     await tester.tap(find.text('Konten').last);
     await tester.pumpAndSettle();
-    expect(find.text('Gesamtsaldo · Beispieldaten'), findsOneWidget);
+    expect(find.text('Gesamtsaldo · manuell erfasst'), findsOneWidget);
     expect(find.text('Girokonto'), findsOneWidget);
 
     await tester.tap(find.text('Budget').last);
@@ -101,6 +102,69 @@ void main() {
     expect(find.text('Noch nicht verbunden'), findsOneWidget);
     expect(find.text('Pairing noch nicht verfügbar'), findsOneWidget);
   });
+
+  testWidgets(
+    'accounts can be created, edited, persisted and deleted locally',
+    (tester) async {
+      _useTallViewport(tester);
+      final repository = InMemoryAccountRepository(initialAccounts: const []);
+
+      await tester.pumpWidget(KassensturzApp(accountRepository: repository));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Konten').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Noch keine Konten angelegt'), findsOneWidget);
+      await tester.tap(find.text('Erstes Konto anlegen'));
+      await tester.pumpAndSettle();
+
+      var fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), 'Reisekonto');
+      await tester.enterText(fields.at(1), 'Hausbank');
+      await tester.enterText(fields.at(2), '1234');
+      await tester.enterText(fields.at(3), '1234,56');
+      await tester.tap(find.text('Speichern').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reisekonto'), findsOneWidget);
+      expect(find.text('1.234,56 €'), findsOneWidget);
+      expect(find.text('Hausbank · •• 1234'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(KassensturzApp(accountRepository: repository));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Konten').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reisekonto'), findsOneWidget);
+      expect(find.text('1.234,56 €'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Aktionen für Reisekonto'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bearbeiten'));
+      await tester.pumpAndSettle();
+
+      fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), 'Urlaubskonto');
+      await tester.enterText(fields.at(3), '900,00');
+      await tester.tap(find.text('Speichern').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Urlaubskonto'), findsOneWidget);
+      expect(find.text('900,00 €'), findsOneWidget);
+      expect(find.text('Reisekonto'), findsNothing);
+
+      await tester.tap(find.byTooltip('Aktionen für Urlaubskonto'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Löschen').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Löschen').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Noch keine Konten angelegt'), findsOneWidget);
+      expect(find.text('Urlaubskonto'), findsNothing);
+    },
+  );
 
   testWidgets(
     'budget month selection recalculates spending from transactions',
