@@ -57,7 +57,8 @@ class MobileConnectionController extends ChangeNotifier {
     } catch (_) {
       _session = null;
       _errorMessage =
-          'Die gespeicherte Sitzung konnte nicht gelesen werden. Bitte richte die Verbindung erneut ein.';
+          'Die gespeicherte Sitzung konnte nicht gelesen werden. '
+          'Bitte richte die Verbindung erneut ein.';
     } finally {
       _isLoading = false;
       _notifyIfMounted();
@@ -222,14 +223,16 @@ class MobileConnectionController extends ChangeNotifier {
     if (_session == null) {
       _overview = null;
       _transactionPage = null;
-      _statusMessage = 'Die Sitzung ist abgelaufen. Bitte kopple das Gerät erneut.';
+      _statusMessage =
+          'Die Sitzung ist abgelaufen. Bitte kopple das Gerät erneut.';
     }
   }
 
   static String _messageFor(Object error) {
     if (error is FormatException) return error.message.toString();
     if (error is MobileApiException) return error.message;
-    return 'Der Server konnte nicht erreicht werden. Prüfe Adresse und VPN-Verbindung.';
+    return 'Der Server konnte nicht erreicht werden. '
+        'Prüfe Adresse und VPN-Verbindung.';
   }
 
   @override
