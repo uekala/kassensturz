@@ -154,16 +154,51 @@ Einheitliches Format:
 - `429`: Rate-Limit erreicht; mit angemessenem `Retry-After`.
 - `5xx`: generische Meldung und serverseitige Korrelations-ID; keine Stacktraces oder Bankanbieter-Rohantworten.
 
-## 5. Persistenzanforderungen vor Umsetzung
+## 5. Persistenzanforderungen und Abgleich mit dem aktuellen Schema
 
-Die vorbereiteten Tabellen `mobile_pairings`, `mobile_devices` und `mobile_tokens` sind nur ein Grundgerüst. Vor der produktiven Implementierung ist zu prüfen, ob zusätzliche Spalten bzw. Indizes notwendig sind, insbesondere:
+Die Tabellen `mobile_pairings`, `mobile_devices` und `mobile_tokens` sind im SQLite-Schema vorbereitet. Sie enthalten derzeit:
 
-- eindeutiger Tokenketten-/Sitzungsbezug für Replay-Erkennung;
-- Index für aktive Token je Gerät und Ablaufdatum;
-- Zeitstempel für letzte Verwendung und Widerruf;
-- atomare Verbrauchskennzeichnung für Pairing-Secrets;
-- Bereinigungsstrategie für abgelaufene Pairing-Datensätze und Token;
-- definierte Rate-Limits für Pairing und Token-Erneuerung.
+| Tabelle | Relevante Felder | Zweck |
+|---|---|---|
+| `mobile_pairings` | `secret_hash`, `created_at`, `expires_at`, `consumed_at` | einmalige Pairing-Einlösung |
+| `mobile_devices` | `id`, `name`, `created_at`, `last_used_at`, `revoked_at` | Geräteidentität und Gerätewiderruf |
+| `mobile_tokens` | `token_hash`, `device_id`, `token_type`, `created_at`, `expires_at`, `revoked_at`, `replaced_by_hash` | Access-/Refresh-Token und Refresh-Replay-Erkennung |
+
+Vor produktiver Verwendung müssen Service und Tests folgende Regeln zwingend einhalten:
+
+- `secret_hash` und `token_hash` enthalten ausschließlich typgebundene Hashes der 256-Bit-Zufallswerte, nie die Rohwerte.
+- Zeitstempel werden einheitlich in UTC gespeichert, damit Ablaufvergleiche nicht von lokalen Zeitzonen oder unterschiedlichen ISO-Offsets abhängen.
+- Ein Pairing-Datensatz ist genau einmal verbrauchbar. Das Setzen von `consumed_at` muss mit Geräte- und Tokenanlage in derselben Transaktion liegen.
+- Ein Refresh-Datensatz wird bei Rotation mit `revoked_at` und `replaced_by_hash` markiert. Das erneute Vorlegen eines solchen Vorgängers widerruft das gesamte Gerät und alle seine Tokens.
+- Ein Logout und ein administrativer Widerruf setzen `mobile_devices.revoked_at` und widerrufen alle Token desselben Geräts atomar.
+- Der Gerätewiderruf muss bei jeder Access-Token-Prüfung zusätzlich zur Tokenzeile kontrolliert werden.
+- Aktive Pairing-Datensätze und abgelaufene Token müssen regelmäßig bereinigt werden. Die Bereinigung darf aktive oder gerade rotierte Token nicht entfernen.
+- Pairing-Rate-Limits benötigen einen eigenen, vertrauenswürdigen Schlüssel auf Basis der tatsächlichen Netzwerk-Gegenstelle. Vom Client gelieferte Forwarding-Header sind dafür ohne freigegebene Proxy-Allowlist unzulässig.
+
+Ein separater Session-Family-Identifier ist für das aktuelle Modell nicht zwingend: Pro Gerät wird eine Tokenkette geführt und ein Reuse widerruft das gesamte Gerät. Sollte künftig eine App mehrere unabhängige Sitzungen pro Gerät unterstützen, muss das Datenmodell vor dieser Erweiterung um eine eigene Sitzungsidentität ergänzt werden.
+
+### Atomare Pairing-Einlösung
+
+Die Serviceimplementierung muss die Einlösung als Schreibtransaktion (SQLite `BEGIN IMMEDIATE`) ausführen:
+
+1. Hash des eingereichten Pairing-Secrets bilden.
+2. Datensatz anhand des Hashs laden.
+3. Ablaufzeit und `consumed_at IS NULL` prüfen.
+4. `consumed_at` nur mit einer bedingten Aktualisierung setzen und genau eine geänderte Zeile verlangen.
+5. Geräteidentität und Hashes für Access- und Refresh-Token anlegen.
+6. Alles gemeinsam committen; bei jedem Fehler vollständig rollbacken.
+
+### Atomare Tokenrotation
+
+Die Refresh-Verarbeitung muss ebenfalls mit `BEGIN IMMEDIATE` serialisiert werden:
+
+1. Refresh-Token-Hash laden und Gerät identifizieren.
+2. Gerät, Ablaufzeit und Widerrufsstatus prüfen.
+3. Ist `replaced_by_hash` bereits gesetzt, liegt ein Replay-Verdacht vor: Gerät und alle zugehörigen Token widerrufen und keinen Nachfolger ausgeben.
+4. Ist das Token gültig, neuen Access- und Refresh-Zufallswert erzeugen, nur deren Hashes speichern, den Vorgänger widerrufen und seinen `replaced_by_hash` setzen.
+5. Vorgänger und Nachfolger gemeinsam committen.
+
+Die mobile App muss Refresh-Aufrufe als Single-Flight behandeln. Ein legitimer doppelter Refresh-Request wird aus Sicherheitssicht wie eine Wiederverwendung eines bereits rotierten Tokens behandelt und führt zum Gerätewiderruf.
 
 Datenbankmigrationen müssen rückwärtsverträglich sein und auf einer Kopie einer bestehenden Installation getestet werden. Bestehende Finanzdaten dürfen durch die Einführung der Geräteverwaltung weder umgeschrieben noch gelöscht werden.
 
@@ -181,7 +216,9 @@ Datenbankmigrationen müssen rückwärtsverträglich sein und auf einer Kopie ei
 | Access | Token eines widerrufenen Geräts | 401 sofort |
 | Refresh | Gültiger Refresh | altes Token ungültig, genau ein neues Paar |
 | Refresh | Wiederverwendung alten Refresh-Tokens | Gerät vollständig widerrufen |
-| Refresh | Zwei gleichzeitige Refresh-Anfragen | höchstens eine erfolgreiche Rotation |
+| Refresh | Zwei gleichzeitige Refresh-Anfragen | maximal eine Rotation; erkannter Replay-Vorgänger widerruft das Gerät |
+| Refresh | Single-Flight im Mobile-Client | parallele API-Aufrufe werden clientseitig zu einem Refresh zusammengeführt |
+| Refresh | Vorgänger nach Rotation erneut vorgelegt | Gerät und alle Token widerrufen, kein Nachfolger |
 | Logout | erneute Verwendung nach Logout | 401 |
 | Geräte | Widerruf über HA-Administration | alle Token des Geräts ungültig |
 | Daten | Transaktionsliste | Pagination und Feld-Allowlist eingehalten |
