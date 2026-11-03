@@ -256,7 +256,9 @@ class _AccountEditorDialogState extends State<_AccountEditorDialog> {
     _balanceController = TextEditingController(
       text: _current == null
           ? ''
-          : (_current!.balanceCents / 100).toStringAsFixed(2).replaceAll('.', ','),
+          : (_current!.balanceCents / 100)
+                .toStringAsFixed(2)
+                .replaceAll('.', ','),
     );
     _selectedType = _current?.type ?? AccountType.checking;
   }
@@ -291,9 +293,7 @@ class _AccountEditorDialogState extends State<_AccountEditorDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(
-        _current == null ? 'Konto hinzufügen' : 'Konto bearbeiten',
-      ),
+      title: Text(_current == null ? 'Konto hinzufügen' : 'Konto bearbeiten'),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -405,10 +405,7 @@ class _AccountEditorDialogState extends State<_AccountEditorDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Abbrechen'),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Speichern'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Speichern')),
       ],
     );
   }
@@ -494,54 +491,57 @@ class _AccountCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(15),
         child: ListTile(
           onTap: enabled ? onEdit : null,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-        leading: CircleAvatar(
-          backgroundColor: colors.primaryContainer,
-          foregroundColor: colors.onPrimaryContainer,
-          child: Icon(account.type.icon, size: 20),
-        ),
-        title: Text(
-          account.name,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-        ),
-        subtitle: Text(account.details, style: const TextStyle(fontSize: 11)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  formatEuro(account.balanceCents / 100),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 5,
+          ),
+          leading: CircleAvatar(
+            backgroundColor: colors.primaryContainer,
+            foregroundColor: colors.onPrimaryContainer,
+            child: Icon(account.type.icon, size: 20),
+          ),
+          title: Text(
+            account.name,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+          subtitle: Text(account.details, style: const TextStyle(fontSize: 11)),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    formatEuro(account.balanceCents / 100),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  account.type.label,
-                  style: TextStyle(
-                    color: colors.onSurfaceVariant,
-                    fontSize: 10,
+                  const SizedBox(height: 3),
+                  Text(
+                    account.type.label,
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            PopupMenuButton<String>(
-              enabled: enabled,
-              tooltip: 'Aktionen für ${account.name}',
-              onSelected: (value) {
-                if (value == 'edit') onEdit();
-                if (value == 'delete') onDelete();
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                PopupMenuItem(value: 'delete', child: Text('Löschen')),
-              ],
-            ),
-          ],
+                ],
+              ),
+              PopupMenuButton<String>(
+                enabled: enabled,
+                tooltip: 'Aktionen für ${account.name}',
+                onSelected: (value) {
+                  if (value == 'edit') onEdit();
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+                  PopupMenuItem(value: 'delete', child: Text('Löschen')),
+                ],
+              ),
+            ],
           ),
         ),
       ),
