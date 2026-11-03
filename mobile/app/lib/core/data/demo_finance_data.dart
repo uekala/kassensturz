@@ -98,7 +98,7 @@ class DemoFinanceData {
     'other': 200,
   };
 
-  static const transactions = <DemoTransaction>[
+  static final transactions = <DemoTransaction>[
     DemoTransaction(
       id: 'tx-001',
       title: 'REWE',
