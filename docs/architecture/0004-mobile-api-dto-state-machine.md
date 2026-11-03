@@ -1,10 +1,10 @@
 # Mobile API: DTOs, Zustandsmodell und Testmatrix
 
-- Status: Teilweise umgesetzt – interne DTO-Mapper vorhanden; HTTP-Endpunkte und Freigabe fehlen weiterhin
+- Status: Teilweise umgesetzt – Pairing-/Session-/Read-HTTP-Endpunkte und DTO-Mapper vorhanden; breitere Netzfreigabe und Flutter-Integration fehlen
 - Geltungsbereich: API v1 und lokale Geräteverwaltung
 - Voraussetzung: ADR 0002 (Sicherheitsanforderungen) und ADR 0003 (API-Vertrag)
 
-Dieses Dokument präzisiert die Schnittstelle. Es beschreibt **noch keine implementierten Endpunkte**. Bis die unten genannten Tests bestehen, bleiben Pairing und Mobile-API deaktiviert.
+Dieses Dokument präzisiert die Schnittstelle und den Zustandsautomaten. Pairing-, Session-, Geräteverwaltungs- und Read-Endpunkte sind im Backend registriert und werden durch Integrationstests abgesichert. Die breite Freigabe für LAN-/VPN-Clients bleibt standardmäßig deaktiviert.
 
 ## 1. Grundregeln
 
