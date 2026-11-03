@@ -84,6 +84,7 @@ class MobileConnectionController extends ChangeNotifier {
       return true;
     } catch (error) {
       _errorMessage = _messageFor(error);
+      await _clearLocalSessionIfExpired(error);
       return false;
     } finally {
       _isBusy = false;
@@ -152,6 +153,7 @@ class MobileConnectionController extends ChangeNotifier {
       _transactionPage = results[1];
     } catch (error) {
       _financeError = _messageFor(error);
+      await _clearLocalSessionIfExpired(error);
     } finally {
       _financeLoading = false;
       _notifyIfMounted();
@@ -208,6 +210,16 @@ class MobileConnectionController extends ChangeNotifier {
     } finally {
       _financeLoading = false;
       _notifyIfMounted();
+    }
+  }
+
+  Future<void> _clearLocalSessionIfExpired(Object error) async {
+    if (error is! MobileSessionExpiredException) return;
+    _session = await _apiClient.loadSession();
+    if (_session == null) {
+      _overview = null;
+      _transactionPage = null;
+      _statusMessage = 'Die Sitzung ist abgelaufen. Bitte kopple das Gerät erneut.';
     }
   }
 
