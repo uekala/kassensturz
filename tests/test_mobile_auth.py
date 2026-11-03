@@ -157,7 +157,7 @@ def test_refresh_rotation_and_replay_revoke_the_entire_device(db, mobile_auth):
         "SELECT revoked_at FROM mobile_tokens WHERE device_id = ?",
         (initial["device"]["id"],),
     )
-    assert len(revoked_tokens) == 3
+    assert len(revoked_tokens) == 4
     assert all(row["revoked_at"] is not None for row in revoked_tokens)
 
 
