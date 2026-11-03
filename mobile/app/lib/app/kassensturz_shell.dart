@@ -33,36 +33,94 @@ class _KassensturzShellState extends State<KassensturzShell> {
       label: 'Buchungen',
     ),
     NavigationDestination(
-      icon: Icon(Icons.more_horiz_rounded),
-      selectedIcon: Icon(Icons.more_horiz_rounded),
+      icon: Icon(Icons.tune_rounded),
+      selectedIcon: Icon(Icons.tune_rounded),
       label: 'Mehr',
     ),
-  ];
-
-  static const _pages = [
-    DashboardPage(),
-    AccountsPage(),
-    TransactionsPage(),
-    MorePage(),
   ];
 
   static const _titles = [
     'Kassensturz',
     'Deine Konten',
     'Buchungen',
-    'Mehr',
+    'Einstellungen',
   ];
+
+  void _openTransactions() {
+    setState(() => _selectedIndex = 2);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    final pages = [
+      DashboardPage(onOpenTransactions: _openTransactions),
+      const AccountsPage(),
+      const TransactionsPage(),
+      const MorePage(),
+    ];
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_selectedIndex]),
-        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF152A27),
-              letterSpacing: -0.3,
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
+            const SizedBox(width: 10),
+            Text(
+              _titles[_selectedIndex],
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF152A27),
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1D6),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.science_outlined,
+                        size: 13, color: Color(0xFF865B12)),
+                    SizedBox(width: 5),
+                    Text(
+                      'DEMO',
+                      style: TextStyle(
+                        color: Color(0xFF865B12),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -70,13 +128,14 @@ class _KassensturzShellState extends State<KassensturzShell> {
           Expanded(
             child: IndexedStack(
               index: _selectedIndex,
-              children: _pages,
+              children: pages,
             ),
           ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: _destinations,
         onDestinationSelected: (index) {
           setState(() => _selectedIndex = index);
