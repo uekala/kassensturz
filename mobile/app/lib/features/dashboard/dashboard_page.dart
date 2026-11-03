@@ -24,6 +24,9 @@ class DashboardPage extends StatelessWidget {
       animation: budgetController,
       builder: (context, child) {
         final currentMonth = DateTime(2026, 11);
+        final budgetLoading = budgetController.isLoading;
+        final budgetAvailable =
+            !budgetLoading && budgetController.loadError == null;
         final budgetLimits = budgetController.limits;
         final budgetTotal = DemoFinanceData.totalBudget(budgetLimits);
         final budgetSpent = DemoFinanceData.spentForBudgets(
@@ -72,8 +75,12 @@ class DashboardPage extends StatelessWidget {
                 Expanded(
                   child: _MetricCard(
                     label: 'Budget frei',
-                    value: formatEuro(budgetRemaining),
-                    caption: 'diesen Monat',
+                    value: budgetAvailable ? formatEuro(budgetRemaining) : '–',
+                    caption: budgetAvailable
+                        ? 'diesen Monat'
+                        : budgetLoading
+                        ? 'Wird geladen'
+                        : 'Nicht verfügbar',
                     icon: Icons.pie_chart_outline_rounded,
                     accent: const Color(0xFF20836F),
                   ),
@@ -86,6 +93,8 @@ class DashboardPage extends StatelessWidget {
               budget: budgetTotal,
               spent: budgetSpent,
               progress: budgetProgress,
+              available: budgetAvailable,
+              loading: budgetLoading,
             ),
             const SizedBox(height: 24),
             _SectionHeading(
@@ -345,12 +354,16 @@ class _BudgetCard extends StatelessWidget {
     required this.budget,
     required this.spent,
     required this.progress,
+    required this.available,
+    required this.loading,
   });
 
   final VoidCallback onTap;
   final double budget;
   final double spent;
   final double progress;
+  final bool available;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -383,45 +396,66 @@ class _BudgetCard extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, size: 18),
-                  Text(
-                    '${(progress * 100).round()} % genutzt',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: colors.onSurfaceVariant,
+                  if (available)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${(progress * 100).round()} % genutzt',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right_rounded, size: 18),
+                      ],
+                    )
+                  else
+                    Text(
+                      loading ? 'Wird geladen…' : 'Nicht verfügbar',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
-                  ),
                 ],
               ),
               const SizedBox(height: 13),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 8,
-                  backgroundColor: Color(0xFFE8EFEC),
-                  valueColor: AlwaysStoppedAnimation(Color(0xFF20836F)),
+              if (available) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 8,
+                    backgroundColor: Color(0xFFE8EFEC),
+                    valueColor: AlwaysStoppedAnimation(Color(0xFF20836F)),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 9),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${formatEuro(spent)} ausgegeben',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF65736F),
+                const SizedBox(height: 9),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${formatEuro(spent)} ausgegeben',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF65736F),
+                      ),
                     ),
-                  ),
-                  Text(
-                    formatEuro(budget),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                    Text(
+                      formatEuro(budget),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
+                  ],
+                ),
+              ] else
+                Text(
+                  'Budgetinformationen können derzeit nicht angezeigt werden.',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
                   ),
-                ],
-              ),
+                ),
             ],
           ),
         ),
