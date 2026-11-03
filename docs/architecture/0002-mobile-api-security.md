@@ -7,9 +7,11 @@ This document defines requirements, not a claim that the current API already mee
 
 ## Current state
 
-The current FastAPI application is designed for Home Assistant Ingress. Its middleware restricts requests by the Ingress client IP (with a development-mode bypass). This is not a mobile authentication system and must not be treated as one.
+The current FastAPI application is designed for Home Assistant Ingress. Its middleware accepts only the Ingress peer and IPv4/IPv6 loopback; development mode does not bypass this boundary. This is not a mobile authentication system and must not be treated as one.
 
-The existing application also stores FinTS PINs and the Enable Banking private key in a local JSON file with restrictive file permissions, but without application-level encryption. SQLite contains financial transactions and connection metadata. These choices need a documented threat model before the product is offered beyond a user's trusted Home Assistant host.
+FinTS PINs and the Enable Banking private key are now stored in an AES-256-GCM encrypted envelope. The installation uses a local 256-bit key file with mode 0600 by default, or an externally supplied 64-hex-character `KASSENSTURZ_MASTER_KEY`. Home Assistant backups exclude both the encrypted secret file and its local key. See [local secret encryption](0005-local-secret-encryption.md) for migration, recovery and threat limitations.
+
+SQLite stores financial transactions and connection metadata. The data directory is restricted to mode 0700 and the main database file to mode 0600. These controls do not encrypt the SQLite database or its backups. The local key file protects an isolated copy of the encrypted secrets file, but does not protect against an attacker who can read the entire live data directory.
 
 ## Required controls before a mobile listener is enabled
 
