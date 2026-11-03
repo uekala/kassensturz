@@ -1,64 +1,207 @@
 # Mobile API contract (v1)
 
-This contract describes the first client/server boundary. The API remains disabled by default.
+- Status: Spezifikation, nicht implementiert
+- Ziel: iOS- und Android-Clients einer einzelnen lokalen Kassensturz-Installation
+- Sicherheit: siehe [Mobile API security requirements](0002-mobile-api-security.md) und [DTOs / Zustandsmodell](0004-mobile-api-dto-state-machine.md)
 
-## Deployment and transport
+Dieser Vertrag beschreibt die Schnittstelle und ihre Sicherheitssemantik. Er ist **keine Aussage**, dass die Endpunkte bereits vorhanden oder zur Nutzung freigegeben sind.
 
-- A mobile API listener is opt-in.
-- Every pairing and authenticated request uses HTTPS.
-- Local LAN access is preferred; remote access uses a customer-managed VPN.
-- Do not expose the service directly to the public internet.
-- The mobile client connects to the customer's own server URL. There is no vendor relay.
+## 1. Deployment und Transport
 
-## Pairing lifecycle
+- Mobile API und Pairing sind standardmäßig deaktiviert.
+- Jeder Pairing- und authentifizierte Request benötigt HTTPS mit gültiger Zertifikatsprüfung auf dem Client.
+- Für Remote-Zugriff wird ausschließlich ein vom Kunden verwaltetes VPN empfohlen.
+- Keine direkte öffentliche Portfreigabe und kein Kassensturz-Relay.
+- Der Client verbindet sich direkt mit der eigenen Serverinstallation.
+- Klartext-HTTP darf außerhalb von Loopback nicht verwendet werden.
+- Bei TLS-Terminierung vor FastAPI darf ein weitergeleiteter HTTPS-Header nur dann vertraut werden, wenn die direkte Gegenstelle zu einer explizit konfigurierten Proxy-Allowlist gehört. Von beliebigen Clients gelieferte `Forwarded`- oder `X-Forwarded-Proto`-Header sind nicht vertrauenswürdig.
+- Proxy-Header für Host, Scheme oder Client-IP werden niemals allein aufgrund ihrer Anwesenheit akzeptiert.
 
-1. The owner opens the local Kassensturz administration interface.
-2. The server creates a cryptographically random, single-use pairing secret.
-3. The secret expires after five minutes and is shown only once (preferably as a QR code).
-4. The mobile client sends the secret and a device label over HTTPS.
-5. The server consumes the secret atomically and creates a separately identifiable device.
-6. The owner can see and revoke each paired device from the local administration interface.
+Die Aktivierung eines Listeners ist eine separate Deployment-Entscheidung und darf nicht automatisch aus dem Vorhandensein der Datenbanktabellen folgen.
 
-Pairing secrets must never be put in URL query strings or application logs.
+## 2. Kryptografische Formate
 
-## Session lifecycle
+Alle Pairing-Secrets sowie Access- und Refresh-Tokens sind opaque Zufallswerte:
 
-- Access credential lifetime: 10 minutes.
-- Refresh credential lifetime: 30 days.
-- Refresh credentials rotate after every successful refresh.
-- Reuse of an already rotated refresh credential revokes the affected device session.
-- Device credentials are opaque random values; only cryptographic hashes are persisted on the server.
-- Device revocation invalidates all credentials for that device.
+- Erzeugung mit einem kryptografisch sicheren Zufallszahlengenerator.
+- 32 Zufallsbytes (256 Bit Entropie), URL-sicher Base64-kodiert ohne Padding.
+- Keine JWTs und keine selbst interpretierbaren Claims im Client.
+- Übertragung ausschließlich in HTTPS-Request-Bodies oder im Authorization-Header.
+- Niemals in URL, Query-String, QR-URL, Logs, Analytics, Crash-Berichten oder Fehlermeldungen.
 
-These values are initial product defaults and require security review before release.
+Zur Speicherung wird ausschließlich der Hash abgelegt. Für die hochentropischen Zufallswerte ist SHA-256 mit typbezogenem Domain-Prefix vorgesehen, zum Beispiel `SHA256("kassensturz:refresh:v1:" || token)`. Der Typ-Prefix verhindert eine Wiederverwendung desselben Hash-Namensraums für Pairing-, Access- und Refresh-Werte. Der rohe Zufallswert darf nach Ausgabe nicht erneut aus der Datenbank rekonstruierbar sein.
 
-## Initial endpoints
+Alle Zeitstempel werden als UTC in einem einheitlichen ISO-8601-Format gespeichert und verglichen. Fristen werden ausschließlich serverseitig bestimmt.
 
-| Method | Path | Purpose | Authorization |
+## 3. Pairing-Lifecycle
+
+1. Der Eigentümer öffnet die lokale Kassensturz-Administration.
+2. Der Server erzeugt ein kryptografisch zufälliges Pairing-Secret.
+3. Das Secret ist fünf Minuten gültig und wird genau einmal angezeigt, vorzugsweise als QR-Code.
+4. Die mobile App sendet das Secret zusammen mit einem Gerätenamen im HTTPS-Body.
+5. Der Server verbraucht das Secret atomar, erstellt eine Geräte-ID und stellt ein erstes Access-/Refresh-Token-Paar aus.
+6. Das Gerät erscheint in der lokalen Geräteverwaltung und kann einzeln widerrufen werden.
+
+### Verwaltung
+
+| Methode | Pfad | Zweck | Autorisierung |
 |---|---|---|---|
-| POST | `/api/mobile/pairings` | Create one pairing code | Home Assistant Ingress administration |
-| GET | `/api/mobile/devices` | List paired devices | Home Assistant Ingress administration |
-| DELETE | `/api/mobile/devices/{id}` | Revoke a device | Home Assistant Ingress administration |
-| POST | `/api/v1/pair` | Redeem pairing secret | HTTPS + one-time secret |
-| POST | `/api/v1/auth/refresh` | Rotate session credentials | HTTPS + refresh credential |
-| POST | `/api/v1/auth/logout` | Revoke current device | HTTPS + access credential |
-| GET | `/api/v1/me` | Device identity | HTTPS + access credential |
-| GET | `/api/v1/overview` | Financial dashboard | HTTPS + access credential |
-| GET | `/api/v1/transactions` | Paginated transactions | HTTPS + access credential |
+| POST | `/api/mobile/pairings` | Pairing-Secret erzeugen | lokale HA-Administration |
+| GET | `/api/mobile/devices` | gekoppelte Geräte auflisten | lokale HA-Administration |
+| DELETE | `/api/mobile/devices/{id}` | Gerät widerrufen | lokale HA-Administration |
 
-## Versioning and compatibility
+Die Ausgabe des Pairing-Secrets erfolgt nur in der Antwort des Erzeugungsrequests. Ein erneuter GET darf das Secret nicht anzeigen. Alte und verbrauchte Pairing-Datensätze werden zeitnah bereinigt.
 
-- All new mobile endpoints live under `/api/v1`.
-- Existing `/api/*` routes remain compatible with the Home Assistant web UI.
-- Mobile response objects are DTOs, not direct database row dumps.
-- Pagination is mandatory for list endpoints.
-- A breaking API change requires a new major version prefix.
+### Einlösung
 
-## Release gates
+`POST /api/v1/pair`
 
-No financial-data endpoint may be enabled until:
-- pairing secrets are single-use, short-lived and consumed atomically;
-- credentials are hashed at rest, expiring, rotating and revocable;
-- every financial endpoint requires device authentication;
-- HTTPS is enforced by the ASGI application and verified deployment configuration;
-- tests cover replay, expiry, unauthorized access and device revocation.
+Anfrage:
+
+```json
+{
+  "pairing_secret": "<one-time-secret>",
+  "device_name": "iPhone"
+}
+```
+
+Antwort:
+
+```json
+{
+  "device": {"id": "<opaque-device-id>", "name": "iPhone"},
+  "access_token": "<opaque-access-token>",
+  "access_expires_in": 600,
+  "refresh_token": "<opaque-refresh-token>",
+  "refresh_expires_in": 2592000,
+  "token_type": "Bearer"
+}
+```
+
+Die Prüfung des Hashes, das Prüfen der Ablaufzeit, das Setzen von `consumed_at`, das Erstellen des Geräts und das Anlegen beider Token-Datensätze erfolgen in einer SQLite-Transaktion mit Schreibsperre (`BEGIN IMMEDIATE`). Zwei parallele Einlösungen desselben Secrets dürfen höchstens eine erfolgreiche Geräteanlage bewirken.
+
+## 4. Sitzungs- und Token-Lifecycle
+
+### Access Token
+
+- Lebensdauer: 10 Minuten.
+- Verwendung ausschließlich über `Authorization: Bearer <token>`.
+- Speicherung auf dem Server nur als typgebundener SHA-256-Hash.
+- Bei jedem Request: Hash-Lookup, Tokenablauf, Widerruf und aktiven Gerätestatus prüfen.
+- Ein Gerätewiderruf muss sofort greifen und darf nicht auf das Access-Token-Ablaufdatum warten.
+
+### Refresh Token
+
+- Lebensdauer: 30 Tage.
+- Jede erfolgreiche Erneuerung erzeugt ein neues Access- und Refresh-Token-Paar.
+- Das alte Refresh-Token wird atomar als verbraucht markiert und über `replaced_by_hash` mit dem Nachfolger verbunden.
+- Das alte Token ist ab diesem Commit dauerhaft ungültig.
+- Wird ein bereits rotiertes Token erneut verwendet, gilt dies als möglicher Replay-/Diebstahlhinweis. Das gesamte Gerät und alle seine Token werden widerrufen.
+- Ein Refresh-Request muss innerhalb einer Datenbanktransaktion serialisiert werden. Parallele Refresh-Aufrufe derselben App-Instanz müssen vom Client zusätzlich als Single-Flight ausgeführt werden.
+- Ein gestohlener oder ungültiger Token führt nie dazu, dass eine neue Tokenkette ausgegeben wird.
+
+`POST /api/v1/auth/refresh`
+
+Anfrage:
+
+```json
+{"refresh_token": "<opaque-refresh-token>"}
+```
+
+Erfolgsantwort enthält die gleichen Tokenfelder wie die Pairing-Antwort, jedoch ohne ein neues Geräteobjekt.
+
+### Logout
+
+`POST /api/v1/auth/logout`
+
+- Erfordert ein gültiges Access-Token.
+- Widerruft alle Access- und Refresh-Token des aktuellen Geräts.
+- Die Antwort enthält keine Credential-Informationen.
+- Nach erfolgreichem Logout liefert jede geschützte Route für dieses Gerät `401`.
+
+### Administration und Widerruf
+
+`DELETE /api/mobile/devices/{id}`
+
+- Nur durch die lokale Administration.
+- Setzt den Gerätestatus auf widerrufen und widerruft alle zugehörigen Token in derselben Transaktion.
+- Bereits ausgestellte Access-Token müssen beim nächsten Request abgewiesen werden.
+- Ein erneutes Pairing erzeugt eine neue Geräteidentität; widerrufene Identitäten werden nicht reaktiviert.
+
+## 5. Endpunkte und Datenverträge
+
+| Methode | Pfad | Zweck | Autorisierung |
+|---|---|---|---|
+| POST | `/api/v1/pair` | Pairing einlösen | gültiges One-Time-Secret |
+| POST | `/api/v1/auth/refresh` | Tokens rotieren | gültiges Refresh-Token |
+| POST | `/api/v1/auth/logout` | Gerät abmelden | gültiges Access-Token |
+| GET | `/api/v1/me` | Geräteidentität und Serverstatus | gültiges Access-Token |
+| GET | `/api/v1/overview` | Finanzübersicht | gültiges Access-Token |
+| GET | `/api/v1/transactions` | paginierte Buchungen | gültiges Access-Token |
+
+- Alle mobilen Finanzantworten sind explizite DTOs, niemals rohe SQLite-Zeilen.
+- Geldbeträge sind ganzzahlige Minor Units plus ISO-Währungscode.
+- Listen sind paginiert; Standardlimit 50, Mindestlimit 1, Höchstlimit 100.
+- Offsets dürfen nicht negativ sein; Filterfelder werden serverseitig validiert.
+- Vollständige IBANs, Bankzugangsdaten, Import-Hashes, interne Provider-IDs und rohe Providerfehler werden nicht an die App ausgeliefert.
+- Unbekannte mobile Pfade und Methoden sind standardmäßig nicht freigegeben.
+
+## 6. Fehlerformat
+
+Einheitliches Fehlerobjekt:
+
+```json
+{
+  "error": {
+    "code": "unauthorized",
+    "message": "Anmeldung erforderlich."
+  }
+}
+```
+
+| Status | Bedeutung |
+|---|---|
+| 400 | syntaktisch ungültige Eingabe |
+| 401 | fehlende, ungültige, abgelaufene oder widerrufene Credentials |
+| 403 | gültige Identität ohne erforderliche Berechtigung |
+| 404 | Ressource nicht vorhanden oder für dieses Gerät nicht zugänglich |
+| 409 | Pairing-Konflikt oder bereits verbrauchtes Secret, ohne vertrauliche Zustandsdetails |
+| 429 | Rate-Limit überschritten; angemessener `Retry-After`-Header |
+| 5xx | generische Meldung und Korrelations-ID; keine Stacktraces und keine Provider-Rohantwort |
+
+Ungültige, abgelaufene und widerrufene Tokens dürfen nicht durch unterschiedliche Fehlermeldungen oder Response-Felder unterscheidbar gemacht werden.
+
+## 7. Rate-Limits und Missbrauchsschutz
+
+- Pairing-Erzeugung: begrenzte Anzahl aktiver Pairing-Secrets je Installation.
+- Pairing-Einlösung: begrenzte Fehlversuche pro tatsächlicher Netzwerk-Gegenstelle und Zeitfenster.
+- Refresh: begrenzte Anfragen pro Geräteidentität.
+- Limits gelten serverseitig; vom Client gelieferte IP-Header dürfen den Rate-Limit-Schlüssel nicht bestimmen.
+- Bei Überschreitung erfolgt `429` mit `Retry-After`.
+- Rate-Limit-Daten dürfen keine Pairing-Secrets oder Token im Klartext enthalten.
+- Fehlversuche und Sicherheitsereignisse werden protokolliert, niemals aber die Credentials selbst.
+
+Die konkreten Schwellwerte sind vor Implementierung zu konfigurieren und im Test auf legitime Wiederholungen sowie Missbrauch zu prüfen.
+
+## 8. Versionierung und Kompatibilität
+
+- Alle neuen mobilen Endpunkte liegen unter `/api/v1`.
+- Bestehende `/api/*`-Routen bleiben für die Home-Assistant-Oberfläche kompatibel.
+- Ein API-Major-Upgrade erhält einen neuen Prefix.
+- Mobile Clients müssen nicht auf interne Tabellen- oder Domain-Änderungen reagieren.
+- Das Vorhandensein vorbereiteter Mobile-Datenbanktabellen aktiviert keinen Listener.
+
+## 9. Verbindliche Freigabekriterien
+
+Die mobile API bleibt deaktiviert, bis:
+
+- Pairing-Secrets zufällig, kurzlebig, einmalig und atomar konsumiert werden;
+- Token opaque, hochentropisch, gehasht, ablaufend, rotierend und widerrufbar sind;
+- Refresh-Reuse das betroffene Gerät vollständig widerruft;
+- alle Finanzdatenrouten Authentifizierung und DTO-Allowlisting erzwingen;
+- HTTPS und die Proxy-Vertrauensgrenze technisch erzwungen sind;
+- Rate-Limits und Missbrauchsschutz getestet sind;
+- Replay-, Parallelitäts-, Ablauf-, Widerrufs- und Regressionstests im CI bestehen;
+- Backup und Wiederherstellung die Wiederherstellung der lokalen Geräteverwaltung sicher berücksichtigen.
+
+Bis dahin dürfen die Datenbankgrundlagen vorbereitet sein, aber keine Mobile-API-Route und kein neuer Netzwerk-Listener aktiviert werden.
