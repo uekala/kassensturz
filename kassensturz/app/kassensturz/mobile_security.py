@@ -1,9 +1,9 @@
-"""Transport and request-rate security primitives for the future mobile API.
+"""Transport and request-rate security primitives for the mobile API.
 
-This module does not expose routes or open a listener. Forwarding headers are
-trusted only when the immediate TCP peer is explicitly present in the proxy
-allowlist. Rate-limit identity is derived from the socket peer or a validated
-forwarded chain from such a trusted proxy.
+This module does not open a listener. Forwarding headers are trusted only when
+the immediate TCP peer is explicitly present in the proxy allowlist. Rate-limit
+identity is derived from the socket peer or a validated forwarded chain from
+such a trusted proxy.
 """
 from __future__ import annotations
 
