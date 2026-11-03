@@ -7,8 +7,8 @@ class TransactionsPage extends StatelessWidget {
     _Transaction('REWE', 'Lebensmittel · 03.11.2026', '−48,26 €',
         Icons.shopping_basket_outlined, true),
     _Transaction(
-        'Miete', 'Wohnen · 02.11.2026', '−870,00 €', Icons.home_outlined, true),
-    _Transaction('Gehalt', 'Einkommen · 01.11.2026', '+3.650,00 €',
+        'Miete', 'Wohnen · 02.11.2026', '−980,00 €', Icons.home_outlined, true),
+    _Transaction('Gehalt', 'Einkommen · 01.11.2026', '+2.750,00 €',
         Icons.payments_outlined, false),
     _Transaction('LIDL', 'Lebensmittel · 31.10.2026', '−32,14 €',
         Icons.shopping_cart_outlined, true),
