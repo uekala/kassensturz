@@ -28,6 +28,7 @@ Die erste Serverplattform ist der vorhandene **Home Assistant Green**. Kassenstu
 - [x] CI für Flutter-Formatierung, statische Analyse und Widget-Tests eingerichtet.
 - [x] Reproduzierbares Erzeugen von Android- und iOS-Projektdateien ergänzt.
 - [x] Serverseitiger, nicht authentifizierter Healthcheck mit HTTPS-Prüfung und API-Versionskontrolle.
+- [x] Optionale HTTPS-Serveradresse in der Home-Assistant-App-Konfiguration für QR-Pairing; leerer Standardwert.
 - [x] Verbindungstest aus dem Flutter-Einrichtungsformular vor dem Pairing.
 - [x] Admin-Oberfläche zum Erzeugen einmaliger Pairing-Codes und Widerrufen gekoppelter Geräte.
 - [x] Server-Endpunkte für Pairing, Refresh, Logout und lokale Geräteverwaltung.
@@ -35,7 +36,9 @@ Die erste Serverplattform ist der vorhandene **Home Assistant Green**. Kassenstu
 - [x] HTTPS-Sperre für reservierte Mobile-API-Pfade und Prüfung explizit vertrauenswürdiger Proxy-Header.
 - [x] Netzwerk-Rate-Limits vor dem Route-Dispatch für Pairing, Refresh, Logout, Lesezugriffe und Geräteverwaltung.
 - [x] Default-deny-Netzwerkgrenze; `trusted_proxies` und `mobile_client_networks` sind als HA-App-Optionen vorhanden und standardmäßig leer.
-- [ ] QR-Scan in Flutter, sichere Credential-Ablage und Tokenrotation über die API.
+- [x] QR-Scanner für das versionsgebundene Kassensturz-Pairing-Format (iOS und Android).
+- [x] Serverseitige QR-Erzeugung als lokales SVG; nur bei konfigurierter HTTPS-Adresse `mobile_server_url`.
+- [x] Sichere Credential-Ablage und Tokenrotation über die Plattform-Speicher.
 - [x] Demo-Oberflächen für Dashboard, Konten, Buchungen und Budgets mit klar gekennzeichneten Beispieldaten.
 - [x] Manuelle lokale Kontenpflege mit verschlüsselter SQLite-Datenbank und Schlüsselablage im Betriebssystem.
 - [x] Lokale Speicherung der Budgetlimits.
