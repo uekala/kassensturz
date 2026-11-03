@@ -225,7 +225,8 @@ String formatEuro(double value) {
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
     (_) => '.',
   );
-  return '$whole,${parts[1]} €';
+  final sign = value < 0 ? '−' : '';
+  return '$sign$whole,${parts[1]} €';
 }
 
 String formatSignedEuro(double value) {
