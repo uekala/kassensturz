@@ -11,7 +11,8 @@ Die erste Serverplattform ist der vorhandene **Home Assistant Green**. Kassenstu
 ## Produkt- und Vertrauensmodell
 
 - Die App verbindet sich direkt mit genau einer vom Nutzer verwalteten Kassensturz-Installation.
-- Unterstützte Zugriffswege sind das lokale Netzwerk und ein vom Nutzer verwaltetes VPN.
+- Remote-Zugriff ist über einen separaten Tailscale Service `svc:kassensturz` im eigenen Tailnet vorgesehen; Tailscale Funnel wird dafür nicht verwendet.
+- Das optionale Host-Port-Mapping 8099/TCP bleibt standardmäßig deaktiviert. Der Zugang wird erst nach Verifikation des Tailscale-Proxy-Peers und dessen HTTPS-Headern freigeschaltet.
 - Kein Kassensturz-Cloudkonto, kein Relay und kein zentraler Transaktionsspeicher.
 - Die erste App-Version ist ein Companion-Client und kein eigener Bankconnector.
 - FinTS-PINs, TANs, Bank-Sessions und Open-Banking-Private-Keys bleiben auf dem Server.
@@ -31,7 +32,7 @@ Die erste Serverplattform ist der vorhandene **Home Assistant Green**. Kassenstu
 - [x] Serverseitiger Pairing-/Token-Lifecycle mit Tests (Einmal-Secrets, Tokenrotation, Replay-Erkennung und Gerätewiderruf).
 - [x] HTTPS-Sperre für reservierte Mobile-API-Pfade und Prüfung explizit vertrauenswürdiger Proxy-Header.
 - [x] Netzwerk-Rate-Limits vor dem Route-Dispatch für Pairing, Refresh, Logout, Lesezugriffe und Geräteverwaltung.
-- [x] Leere Standard-Allowlist für private mobile Client-Netze; optionale CIDR-Freigabe für VPN/LAN nur auf Mobile-Pfaden.
+- [x] Default-deny-Netzwerkgrenze; `trusted_proxies` und `mobile_client_networks` sind als HA-App-Optionen vorhanden und standardmäßig leer.
 - [ ] Sichere Credential-Ablage im Flutter-Client und Tokenrotation über die API.
 - [x] Demo-Oberflächen für Dashboard, Konten, Buchungen und Budgets mit klar gekennzeichneten Beispieldaten.
 - [x] Manuelle lokale Kontenpflege mit verschlüsselter SQLite-Datenbank und Schlüsselablage im Betriebssystem.
@@ -41,7 +42,7 @@ Die erste Serverplattform ist der vorhandene **Home Assistant Green**. Kassenstu
 - [ ] Integrationstests auf iOS und Android.
 - [ ] Signierte Builds und Store-Veröffentlichungen.
 
-**Aktueller Implementierungsstand:** Das Python-Backend stellt Mobile-Endpunkte für Pairing, Tokenrotation, Logout, lokale Geräteverwaltung, Geräteidentität, Übersicht und Buchungen bereit. Finanzdaten sind per Bearer-Token geschützt; Geräteverwaltung ist Ingress/Loopback vorbehalten. HTTPS, private Client-Netz-Allowlist und Netzwerk-Rate-Limits sind in der Middleware umgesetzt. Die Flutter-App ist noch nicht mit dem Server verbunden und nutzt für Dashboard/Buchungen weiterhin Beispieldaten. Der aktuelle Rate-Limiter ist prozesslokal und setzt einen einzelnen App-Prozess voraus; gerätebezogene Limits und gemeinsamer Zustand für Mehrprozessbetrieb stehen noch aus. Die optionale Umgebungsvariable `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` ist standardmäßig leer und öffnet weder einen Port noch registriert sie API-Routen. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
+**Aktueller Implementierungsstand:** Das Python-Backend stellt Mobile-Endpunkte für Pairing, Tokenrotation, Logout, lokale Geräteverwaltung, Geräteidentität, Übersicht und Buchungen bereit. Finanzdaten sind per Bearer-Token geschützt; Geräteverwaltung ist Ingress/Loopback vorbehalten. HTTPS, private Client-Netz-Allowlist und Netzwerk-Rate-Limits sind in der Middleware umgesetzt. Die Flutter-App ist noch nicht mit dem Server verbunden und nutzt für Dashboard/Buchungen weiterhin Beispieldaten. Die Add-on-Optionen `trusted_proxies` und `mobile_client_networks` werden beim Start aus der HA-Konfiguration gelesen; Tailscale-Proxy-Adresse und `X-Forwarded-Proto` müssen vor einer Remote-Freigabe auf dem Green überprüft werden. Der aktuelle Rate-Limiter ist prozesslokal und setzt einen einzelnen App-Prozess voraus; gerätebezogene Limits und gemeinsamer Zustand für Mehrprozessbetrieb stehen noch aus. Die optionale Umgebungsvariable `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` ist standardmäßig leer und öffnet weder einen Port noch registriert sie API-Routen. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
 
 ## Geplante Projektstruktur
 
