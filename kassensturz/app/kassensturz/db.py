@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS mobile_pairings(
 );
 
 CREATE TABLE IF NOT EXISTS mobile_devices(
-  id TEXT PRIMARY KEY,
+  id TEXT NOT NULL PRIMARY KEY,
   name TEXT NOT NULL,
   created_at TEXT NOT NULL,
   last_used_at TEXT,
@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS mobile_devices(
 );
 
 CREATE TABLE IF NOT EXISTS mobile_tokens(
-  token_hash TEXT PRIMARY KEY,
+  token_hash TEXT NOT NULL PRIMARY KEY,
   device_id TEXT NOT NULL,
   token_type TEXT NOT NULL CHECK(token_type IN ('access', 'refresh')),
   created_at TEXT NOT NULL,
