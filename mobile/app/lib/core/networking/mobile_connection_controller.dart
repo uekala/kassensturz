@@ -24,6 +24,11 @@ class MobileConnectionController extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   String? _statusMessage;
+  bool _disposed = false;
+
+  void _notifyIfMounted() {
+    if (!_disposed) notifyListeners();
+  }
 
   MobileSession? get session => _session;
   bool get isBusy => _isBusy;
@@ -35,7 +40,7 @@ class MobileConnectionController extends ChangeNotifier {
   Future<void> restore() async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _notifyIfMounted();
     try {
       _session = await _apiClient.loadSession();
     } catch (_) {
@@ -44,7 +49,7 @@ class MobileConnectionController extends ChangeNotifier {
           'Die gespeicherte Sitzung konnte nicht gelesen werden. Bitte richte die Verbindung erneut ein.';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _notifyIfMounted();
     }
   }
 
@@ -56,7 +61,7 @@ class MobileConnectionController extends ChangeNotifier {
     _isBusy = true;
     _errorMessage = null;
     _statusMessage = null;
-    notifyListeners();
+    _notifyIfMounted();
     try {
       _session = await _apiClient.pair(
         serverUrl: serverUrl,
@@ -70,7 +75,7 @@ class MobileConnectionController extends ChangeNotifier {
       return false;
     } finally {
       _isBusy = false;
-      notifyListeners();
+      _notifyIfMounted();
     }
   }
 
@@ -78,7 +83,7 @@ class MobileConnectionController extends ChangeNotifier {
     _isBusy = true;
     _errorMessage = null;
     _statusMessage = null;
-    notifyListeners();
+    _notifyIfMounted();
     try {
       final identity = await _apiClient.me();
       final server = identity['server'];
@@ -93,7 +98,7 @@ class MobileConnectionController extends ChangeNotifier {
       return false;
     } finally {
       _isBusy = false;
-      notifyListeners();
+      _notifyIfMounted();
     }
   }
 
@@ -101,7 +106,7 @@ class MobileConnectionController extends ChangeNotifier {
     _isBusy = true;
     _errorMessage = null;
     _statusMessage = null;
-    notifyListeners();
+    _notifyIfMounted();
     try {
       await _apiClient.logout();
       _statusMessage = 'Dieses Gerät wurde abgemeldet.';
@@ -111,7 +116,7 @@ class MobileConnectionController extends ChangeNotifier {
     } finally {
       _session = await _apiClient.loadSession();
       _isBusy = false;
-      notifyListeners();
+      _notifyIfMounted();
     }
   }
 
@@ -123,6 +128,7 @@ class MobileConnectionController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _apiClient.close();
     super.dispose();
   }
