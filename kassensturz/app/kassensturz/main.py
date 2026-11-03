@@ -26,6 +26,7 @@ from .mobile_security import (
     parse_trusted_proxy_networks,
     request_is_https,
     request_rate_limit_key,
+    socket_peer,
 )
 
 log = logging.getLogger("kassensturz")
@@ -107,9 +108,16 @@ async def only_ingress(request: Request, call_next):
     # Existing browser/API traffic remains restricted to Ingress and loopback.
     # Mobile namespaces additionally allow only explicitly configured private
     # client networks; an empty allowlist therefore keeps remote access closed.
-    mobile_peer_allowed = is_mobile_api and address_in_networks(
-        effective_client_ip(request, TRUSTED_PROXY_NETWORKS),
-        MOBILE_CLIENT_NETWORKS,
+    proxy_peer_allowed = address_in_networks(
+        socket_peer(request),
+        TRUSTED_PROXY_NETWORKS,
+    )
+    mobile_peer_allowed = is_mobile_api and (
+        proxy_peer_allowed
+        or address_in_networks(
+            effective_client_ip(request, TRUSTED_PROXY_NETWORKS),
+            MOBILE_CLIENT_NETWORKS,
+        )
     )
     if not existing_local_peer and not mobile_peer_allowed:
         return JSONResponse({"detail": "Nur über Home Assistant oder ein freigegebenes privates Netz erreichbar."}, status_code=403)
