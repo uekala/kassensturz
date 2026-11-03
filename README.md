@@ -47,6 +47,10 @@ Sie bindet aus Sicherheitsgründen zunächst ausschließlich an `127.0.0.1`; LAN
 noch nicht freigegeben. Die [Anleitung für den eigenständigen Betrieb](deploy/standalone/README.md)
 beschreibt Installation, Datenablage und Backup.
 
+## Mobile-App für iOS und Android
+
+Kassensturz erhält eine gemeinsame Flutter-App für iOS und Android. Die App verbindet sich direkt mit der eigenen Installation; sie benötigt kein Kassensturz-Cloudkonto. Der mobile Client und die sichere Geräteanmeldung sind noch in Entwicklung. Details: [Mobile-Client-Roadmap](mobile/README.md) und [Flutter-Architekturentscheidung](docs/architecture/0006-flutter-mobile-client.md).
+
 ## Entwicklung
 
 ```bash
