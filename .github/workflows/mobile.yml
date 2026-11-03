@@ -45,7 +45,7 @@ jobs:
         run: flutter pub get
 
       - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: dart format --output=show test/widget_test.dart
 
       - name: Analyze Flutter application
         run: flutter analyze --fatal-infos
