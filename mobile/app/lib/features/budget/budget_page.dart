@@ -41,6 +41,7 @@ class _BudgetPageState extends State<BudgetPage> {
     ];
     return '${names[_month.month - 1]} ${_month.year}';
   }
+
   double get _totalBudget => DemoFinanceData.totalBudget(_limits);
   double get _totalSpent => DemoFinanceData.spentForBudgets(_month, _limits);
   double get _remaining => _totalBudget - _totalSpent;
@@ -592,7 +593,11 @@ class _CategoryBudgetCard extends StatelessWidget {
                   color: colors.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(category.icon, color: colors.onSurfaceVariant, size: 19),
+                child: Icon(
+                  category.icon,
+                  color: colors.onSurfaceVariant,
+                  size: 19,
+                ),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -660,7 +665,6 @@ class _CategoryBudgetCard extends StatelessWidget {
     );
   }
 }
-
 
 String _formatMonth(DateTime date) {
   const names = [
