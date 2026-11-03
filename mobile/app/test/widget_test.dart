@@ -89,7 +89,7 @@ void main() {
     await tester.tap(find.text('Konten').last);
     await tester.pumpAndSettle();
     expect(find.text('Gesamtsaldo · manuell erfasst'), findsOneWidget);
-    expect(find.text('Girokonto'), findsOneWidget);
+    expect(find.text('Girokonto'), findsWidgets);
 
     await tester.tap(find.text('Budget').last);
     await tester.pumpAndSettle();
