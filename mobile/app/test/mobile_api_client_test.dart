@@ -114,6 +114,53 @@ void main() {
     client.close();
   });
 
+  test('health check uses HTTPS without requiring a session', () async {
+    final transport = FakeTransport([
+      jsonResponse(200, {
+        'status': 'ok',
+        'api_version': 1,
+        'server': {'name': 'Kassensturz', 'version': '0.2.0'},
+      }),
+    ]);
+    final client = MobileApiClient(
+      sessionStore: InMemoryMobileSessionStore(),
+      transport: transport,
+    );
+
+    final health = await client.health(
+      serverUrl: 'https://kassensturz.example.ts.net',
+    );
+
+    expect(health['status'], 'ok');
+    final request = transport.requests.single;
+    expect(request.method, 'GET');
+    expect(request.uri.scheme, 'https');
+    expect(request.uri.path, '/api/v1/health');
+    expect(request.headers.containsKey('Authorization'), isFalse);
+    expect(request.body, isNull);
+    client.close();
+  });
+
+  test('health check rejects incompatible API version', () async {
+    final transport = FakeTransport([
+      jsonResponse(200, {
+        'status': 'ok',
+        'api_version': 2,
+        'server': {'name': 'Kassensturz'},
+      }),
+    ]);
+    final client = MobileApiClient(
+      sessionStore: InMemoryMobileSessionStore(),
+      transport: transport,
+    );
+
+    await expectLater(
+      client.health(serverUrl: 'https://kassensturz.example.ts.net'),
+      throwsFormatException,
+    );
+    client.close();
+  });
+
   test('pair rejects HTTP without sending a request', () async {
     final transport = FakeTransport([]);
     final client = MobileApiClient(
