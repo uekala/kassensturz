@@ -51,17 +51,21 @@ class DashboardPage extends StatelessWidget {
                 ? 0.0
                 : (budgetSpent / budgetTotal).clamp(0.0, 1.0).toDouble();
 
-            final monthTransactions = DemoFinanceData.transactions
-                .where(
-                  (transaction) =>
-                      transaction.date.year == currentMonth.year &&
-                      transaction.date.month == currentMonth.month,
-                )
-                .toList()
-              ..sort((a, b) => b.date.compareTo(a.date));
+            final monthTransactions =
+                DemoFinanceData.transactions
+                    .where(
+                      (transaction) =>
+                          transaction.date.year == currentMonth.year &&
+                          transaction.date.month == currentMonth.month,
+                    )
+                    .toList()
+                  ..sort((a, b) => b.date.compareTo(a.date));
             final income = monthTransactions
                 .where((transaction) => !transaction.isExpense)
-                .fold<double>(0, (total, transaction) => total + transaction.amount);
+                .fold<double>(
+                  0,
+                  (total, transaction) => total + transaction.amount,
+                );
             final expenses = monthTransactions
                 .where((transaction) => transaction.isExpense)
                 .fold<double>(
@@ -131,11 +135,12 @@ class DashboardPage extends StatelessWidget {
                     message: 'Für diesen Monat liegen keine Beispieldaten vor.',
                   )
                 else
-                  ...monthTransactions.take(4).map(
-                    (transaction) => _DemoTransactionTile(
-                      transaction: transaction,
-                    ),
-                  ),
+                  ...monthTransactions
+                      .take(4)
+                      .map(
+                        (transaction) =>
+                            _DemoTransactionTile(transaction: transaction),
+                      ),
                 const SizedBox(height: 12),
                 OutlinedButton(
                   onPressed: onOpenTransactions,
@@ -315,9 +320,9 @@ class _CashFlowMetric extends StatelessWidget {
             child: Text(
               value,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.35,
-                  ),
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.35,
+              ),
             ),
           ),
         ],
@@ -327,11 +332,7 @@ class _CashFlowMetric extends StatelessWidget {
 }
 
 class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({
-    required this.title,
-    this.action,
-    this.onAction,
-  });
+  const _SectionHeading({required this.title, this.action, this.onAction});
 
   final String title;
   final String? action;
@@ -444,9 +445,9 @@ class _BudgetSummary extends StatelessWidget {
                 const SizedBox(height: 7),
                 Text(
                   '${formatEuro(remaining)} noch verfügbar',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppTheme.accent,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: AppTheme.accent),
                 ),
               ] else
                 Text(
@@ -495,11 +496,9 @@ class _DemoTransactionTile extends StatelessWidget {
       trailing: Text(
         formatSignedEuro(transaction.amount),
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontSize: 13,
-              color: transaction.isExpense
-                  ? colors.onSurface
-                  : AppTheme.accent,
-            ),
+          fontSize: 13,
+          color: transaction.isExpense ? colors.onSurface : AppTheme.accent,
+        ),
       ),
     );
   }
@@ -514,10 +513,7 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 18),
-      child: Text(
-        message,
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
+      child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
     );
   }
 }
