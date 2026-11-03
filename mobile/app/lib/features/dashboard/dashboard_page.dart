@@ -326,55 +326,59 @@ class _BudgetCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(17),
-            border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
-          ),
-          child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.pie_chart_outline_rounded, size: 18),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Variable Ausgaben',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded, size: 18),
-              Text(
-                '38 % genutzt',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 13),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: const LinearProgressIndicator(
-              value: 0.38,
-              minHeight: 8,
-              backgroundColor: Color(0xFFE8EFEC),
-              valueColor: AlwaysStoppedAnimation(Color(0xFF20836F)),
+            border: Border.all(
+              color: colors.outlineVariant.withValues(alpha: 0.5),
             ),
           ),
-          const SizedBox(height: 9),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '379,60 € ausgegeben',
-                style: TextStyle(fontSize: 11, color: Color(0xFF65736F)),
+              Row(
+                children: [
+                  const Icon(Icons.pie_chart_outline_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Variable Ausgaben',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, size: 18),
+                  Text(
+                    '38 % genutzt',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                  ),
+                ],
               ),
-              Text(
-                '1.000,00 €',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              const SizedBox(height: 13),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: const LinearProgressIndicator(
+                  value: 0.38,
+                  minHeight: 8,
+                  backgroundColor: Color(0xFFE8EFEC),
+                  valueColor: AlwaysStoppedAnimation(Color(0xFF20836F)),
+                ),
+              ),
+              const SizedBox(height: 9),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '379,60 € ausgegeben',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF65736F)),
+                  ),
+                  Text(
+                    '1.000,00 €',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
