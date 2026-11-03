@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kassensturz_mobile/app/kassensturz_app.dart';
+import 'package:kassensturz_mobile/core/data/budget_repository.dart';
 
 void _useTallViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(1000, 1800);
@@ -137,6 +138,38 @@ void main() {
 
     expect(find.text('Lebensmittel'), findsNothing);
     expect(find.text('650,00 €'), findsOneWidget);
+  });
+
+  testWidgets('budget limits survive recreating the app with the same repository',
+      (tester) async {
+    _useTallViewport(tester);
+    final repository = InMemoryBudgetRepository();
+
+    await tester.pumpWidget(
+      KassensturzApp(budgetRepository: repository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Budget').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '425');
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1.075,00 €'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(
+      KassensturzApp(budgetRepository: repository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Budget').last);
+    await tester.pumpAndSettle();
+    expect(find.text('1.075,00 €'), findsOneWidget);
+    expect(find.text('425,00 €'), findsOneWidget);
   });
 
   testWidgets('transaction filters use shared demo transaction data',
