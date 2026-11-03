@@ -6,7 +6,13 @@ credential. Transport and network admission are enforced by main middleware.
 """
 from __future__ import annotations
 
+import base64
+import json
 from typing import Any
+from urllib.parse import urlsplit
+
+import qrcode
+from qrcode.image.svg import SvgPathImage
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
@@ -47,6 +53,49 @@ def _error(
 
 def _auth_service() -> MobileAuthService:
     return MobileAuthService(get_db())
+
+
+def _configured_mobile_server_url() -> str | None:
+    """Return a strict HTTPS origin configured for mobile pairing QR codes."""
+    value = options.load().get("mobile_server_url", "")
+    if not isinstance(value, str):
+        raise ValueError("Mobile server URL must be a string.")
+    value = value.strip()
+    if not value:
+        return None
+
+    try:
+        parsed = urlsplit(value)
+        _ = parsed.port
+    except ValueError as exc:
+        raise ValueError("Mobile server URL is invalid.") from exc
+
+    if (
+        parsed.scheme.lower() != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or (parsed.path not in ("", "/"))
+    ):
+        raise ValueError("Mobile server URL must be an HTTPS origin without path.")
+    return f"https://{parsed.netloc}".rstrip("/")
+
+
+def _pairing_qr_svg_base64(payload: str) -> str:
+    """Create a self-contained SVG QR image without any external service."""
+    code = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=6,
+        border=4,
+    )
+    code.add_data(payload)
+    code.make(fit=True)
+    image = code.make_image(image_factory=SvgPathImage)
+    svg = image.to_string(encoding="unicode")
+    return base64.b64encode(svg.encode("utf-8")).decode("ascii")
 
 
 async def _json_object(request: Request) -> dict[str, Any] | None:
@@ -111,6 +160,15 @@ async def create_pairing(request: Request):
         return _error(403, "forbidden", "Nur lokal über die Administration erlaubt.")
 
     try:
+        server_url = _configured_mobile_server_url()
+    except ValueError:
+        return _error(
+            503,
+            "mobile_server_url_invalid",
+            "Die Mobile-Serveradresse ist nicht als HTTPS-Adresse konfiguriert.",
+        )
+
+    try:
         pairing = _auth_service().create_pairing()
     except PairingLimitReached:
         return _error(
@@ -120,8 +178,26 @@ async def create_pairing(request: Request):
             headers={"Retry-After": "300"},
         )
 
+    response = {**pairing, "server_url": server_url}
+    if server_url is not None:
+        qr_payload = json.dumps(
+            {
+                "type": "kassensturz-pairing",
+                "version": 1,
+                "server_url": server_url,
+                "pairing_secret": pairing["pairing_secret"],
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        response["qr_svg_base64"] = _pairing_qr_svg_base64(qr_payload)
+
     # This is the only response that contains the raw pairing secret.
-    return JSONResponse(pairing, status_code=201, headers={"Cache-Control": "no-store"})
+    return JSONResponse(
+        response,
+        status_code=201,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get("/api/mobile/devices")
