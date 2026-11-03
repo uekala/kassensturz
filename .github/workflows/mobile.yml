@@ -80,6 +80,14 @@ jobs:
       - name: Build Android APK
         run: flutter build apk --debug
 
+      - name: Upload Android test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kassensturz-android-debug
+          path: mobile/app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
   ios-simulator:
     name: iOS simulator build
     runs-on: macos-latest
