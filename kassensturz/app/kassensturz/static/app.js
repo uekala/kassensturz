@@ -1341,6 +1341,7 @@ async function renderSettings(view, _params, seq) {
           <button class="link-btn" id="mobile-pair">Gerät koppeln</button>
         </div>
         <p class="small muted">Hier verwaltest du die Geräte, die auf Kassensturz Mobile zugreifen dürfen. Ein Pairing-Code ist fünf Minuten gültig und kann nur einmal verwendet werden.</p>
+        ${s.options.mobile_server_url ? html`<p class="small muted">Mobile-Adresse für QR-Pairing: <code>${s.options.mobile_server_url}</code></p>` : html`<p class="small muted">Für QR-Pairing muss in den Home-Assistant-App-Optionen die externe HTTPS-Adresse als <code>mobile_server_url</code> hinterlegt sein. Ohne diese Einstellung bleibt die manuelle Code-Eingabe verfügbar.</p>`}
         <div id="mobile-pair-result" aria-live="polite"></div>
         <div id="mobile-device-list">
           ${devices.items.length ? html`<ul class="list">${devices.items.map((d) => html`
@@ -1381,7 +1382,21 @@ async function renderSettings(view, _params, seq) {
       $("#mobile-pair-result").innerHTML = html`
         <div class="note" style="margin:12px 0" role="status">
           <strong>Einmaliger Pairing-Code</strong>
-          <p class="small muted">Gib diesen Code in Kassensturz Mobile ein. Er verfällt am ${new Date(pairing.expires_at).toLocaleString("de-DE")}.</p>
+          <p class="small muted">Gib diesen Code in Kassensturz Mobile ein. Er verfällt am ${new Date(pairing.expires_at).toLocaleString("de-DE")}. Er kann nur einmal verwendet werden.</p>
+          ${pairing.qr_svg_base64 ? html`
+            <div style="display:flex;justify-content:center;padding:12px 0">
+              <img
+                src="data:image/svg+xml;base64,${pairing.qr_svg_base64}"
+                alt="Einmaliger Kassensturz-Pairing-QR-Code"
+                width="240"
+                height="240"
+                style="max-width:100%;height:auto;background:white;padding:8px;border-radius:8px"
+              >
+            </div>
+            <p class="small muted">Server: ${pairing.server_url}</p>
+          ` : html`
+            <p class="small muted">Kein QR-Code verfügbar. Trage Serveradresse und Code manuell in der App ein.</p>
+          `}
           <code id="mobile-pair-secret" style="display:block;overflow-wrap:anywhere;padding:10px 0">${pairing.pairing_secret}</code>
           <button class="btn small" id="mobile-pair-copy">Code kopieren</button>
         </div>`.s;
