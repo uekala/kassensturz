@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/networking/mobile_connection_controller.dart';
+import '../../core/networking/mobile_pairing_payload.dart';
+import 'pairing_scanner_page.dart';
 
 class MorePage extends StatefulWidget {
   const MorePage({required this.controller, super.key});
@@ -35,6 +37,31 @@ class _MorePageState extends State<MorePage> {
 
   Future<void> _checkServer() async {
     await widget.controller.checkServer(_server.text);
+  }
+
+  Future<void> _scanPairingCode() async {
+    final rawValue = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const PairingScannerPage()),
+    );
+    if (!mounted || rawValue == null) return;
+
+    try {
+      final payload = MobilePairingPayload.fromRawValue(rawValue);
+      _server.text = payload.serverUrl;
+      _secret.text = payload.pairingSecret;
+      FocusScope.of(context).unfocus();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Pairing-Code gelesen. Prüfe die Serveradresse und kopple das Gerät.',
+          ),
+        ),
+      );
+    } on FormatException catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message.toString())),
+      );
+    }
   }
 
   Future<void> _pair() async {
@@ -136,6 +163,15 @@ class _MorePageState extends State<MorePage> {
                         ),
                       ),
                       const SizedBox(height: 14),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: state.isBusy ? null : _scanPairingCode,
+                          icon: const Icon(Icons.qr_code_scanner_rounded),
+                          label: const Text('QR-Code scannen'),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       _fieldLabel('Einmaliger Pairing-Code'),
                       TextFormField(
                         controller: _secret,
