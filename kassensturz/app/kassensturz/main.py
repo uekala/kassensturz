@@ -47,6 +47,7 @@ MOBILE_API_PREFIXES = ("/api/v1", "/api/mobile")
 # table is full and must be replaced by shared storage before multi-worker use.
 MOBILE_RATE_LIMITER = InMemoryRateLimiter(max_keys=4096)
 MOBILE_RATE_LIMITS = {
+    ("GET", "/api/v1/health"): ("health", 60, 60),
     ("POST", "/api/v1/pair"): ("pair", 10, 300),
     ("POST", "/api/v1/auth/refresh"): ("refresh", 30, 60),
     ("POST", "/api/v1/auth/logout"): ("logout", 20, 60),
