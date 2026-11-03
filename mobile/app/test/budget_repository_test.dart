@@ -4,8 +4,7 @@ import 'package:kassensturz_mobile/core/data/demo_finance_data.dart';
 
 void main() {
   group('LocalBudgetRepository', () {
-    test('returns the documented defaults when no local data exists',
-        () async {
+    test('returns the documented defaults when no local data exists', () async {
       final repository = LocalBudgetRepository(
         store: FakeStringKeyValueStore(),
       );
