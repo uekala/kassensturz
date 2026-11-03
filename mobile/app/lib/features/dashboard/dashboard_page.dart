@@ -26,110 +26,114 @@ class DashboardPage extends StatelessWidget {
         final currentMonth = DateTime(2026, 11);
         final budgetLimits = budgetController.limits;
         final budgetTotal = DemoFinanceData.totalBudget(budgetLimits);
-        final budgetSpent =
-            DemoFinanceData.spentForBudgets(currentMonth, budgetLimits);
+        final budgetSpent = DemoFinanceData.spentForBudgets(
+          currentMonth,
+          budgetLimits,
+        );
         final budgetRemaining = budgetTotal - budgetSpent;
         final budgetProgress = budgetTotal <= 0
             ? 0.0
             : (budgetSpent / budgetTotal).clamp(0.0, 1.0).toDouble();
 
         return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-      children: [
-        Text(
-          'Dein Überblick',
-          style: textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.6,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          'Deine Finanzen auf einen Blick.',
-          style: textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
-        ),
-        const SizedBox(height: 17),
-        const _BalanceCard(),
-        const SizedBox(height: 22),
-        const _SectionHeading(title: 'Kurzüberblick'),
-        const SizedBox(height: 10),
-        Row(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
-            const Expanded(
-              child: _MetricCard(
-                label: 'Fixkosten',
-                value: '1.120,00 €',
-                caption: 'pro Monat',
-                icon: Icons.event_repeat_rounded,
-                accent: Color(0xFF526A9B),
+            Text(
+              'Dein Überblick',
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _MetricCard(
-                label: 'Budget frei',
-                value: formatEuro(budgetRemaining),
-                caption: 'diesen Monat',
-                icon: Icons.pie_chart_outline_rounded,
-                accent: const Color(0xFF20836F),
+            const SizedBox(height: 3),
+            Text(
+              'Deine Finanzen auf einen Blick.',
+              style: textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 17),
+            const _BalanceCard(),
+            const SizedBox(height: 22),
+            const _SectionHeading(title: 'Kurzüberblick'),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Expanded(
+                  child: _MetricCard(
+                    label: 'Fixkosten',
+                    value: '1.120,00 €',
+                    caption: 'pro Monat',
+                    icon: Icons.event_repeat_rounded,
+                    accent: Color(0xFF526A9B),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MetricCard(
+                    label: 'Budget frei',
+                    value: formatEuro(budgetRemaining),
+                    caption: 'diesen Monat',
+                    icon: Icons.pie_chart_outline_rounded,
+                    accent: const Color(0xFF20836F),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _BudgetCard(
+              onTap: onOpenBudget,
+              budget: budgetTotal,
+              spent: budgetSpent,
+              progress: budgetProgress,
+            ),
+            const SizedBox(height: 24),
+            _SectionHeading(
+              title: 'Letzte Aktivitäten',
+              trailing: Text(
+                'Beispielwerte',
+                style: textTheme.labelSmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const _ActivityTile(
+              icon: Icons.shopping_basket_outlined,
+              title: 'REWE',
+              subtitle: 'Lebensmittel · Heute',
+              amount: '−48,26 €',
+              negative: true,
+            ),
+            const _ActivityTile(
+              icon: Icons.home_outlined,
+              title: 'Miete',
+              subtitle: 'Wohnen · 02.11.2026',
+              amount: '−980,00 €',
+              negative: true,
+            ),
+            const _ActivityTile(
+              icon: Icons.payments_outlined,
+              title: 'Gehalt',
+              subtitle: 'Einkommen · 01.11.2026',
+              amount: '+2.750,00 €',
+              negative: false,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onOpenTransactions,
+              icon: const Icon(Icons.receipt_long_outlined, size: 18),
+              label: const Text('Alle Buchungen anzeigen'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+                foregroundColor: colors.primary,
+                side: BorderSide(color: colors.outlineVariant),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 12),
-        _BudgetCard(
-          onTap: onOpenBudget,
-          budget: budgetTotal,
-          spent: budgetSpent,
-          progress: budgetProgress,
-        ),
-        const SizedBox(height: 24),
-        _SectionHeading(
-          title: 'Letzte Aktivitäten',
-          trailing: Text(
-            'Beispielwerte',
-            style: textTheme.labelSmall?.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        const _ActivityTile(
-          icon: Icons.shopping_basket_outlined,
-          title: 'REWE',
-          subtitle: 'Lebensmittel · Heute',
-          amount: '−48,26 €',
-          negative: true,
-        ),
-        const _ActivityTile(
-          icon: Icons.home_outlined,
-          title: 'Miete',
-          subtitle: 'Wohnen · 02.11.2026',
-          amount: '−980,00 €',
-          negative: true,
-        ),
-        const _ActivityTile(
-          icon: Icons.payments_outlined,
-          title: 'Gehalt',
-          subtitle: 'Einkommen · 01.11.2026',
-          amount: '+2.750,00 €',
-          negative: false,
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: onOpenTransactions,
-          icon: const Icon(Icons.receipt_long_outlined, size: 18),
-          label: const Text('Alle Buchungen anzeigen'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(46),
-            foregroundColor: colors.primary,
-            side: BorderSide(color: colors.outlineVariant),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13),
-            ),
-          ),
-        ),
-      ],
         );
       },
     );
@@ -163,8 +167,11 @@ class _BalanceCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.account_balance_wallet_outlined,
-                  color: Colors.white70, size: 17),
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: Colors.white70,
+                size: 17,
+              ),
               SizedBox(width: 7),
               Text(
                 'Frei verfügbar',
@@ -202,8 +209,11 @@ class _BalanceCard extends StatelessWidget {
           const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.trending_up_rounded,
-                  color: Color(0xFFBDE9D6), size: 19),
+              Icon(
+                Icons.trending_up_rounded,
+                color: Color(0xFFBDE9D6),
+                size: 19,
+              ),
               SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -235,10 +245,7 @@ class _BalanceCard extends StatelessWidget {
 }
 
 class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({
-    required this.title,
-    this.trailing,
-  });
+  const _SectionHeading({required this.title, this.trailing});
 
   final String title;
   final Widget? trailing;
@@ -251,9 +258,9 @@ class _SectionHeading extends StatelessWidget {
         Text(
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.2,
-              ),
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+          ),
         ),
         if (trailing != null) trailing!,
       ],
@@ -302,9 +309,9 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 11),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 4),
           FittedBox(
@@ -322,9 +329,9 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             caption,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
           ),
         ],
       ),
@@ -380,8 +387,8 @@ class _BudgetCard extends StatelessWidget {
                   Text(
                     '${(progress * 100).round()} % genutzt',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
