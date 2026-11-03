@@ -52,7 +52,8 @@ class DashboardPage extends StatelessWidget {
               const SizedBox(height: 14),
               const Row(
                 children: [
-                  Icon(Icons.trending_up_rounded, color: Color(0xFFBDE9D6), size: 19),
+                  Icon(Icons.trending_up_rounded,
+                      color: Color(0xFFBDE9D6), size: 19),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -91,8 +92,12 @@ class DashboardPage extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Letzte Aktivitäten', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-            Text('Beispiele', style: textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant)),
+            Text('Letzte Aktivitäten',
+                style: textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800)),
+            Text('Beispiele',
+                style: textTheme.labelMedium
+                    ?.copyWith(color: colors.onSurfaceVariant)),
           ],
         ),
         const SizedBox(height: 8),
@@ -144,22 +149,33 @@ class _MetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.45)),
+        border:
+            Border.all(color: colors.outlineVariant.withValues(alpha: 0.45)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: colors.primary, size: 20),
           const SizedBox(height: 12),
-          Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant)),
+          Text(label,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: colors.onSurfaceVariant)),
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            child: Text(value,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           ),
           const SizedBox(height: 3),
-          Text(caption, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant)),
+          Text(caption,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: colors.onSurfaceVariant)),
         ],
       ),
     );
