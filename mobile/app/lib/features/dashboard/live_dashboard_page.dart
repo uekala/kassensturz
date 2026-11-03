@@ -63,9 +63,7 @@ class LiveDashboardPage extends StatelessWidget {
                   Expanded(
                     child: _CashFlowMetric(
                       label: 'Einnahmen',
-                      value: formatEuro(
-                        _asInt(month['income_cents']) / 100,
-                      ),
+                      value: formatEuro(_asInt(month['income_cents']) / 100),
                       icon: Icons.south_west_rounded,
                       positive: true,
                     ),
@@ -74,9 +72,7 @@ class LiveDashboardPage extends StatelessWidget {
                   Expanded(
                     child: _CashFlowMetric(
                       label: 'Ausgaben',
-                      value: formatEuro(
-                        _asInt(month['expense_cents']) / 100,
-                      ),
+                      value: formatEuro(_asInt(month['expense_cents']) / 100),
                       icon: Icons.north_east_rounded,
                       positive: false,
                     ),
@@ -132,9 +128,12 @@ class LiveDashboardPage extends StatelessWidget {
               else if (transactions.isEmpty)
                 const _EmptyState('Noch keine Buchungen vorhanden.')
               else
-                ...transactions.take(4).map(
-                  (transaction) => _TransactionRow(transaction: transaction),
-                ),
+                ...transactions
+                    .take(4)
+                    .map(
+                      (transaction) =>
+                          _TransactionRow(transaction: transaction),
+                    ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: onOpenTransactions,
@@ -145,8 +144,8 @@ class LiveDashboardPage extends StatelessWidget {
                 Text(
                   controller.financeError!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ],
             ],
@@ -329,7 +328,9 @@ class _LiveBalanceCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _HeroMetric(label: 'Kontostand', value: balance)),
+              Expanded(
+                child: _HeroMetric(label: 'Kontostand', value: balance),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: _HeroMetric(
@@ -419,9 +420,9 @@ class _CashFlowMetric extends StatelessWidget {
             child: Text(
               value,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.35,
-                  ),
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.35,
+              ),
             ),
           ),
         ],
@@ -517,9 +518,9 @@ class _AccountRow extends StatelessWidget {
               children: [
                 Text(
                   account['name']?.toString() ?? 'Konto',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: 14,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -598,9 +599,9 @@ class _BudgetRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   budget['name']?.toString() ?? 'Kategorie',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: 14,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
                 ),
               ),
               Text(
@@ -627,8 +628,8 @@ class _BudgetRow extends StatelessWidget {
                 ? '${formatEuro(remaining.abs() / 100)} über dem Budget'
                 : '${formatEuro(remaining / 100)} noch verfügbar',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isOver ? colors.error : colors.onSurfaceVariant,
-                ),
+              color: isOver ? colors.error : colors.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -650,8 +651,8 @@ class _AlertRow extends StatelessWidget {
     final color = level == 'critical'
         ? colors.error
         : level == 'warning'
-            ? const Color(0xFF95651C)
-            : colors.primary;
+        ? const Color(0xFF95651C)
+        : colors.primary;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -672,9 +673,9 @@ class _AlertRow extends StatelessWidget {
               children: [
                 Text(
                   alert['title']?.toString() ?? 'Hinweis',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: 14,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
                 ),
                 if ((alert['message']?.toString() ?? '').isNotEmpty) ...[
                   const SizedBox(height: 3),
@@ -702,16 +703,14 @@ class _TransactionRow extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final amount = _asInt(transaction['amount_cents']);
     final category = transaction['category'];
-    final categoryName = category is Map
-        ? category['name']?.toString()
-        : null;
+    final categoryName = category is Map ? category['name']?.toString() : null;
     final counterparty = transaction['counterparty']?.toString() ?? '';
     final purpose = transaction['purpose']?.toString() ?? '';
     final title = counterparty.isNotEmpty
         ? counterparty
         : purpose.isNotEmpty
-            ? purpose
-            : 'Buchung';
+        ? purpose
+        : 'Buchung';
     final subtitle = <String>[
       if (categoryName != null && categoryName.isNotEmpty) categoryName,
       if (transaction['booking_date'] is String)
@@ -747,8 +746,8 @@ class _TransactionRow extends StatelessWidget {
       trailing: Text(
         formatSignedEuro(amount / 100),
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: amount < 0 ? colors.onSurface : AppTheme.accent,
-            ),
+          color: amount < 0 ? colors.onSurface : AppTheme.accent,
+        ),
       ),
     );
   }
@@ -771,10 +770,7 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text(
-        message,
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
+      child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
     );
   }
 }
