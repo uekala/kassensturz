@@ -29,7 +29,7 @@ async function api(path, { method = "GET", body, form } = {}) {
   let data = null;
   try { data = await res.json(); } catch { /* leer */ }
   if (!res.ok) {
-    const msg = data && data.detail ? (typeof data.detail === "string" ? data.detail : "Eingabe ungültig.") : `Fehler ${res.status}`;
+    const msg = data?.error?.message || (data && data.detail ? (typeof data.detail === "string" ? data.detail : "Eingabe ungültig.") : `Fehler ${res.status}`);
     throw new Error(msg);
   }
   return data;
@@ -1309,7 +1309,11 @@ function syncSheet(conn) {
 
 /* ------------------------------------------------------------------ Einstellungen */
 async function renderSettings(view, _params, seq) {
-  const [s, rules] = await Promise.all([api("settings"), api("rules")]);
+  const [s, rules, devices] = await Promise.all([
+    api("settings"),
+    api("rules"),
+    api("mobile/devices").catch(() => ({ items: [] })),
+  ]);
   if (seq !== renderSeq) return;
   const p = s.profile || {};
   view.innerHTML = html`
@@ -1330,6 +1334,22 @@ async function renderSettings(view, _params, seq) {
         <p class="small">${s.ha ? "Verbunden. Kassensturz stellt diese Sensoren bereit:" : "Keine Verbindung zu Home Assistant – Sensoren und Benachrichtigungen sind aus."}</p>
         ${s.ha ? html`<p class="small muted">sensor.kassensturz_kontostand, _frei_verfuegbar, _prognose_monatsende, _tiefster_stand, _fixkosten_monat, _ausgaben_monat, _naechste_zahlung sowie je Konto und Budget einen Sensor.</p>` : ""}
         <p class="small muted">Warnschwelle ${s.options.warn_threshold} €, täglicher Abruf um ${s.options.sync_time} Uhr, Benachrichtigung über ${s.options.notify_service || "persistente Meldungen"}. Ändern lässt sich das in der Konfiguration der App.</p>
+      </section>
+      <section class="section">
+        <div class="section-head">
+          <h2>Mobile Geräte</h2>
+          <button class="link-btn" id="mobile-pair">Gerät koppeln</button>
+        </div>
+        <p class="small muted">Hier verwaltest du die Geräte, die auf Kassensturz Mobile zugreifen dürfen. Ein Pairing-Code ist fünf Minuten gültig und kann nur einmal verwendet werden.</p>
+        <div id="mobile-pair-result" aria-live="polite"></div>
+        <div id="mobile-device-list">
+          ${devices.items.length ? html`<ul class="list">${devices.items.map((d) => html`
+            <li class="row static">
+              <span class="title">${d.name}</span>
+              <span class="sub">${d.revoked_at ? "Widerrufen" : "Aktiv"} · hinzugefügt ${d.created_at ? dFull(d.created_at.slice(0, 10)) : "–"}${d.last_used_at ? ` · zuletzt aktiv ${dFull(d.last_used_at.slice(0, 10))}` : ""}</span>
+              <span class="amount">${!d.revoked_at ? html`<button class="btn small danger" data-mobile-revoke="${d.id}">Widerrufen</button>` : html`<span class="small muted">Gesperrt</span>`}</span>
+            </li>` )}</ul>` : html`<p class="small muted">Noch keine gekoppelten Geräte.</p>`}
+        </div>
       </section>
     </div><div>
       <section class="section" style="border-top:0">
@@ -1353,6 +1373,51 @@ async function renderSettings(view, _params, seq) {
         <p class="small muted" style="margin-top:14px">Kassensturz ${s.options ? store.state.version : ""}. Alle Daten liegen nur auf diesem Home-Assistant-Gerät.</p>
       </section>
     </div></div>`.s;
+  $("#mobile-pair").onclick = async () => {
+    const button = $("#mobile-pair");
+    button.disabled = true;
+    try {
+      const pairing = await api("mobile/pairings", { method: "POST" });
+      $("#mobile-pair-result").innerHTML = html`
+        <div class="note" style="margin:12px 0" role="status">
+          <strong>Einmaliger Pairing-Code</strong>
+          <p class="small muted">Gib diesen Code in Kassensturz Mobile ein. Er verfällt am ${new Date(pairing.expires_at).toLocaleString("de-DE")}.</p>
+          <code id="mobile-pair-secret" style="display:block;overflow-wrap:anywhere;padding:10px 0">${pairing.pairing_secret}</code>
+          <button class="btn small" id="mobile-pair-copy">Code kopieren</button>
+        </div>`.s;
+      $("#mobile-pair-copy").onclick = async () => {
+        const secret = $("#mobile-pair-secret").textContent;
+        try {
+          await navigator.clipboard.writeText(secret);
+          toast("Pairing-Code kopiert");
+        } catch {
+          const field = document.createElement("textarea");
+          field.value = secret;
+          field.style.position = "fixed";
+          field.style.opacity = "0";
+          document.body.appendChild(field);
+          field.select();
+          const copied = document.execCommand("copy");
+          field.remove();
+          toast(copied ? "Pairing-Code kopiert" : "Code bitte manuell markieren und kopieren");
+        }
+      };
+      button.textContent = "Neuen Code erzeugen";
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      button.disabled = false;
+    }
+  };
+  $("[data-mobile-revoke]", view).forEach((button) => confirmButton(button, "Wirklich widerrufen?", async () => {
+    try {
+      await api(`mobile/devices/${encodeURIComponent(button.dataset.mobileRevoke)}`, { method: "DELETE" });
+      toast("Gerät wurde widerrufen");
+      rerender();
+    } catch (err) {
+      toast(err.message);
+    }
+  }));
   $("#s-save").onclick = async () => {
     await api("settings", { method: "PUT", body: { profile: { name: $("#s-name").value, street: $("#s-street").value, city: $("#s-city").value, email: $("#s-email").value },
       buffer_cents: Math.abs(parseMoney($("#s-buffer").value) || 0) } });
