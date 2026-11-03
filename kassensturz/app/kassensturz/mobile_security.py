@@ -145,10 +145,15 @@ class InMemoryRateLimiter:
         """Consume one attempt and return retry timing when the key is limited."""
         if not isinstance(key, str) or not key.strip():
             raise ValueError("rate-limit key must be a non-empty string")
-        if isinstance(limit, bool) or limit < 1:
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
             raise ValueError("limit must be a positive integer")
-        if window_seconds <= 0:
-            raise ValueError("window_seconds must be positive")
+        if (
+            isinstance(window_seconds, bool)
+            or not isinstance(window_seconds, (int, float))
+            or not math.isfinite(window_seconds)
+            or window_seconds <= 0
+        ):
+            raise ValueError("window_seconds must be a positive finite number")
 
         now = self._clock()
         cutoff = now - window_seconds
