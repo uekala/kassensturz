@@ -587,4 +587,3 @@ class _BudgetDraft {
   final String categoryId;
   final double limit;
 }
-
