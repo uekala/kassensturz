@@ -17,7 +17,9 @@ Es werden keine zwei unabhängig entwickelten nativen Apps gepflegt. Die Zielpla
 - Kein Kassensturz-Relay, kein zentraler Sync-Dienst und kein Cloudkonto als Voraussetzung.
 - Die App speichert keine Bank-PINs, TANs, FinTS-Sitzungen oder Open-Banking-Private-Keys. Diese bleiben ausschließlich auf dem Kassensturz-Server.
 - Der Nutzer muss die Serveridentität über HTTPS mit gültiger Zertifikatsprüfung bestätigen können. Es gibt keinen allgemeinen „Zertifikatsfehler ignorieren“-Modus.
-- Ein optionaler lokaler Finanzdaten-Cache ist nicht Teil des ersten Sicherheitsumfangs. Er benötigt eine gesonderte Datenschutz- und Verschlüsselungsentscheidung.
+- Serverseitig gelieferte Finanzdaten werden erst nach Umsetzung der Mobile-API-Authentifizierung eingebunden.
+- Der aktuelle Flutter-Prototyp unterstützt zusätzlich manuell erfasste Konten. Diese bleiben ausschließlich auf dem Gerät und werden in einer verschlüsselten SQLite3MultipleCiphers-Datenbank gespeichert; der zufällige Datenbankschlüssel liegt separat im Plattform-Secure-Storage.
+- Der Prototyp enthält weiterhin synthetische Buchungen und Budgetauswertungen. Die Budgetlimits liegen derzeit in leichtgewichtigem, nicht verschlüsseltem App-Speicher und dürfen keine Credentials oder vollständigen Bankdaten enthalten.
 
 ## Verantwortungsgrenzen
 
@@ -117,3 +119,13 @@ Vor dem Flutter-Bootstrap werden Paketversionen und Mindestversionen der Zielpla
 Die Flutter-Arbeit kann mit UI-Prototypen, Navigation, DTO-Mocks und Tests vorbereitet werden. Ein produktiver Login und Finanzdatenzugriff sind jedoch vom sicheren Mobile-Backend abhängig.
 
 Die App darf erst als nutzbar freigegeben werden, wenn Pairing, Tokenrotation, Gerätewiderruf, HTTPS-Proxy-Vertrauensgrenze und Authentifizierung jeder Finanzdatenroute implementiert und im CI getestet sind.
+
+
+## Aktueller Prototypstand (2026-11-03)
+
+- Die gemeinsame Flutter-App enthält ein lokales Kontenmodell mit EUR-Salden als ganzzahlige Centbeträge.
+- Konten können manuell angelegt, geändert und gelöscht werden. Es gibt keine Bankabfrage und keinen Server-Sync.
+- Vollständige IBANs und Kartennummern sind nicht Bestandteil des Kontenmodells; optional werden nur die letzten vier Ziffern gehalten.
+- Für Konten verwendet der produktive App-Einstieg eine SQLite3MultipleCiphers-Datenbank im SQLCipher-Kompatibilitätsmodus. Ein zufälliger 256-Bit-Schlüssel wird getrennt über die Plattformablage für Geheimnisse gespeichert.
+- Automatisierte Tests prüfen Datenbank-Persistenz, verschlüsselte Dateikennung und Zurückweisung eines falschen Schlüssels.
+- Dies ist ein Implementierungsprototyp, keine abgeschlossene Sicherheitsfreigabe. Backup-/Restore-Verhalten, Datenbank-WAL-Dateien, Gerätesicherung, Schlüsselverlust und Gerätekompromittierung müssen vor einem produktiven Release gesondert bewertet werden.
