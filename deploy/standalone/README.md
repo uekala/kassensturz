@@ -11,6 +11,7 @@ Die bestehende Anwendung besitzt noch keine produktive Mobile-Authentifizierung.
 - Nicht auf `0.0.0.0` umstellen und keinen Reverse Proxy oder Port-Forwarding davorschalten.
 - Smartphone-, LAN- und VPN-Zugriff sind in diesem Deployment noch nicht freigegeben.
 - Die geplanten Pairing- und Token-Endpunkte sind noch nicht implementiert.
+- `KASSENSTURZ_TRUSTED_PROXIES` und `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` sind lediglich vorbereitete Allowlist-Konfigurationen. Leere Standardwerte, Loopback-Bindung und fehlende Mobile-Routen halten den Zugriff weiterhin geschlossen. Füge aktuell keinen Reverse Proxy hinzu.
 
 Host-Networking wird hier bewusst für Linux verwendet, damit der Prozess direkt an die Loopback-Schnittstelle des Hosts binden kann. Docker Desktop auf Windows/macOS ist für diese Compose-Datei nicht das unterstützte Ziel.
 
@@ -99,4 +100,4 @@ Vor einer Freigabe für LAN, VPN oder mobile Apps müssen mindestens umgesetzt u
 4. Erzwungenes HTTPS mit dokumentierter Proxy-Vertrauensgrenze oder direktem TLS.
 5. Rate-Limits, Sicherheits- und Regressionstests sowie ein dokumentierter Wiederherstellungsprozess.
 
-Bis dahin bleibt der Listener auf Loopback beschränkt.
+Bis dahin bleibt der Listener auf Loopback beschränkt. Die optionale private Netzwerk-Allowlist aktiviert für sich allein weder einen Listener noch Mobile-HTTP-Endpunkte.
