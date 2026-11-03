@@ -78,7 +78,7 @@ async def only_ingress(request: Request, call_next):
     # Mobile namespaces require direct TLS or an HTTPS assertion from an
     # explicitly trusted proxy. The routes are not registered yet; this is a
     # fail-closed transport gate, not permission to expose a new listener.
-    is_mobile_api = request.url.path == "/api/v1" or request.url.path.startswith(
+    is_mobile_api = request.url.path in MOBILE_API_PREFIXES or request.url.path.startswith(
         tuple(prefix + "/" for prefix in MOBILE_API_PREFIXES)
     )
     if is_mobile_api and not request_is_https(request, TRUSTED_PROXY_NETWORKS):
