@@ -21,8 +21,9 @@ Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/
 
 - [x] Flutter als gemeinsamer Client für iOS und Android beschlossen.
 - [x] Zielarchitektur, Sicherheitsgrenzen und erste UI-Funktionen dokumentiert.
-- [ ] Flutter-Projekt-Bootstrap mit festgelegter Toolchain.
-- [ ] CI für Flutter-Formatierung, statische Analyse und Tests.
+- [x] Flutter-Dart-Projekt mit Demo-Oberfläche und Widget-Tests angelegt.
+- [x] CI für Flutter-Formatierung, statische Analyse und Widget-Tests eingerichtet.
+- [x] Reproduzierbares Erzeugen von Android- und iOS-Projektdateien ergänzt.
 - [ ] Verbindungsassistent und Server-Healthcheck.
 - [ ] QR-Pairing und Geräteverwaltung.
 - [ ] Sichere Credential-Ablage und Tokenrotation.
@@ -31,7 +32,7 @@ Die Architekturentscheidung ist in [ADR 0006 – Flutter Mobile Client](../docs/
 - [ ] Integrationstests auf iOS und Android.
 - [ ] Signierte Builds und Store-Veröffentlichungen.
 
-**Noch nicht implementiert:** Es gibt derzeit kein ausführbares Flutter-Projekt und keine produktiven Mobile-API- oder Pairing-Endpunkte. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
+**Aktueller Implementierungsstand:** Das Flutter-Dart-Projekt und ein UI-Prototyp mit Beispieldaten sind vorhanden. Es gibt noch keine produktiven Mobile-API- oder Pairing-Endpunkte und keine echte Serververbindung. Die nativen Android-/iOS-Projektdateien werden per Bootstrap-Skript erzeugt und anschließend für einen lokalen Entwickler-Workspace eingecheckt. Die bestehenden Home-Assistant-Routen sind keine mobile Authentifizierung und dürfen nicht von der App verwendet werden.
 
 ## Geplante Projektstruktur
 
@@ -63,7 +64,7 @@ mobile/
     ios/
 ```
 
-Die Verzeichnisse und Projektdateien unter `mobile/app` werden beim Flutter-Bootstrap erzeugt. Die Struktur oben ist ein Zielbild, kein bereits vorhandener App-Quellcode.
+Der Dart-Quellcode und die Tests unter `mobile/app` sind bereits vorhanden. Die nativen `android/`- und `ios/`-Runner werden mit `tool/bootstrap-platforms.sh` aus dem Flutter-SDK generiert.
 
 ## Geplanter App-Umfang – erste Version
 
