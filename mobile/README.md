@@ -1,6 +1,6 @@
 # Kassensturz Mobile – Flutter für iOS und Android
 
-<status>Beschlossen: eine gemeinsame Flutter-Codebasis für iOS und Android.</status>
+**Beschlossen:** eine gemeinsame Flutter-Codebasis für iOS und Android.
 
 Kassensturz Mobile wird gleichzeitig für beide Plattformen entwickelt. Oberfläche, API-Client, DTOs und Sitzungslogik werden gemeinsam in Dart umgesetzt; plattformspezifische Funktionen bleiben hinter Adaptern.
 
