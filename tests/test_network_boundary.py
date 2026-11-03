@@ -136,10 +136,10 @@ def test_mobile_pairing_rate_limit_is_enforced_before_route_dispatch(monkeypatch
         second = client.post("/api/v1/pair", json={"pairing_secret": "not-real"})
         third = client.post("/api/v1/pair", json={"pairing_secret": "not-real"})
 
-    # The path is intentionally not registered yet: the first two requests
-    # pass transport and rate controls and then receive the normal 404.
-    assert first.status_code == 404
-    assert second.status_code == 404
+    # The registered route validates the intentionally malformed body,
+    # while the third attempt is stopped by the network limiter first.
+    assert first.status_code == 400
+    assert second.status_code == 400
     assert third.status_code == 429
     assert third.json()["error"]["code"] == "rate_limited"
     assert third.headers["retry-after"] == "60"
