@@ -11,8 +11,8 @@ void main() {
       budgetRepository: LocalBudgetRepository(
         store: SharedPreferencesStringKeyValueStore(),
       ),
-      accountRepository: SqlCipherAccountRepository(
-        keyStore: SecureAccountEncryptionKeyStore(
+      accountRepository: EncryptedAccountRepository(
+        keyStore: SecureAccountKeyStore(
           store: FlutterSecureValueStore(),
         ),
       ),
