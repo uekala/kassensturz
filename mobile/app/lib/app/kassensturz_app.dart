@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../core/data/budget_repository.dart';
 import '../core/design/app_theme.dart';
 import 'kassensturz_shell.dart';
 
 class KassensturzApp extends StatelessWidget {
-  const KassensturzApp({super.key});
+  const KassensturzApp({super.key, this.budgetRepository});
+
+  final BudgetRepository? budgetRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +15,7 @@ class KassensturzApp extends StatelessWidget {
       title: 'Kassensturz',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      home: const KassensturzShell(),
+      home: KassensturzShell(budgetRepository: budgetRepository),
     );
   }
 }
