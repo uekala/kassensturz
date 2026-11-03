@@ -29,9 +29,7 @@ class _AccountsPageState extends State<AccountsPage> {
     final saved = await widget.controller.save(account);
     if (!saved && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Konto konnte nicht gespeichert werden.'),
-        ),
+        const SnackBar(content: Text('Konto konnte nicht gespeichert werden.')),
       );
     }
   }
@@ -76,7 +74,9 @@ class _AccountsPageState extends State<AccountsPage> {
     final balanceController = TextEditingController(
       text: current == null
           ? ''
-          : (current.balanceCents / 100).toStringAsFixed(2).replaceAll('.', ','),
+          : (current.balanceCents / 100)
+                .toStringAsFixed(2)
+                .replaceAll('.', ','),
     );
     var selectedType = current?.type ?? AccountType.checking;
 
@@ -84,7 +84,9 @@ class _AccountsPageState extends State<AccountsPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(current == null ? 'Konto hinzufügen' : 'Konto bearbeiten'),
+          title: Text(
+            current == null ? 'Konto hinzufügen' : 'Konto bearbeiten',
+          ),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
