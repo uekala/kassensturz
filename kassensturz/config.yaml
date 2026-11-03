@@ -18,6 +18,7 @@ map:
     read_only: false
 backup_exclude:
   - "secrets.json"
+  - "secrets.key"
 options:
   fints_product_id: ""
   sync_time: "06:30"
