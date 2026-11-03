@@ -29,9 +29,20 @@ Wichtige Grenzen:
 
 1. Die neue Container-Portfreigabe für 8099/TCP ist in `config.yaml` mit `null` standardmäßig deaktiviert. `ingress_port: 8099` ist weiterhin nur der interne Ingress-Port.
 2. Erst für den Tailscale-Service wird in der HA-App-Netzwerkverwaltung ein dedizierter Host-Port (vorgesehen: 18099) auf den Container-Port 8099 abgebildet.
-3. Das Tailscale-Add-on veröffentlicht einen eigenen Service `svc:kassensturz`, der intern auf `http://127.0.0.1:18099` zeigt und nach außen HTTPS auf Port 443 bereitstellt. Das Tailscale-Add-on muss die `services`-Option unterstützen und im Host-Netzwerk laufen.
-4. Der Service muss in der Tailscale-Admin-Konsole definiert und der Home-Assistant-Knoten als Service-Host freigegeben werden. Er wird mit einer Tailscale-Grant-Regel ausschließlich für den gewünschten eigenen Nutzer bzw. eine ausdrücklich ausgewählte Gruppe erreichbar gemacht.
-5. Die `trusted_proxies`- und `mobile_client_networks`-Optionen des Kassensturz-Add-ons bleiben leer, bis die tatsächliche Proxy-Gegenstelle und die vom Proxy weitergereichte Client-Adresse am Green überprüft wurden. Danach werden nur die exakt beobachteten Proxy-/Client-CIDRs eingetragen; keine pauschale Freigabe des gesamten Supervisor-Netzes.
+3. Das Tailscale-Add-on veröffentlicht einen eigenen Service `svc:kassensturz`, der intern auf `http://127.0.0.1:18099` zeigt und nach außen HTTPS auf Port 443 bereitstellt. Das Tailscale-Add-on muss die `services`-Option unterstützen und im Host-Netzwerk laufen. Die aktuelle Add-on-Konfiguration beschränkt `target` ausdrücklich auf lokale Loopback-Adressen.
+
+   Beispiel für die `services`-Option:
+
+   ```yaml
+   services:
+     - name: svc:kassensturz
+       target: http://127.0.0.1:18099
+       protocol: https
+       port: 443
+       path: /
+   ```
+4. Der Tailscale-Knoten benötigt ein in der bestehenden Tailnet-Policy erlaubtes `advertise_tags`-Tag. Der Service muss auf der Services-Seite der Tailscale-Admin-Konsole definiert, der Home-Assistant-Knoten als Service-Host freigegeben und mit einer Grant-Regel ausschließlich für den eigenen Nutzer bzw. eine ausdrücklich ausgewählte Gruppe erreichbar gemacht werden. MagicDNS und HTTPS-Zertifikate müssen im Tailscale-DNS-Bereich aktiviert sein.
+5. Die `trusted_proxies`-Option wird erst nach der Prüfung der tatsächlichen TCP-Gegenstelle des Tailscale-Services gesetzt (voraussichtlich `127.0.0.1/32`, am Green zu verifizieren). `mobile_client_networks` bleibt für diesen Proxy-Weg leer. Die Middleware verlangt bei einem vertrauenswürdigen Proxy zusätzlich exakt `X-Forwarded-Proto: https`; ob der Tailscale-Service diesen Header im konkreten Add-on-Build setzt, muss vor Freigabe geprüft werden. Keine pauschale Freigabe des Supervisor-Netzes.
 6. Die App-Middleware verweigert direkte Requests von nicht freigegebenen LAN-/VPN-Peers. Die Portfreigabe wird von außen nicht am Router weitergeleitet und es wird kein Funnel für Kassensturz aktiviert.
 7. Native Clients akzeptieren ausschließlich HTTPS mit gültiger Zertifikatsprüfung.
 8. Die bestehende Ingress-Sitzung wird nicht als Ersatz für die Geräteauthentifizierung der Mobile-API verwendet.
