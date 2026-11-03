@@ -62,172 +62,11 @@ class _AccountsPageState extends State<AccountsPage> {
     }
   }
 
-  Future<Account?> _editAccountDialog({Account? current}) async {
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController(text: current?.name ?? '');
-    final institutionController = TextEditingController(
-      text: current?.institution ?? '',
-    );
-    final suffixController = TextEditingController(
-      text: current?.accountSuffix ?? '',
-    );
-    final balanceController = TextEditingController(
-      text: current == null
-          ? ''
-          : (current.balanceCents / 100)
-                .toStringAsFixed(2)
-                .replaceAll('.', ','),
-    );
-    var selectedType = current?.type ?? AccountType.checking;
-
-    final result = await showDialog<Account>(
+  Future<Account?> _editAccountDialog({Account? current}) {
+    return showDialog<Account>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(
-            current == null ? 'Konto hinzufügen' : 'Konto bearbeiten',
-          ),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    autofocus: true,
-                    maxLength: 60,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Kontoname',
-                      hintText: 'z. B. Girokonto',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) => (value ?? '').trim().isEmpty
-                        ? 'Bitte einen Kontonamen eingeben.'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<AccountType>(
-                    initialValue: selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'Kontotyp',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: AccountType.values
-                        .map(
-                          (type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(type.label),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setDialogState(() => selectedType = value);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: institutionController,
-                    maxLength: 60,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Bank / Anbieter (optional)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: suffixController,
-                    maxLength: 4,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(4),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Letzte 4 Ziffern (optional)',
-                      helperText: 'Keine vollständige IBAN oder Kartennummer',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      final suffix = value ?? '';
-                      if (suffix.isNotEmpty && suffix.length != 4) {
-                        return 'Bitte genau 4 Ziffern eingeben.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: balanceController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9,.-]')),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Aktueller Kontostand',
-                      suffixText: '€',
-                      helperText: 'Negativer Betrag z. B. bei Kreditkarten',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      final amount = double.tryParse(
-                        (value ?? '').trim().replaceAll(',', '.'),
-                      );
-                      if (amount == null || !amount.isFinite) {
-                        return 'Bitte einen gültigen Betrag eingeben.';
-                      }
-                      if (amount.abs() > 999999999) {
-                        return 'Der Betrag ist zu groß.';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Abbrechen'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-                final balance = double.parse(
-                  balanceController.text.trim().replaceAll(',', '.'),
-                );
-                Navigator.pop(
-                  dialogContext,
-                  Account(
-                    id: current?.id ?? Account.createId(),
-                    name: nameController.text.trim(),
-                    institution: institutionController.text.trim(),
-                    accountSuffix: suffixController.text.trim(),
-                    type: selectedType,
-                    balanceCents: (balance * 100).round(),
-                  ),
-                );
-              },
-              child: const Text('Speichern'),
-            ),
-          ],
-        ),
-      ),
+      builder: (dialogContext) => _AccountEditorDialog(current: current),
     );
-
-    nameController.dispose();
-    institutionController.dispose();
-    suffixController.dispose();
-    balanceController.dispose();
-    return result;
   }
 
   @override
@@ -379,6 +218,196 @@ class _AccountsPageState extends State<AccountsPage> {
             color: colors.onSurfaceVariant,
             height: 1.4,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AccountEditorDialog extends StatefulWidget {
+  const _AccountEditorDialog({this.current});
+
+  final Account? current;
+
+  @override
+  State<_AccountEditorDialog> createState() => _AccountEditorDialogState();
+}
+
+class _AccountEditorDialogState extends State<_AccountEditorDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _institutionController;
+  late final TextEditingController _suffixController;
+  late final TextEditingController _balanceController;
+  late AccountType _selectedType;
+
+  Account? get _current => widget.current;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: _current?.name ?? '');
+    _institutionController = TextEditingController(
+      text: _current?.institution ?? '',
+    );
+    _suffixController = TextEditingController(
+      text: _current?.accountSuffix ?? '',
+    );
+    _balanceController = TextEditingController(
+      text: _current == null
+          ? ''
+          : (_current!.balanceCents / 100).toStringAsFixed(2).replaceAll('.', ','),
+    );
+    _selectedType = _current?.type ?? AccountType.checking;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _institutionController.dispose();
+    _suffixController.dispose();
+    _balanceController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final balance = double.parse(
+      _balanceController.text.trim().replaceAll(',', '.'),
+    );
+    Navigator.of(context).pop(
+      Account(
+        id: _current?.id ?? Account.createId(),
+        name: _nameController.text.trim(),
+        institution: _institutionController.text.trim(),
+        accountSuffix: _suffixController.text.trim(),
+        type: _selectedType,
+        balanceCents: (balance * 100).round(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        _current == null ? 'Konto hinzufügen' : 'Konto bearbeiten',
+      ),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                autofocus: true,
+                maxLength: 60,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Kontoname',
+                  hintText: 'z. B. Girokonto',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) => (value ?? '').trim().isEmpty
+                    ? 'Bitte einen Kontonamen eingeben.'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<AccountType>(
+                initialValue: _selectedType,
+                decoration: const InputDecoration(
+                  labelText: 'Kontotyp',
+                  border: OutlineInputBorder(),
+                ),
+                items: AccountType.values
+                    .map(
+                      (type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type.label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedType = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _institutionController,
+                maxLength: 60,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Bank / Anbieter (optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _suffixController,
+                maxLength: 4,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(4),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Letzte 4 Ziffern (optional)',
+                  helperText: 'Keine vollständige IBAN oder Kartennummer',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  final suffix = value ?? '';
+                  if (suffix.isNotEmpty && suffix.length != 4) {
+                    return 'Bitte genau 4 Ziffern eingeben.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _balanceController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9,.-]')),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Aktueller Kontostand',
+                  suffixText: '€',
+                  helperText: 'Negativer Betrag z. B. bei Kreditkarten',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  final amount = double.tryParse(
+                    (value ?? '').trim().replaceAll(',', '.'),
+                  );
+                  if (amount == null || !amount.isFinite) {
+                    return 'Bitte einen gültigen Betrag eingeben.';
+                  }
+                  if (amount.abs() > 999999999) {
+                    return 'Der Betrag ist zu groß.';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: const Text('Speichern'),
         ),
       ],
     );
