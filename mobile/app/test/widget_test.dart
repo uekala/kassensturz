@@ -29,7 +29,23 @@ void main() {
     expect(find.text('5 Buchungen · Beispieldaten'), findsOneWidget);
   });
 
-  testWidgets('bottom navigation opens accounts and settings', (tester) async {
+  testWidgets('dashboard budget card opens the budget tab', (tester) async {
+    await tester.pumpWidget(const KassensturzApp());
+
+    await tester.scrollUntilVisible(
+      find.text('Variable Ausgaben'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Variable Ausgaben'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Deine Budgets'), findsOneWidget);
+    expect(find.text('620,40 €'), findsOneWidget);
+  });
+
+  testWidgets('bottom navigation opens accounts, budget and settings',
+      (tester) async {
     await tester.pumpWidget(const KassensturzApp());
 
     await tester.tap(find.text('Konten').last);
@@ -37,10 +53,29 @@ void main() {
     expect(find.text('Gesamtsaldo · Beispieldaten'), findsOneWidget);
     expect(find.text('Girokonto'), findsOneWidget);
 
+    await tester.tap(find.text('Budget').last);
+    await tester.pumpAndSettle();
+    expect(find.text('1.000,00 €'), findsOneWidget);
+    expect(find.text('Lebensmittel'), findsOneWidget);
+
     await tester.tap(find.text('Mehr').last);
     await tester.pumpAndSettle();
     expect(find.text('Noch nicht verbunden'), findsOneWidget);
     expect(find.text('Pairing noch nicht verfügbar'), findsOneWidget);
+  });
+
+  testWidgets('budget month selection updates the shown figures',
+      (tester) async {
+    await tester.pumpWidget(const KassensturzApp());
+
+    await tester.tap(find.text('Budget').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Oktober 2026'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('512,30 €'), findsOneWidget);
+    expect(find.text('487,70 €'), findsOneWidget);
   });
 
   testWidgets('transaction filters separate expenses and income',
