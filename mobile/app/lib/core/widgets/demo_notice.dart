@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../design/app_theme.dart';
+
 class DemoNotice extends StatelessWidget {
   const DemoNotice({super.key});
 
@@ -7,22 +9,25 @@ class DemoNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      margin: const EdgeInsets.fromLTRB(20, 8, 20, 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E9),
-        border: Border.all(color: const Color(0xFFF4E3BD)),
-        borderRadius: BorderRadius.circular(12),
+        color: AppTheme.softBrand,
+        borderRadius: BorderRadius.circular(9),
       ),
       child: const Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: 17, color: Color(0xFF865B12)),
+          Icon(
+            Icons.info_outline_rounded,
+            size: 16,
+            color: AppTheme.brand,
+          ),
           SizedBox(width: 9),
           Expanded(
             child: Text(
               'Beispieldaten – noch nicht mit deinem Server verbunden',
               style: TextStyle(
-                color: Color(0xFF765319),
+                color: AppTheme.brand,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
