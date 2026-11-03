@@ -248,3 +248,23 @@ def test_mobile_pairing_rejects_malformed_request_without_echoing_secrets(
     assert missing.status_code == 400
     assert malformed.status_code == 400
     assert "sensitive-user-input" not in missing.text
+
+def test_local_admin_can_create_pairing_through_ingress_tls_termination(
+    db, monkeypatch
+):
+    reset_mobile_guards(monkeypatch)
+    # The HA Ingress terminates external HTTPS and talks to the add-on over
+    # the trusted internal network. Native pairing redemption still requires TLS.
+    with TestClient(main.app, client=("127.0.0.1", 50123)) as client:
+        pairing = client.post("/api/mobile/pairings")
+        assert pairing.status_code == 201
+
+        cleartext_pair = client.post(
+            "/api/v1/pair",
+            json={
+                "pairing_secret": pairing.json()["pairing_secret"],
+                "device_name": "iPhone",
+            },
+        )
+        assert cleartext_pair.status_code == 426
+
