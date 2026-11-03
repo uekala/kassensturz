@@ -47,12 +47,12 @@ void main() {
     await tester.pumpWidget(const KassensturzApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('886,74 € noch verfügbar'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Variable Ausgaben'),
       180,
       scrollable: find.byType(Scrollable).first,
     );
+    expect(find.text('886,74 € noch verfügbar'), findsOneWidget);
     expect(find.text('11 %'), findsOneWidget);
     expect(find.text('113,26 € ausgegeben'), findsOneWidget);
   });
