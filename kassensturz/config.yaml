@@ -9,6 +9,7 @@ arch:
 startup: application
 boot: auto
 ingress: true
+panel_admin: true
 ingress_port: 8099
 ports:
   8099/tcp: null
