@@ -161,7 +161,36 @@ CREATE TABLE IF NOT EXISTS notices(
   key TEXT PRIMARY KEY,
   created TEXT
 );
+
+CREATE TABLE IF NOT EXISTS eb_sessions(
+  id INTEGER PRIMARY KEY,
+  session_id TEXT,
+  aspsp_name TEXT NOT NULL,
+  aspsp_country TEXT NOT NULL,
+  valid_until TEXT,
+  status TEXT DEFAULT 'active',
+  history_days INTEGER DEFAULT 365,
+  last_sync TEXT,
+  last_status TEXT,
+  created TEXT
+);
+
+CREATE TABLE IF NOT EXISTS inbox(
+  filename TEXT PRIMARY KEY,
+  size INTEGER,
+  mtime REAL,
+  status TEXT,
+  message TEXT,
+  format TEXT,
+  count INTEGER,
+  created TEXT
+);
 """
+
+# Spalten, die nach Version 0.1.0 dazugekommen sind
+MIGRATIONS = {
+    "accounts": [("eb_session_id", "INTEGER"), ("eb_uid", "TEXT"), ("eb_ident", "TEXT")],
+}
 
 
 def now_iso() -> str:
@@ -178,7 +207,15 @@ class Database:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys=OFF")
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self._depth = 0
+
+    def _migrate(self) -> None:
+        for table, cols in MIGRATIONS.items():
+            have = {r[1] for r in self.conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            for name, typ in cols:
+                if name not in have:
+                    self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {typ}")
 
     # --- Grundoperationen -------------------------------------------------
     def query(self, sql: str, params=()) -> list[dict]:

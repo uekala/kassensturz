@@ -6,21 +6,49 @@ Home-Assistant-Gerät.
 
 ## Erste Schritte
 
-1. Add-on starten und **Kassensturz** in der Seitenleiste öffnen.
-2. Entweder eine Kontoauszug-Datei importieren, einen Bankzugang per FinTS einrichten oder erst einmal die Beispieldaten laden.
+1. App starten, unter *Info* „In der Seitenleiste anzeigen“ einschalten und **Kassensturz** öffnen.
+2. Eine Bank per Open Banking oder FinTS verbinden, eine Kontoauszug-Datei importieren oder erst einmal die Beispieldaten laden.
 3. Für Konten ohne Saldo in der Datei (zum Beispiel Kreditkarten) einmal den aktuellen Kontostand eintragen.
 
 Nach etwa drei Monaten Umsätzen erkennt Kassensturz die meisten Verträge von selbst.
 
 ## Was die Übersicht zeigt
 
-Oben steht die Rechnung, die dem Add-on den Namen gibt: Kontostand heute, minus feste Abbuchungen bis zum nächsten
+Oben steht die Rechnung, die der App den Namen gibt: Kontostand heute, minus feste Abbuchungen bis zum nächsten
 Gehalt, ergibt den Betrag, der für den Alltag frei ist. Darunter der Verlauf der letzten 30 Tage mit Prognose für die nächsten
 45 Tage. Die Prognose rechnet erkannte Verträge zum jeweiligen Termin ein und für alles andere deine typischen Alltagsausgaben
 der letzten drei Monate.
 
 In die Summe fließen alle Konten ein, bei denen „Zählt zum Kontostand und zur Prognose“ aktiv ist. Tagesgeldkonten sind
 standardmäßig ausgenommen.
+
+## Bankabruf per Open Banking
+
+Banken müssen in der EU eine Schnittstelle für Kontoumsätze anbieten (PSD2) – auch Neobanken wie N26 und Revolut, die kein
+FinTS haben. Nutzen dürfen sie nur lizenzierte Dienste. Kassensturz verwendet dafür [Enable Banking](https://enablebanking.com):
+Im „eingeschränkten Produktivmodus“ ist der Dienst für eigene Konten und private Nutzung kostenlos.
+
+**Einmalig bei Enable Banking:**
+
+1. Registrieren und im Control Panel unter *API applications* eine neue App anlegen: Umgebung *Production*, Redirect-URL
+   `https://enablebanking.com/`, Schlüssel im Browser erzeugen lassen. Der Browser lädt eine `.pem`-Datei herunter.
+2. Bei der App *Activate by linking accounts* wählen und deine Konten einmal verknüpfen. Nur so verknüpfte Konten lassen
+   sich später abrufen.
+
+**In Kassensturz:** *Konten → Open Banking einrichten*, App-ID und `.pem`-Datei eintragen. Danach *Bank verbinden*, Bank
+auswählen, bei der Bank freigeben. Du landest anschließend auf der Seite von Enable Banking – die komplette Adresse aus der
+Adresszeile kopierst du zurück in Kassensturz. Die Konten werden angelegt oder, wenn schon ein Konto mit derselben IBAN
+existiert (etwa aus einem Datei-Import), mit diesem verknüpft.
+
+**Abruf:** täglich zur eingestellten Uhrzeit und jederzeit von Hand. Beim ersten Abruf holt Kassensturz bis zu ein Jahr
+Umsätze, sofern die Bank das erlaubt, sonst die letzten 89 Tage. Ohne dein Zutun erlauben Banken nur wenige Abrufe pro Tag.
+
+**Freigabe erneuern:** Je nach Bank gilt die Freigabe bis zu 180 Tage. Eine Woche vor Ablauf erscheint ein Hinweis (auch als
+Benachrichtigung); *Erneuern* führt durch dieselben Schritte, die Konten bleiben verknüpft.
+
+Welche Banken Enable Banking anbindet, siehst du in der Bankauswahl. Manche stehen unter dem Land ihres Sitzes, PayPal und
+Advanzia etwa unter Luxemburg. Der private Schlüssel liegt nur auf dem Gerät und ist von Backups ausgenommen; nach einer
+Wiederherstellung lädst du ihn einfach neu hoch.
 
 ## Bankabruf per FinTS
 
@@ -29,9 +57,9 @@ Sparkassen, Volks- und Raiffeisenbanken, ING, DKB, comdirect und viele weitere b
 
 **Produkt-ID:** Seit 2019 akzeptieren Banken nur registrierte Programme. Die Registrierung bei der Deutschen Kreditwirtschaft
 ist kostenlos (Formular auf [fints.org](https://www.fints.org/de/hersteller/produktregistrierung)); die Zuteilung kann bis zu
-zwei Wochen dauern. Die erhaltene ID trägst du in den Add-on-Einstellungen unter `fints_product_id` ein.
+zwei Wochen dauern. Die erhaltene ID trägst du in der Konfiguration der App unter `fints_product_id` ein.
 
-**Bankzugang anlegen:** Unter *Konten → Bankzugang hinzufügen*. Du brauchst die Bankleitzahl (Stelle 5 bis 12 deiner IBAN),
+**Bankzugang anlegen:** Unter *Konten → Bank verbinden → FinTS*. Du brauchst die Bankleitzahl (Stelle 5 bis 12 deiner IBAN),
 deinen Anmeldenamen aus dem Online-Banking und die FinTS-Serveradresse deiner Bank. Für ING, DKB, comdirect und die
 Volksbanken ist die Adresse vorbelegt. Sparkassen nennen sie auf ihrer Website unter „HBCI“ oder „FinTS“.
 
@@ -46,8 +74,7 @@ und du startest den Abruf einmal von Hand.
 
 ## Datei-Import
 
-Für Konten ohne FinTS – N26, Revolut, PayPal, American Express, Klarna, Advanzia – und als Alternative für alle anderen.
-Erkannt werden:
+Für Konten, die weder Open Banking noch FinTS abdecken, und als Alternative für alle anderen. Erkannt werden:
 
 | Bank | Format | Wo zu finden (meist) |
 |---|---|---|
@@ -67,6 +94,21 @@ Kassensturz merkt sich die Spaltenzuordnung je Dateiformat. Überlappende Zeitr�
 
 Bei Kreditkarten stehen Ausgaben in manchen Exporten ohne Minus. Kassensturz weist darauf hin; die Option
 „Vorzeichen umkehren“ steht in der Spaltenzuordnung.
+
+## Eingangsordner
+
+Damit Dateien nicht von Hand hochgeladen werden müssen, überwacht Kassensturz den Ordner `/share/kassensturz`
+(Option `import_folder`). Was dort landet, wird innerhalb einer Minute importiert und danach nach `importiert/` verschoben.
+
+- **iPhone:** Export in der Bank-App teilen → *In Dateien sichern* → Server `homeassistant.local`, Freigabe `share`, Ordner
+  `kassensturz`. Den Server fügst du einmal in der Dateien-App unter *Mit Server verbinden* hinzu (Samba-App in Home
+  Assistant nötig).
+- **Android:** mit einer Datei-App, die SMB kann, oder einer Sync-App, die in die Freigabe schreibt.
+- **Rechner:** per Samba nach `\\homeassistant.local\share\kassensturz` kopieren.
+
+Das Konto erkennt Kassensturz an der IBAN in der Datei, an einer früheren Zuordnung desselben Dateiformats oder am Format
+(PayPal, Amex, N26 …), wenn es genau ein passendes Konto gibt. Kann es nicht zuordnen, bleibt die Datei liegen und erscheint
+unter *Konten → Eingangsordner* mit dem Knopf *Zuordnen*. Ab dann geht dasselbe Format ohne Rückfrage.
 
 ## Umbuchungen und doppelte Ausgaben
 
@@ -140,11 +182,13 @@ Oberfläche nicht ändern. Nach einem Neustart von Home Assistant sind sie spät
 | `sensors` | Sensoren in Home Assistant anlegen |
 | `notify_service` | z. B. `notify.mobile_app_pixel`, leer für persistente Benachrichtigungen |
 | `warn_threshold` | Warnung, wenn die Prognose unter diesen Betrag in Euro fällt |
+| `import_folder` | Eingangsordner, Standard `/share/kassensturz`; leer lässt ihn aus |
 
 ## Datenschutz
 
 - Die Oberfläche ist nur über Home Assistant (Ingress) erreichbar, es wird kein Port nach außen geöffnet.
-- Es gibt keine Verbindungen zu Diensten außer zu deiner Bank (FinTS) und zu Home Assistant selbst. Die Schrift ist
+- Verbindungen gibt es nur zu deiner Bank (FinTS), zu Enable Banking (falls eingerichtet) und zu Home Assistant selbst. Die Schrift ist
   eingebettet, es werden keine externen Ressourcen geladen.
-- Daten liegen in `/data/kassensturz.sqlite` und sind Teil der Home-Assistant-Backups; gespeicherte PINs nicht.
+- Daten liegen in `/data/kassensturz.sqlite` und sind Teil der Home-Assistant-Backups; gespeicherte PINs und der
+  Enable-Banking-Schlüssel nicht.
 - *Einstellungen → Alle Buchungen als CSV* exportiert alles in einer Datei.

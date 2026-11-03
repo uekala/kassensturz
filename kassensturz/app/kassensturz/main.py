@@ -15,7 +15,8 @@ from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import analytics, categorize, contracts, demo, fints_sync, ha, importers, ledger, letters, options, secrets_store, services
+from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
+               secrets_store, services)
 from .db import get_db, now_iso
 
 log = logging.getLogger("kassensturz")
@@ -27,6 +28,7 @@ DEV = os.environ.get("KASSENSTURZ_DEV") == "1"
 async def lifespan(_app):
     db = get_db()
     categorize.ensure_categories(db)
+    inbox.ensure_folder()
     if not os.environ.get("KASSENSTURZ_NO_BACKGROUND"):
         services.start_background()
         services.schedule_refresh()
@@ -491,12 +493,20 @@ def import_commit(body: dict = Body(...)):
         categorize.recategorize(db)
     elif not db.one("SELECT id FROM accounts WHERE id = ?", (account_id,)):
         _err(400, "Konto nicht gefunden.")
-    result = ledger.import_rows(db, int(account_id), res["rows"], "datei", item["filename"], res.get("meta"))
+    result = ledger.import_rows(db, int(account_id), res["rows"], "ordner" if item.get("inbox_file") else "datei", item["filename"],
+                                res.get("meta"))
     if res.get("signature"):
         db.execute("INSERT INTO csv_profiles(signature, mapping, account_id, updated) VALUES(?, ?, ?, ?) "
                    "ON CONFLICT(signature) DO UPDATE SET mapping = excluded.mapping, account_id = excluded.account_id, updated = excluded.updated",
                    (res["signature"], json.dumps(res["mapping"]), int(account_id), now_iso()))
     _imports.pop(body["token"], None)
+    if item.get("inbox_file"):
+        try:
+            _, path = inbox.read_file(item["inbox_file"])
+            inbox.move_done(path)
+        except FileNotFoundError:
+            pass
+        db.execute("DELETE FROM inbox WHERE filename = ?", (item["inbox_file"],))
     contracts.detect(db)
     services.schedule_refresh()
     acc = db.one("SELECT * FROM accounts WHERE id = ?", (account_id,))
@@ -749,3 +759,126 @@ def export_csv():
                     f"{r['amount_cents'] / 100:.2f}".replace(".", ","), r["kategorie"] or "", "ja" if r["is_transfer"] else "", r["note"] or ""])
     return Response(buf.getvalue().encode("utf-8-sig"), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="kassensturz-{date.today()}.csv"'})
+
+
+# --- Open Banking (Enable Banking) ------------------------------------------------------------
+
+def _psu(request: Request) -> dict:
+    fwd = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    return {"ip": fwd or request.headers.get("x-real-ip") or "", "ua": request.headers.get("user-agent") or ""}
+
+
+def _eb(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except openbanking.EBError as exc:
+        _err(400, str(exc))
+
+
+@app.get("/api/eb")
+def eb_status():
+    db = get_db()
+    cfg = openbanking.get_config(db)
+    return {**cfg, "configured": openbanking.is_configured(db), "sessions": openbanking.list_sessions(db),
+            "default_redirect": openbanking.DEFAULT_REDIRECT}
+
+
+@app.put("/api/eb/config")
+def eb_config(body: dict = Body(...)):
+    db = get_db()
+    info = _eb(openbanking.save_config, db, body.get("app_id"), body.get("private_key"), body.get("redirect_url"))
+    return {"ok": True, "application": {k: info.get(k) for k in ("name", "environment", "active", "countries") if k in info}}
+
+
+@app.delete("/api/eb/config")
+def eb_config_delete():
+    openbanking.remove_config(get_db())
+    return {"ok": True}
+
+
+@app.get("/api/eb/aspsps")
+def eb_aspsps(country: str = "DE"):
+    return _eb(openbanking.aspsps, get_db(), country)
+
+
+@app.post("/api/eb/auth")
+def eb_auth(request: Request, body: dict = Body(...)):
+    return _eb(openbanking.start_auth, get_db(), body.get("aspsp"), body.get("country") or "DE", body.get("renew_id"), _psu(request))
+
+
+@app.post("/api/eb/complete")
+def eb_complete(request: Request, body: dict = Body(...)):
+    db = get_db()
+    res = _eb(openbanking.complete_auth, db, body.get("text") or "", _psu(request))
+    job = openbanking.start_sync(res["id"], psu=_psu(request), on_done=services.schedule_refresh)
+    return {**res, "job": job.public()}
+
+
+@app.post("/api/eb/sessions/{eb_id}/sync")
+def eb_sync(request: Request, eb_id: int):
+    job = _eb(openbanking.start_sync, eb_id, psu=_psu(request), on_done=services.schedule_refresh)
+    return job.public()
+
+
+@app.patch("/api/eb/sessions/{eb_id}")
+def eb_session_update(eb_id: int, body: dict = Body(...)):
+    db = get_db()
+    if "history_days" in body:
+        db.update("eb_sessions", "id", eb_id, {"history_days": int(body["history_days"] or 365)})
+    return {"ok": True}
+
+
+@app.delete("/api/eb/sessions/{eb_id}")
+def eb_session_delete(eb_id: int):
+    openbanking.delete_session(get_db(), eb_id)
+    services.schedule_refresh()
+    return {"ok": True}
+
+
+# --- Eingangsordner -------------------------------------------------------------------------------
+
+@app.get("/api/inbox")
+def inbox_status():
+    return inbox.status(get_db())
+
+
+@app.post("/api/inbox/scan")
+def inbox_scan():
+    res = inbox.scan(get_db())
+    if res["imported"]:
+        contracts.detect(get_db())
+        services.schedule_refresh()
+    return res
+
+
+@app.post("/api/inbox/analyze")
+def inbox_analyze(body: dict = Body(...)):
+    import json
+
+    db = get_db()
+    name = body.get("filename") or ""
+    try:
+        data, _ = inbox.read_file(name)
+    except FileNotFoundError:
+        _err(404, "Die Datei liegt nicht mehr im Eingangsordner.")
+    res = importers.analyze(data, name)
+    profile = None
+    if res.get("signature"):
+        prof = db.one("SELECT mapping FROM csv_profiles WHERE signature = ?", (res["signature"],))
+        if prof:
+            profile = json.loads(prof["mapping"])
+            res = importers.analyze(data, name, profile)
+    token = uuid.uuid4().hex
+    _imports[token] = {"data": data, "filename": name, "created": time.time(), "inbox_file": name}
+    out = _analysis_public(res)
+    out.update({"token": token, "account_id": inbox.match_account(db, res, name), "profile_used": bool(profile)})
+    return out
+
+
+@app.delete("/api/inbox/{filename}")
+def inbox_delete(filename: str):
+    try:
+        inbox.delete_file(get_db(), filename)
+    except FileNotFoundError:
+        _err(404, "Datei nicht gefunden.")
+    return {"ok": True}

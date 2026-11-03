@@ -226,7 +226,7 @@ def _sync(job: Job, conn: dict, pin: str, history_days: int | None, background: 
     db = get_db()
     product_id = (options.load().get("fints_product_id") or "").strip()
     if not product_id:
-        raise UserFacingError("Für den Bankabruf fehlt die FinTS-Produkt-ID. Trage sie in den Add-on-Einstellungen ein "
+        raise UserFacingError("Für den Bankabruf fehlt die FinTS-Produkt-ID. Trage sie in der Konfiguration der App ein "
                               "(Registrierung kostenlos über fints.org).")
     client = FinTS3PinTanClient(
         conn["blz"].strip(), conn["login"].strip(), pin, conn["server"].strip(),

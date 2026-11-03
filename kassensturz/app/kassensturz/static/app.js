@@ -192,14 +192,14 @@ function renderEmpty(view) {
       <div class="start-options">
         <button class="start-option" id="start-file">${raw(ICON.file)}<div><strong>Kontoauszug-Datei importieren</strong>
           <span>CSV, CAMT oder MT940 – von Sparkasse, Volksbank, ING, DKB, comdirect, N26, Revolut, PayPal, Amex und anderen.</span></div></button>
-        <button class="start-option" id="start-bank">${raw(ICON.bank)}<div><strong>Bankzugang einrichten</strong>
-          <span>Umsätze automatisch abrufen, mit TAN-Freigabe in deiner Banking-App.</span></div></button>
+        <button class="start-option" id="start-bank">${raw(ICON.bank)}<div><strong>Bank verbinden</strong>
+          <span>Umsätze automatisch abrufen – per Open Banking (auch N26, Revolut) oder FinTS, mit Freigabe in deiner Banking-App.</span></div></button>
         <button class="start-option" id="start-demo">${raw(ICON.play)}<div><strong>Mit Beispieldaten ausprobieren</strong>
           <span>Sieben Monate erfundene Buchungen. Mit einem Klick wieder entfernt.</span></div></button>
       </div>
     </section>`.s;
   $("#start-file").onclick = () => pickImportFile();
-  $("#start-bank").onclick = () => connectionSheet(null);
+  $("#start-bank").onclick = async () => bankChooser(await api("eb"));
   $("#start-demo").onclick = async () => {
     $("#start-demo").disabled = true;
     await api("demo", { method: "POST" });
@@ -222,7 +222,7 @@ async function renderOverview(view, _params, seq) {
     : `frei bis Monatsende`;
   const perDay = fc.free_per_day_cents > 0 ? `, etwa ${moneyRound(fc.free_per_day_cents)} pro Tag` : "";
   const alerts = o.alerts.map((a) => html`
-      <button class="alert ${a.level}" data-alert='${JSON.stringify({ c: a.contract || null, a: a.account || null, k: a.key })}'>
+      <button class="alert ${a.level}" data-alert='${JSON.stringify({ c: a.contract || null, a: a.account || null, k: a.key, e: a.eb || null, i: a.inbox || null })}'>
         ${raw(a.level === "info" ? ICON.info : ICON.warn)}<div><strong>${a.title}</strong><span>${a.text}</span></div></button>`);
   const upcoming = o.upcoming.slice(0, 8).map((u) => html`
       <li class="row static"><span class="title">${u.name}</span><span class="sub">${relDay(u.date)}${u.overdue ? ", überfällig" : ""}</span>
@@ -277,6 +277,8 @@ async function renderOverview(view, _params, seq) {
     const d = JSON.parse(el.dataset.alert);
     if (d.c) { const list = await api("contracts"); const c = list.items.find((x) => x.key === d.c); if (c) contractSheet(c); }
     else if (d.a) { const acc = store.accounts.find((x) => x.id === d.a); if (acc) balanceSheet(acc); }
+    else if (d.e) { const eb = await api("eb"); const s = eb.sessions.find((x) => x.id === d.e); if (s) ebConnectSheet(s); }
+    else if (d.i) go("konten");
     else if (d.k.startsWith("budget")) go("budgets");
   });
   bindBudgetRows(view);
@@ -803,46 +805,241 @@ function budgetSheet(catId) {
 
 /* ------------------------------------------------------------------ Konten & Bankzugänge */
 async function renderAccounts(view, _params, seq) {
-  const [conns, settings] = await Promise.all([api("connections"), api("settings")]);
+  const [conns, settings, eb, box] = await Promise.all([api("connections"), api("settings"), api("eb"), api("inbox")]);
   if (seq !== renderSeq) return;
   const accounts = store.accounts;
   const source = (a) => {
-    const conn = conns.find((c) => c.id === a.connection_id);
     const range = a.last_date ? `Umsätze bis ${dShort(a.last_date)}` : "noch keine Umsätze";
+    const sess = eb.sessions.find((s) => s.id === a.eb_session_id);
+    if (sess) return `${sess.aspsp_name} per Open Banking, ${range}`;
+    const conn = conns.find((c) => c.id === a.connection_id);
     return conn ? `${conn.name} per FinTS, ${range}` : `Datei-Import, ${range}`;
   };
+  const ebRow = (s) => {
+    const expired = s.status === "expired";
+    const soon = !expired && s.days_left !== null && s.days_left <= 14;
+    const chip = expired ? html` <span class="chip crit">abgelaufen</span>` : soon ? html` <span class="chip warn">noch ${Math.max(0, s.days_left)} Tage</span>` : "";
+    const last = s.last_sync ? `, zuletzt ${dShort(s.last_sync.slice(0, 10))} ${s.last_sync.slice(11, 16)}` : "";
+    return html`<li class="row static" style="grid-template-columns:1fr auto">
+      <span class="title">${s.aspsp_name}${chip}</span>
+      <span class="sub">${s.accounts.map((a) => a.name).join(", ") || "keine Konten"}. Freigabe bis ${s.valid_until ? dFull(s.valid_until.slice(0, 10)) : "–"}${last}${s.last_status && s.last_status !== "ok" && !expired ? html`<br><span style="color:var(--crit)">${s.last_status}</span>` : ""}</span>
+      <span style="grid-row:1/span 2;grid-column:2;display:flex;gap:6px">
+        ${expired || soon ? html`<button class="btn small primary" data-eb-renew="${s.id}">Erneuern</button>` : html`<button class="btn small primary" data-eb-sync="${s.id}">${raw(ICON.sync)}Abrufen</button>`}
+        <button class="btn small" data-eb-edit="${s.id}" aria-label="Verbindung ${s.aspsp_name} bearbeiten">Mehr</button></span></li>`;
+  };
+  const sambaPath = box.path && box.path.startsWith("/share/") ? "\\\\homeassistant.local\\share\\" + box.path.slice(7).replace(/\//g, "\\") : null;
   view.innerHTML = html`
     <div class="page-head"><h1>Konten</h1>
       <div class="actions" style="margin:0"><button class="btn small" id="a-import">${raw(ICON.file)}Datei importieren</button>
-      <button class="btn small" id="a-bank">${raw(ICON.bank)}Bankzugang hinzufügen</button></div></div>
+      <button class="btn small" id="a-bank">${raw(ICON.bank)}Bank verbinden</button></div></div>
     <div class="cols"><div>
       <section class="section" style="border-top:0">
         ${accounts.length ? html`<ul class="list">${accounts.map((a) => html`<li><button class="row" data-acc="${a.id}" style="${a.archived ? "opacity:.55" : ""}">
           <span class="title">${a.name}${a.archived ? " (archiviert)" : ""}${!a.in_forecast && !a.archived ? html` <span class="chip neutral">nicht in Prognose</span>` : ""}</span>
           <span class="sub">${KIND_LABEL[a.kind] || a.kind}, ${source(a)}</span>
           <span class="amount">${a.balance_known ? money(a.balance_now) : html`<span class="chip warn">Stand fehlt</span>`}<small>${a.tx_count} Buchungen</small></span></button></li>`)}</ul>`
-          : html`<p class="muted">Noch keine Konten. Importiere eine Datei oder richte einen Bankzugang ein.</p>`}
+          : html`<p class="muted">Noch keine Konten. Verbinde eine Bank oder importiere eine Datei.</p>`}
         <div class="actions"><button class="btn small" id="a-new">Konto ohne Import anlegen</button></div>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>Eingangsordner</h2>${box.path ? html`<button class="link-btn" id="ib-scan">Jetzt prüfen</button>` : ""}</div>
+        ${!box.path ? html`<p class="small muted">Ausgeschaltet. In der Konfiguration der App lässt sich unter „Eingangsordner“ ein Pfad eintragen.</p>`
+          : html`<p class="small">Kontoauszug-Dateien, die in <code>${box.path}</code> landen, importiert Kassensturz innerhalb einer Minute${sambaPath ? html` – per Samba unter <code>${sambaPath}</code>` : ""}.
+              Das Konto erkennt es an der IBAN oder am Format; beim ersten Mal fragt es nach.</p>
+            ${box.files.length ? html`<ul class="list">${box.files.map((f) => html`<li class="row static" style="grid-template-columns:1fr auto">
+              <span class="title">${f.filename}</span><span class="sub">${f.format ? f.format + ", " : ""}${f.count ? f.count + " Buchungen. " : ""}${f.message}</span>
+              <span style="grid-row:1/span 2;grid-column:2;display:flex;gap:6px">${f.status === "pending" ? html`<button class="btn small primary" data-ib-assign="${f.filename}">Zuordnen</button>` : ""}
+              <button class="btn small" data-ib-del="${f.filename}">Löschen</button></span></li>`)}</ul>` : ""}
+            ${box.recent.length ? html`<p class="small muted">Zuletzt automatisch: ${box.recent.map((r) => `${r.filename} → ${r.account || "?"} (${r.added} neu)`).join("; ")}.</p>` : ""}`}
       </section>
     </div><div>
       <section class="section" style="border-top:0">
+        <div class="section-head"><h2>Open Banking</h2>${eb.configured ? html`<button class="link-btn" id="eb-setup">Zugang ändern</button>` : ""}</div>
+        ${eb.configured ? html`
+          ${eb.sessions.length ? html`<ul class="list">${eb.sessions.map(ebRow)}</ul>` : html`<p class="small muted">Eingerichtet, aber noch keine Bank verbunden.</p>`}
+          <div class="actions"><button class="btn small" id="eb-connect">${raw(ICON.bank)}Bank verbinden</button></div>`
+          : html`<p class="small muted">Umsätze automatisch über die offizielle EU-Schnittstelle abrufen – auch bei N26, Revolut und anderen Banken ohne FinTS. Über Enable Banking, für eigene Konten kostenlos.</p>
+            <div class="actions"><button class="btn small primary" id="eb-setup">Open Banking einrichten</button></div>`}
+      </section>
+      <section class="section">
         <div class="section-head"><h2>Bankzugänge per FinTS</h2></div>
-        ${!settings.product_id ? html`<p class="note">Für den automatischen Abruf braucht das Add-on eine FinTS-Produkt-ID. Die Registrierung bei der Deutschen Kreditwirtschaft ist kostenlos:
-          <a href="https://www.fints.org/de/hersteller/produktregistrierung" target="_blank" rel="noopener">fints.org</a>. Danach die ID in den Add-on-Einstellungen eintragen. Bis dahin funktioniert der Datei-Import.</p>` : ""}
+        ${!settings.product_id ? html`<p class="note">Für FinTS braucht Kassensturz eine Produkt-ID. Die Registrierung bei der Deutschen Kreditwirtschaft ist kostenlos:
+          <a href="https://www.fints.org/de/hersteller/produktregistrierung" target="_blank" rel="noopener">fints.org</a>. Danach die ID in der Konfiguration der App eintragen.</p>` : ""}
         ${conns.length ? html`<ul class="list">${conns.map((c) => html`<li class="row static" style="grid-template-columns:1fr auto">
           <span class="title">${c.name}</span>
           <span class="sub">${c.last_sync ? `Zuletzt ${dFull(c.last_sync.slice(0, 10))} ${c.last_sync.slice(11, 16)}` : "Noch nicht abgerufen"}${c.has_pin ? ", täglich automatisch" : ""}${c.last_status && c.last_status !== "ok" ? html`<br><span style="color:var(--crit)">${c.last_status}</span>` : ""}</span>
           <span style="grid-row:1/span 2;grid-column:2;display:flex;gap:6px"><button class="btn small primary" data-sync="${c.id}">${raw(ICON.sync)}Abrufen</button>
           <button class="btn small" data-conn="${c.id}" aria-label="Bankzugang ${c.name} bearbeiten">Bearbeiten</button></span></li>`)}</ul>`
-          : html`<p class="muted small">Noch kein Bankzugang. Sparkassen, Volksbanken, ING, DKB, comdirect und viele andere unterstützen FinTS. N26, Revolut, PayPal, Amex, Klarna und Advanzia nicht – dafür gibt es den Datei-Import.</p>`}
+          : html`<p class="muted small">Noch kein FinTS-Zugang. Sparkassen, Volksbanken, ING, DKB, comdirect und viele andere unterstützen FinTS, Neobanken und PayPal nicht.</p>
+            <div class="actions"><button class="btn small" id="fints-add">FinTS-Zugang hinzufügen</button></div>`}
       </section>
     </div></div>`.s;
   $("#a-import").onclick = () => pickImportFile();
-  $("#a-bank").onclick = () => connectionSheet(null);
+  $("#a-bank").onclick = () => bankChooser(eb);
   $("#a-new").onclick = () => accountSheet(null);
+  if ($("#fints-add")) $("#fints-add").onclick = () => connectionSheet(null);
+  if ($("#eb-setup")) $("#eb-setup").onclick = () => ebSetupSheet();
+  if ($("#eb-connect")) $("#eb-connect").onclick = () => ebConnectSheet(null);
+  if ($("#ib-scan")) $("#ib-scan").onclick = async () => {
+    const r = await api("inbox/scan", { method: "POST" });
+    toast(r.imported.length ? `${r.imported.length} ${r.imported.length === 1 ? "Datei" : "Dateien"} importiert` : r.pending ? "Nichts Neues – Dateien warten auf Zuordnung" : "Keine neuen Dateien");
+    rerender();
+  };
   on(view, "[data-acc]", "click", (_e, el) => accountSheet(accounts.find((a) => a.id === Number(el.dataset.acc))));
   on(view, "[data-conn]", "click", (_e, el) => connectionSheet(conns.find((c) => c.id === Number(el.dataset.conn))));
   on(view, "[data-sync]", "click", (_e, el) => syncSheet(conns.find((c) => c.id === Number(el.dataset.sync))));
+  on(view, "[data-eb-sync]", "click", (_e, el) => ebSyncSheet(eb.sessions.find((s) => s.id === Number(el.dataset.ebSync))));
+  on(view, "[data-eb-renew]", "click", (_e, el) => ebConnectSheet(eb.sessions.find((s) => s.id === Number(el.dataset.ebRenew))));
+  on(view, "[data-eb-edit]", "click", (_e, el) => ebEditSheet(eb.sessions.find((s) => s.id === Number(el.dataset.ebEdit))));
+  on(view, "[data-ib-assign]", "click", async (_e, el) => {
+    try { importSheet(await api("inbox/analyze", { method: "POST", body: { filename: el.dataset.ibAssign } })); } catch (e) { toast(e.message); }
+  });
+  on(view, "[data-ib-del]", "click", (_e, el) => {
+    if (el.dataset.armed) { api(`inbox/${encodeURIComponent(el.dataset.ibDel)}`, { method: "DELETE" }).then(() => { toast("Datei gelöscht"); rerender(); }); return; }
+    el.dataset.armed = "1"; el.textContent = "Wirklich löschen?";
+  });
+}
+
+function bankChooser(eb) {
+  const sh = openSheet(html`${sheetHead("Bank verbinden")}
+    <div class="start-options" style="margin-top:8px">
+      <button class="start-option" id="bc-eb">${raw(ICON.bank)}<div><strong>Open Banking</strong>
+        <span>Offizielle EU-Schnittstelle über Enable Banking. Funktioniert auch mit N26, Revolut und anderen Banken ohne FinTS. Freigabe in der Banking-App, alle 90 bis 180 Tage erneuern.</span></div></button>
+      <button class="start-option" id="bc-fints">${raw(ICON.sync)}<div><strong>FinTS</strong>
+        <span>Direkt zur Bank, ohne Zwischendienst. Für Sparkassen, Volksbanken, ING, DKB, comdirect. Braucht eine kostenlose Produkt-ID.</span></div></button>
+    </div>`.s);
+  $("#bc-eb", sh.el).onclick = () => { sh.close(); eb.configured ? ebConnectSheet(null) : ebSetupSheet(); };
+  $("#bc-fints", sh.el).onclick = () => { sh.close(); connectionSheet(null); };
+}
+
+async function ebSetupSheet() {
+  const eb = await api("eb");
+  let pem = null;
+  const sh = openSheet(html`${sheetHead("Open Banking einrichten")}
+    <p class="small muted">Kassensturz nutzt dafür Enable Banking, einen lizenzierten Kontoinformationsdienst. Für eigene Konten ist das kostenlos. Einmalig bei Enable Banking:</p>
+    <ol class="steps">
+      <li>Auf <a href="https://enablebanking.com/sign-in/" target="_blank" rel="noopener">enablebanking.com</a> registrieren und im Control Panel unter „API applications“ eine neue App anlegen:
+        Umgebung <strong>Production</strong>, Redirect-URL <code>${eb.redirect_url}</code>, Schlüssel im Browser erzeugen lassen. Der Browser lädt dabei eine .pem-Datei herunter.</li>
+      <li>Bei der neuen App „Activate by linking accounts“ wählen und deine Konten einmal verknüpfen.</li>
+      <li>App-ID und .pem-Datei hier eintragen.</li>
+    </ol>
+    <label class="field"><span>App-ID</span><input class="input" id="eb-app" value="${eb.app_id}" placeholder="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" autocomplete="off" spellcheck="false"></label>
+    <label class="field"><span>Privater Schlüssel (.pem-Datei)</span><input type="file" id="eb-pem" accept=".pem,.key,.txt"></label>
+    ${eb.has_key ? html`<p class="small muted" style="margin-top:-6px">Ein Schlüssel ist gespeichert. Nur auswählen, wenn du ihn ersetzen willst.</p>` : ""}
+    <details><summary class="link-btn">Redirect-URL ändern</summary>
+      <label class="field"><span>Muss genau so in der App bei Enable Banking stehen</span><input class="input" id="eb-redir" value="${eb.redirect_url}"></label></details>
+    <p class="small muted">Der Schlüssel bleibt auf dem Home-Assistant-Gerät und ist von Backups ausgenommen. Nach einer Wiederherstellung lädst du ihn einfach neu hoch.</p>
+    <div class="actions"><button class="btn primary" id="eb-save">Speichern und prüfen</button>${eb.configured ? html`<button class="btn danger" id="eb-del">Zugang entfernen</button>` : ""}</div>`.s);
+  $("#eb-pem", sh.el).onchange = async (e) => { const f = e.target.files[0]; pem = f ? await f.text() : null; };
+  $("#eb-save", sh.el).onclick = async () => {
+    const btn = $("#eb-save", sh.el);
+    btn.disabled = true;
+    try {
+      await api("eb/config", { method: "PUT", body: { app_id: $("#eb-app", sh.el).value, private_key: pem, redirect_url: $("#eb-redir", sh.el).value } });
+      sh.close(); toast("Open Banking ist eingerichtet"); rerender(); ebConnectSheet(null);
+    } catch (e) { toast(e.message); btn.disabled = false; }
+  };
+  if ($("#eb-del", sh.el)) confirmButton($("#eb-del", sh.el), "Wirklich entfernen?", async () => { await api("eb/config", { method: "DELETE" }); sh.close(); rerender(); });
+}
+
+const EB_COUNTRIES = [["DE", "Deutschland"], ["AT", "Österreich"], ["LU", "Luxemburg"], ["NL", "Niederlande"], ["BE", "Belgien"], ["FR", "Frankreich"],
+  ["LT", "Litauen"], ["SE", "Schweden"], ["FI", "Finnland"], ["IE", "Irland"], ["ES", "Spanien"], ["IT", "Italien"]];
+
+function ebConnectSheet(renew) {
+  const sh = openSheet("", { wide: true });
+  let country = renew ? renew.aspsp_country : "DE";
+  const busy = (title, text) => sh.set(html`${sheetHead(title)}<div class="progress"><div class="spinner"></div><span>${text}</span></div>`.s);
+  const fail = (title, msg, retry) => {
+    sh.set(html`${sheetHead(title)}<p>${msg}</p><div class="actions">${retry ? html`<button class="btn primary" id="eb-retry">Erneut versuchen</button>` : ""}<button class="btn" data-close>Schließen</button></div>`.s);
+    if (retry) $("#eb-retry", sh.el).onclick = retry;
+  };
+  const pick = async () => {
+    busy("Bank verbinden", "Lade Banken …");
+    let banks;
+    try { banks = await api("eb/aspsps?country=" + country); } catch (e) { fail("Bank verbinden", e.message, pick); return; }
+    sh.set(html`${sheetHead("Bank verbinden")}
+      <div class="filters"><select id="eb-country" aria-label="Land">${EB_COUNTRIES.map(([c, l]) => html`<option value="${c}" ${c === country ? raw("selected") : ""}>${l}</option>`)}</select>
+        <label class="search">${raw(ICON.search)}<input id="eb-q" placeholder="Bank suchen" aria-label="Bank suchen" autofocus></label></div>
+      <div class="cat-list" id="eb-banks" style="max-height:55vh">${banks.length ? banks.map((b) => html`<button data-bank="${b.name}">${b.name}${b.beta ? html` <span class="chip neutral">Beta</span>` : ""}</button>`) : html`<p class="muted small" style="padding:10px">Keine Banken für dieses Land.</p>`}</div>
+      <p class="small muted">Nicht dabei? Manche Banken laufen unter dem Land, in dem sie ihren Sitz haben – PayPal und Advanzia etwa unter Luxemburg. Sonst bleibt der Eingangsordner.</p>`.s);
+    $("#eb-country", sh.el).onchange = (e) => { country = e.target.value; pick(); };
+    $("#eb-q", sh.el).addEventListener("input", (e) => {
+      const q = e.target.value.toLowerCase();
+      $$("#eb-banks [data-bank]", sh.el).forEach((b) => { b.hidden = q && !b.textContent.toLowerCase().includes(q); });
+    });
+    on(sh.el, "[data-bank]", "click", (_e, el) => auth(el.dataset.bank));
+  };
+  const auth = async (name) => {
+    busy(name, "Freigabe wird vorbereitet …");
+    let a;
+    try { a = await api("eb/auth", { method: "POST", body: { aspsp: name, country, renew_id: renew ? renew.id : null } }); }
+    catch (e) { fail(name, e.message, () => auth(name)); return; }
+    sh.set(html`${sheetHead(name + " freigeben")}
+      <ol class="steps">
+        <li>Bei der Bank anmelden und den Zugriff bestätigen.<div class="actions" style="margin-top:8px"><a class="btn primary" href="${a.url}" target="_blank" rel="noopener">Zur Bank</a></div></li>
+        <li>Danach landest du auf der Seite von Enable Banking. Kopiere die komplette Adresse aus der Adresszeile des Browsers.</li>
+        <li>Füge sie hier ein:
+          <input class="input" id="eb-ret" placeholder="https://enablebanking.com/?code=…" style="width:100%;margin-top:6px" autocomplete="off" spellcheck="false">
+          ${navigator.clipboard && navigator.clipboard.readText ? html`<button class="link-btn small" id="eb-paste" style="margin-top:6px">Aus der Zwischenablage einfügen</button>` : ""}</li>
+      </ol>
+      <p class="small muted">Die Freigabe gilt ${a.days} Tage. Rechtzeitig vorher erinnert Kassensturz dich ans Erneuern.</p>
+      <div class="actions"><button class="btn primary" id="eb-done">Verbinden</button><button class="btn" data-close>Abbrechen</button></div>`.s);
+    if ($("#eb-paste", sh.el)) $("#eb-paste", sh.el).onclick = async () => { try { $("#eb-ret", sh.el).value = await navigator.clipboard.readText(); } catch { toast("Zwischenablage nicht lesbar – bitte von Hand einfügen"); } };
+    $("#eb-done", sh.el).onclick = () => complete(name, $("#eb-ret", sh.el).value);
+  };
+  const complete = async (name, text) => {
+    busy(name, "Konten werden verknüpft …");
+    let r;
+    try { r = await api("eb/complete", { method: "POST", body: { text } }); }
+    catch (e) { fail(name, e.message, () => auth(name)); return; }
+    const intro = html`<p>${r.accounts.length ? `Verknüpft: ${r.accounts.map((a) => a.name + (a.new ? " (neu)" : "")).join(", ")}.` : "Die Bank hat keine Konten freigegeben."}</p>`;
+    pollJob(sh, r.job, name, intro);
+  };
+  if (renew) auth(renew.aspsp_name); else pick();
+}
+
+function pollJob(sh, job, title, intro = "") {
+  const step = async () => {
+    if (!document.body.contains(sh.el)) return;
+    try { job = await api(`jobs/${job.id}`); } catch (e) { sh.set(html`${sheetHead(title)}${intro}<p>${e.message}</p>`.s); return; }
+    if (job.state === "running" || job.state === "waiting") {
+      sh.set(html`${sheetHead(title)}${intro}<div class="progress"><div class="spinner"></div><span>${job.step}</span></div>`.s);
+      setTimeout(step, 1000);
+    } else if (job.state === "done") {
+      const r = job.result || { accounts: [], added: 0 };
+      sh.set(html`${sheetHead("Abruf fertig")}${intro}<p>${r.added ? `${r.added} neue Buchungen` : "Keine neuen Buchungen"}.</p>
+        <ul class="list">${r.accounts.map((a) => html`<li class="row static"><span class="title">${a.name}</span><span class="amount">${a.added} neu</span></li>`)}</ul>
+        <div class="actions"><button class="btn primary" data-close>Fertig</button></div>`.s);
+      rerender();
+    } else {
+      sh.set(html`${sheetHead("Abruf fehlgeschlagen")}${intro}<p>${job.error || "Abgebrochen."}</p><div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
+      rerender();
+    }
+  };
+  step();
+}
+
+async function ebSyncSheet(s) {
+  const sh = openSheet(html`${sheetHead(s.aspsp_name)}<div class="progress"><div class="spinner"></div><span>Verbinde …</span></div>`.s);
+  try { pollJob(sh, await api(`eb/sessions/${s.id}/sync`, { method: "POST" }), s.aspsp_name); }
+  catch (e) { sh.set(html`${sheetHead(s.aspsp_name)}<p>${e.message}</p><div class="actions"><button class="btn" data-close>Schließen</button></div>`.s); }
+}
+
+function ebEditSheet(s) {
+  const sh = openSheet(html`${sheetHead(s.aspsp_name)}
+    <dl class="facts">
+      <dt>Konten</dt><dd>${s.accounts.map((a) => a.name).join(", ") || "keine"}</dd>
+      <dt>Freigabe bis</dt><dd>${s.valid_until ? dFull(s.valid_until.slice(0, 10)) : "–"}${s.status === "expired" ? ", abgelaufen" : ""}</dd>
+      <dt>Zuletzt abgerufen</dt><dd>${s.last_sync ? `${dFull(s.last_sync.slice(0, 10))} ${s.last_sync.slice(11, 16)}` : "noch nie"}</dd>
+    </dl>
+    <p class="small muted">Kassensturz ruft täglich zur eingestellten Uhrzeit automatisch ab. Banken erlauben ohne dich nur wenige Abrufe pro Tag.</p>
+    <div class="actions"><button class="btn primary" id="ebe-sync">Jetzt abrufen</button><button class="btn" id="ebe-renew">Freigabe erneuern</button>
+      <button class="btn danger" id="ebe-del">Verbindung trennen</button></div>`.s);
+  $("#ebe-sync", sh.el).onclick = () => { sh.close(); ebSyncSheet(s); };
+  $("#ebe-renew", sh.el).onclick = () => { sh.close(); ebConnectSheet(s); };
+  confirmButton($("#ebe-del", sh.el), "Trennen? Konten und Buchungen bleiben", async () => {
+    await api(`eb/sessions/${s.id}`, { method: "DELETE" }); sh.close(); toast("Verbindung getrennt"); rerender();
+  });
 }
 
 function accountSheet(a) {
@@ -1038,7 +1235,7 @@ function syncSheet(conn) {
       ${msg ? html`<p class="note">${msg}</p>` : ""}
       <label class="field"><span>Online-Banking-PIN</span><input class="input" type="password" id="sy-pin" autocomplete="off" autofocus></label>
       <label class="check"><input type="checkbox" id="sy-save"><span>PIN auf dem Home-Assistant-Gerät speichern und täglich automatisch abrufen.
-        <span class="muted small">Sie liegt dann unverschlüsselt in den Add-on-Daten, ist aber von Home-Assistant-Backups ausgenommen.</span></span></label>
+        <span class="muted small">Sie liegt dann unverschlüsselt in den Daten der App, ist aber von Home-Assistant-Backups ausgenommen.</span></span></label>
       <div class="actions"><button class="btn primary" id="sy-go">Abrufen</button></div>`.s);
     const go_ = () => start({ pin: $("#sy-pin", sh.el).value, save_pin: $("#sy-save", sh.el).checked });
     $("#sy-go", sh.el).onclick = go_;
@@ -1132,7 +1329,7 @@ async function renderSettings(view, _params, seq) {
         <div class="section-head"><h2>Home Assistant</h2></div>
         <p class="small">${s.ha ? "Verbunden. Kassensturz stellt diese Sensoren bereit:" : "Keine Verbindung zu Home Assistant – Sensoren und Benachrichtigungen sind aus."}</p>
         ${s.ha ? html`<p class="small muted">sensor.kassensturz_kontostand, _frei_verfuegbar, _prognose_monatsende, _tiefster_stand, _fixkosten_monat, _ausgaben_monat, _naechste_zahlung sowie je Konto und Budget einen Sensor.</p>` : ""}
-        <p class="small muted">Warnschwelle ${s.options.warn_threshold} €, täglicher Abruf um ${s.options.sync_time} Uhr, Benachrichtigung über ${s.options.notify_service || "persistente Meldungen"}. Ändern lässt sich das in den Add-on-Einstellungen.</p>
+        <p class="small muted">Warnschwelle ${s.options.warn_threshold} €, täglicher Abruf um ${s.options.sync_time} Uhr, Benachrichtigung über ${s.options.notify_service || "persistente Meldungen"}. Ändern lässt sich das in der Konfiguration der App.</p>
       </section>
     </div><div>
       <section class="section" style="border-top:0">

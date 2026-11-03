@@ -304,6 +304,9 @@ textarea { width: 100%; min-height: 90px; resize: vertical; }
 .start-option svg { width: 28px; height: 28px; color: var(--accent-text); }
 .start-option strong { display: block; }
 .start-option span { font-size: .9rem; color: var(--muted); }
+.steps { margin: 10px 0 14px; padding-left: 1.4em; display: grid; gap: 10px; font-size: .95rem; }
+.steps li::marker { color: var(--muted); font-weight: 600; }
+code { font-size: .88em; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
 .note { font-size: .9rem; color: var(--muted); border-left: 3px solid var(--rule); padding: 2px 0 2px 12px; margin: 14px 0; }
 
 /* --- Sheet (Dialog von unten) --------------------------------------------------------------- */
