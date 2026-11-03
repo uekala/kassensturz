@@ -143,8 +143,11 @@ class _KassensturzShellState extends State<KassensturzShell> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.science_outlined,
-                        size: 13, color: Color(0xFF865B12)),
+                    Icon(
+                      Icons.science_outlined,
+                      size: 13,
+                      color: Color(0xFF865B12),
+                    ),
                     SizedBox(width: 5),
                     Text(
                       'DEMO',
@@ -166,10 +169,7 @@ class _KassensturzShellState extends State<KassensturzShell> {
         children: [
           const DemoNotice(),
           Expanded(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: pages,
-            ),
+            child: IndexedStack(index: _selectedIndex, children: pages),
           ),
         ],
       ),
