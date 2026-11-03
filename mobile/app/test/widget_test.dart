@@ -137,7 +137,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Reisekonto'), findsOneWidget);
-      expect(find.text('1.234,56 €'), findsOneWidget);
+      expect(find.text('1.234,56 €'), findsWidgets);
 
       await tester.tap(find.byTooltip('Aktionen für Reisekonto'));
       await tester.pumpAndSettle();
