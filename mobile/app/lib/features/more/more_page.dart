@@ -270,10 +270,12 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final background =
-        connected ? const Color(0xFFE8F5EE) : const Color(0xFFFFF1D6);
-    final foreground =
-        connected ? const Color(0xFF22613D) : const Color(0xFF865B12);
+    final background = connected
+        ? const Color(0xFFE8F5EE)
+        : const Color(0xFFFFF1D6);
+    final foreground = connected
+        ? const Color(0xFF22613D)
+        : const Color(0xFF865B12);
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
@@ -289,7 +291,9 @@ class _StatusCard extends StatelessWidget {
               CircleAvatar(
                 backgroundColor: background,
                 child: Icon(
-                  connected ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+                  connected
+                      ? Icons.cloud_done_outlined
+                      : Icons.cloud_off_outlined,
                   color: foreground,
                 ),
               ),
@@ -302,14 +306,19 @@ class _StatusCard extends StatelessWidget {
                       loading
                           ? 'Sitzung wird geladen'
                           : connected
-                              ? 'Mit Kassensturz verbunden'
-                              : 'Noch nicht verbunden',
+                          ? 'Mit Kassensturz verbunden'
+                          : 'Noch nicht verbunden',
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      connected ? (deviceName ?? 'Dieses Gerät') : 'Dein eigener Kassensturz-Server',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF65736F)),
+                      connected
+                          ? (deviceName ?? 'Dieses Gerät')
+                          : 'Dein eigener Kassensturz-Server',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF65736F),
+                      ),
                     ),
                   ],
                 ),
@@ -338,7 +347,10 @@ class _StatusCard extends StatelessWidget {
           ],
           if (status != null) ...[
             const SizedBox(height: 10),
-            Text(status!, style: TextStyle(color: colors.primary, fontSize: 12)),
+            Text(
+              status!,
+              style: TextStyle(color: colors.primary, fontSize: 12),
+            ),
           ],
           if (connected) ...[
             const SizedBox(height: 12),
