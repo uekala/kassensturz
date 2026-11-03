@@ -142,6 +142,20 @@ class MobileApiClient {
     return session;
   }
 
+  Future<Map<String, dynamic>> health({required String serverUrl}) async {
+    final baseUrl = MobileSession.normalizeServerUrl(serverUrl);
+    final response = await _requestJson(
+      method: 'GET',
+      uri: _endpoint(baseUrl, '/api/v1/health'),
+    );
+    if (response['status'] != 'ok' || response['api_version'] != 1) {
+      throw const FormatException(
+        'Der Server unterstützt die erwartete Kassensturz-API nicht.',
+      );
+    }
+    return response;
+  }
+
   Future<Map<String, dynamic>> me() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/me');
 
