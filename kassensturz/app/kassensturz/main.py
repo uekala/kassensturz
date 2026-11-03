@@ -18,7 +18,12 @@ from fastapi.staticfiles import StaticFiles
 from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
                secrets_store, services)
 from .db import get_db, now_iso
-from .mobile_security import parse_trusted_proxy_networks, request_is_https
+from .mobile_security import (
+    InMemoryRateLimiter,
+    parse_trusted_proxy_networks,
+    request_is_https,
+    request_rate_limit_key,
+)
 
 log = logging.getLogger("kassensturz")
 STATIC = Path(__file__).parent / "static"
@@ -28,6 +33,20 @@ TRUSTED_PROXY_NETWORKS = parse_trusted_proxy_networks(
     os.environ.get("KASSENSTURZ_TRUSTED_PROXIES")
 )
 MOBILE_API_PREFIXES = ("/api/v1", "/api/mobile")
+
+# Per-process network limits. The limiter fails closed when its bounded key
+# table is full and must be replaced by shared storage before multi-worker use.
+MOBILE_RATE_LIMITER = InMemoryRateLimiter(max_keys=4096)
+MOBILE_RATE_LIMITS = {
+    ("POST", "/api/v1/pair"): ("pair", 10, 300),
+    ("POST", "/api/v1/auth/refresh"): ("refresh", 30, 60),
+    ("POST", "/api/v1/auth/logout"): ("logout", 20, 60),
+    ("GET", "/api/v1/me"): ("me", 120, 60),
+    ("GET", "/api/v1/overview"): ("overview", 120, 60),
+    ("GET", "/api/v1/transactions"): ("transactions", 120, 60),
+    ("POST", "/api/mobile/pairings"): ("pairing-create", 5, 900),
+    ("GET", "/api/mobile/devices"): ("device-list", 60, 60),
+}
 
 @asynccontextmanager
 async def lifespan(_app):
@@ -67,6 +86,35 @@ async def only_ingress(request: Request, call_next):
     # the Home Assistant Ingress peer and local loopback clients are accepted.
     if client not in (INGRESS_IP, "127.0.0.1", "::1"):
         return JSONResponse({"detail": "Nur über Home Assistant erreichbar."}, status_code=403)
+
+    if is_mobile_api:
+        policy = MOBILE_RATE_LIMITS.get((request.method.upper(), request.url.path))
+        if policy is None and request.method.upper() == "DELETE" and request.url.path.startswith(
+            "/api/mobile/devices/"
+        ):
+            policy = ("device-revoke", 10, 300)
+        if policy is not None:
+            scope, limit, window_seconds = policy
+            key = request_rate_limit_key(
+                request,
+                TRUSTED_PROXY_NETWORKS,
+                scope=scope,
+            )
+            decision = MOBILE_RATE_LIMITER.hit(
+                key,
+                limit=limit,
+                window_seconds=window_seconds,
+            )
+            if not decision.allowed:
+                return JSONResponse(
+                    {"error": {"code": "rate_limited", "message": "Zu viele Anfragen."}},
+                    status_code=429,
+                    headers={
+                        "Retry-After": str(decision.retry_after),
+                        "Cache-Control": "no-store",
+                    },
+                )
+
     response = await call_next(request)
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
