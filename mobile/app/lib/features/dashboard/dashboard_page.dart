@@ -37,127 +37,127 @@ class DashboardPage extends StatelessWidget {
         return AnimatedBuilder(
           animation: budgetController,
           builder: (context, child) {
-              final currentMonth = DateTime(2026, 11);
-              final budgetLoading = budgetController.isLoading;
-              final budgetAvailable =
-                  !budgetLoading && budgetController.loadError == null;
-              final budgetLimits = budgetController.limits;
-              final budgetTotal = DemoFinanceData.totalBudget(budgetLimits);
-              final budgetSpent = DemoFinanceData.spentForBudgets(
-                currentMonth,
-                budgetLimits,
-              );
-              final budgetRemaining = budgetTotal - budgetSpent;
-              final budgetProgress = budgetTotal <= 0
-                  ? 0.0
-                  : (budgetSpent / budgetTotal).clamp(0.0, 1.0).toDouble();
+            final currentMonth = DateTime(2026, 11);
+            final budgetLoading = budgetController.isLoading;
+            final budgetAvailable =
+                !budgetLoading && budgetController.loadError == null;
+            final budgetLimits = budgetController.limits;
+            final budgetTotal = DemoFinanceData.totalBudget(budgetLimits);
+            final budgetSpent = DemoFinanceData.spentForBudgets(
+              currentMonth,
+              budgetLimits,
+            );
+            final budgetRemaining = budgetTotal - budgetSpent;
+            final budgetProgress = budgetTotal <= 0
+                ? 0.0
+                : (budgetSpent / budgetTotal).clamp(0.0, 1.0).toDouble();
 
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                children: [
-                  Text(
-                    'Dein Überblick',
-                    style: textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
-                    ),
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+              children: [
+                Text(
+                  'Dein Überblick',
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Deine Finanzen auf einen Blick.',
-                    style: textTheme.bodyMedium?.copyWith(
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Deine Finanzen auf einen Blick.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 17),
+                const _BalanceCard(),
+                const SizedBox(height: 22),
+                const _SectionHeading(title: 'Kurzüberblick'),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: _MetricCard(
+                        label: 'Fixkosten',
+                        value: '1.120,00 €',
+                        caption: 'pro Monat',
+                        icon: Icons.event_repeat_rounded,
+                        accent: Color(0xFF526A9B),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Budget frei',
+                        value: budgetAvailable ? formatEuro(budgetRemaining) : '–',
+                        caption: budgetAvailable
+                            ? 'diesen Monat'
+                            : budgetLoading
+                            ? 'Wird geladen'
+                            : 'Nicht verfügbar',
+                        icon: Icons.pie_chart_outline_rounded,
+                        accent: const Color(0xFF20836F),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _BudgetCard(
+                  onTap: onOpenBudget,
+                  budget: budgetTotal,
+                  spent: budgetSpent,
+                  progress: budgetProgress,
+                  available: budgetAvailable,
+                  loading: budgetLoading,
+                ),
+                const SizedBox(height: 24),
+                _SectionHeading(
+                  title: 'Letzte Aktivitäten',
+                  trailing: Text(
+                    'Beispielwerte',
+                    style: textTheme.labelSmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 17),
-                  const _BalanceCard(),
-                  const SizedBox(height: 22),
-                  const _SectionHeading(title: 'Kurzüberblick'),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: _MetricCard(
-                          label: 'Fixkosten',
-                          value: '1.120,00 €',
-                          caption: 'pro Monat',
-                          icon: Icons.event_repeat_rounded,
-                          accent: Color(0xFF526A9B),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _MetricCard(
-                          label: 'Budget frei',
-                          value: budgetAvailable ? formatEuro(budgetRemaining) : '–',
-                          caption: budgetAvailable
-                              ? 'diesen Monat'
-                              : budgetLoading
-                              ? 'Wird geladen'
-                              : 'Nicht verfügbar',
-                          icon: Icons.pie_chart_outline_rounded,
-                          accent: const Color(0xFF20836F),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _BudgetCard(
-                    onTap: onOpenBudget,
-                    budget: budgetTotal,
-                    spent: budgetSpent,
-                    progress: budgetProgress,
-                    available: budgetAvailable,
-                    loading: budgetLoading,
-                  ),
-                  const SizedBox(height: 24),
-                  _SectionHeading(
-                    title: 'Letzte Aktivitäten',
-                    trailing: Text(
-                      'Beispielwerte',
-                      style: textTheme.labelSmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
+                ),
+                const SizedBox(height: 6),
+                const _ActivityTile(
+                  icon: Icons.shopping_basket_outlined,
+                  title: 'REWE',
+                  subtitle: 'Lebensmittel · Heute',
+                  amount: '−48,26 €',
+                  negative: true,
+                ),
+                const _ActivityTile(
+                  icon: Icons.home_outlined,
+                  title: 'Miete',
+                  subtitle: 'Wohnen · 02.11.2026',
+                  amount: '−980,00 €',
+                  negative: true,
+                ),
+                const _ActivityTile(
+                  icon: Icons.payments_outlined,
+                  title: 'Gehalt',
+                  subtitle: 'Einkommen · 01.11.2026',
+                  amount: '+2.750,00 €',
+                  negative: false,
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: onOpenTransactions,
+                  icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                  label: const Text('Alle Buchungen anzeigen'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    foregroundColor: colors.primary,
+                    side: BorderSide(color: colors.outlineVariant),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(13),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  const _ActivityTile(
-                    icon: Icons.shopping_basket_outlined,
-                    title: 'REWE',
-                    subtitle: 'Lebensmittel · Heute',
-                    amount: '−48,26 €',
-                    negative: true,
-                  ),
-                  const _ActivityTile(
-                    icon: Icons.home_outlined,
-                    title: 'Miete',
-                    subtitle: 'Wohnen · 02.11.2026',
-                    amount: '−980,00 €',
-                    negative: true,
-                  ),
-                  const _ActivityTile(
-                    icon: Icons.payments_outlined,
-                    title: 'Gehalt',
-                    subtitle: 'Einkommen · 01.11.2026',
-                    amount: '+2.750,00 €',
-                    negative: false,
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: onOpenTransactions,
-                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
-                    label: const Text('Alle Buchungen anzeigen'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(46),
-                      foregroundColor: colors.primary,
-                      side: BorderSide(color: colors.outlineVariant),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                    ),
-                  ),
-                ],
-              );
+                ),
+              ],
+            );
           },
         );
       },
