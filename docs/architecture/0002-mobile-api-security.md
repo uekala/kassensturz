@@ -23,7 +23,10 @@ SQLite stores financial transactions and connection metadata. The data directory
 | Mobile device listing and revocation routes | Not implemented |
 | Authenticated mobile DTO routes | Not implemented |
 | HTTPS enforcement for a mobile listener | Not implemented |
-| Flutter client | Not started |
+| Flutter client | UI prototype; no server connection or mobile authentication |
+| Local account store | Encrypted SQLite3MultipleCiphers database; random 256-bit key in platform secure storage; manual account data only |
+| Local budget preferences | SharedPreferences; category IDs and limits only, not encrypted |
+| Bank account import / transaction sync | Not implemented |
 
 The current FastAPI application has only the existing Home Assistant / loopback network boundary. It does not register the mobile routes in the API contract. The prepared database tables do not provide authentication by themselves. The existing `/api/*` routes must not be treated as device-authenticated routes, and the standalone deployment remains bound to loopback only.
 
