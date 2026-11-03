@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/data/demo_finance_data.dart';
+import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 
 enum _TransactionFilter { all, expenses, income }
@@ -48,61 +49,59 @@ class _TransactionsPageState extends State<TransactionsPage> {
     final visible = _visibleTransactions;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
-        Text(
-          'Buchungen',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-          ),
+        const _PageHeading(
+          eyebrow: 'FINANZAKTIVITÄTEN',
+          title: 'Buchungen',
+          subtitle: 'Alle Einnahmen und Ausgaben an einem Ort.',
         ),
-        const SizedBox(height: 5),
-        Text(
-          'Deine letzten Buchungen im Überblick.',
-          style: TextStyle(color: colors.onSurfaceVariant),
-        ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 19),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: [
             _FilterChip(
               label: 'Alle',
               selected: _filter == _TransactionFilter.all,
-              onSelected: () =>
-                  setState(() => _filter = _TransactionFilter.all),
+              onSelected: () => setState(
+                () => _filter = _TransactionFilter.all,
+              ),
             ),
             _FilterChip(
               label: 'Ausgaben',
               selected: _filter == _TransactionFilter.expenses,
-              onSelected: () =>
-                  setState(() => _filter = _TransactionFilter.expenses),
+              onSelected: () => setState(
+                () => _filter = _TransactionFilter.expenses,
+              ),
             ),
             _FilterChip(
               label: 'Einnahmen',
               selected: _filter == _TransactionFilter.income,
-              onSelected: () =>
-                  setState(() => _filter = _TransactionFilter.income),
+              onSelected: () => setState(
+                () => _filter = _TransactionFilter.income,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 13),
-        Text(
-          '${visible.length} ${visible.length == 1 ? 'Buchung' : 'Buchungen'} '
-          '· Beispieldaten',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: colors.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
+        const SizedBox(height: 20),
+        _ListHeading(
+          count: visible.length,
+          noun: visible.length == 1 ? 'Buchung' : 'Buchungen',
+          isDemo: true,
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 9),
         if (visible.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 36),
-            child: Center(child: Text('Keine Buchungen in diesem Filter.')),
-          )
+          const _EmptyState('Keine Buchungen in diesem Filter.')
         else
-          ...visible.map((transaction) => _TransactionTile(transaction)),
+          _TransactionGroup(
+            children: [
+              for (var index = 0; index < visible.length; index++) ...[
+                if (index > 0) const Divider(height: 1, indent: 58),
+                _DemoTransactionTile(transaction: visible[index]),
+              ],
+            ],
+          ),
       ],
     );
   }
@@ -111,112 +110,55 @@ class _TransactionsPageState extends State<TransactionsPage> {
     BuildContext context,
     MobileConnectionController controller,
   ) {
-    final colors = Theme.of(context).colorScheme;
     final items = controller.transactionItems;
     final total = controller.transactionTotal;
+    final colors = Theme.of(context).colorScheme;
+
     return RefreshIndicator(
       onRefresh: controller.refreshTransactions,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          Text(
-            'Buchungen',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
+          const _PageHeading(
+            eyebrow: 'FINANZAKTIVITÄTEN',
+            title: 'Buchungen',
+            subtitle: 'Aktuelle Buchungen von deinem Kassensturz-Server.',
           ),
-          const SizedBox(height: 5),
-          Text(
-            'Live-Daten von deinem Kassensturz-Server.',
-            style: TextStyle(color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 13),
-          Text(
-            total.toString() +
-                (total == 1
-                    ? ' Buchung auf dem Server'
-                    : ' Buchungen auf dem Server'),
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: colors.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(height: 20),
+          _ListHeading(
+            count: total,
+            noun: total == 1 ? 'Buchung' : 'Buchungen',
+            isDemo: false,
           ),
           if (controller.financeError != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 9),
             Text(
               controller.financeError!,
-              style: TextStyle(color: colors.error, fontSize: 12),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.error,
+                  ),
             ),
           ],
+          const SizedBox(height: 9),
           if (items.isEmpty && controller.financeLoading)
             const Padding(
               padding: EdgeInsets.all(28),
               child: Center(child: CircularProgressIndicator()),
             )
           else if (items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 36),
-              child: Center(child: Text('Noch keine Buchungen vorhanden.')),
-            )
+            const _EmptyState('Noch keine Buchungen vorhanden.')
           else
-            ...items.map((item) {
-              final amountValue = item['amount_cents'];
-              final cents = amountValue is int ? amountValue : 0;
-              final category = item['category'];
-              final categoryName = category is Map
-                  ? category['name']?.toString()
-                  : null;
-              final counterparty = item['counterparty']?.toString() ?? '';
-              final purpose = item['purpose']?.toString() ?? '';
-              final title = counterparty.isNotEmpty
-                  ? counterparty
-                  : purpose.isNotEmpty
-                  ? purpose
-                  : 'Buchung';
-              final subtitle = <String>[
-                if (categoryName != null && categoryName.isNotEmpty)
-                  categoryName,
-                if (item['account_name'] is String)
-                  item['account_name'] as String,
-                if (item['booking_date'] is String)
-                  _formatDate(item['booking_date'] as String),
-              ].join(' · ');
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 2),
-                leading: CircleAvatar(
-                  backgroundColor: colors.secondaryContainer,
-                  foregroundColor: colors.onSecondaryContainer,
-                  child: Icon(
-                    cents < 0
-                        ? Icons.north_east_rounded
-                        : Icons.south_west_rounded,
-                    size: 19,
-                  ),
-                ),
-                title: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Text(
-                  subtitle.isEmpty ? 'Buchung' : subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Text(
-                  formatSignedEuro(cents / 100),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: cents < 0 ? colors.onSurface : colors.primary,
-                  ),
-                ),
-              );
-            }),
+            _TransactionGroup(
+              children: [
+                for (var index = 0; index < items.length; index++) ...[
+                  if (index > 0) const Divider(height: 1, indent: 58),
+                  _LiveTransactionTile(item: items[index]),
+                ],
+              ],
+            ),
           if (items.length < total) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             OutlinedButton(
               onPressed: controller.financeLoading
                   ? null
@@ -234,15 +176,39 @@ class _TransactionsPageState extends State<TransactionsPage> {
       ),
     );
   }
+}
 
-  static String _formatDate(String value) {
-    final date = DateTime.tryParse(value);
-    if (date == null) return value;
-    return date.day.toString().padLeft(2, '0') +
-        '.' +
-        date.month.toString().padLeft(2, '0') +
-        '.' +
-        date.year.toString();
+class _PageHeading extends StatelessWidget {
+  const _PageHeading({
+    required this.eyebrow,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          eyebrow,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(title, style: theme.textTheme.headlineSmall),
+        const SizedBox(height: 3),
+        Text(subtitle, style: theme.textTheme.bodyMedium),
+      ],
+    );
   }
 }
 
@@ -259,31 +225,86 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return ChoiceChip(
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
       showCheckmark: false,
       labelStyle: TextStyle(
+        color: selected ? colors.primary : colors.onSurfaceVariant,
+        fontSize: 12,
         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        color: selected
-            ? Theme.of(context).colorScheme.onPrimary
-            : Theme.of(context).colorScheme.onSurface,
       ),
-      selectedColor: Theme.of(context).colorScheme.primary,
-      backgroundColor: Colors.white,
+      selectedColor: AppTheme.softBrand,
+      backgroundColor: colors.surface,
       side: BorderSide(
-        color: selected
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.outlineVariant,
+        color: selected ? AppTheme.softBrand : colors.outlineVariant,
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
     );
   }
 }
 
-class _TransactionTile extends StatelessWidget {
-  const _TransactionTile(this.transaction);
+class _ListHeading extends StatelessWidget {
+  const _ListHeading({
+    required this.count,
+    required this.noun,
+    required this.isDemo,
+  });
+
+  final int count;
+  final String noun;
+  final bool isDemo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            '$count $noun',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        if (isDemo)
+          Text(
+            'BEISPIELDATEN',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  letterSpacing: 0.7,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+      ],
+    );
+  }
+}
+
+class _TransactionGroup extends StatelessWidget {
+  const _TransactionGroup({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _DemoTransactionTile extends StatelessWidget {
+  const _DemoTransactionTile({required this.transaction});
 
   final DemoTransaction transaction;
 
@@ -293,22 +314,130 @@ class _TransactionTile extends StatelessWidget {
     final category = DemoFinanceData.category(transaction.categoryId);
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 2),
-      leading: CircleAvatar(
-        backgroundColor: colors.secondaryContainer,
-        foregroundColor: colors.onSecondaryContainer,
-        child: Icon(transaction.icon, size: 20),
+      contentPadding: const EdgeInsets.symmetric(vertical: 5),
+      minLeadingWidth: 38,
+      leading: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          category.icon,
+          size: 18,
+          color: colors.onSurfaceVariant,
+        ),
       ),
       title: Text(
         transaction.title,
-        style: const TextStyle(fontWeight: FontWeight.w700),
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontSize: 14,
+            ),
       ),
-      subtitle: Text('${category.name} · ${formatDemoDate(transaction.date)}'),
+      subtitle: Text(
+        '${category.name} · ${formatDemoDate(transaction.date)}',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
       trailing: Text(
         formatSignedEuro(transaction.amount),
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          color: transaction.isExpense ? colors.onSurface : colors.primary,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: transaction.isExpense ? colors.onSurface : AppTheme.accent,
+            ),
+      ),
+    );
+  }
+}
+
+class _LiveTransactionTile extends StatelessWidget {
+  const _LiveTransactionTile({required this.item});
+
+  final Map<String, dynamic> item;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final amountValue = item['amount_cents'];
+    final cents = amountValue is int ? amountValue : 0;
+    final category = item['category'];
+    final categoryName = category is Map
+        ? category['name']?.toString()
+        : null;
+    final counterparty = item['counterparty']?.toString() ?? '';
+    final purpose = item['purpose']?.toString() ?? '';
+    final title = counterparty.isNotEmpty
+        ? counterparty
+        : purpose.isNotEmpty
+            ? purpose
+            : 'Buchung';
+    final subtitle = <String>[
+      if (categoryName != null && categoryName.isNotEmpty) categoryName,
+      if (item['account_name'] is String)
+        item['account_name'] as String,
+      if (item['booking_date'] is String)
+        _formatDate(item['booking_date'] as String),
+    ].join(' · ');
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 5),
+      minLeadingWidth: 38,
+      leading: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          cents < 0 ? Icons.north_east_rounded : Icons.south_west_rounded,
+          color: colors.onSurfaceVariant,
+          size: 18,
+        ),
+      ),
+      title: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontSize: 14,
+            ),
+      ),
+      subtitle: Text(
+        subtitle.isEmpty ? 'Buchung' : subtitle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      trailing: Text(
+        formatSignedEuro(cents / 100),
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: cents < 0 ? colors.onSurface : AppTheme.accent,
+            ),
+      ),
+    );
+  }
+
+  static String _formatDate(String value) {
+    final date = DateTime.tryParse(value);
+    if (date == null) return value;
+    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
       ),
     );
