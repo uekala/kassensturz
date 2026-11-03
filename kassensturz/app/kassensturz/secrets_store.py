@@ -21,9 +21,26 @@ def _load() -> dict:
 def _save(data: dict) -> None:
     _PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = _PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data), "utf-8")
-    os.chmod(tmp, 0o600)
-    tmp.replace(_PATH)
+    fd = None
+    try:
+        # Set the restrictive mode at creation time; chmod-after-write leaves a
+        # short window in which the temporary secret file may be too permissive.
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            fd = None  # fdopen owns the descriptor from this point on
+            handle.write(json.dumps(data))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, _PATH)
+    except Exception:
+        if fd is not None:
+            os.close(fd)
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def get_pin(connection_id: int) -> str | None:
