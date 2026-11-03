@@ -812,7 +812,7 @@ def get_settings():
     db = get_db()
     opts = options.load()
     return {"profile": db.get_setting("profile", {}) or {}, "buffer_cents": db.get_setting("buffer_cents", 0) or 0,
-            "options": {k: opts.get(k) for k in ("sync_time", "sensors", "notify_service", "warn_threshold")},
+            "options": {k: opts.get(k) for k in ("sync_time", "sensors", "notify_service", "warn_threshold", "mobile_server_url")},
             "product_id": bool((opts.get("fints_product_id") or "").strip()), "ha": ha.available()}
 
 
