@@ -167,7 +167,7 @@ class MobileAuthService:
             ):
                 raise PairingRejected("Pairing could not be completed.")
 
-            consumed = self._db.execute(
+            consumed = self._db.execute_count(
                 "UPDATE mobile_pairings SET consumed_at = ? "
                 "WHERE id = ? AND consumed_at IS NULL AND expires_at > ?",
                 (now_text, pairing["id"], now_text),
@@ -279,7 +279,7 @@ class MobileAuthService:
                 access_hash = _typed_hash("access", access_token)
                 new_refresh_hash = _typed_hash("refresh", new_refresh_token)
 
-                changed = self._db.execute(
+                changed = self._db.execute_count(
                     "UPDATE mobile_tokens SET replaced_by_hash = ? "
                     "WHERE token_hash = ? AND replaced_by_hash IS NULL "
                     "AND revoked_at IS NULL",
