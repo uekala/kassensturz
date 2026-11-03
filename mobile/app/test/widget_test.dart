@@ -291,7 +291,6 @@ void main() {
     expect(find.text('REWE'), findsOneWidget);
   });
 
-
   testWidgets('pairing form requires HTTPS server URL and a one-time code', (
     tester,
   ) async {
