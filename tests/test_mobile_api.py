@@ -352,3 +352,19 @@ def test_addon_ingress_is_explicitly_admin_only():
     config_text = config_path.read_text("utf-8")
     assert "\npanel_admin: true\n" in config_text
 
+def test_mobile_health_is_available_before_pairing_without_sensitive_data(
+    db, monkeypatch
+):
+    reset_mobile_guards(monkeypatch)
+    with https_client() as client:
+        response = client.get("/api/v1/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "api_version": 1,
+        "server": {"name": "Kassensturz", "version": "0.2.0"},
+    }
+    assert "authorization" not in response.text.lower()
+    assert "database" not in response.text.lower()
+
