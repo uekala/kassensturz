@@ -88,7 +88,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
         ),
         const SizedBox(height: 13),
         Text(
-          '${visible.length} ${visible.length == 1 ? 'Buchung' : 'Buchungen'} · Beispieldaten',
+          '${visible.length} ${visible.length == 1 ? 'Buchung' : 'Buchungen'} '
+          '· Beispieldaten',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
             color: colors.onSurfaceVariant,
             fontWeight: FontWeight.w600,
@@ -133,7 +134,10 @@ class _TransactionsPageState extends State<TransactionsPage> {
           ),
           const SizedBox(height: 13),
           Text(
-            total.toString() + (total == 1 ? ' Buchung auf dem Server' : ' Buchungen auf dem Server'),
+            total.toString() +
+                (total == 1
+                    ? ' Buchung auf dem Server'
+                    : ' Buchungen auf dem Server'),
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: colors.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -172,9 +176,12 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   ? purpose
                   : 'Buchung';
               final subtitle = <String>[
-                if (categoryName != null && categoryName.isNotEmpty) categoryName,
-                if (item['account_name'] is String) item['account_name'] as String,
-                if (item['booking_date'] is String) _formatDate(item['booking_date'] as String),
+                if (categoryName != null && categoryName.isNotEmpty)
+                  categoryName,
+                if (item['account_name'] is String)
+                  item['account_name'] as String,
+                if (item['booking_date'] is String)
+                  _formatDate(item['booking_date'] as String),
               ].join(' · ');
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 2),
@@ -182,7 +189,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   backgroundColor: colors.secondaryContainer,
                   foregroundColor: colors.onSecondaryContainer,
                   child: Icon(
-                    cents < 0 ? Icons.north_east_rounded : Icons.south_west_rounded,
+                    cents < 0
+                        ? Icons.north_east_rounded
+                        : Icons.south_west_rounded,
                     size: 19,
                   ),
                 ),
@@ -209,7 +218,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
           if (items.length < total) ...[
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: controller.financeLoading ? null : controller.loadMoreTransactions,
+              onPressed: controller.financeLoading
+                  ? null
+                  : controller.loadMoreTransactions,
               child: controller.financeLoading
                   ? const SizedBox(
                       width: 18,
