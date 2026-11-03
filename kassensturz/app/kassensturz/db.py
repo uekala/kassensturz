@@ -185,6 +185,33 @@ CREATE TABLE IF NOT EXISTS inbox(
   count INTEGER,
   created TEXT
 );
+
+CREATE TABLE IF NOT EXISTS mobile_pairings(
+  id INTEGER PRIMARY KEY,
+  secret_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS mobile_devices(
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT,
+  revoked_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS mobile_tokens(
+  token_hash TEXT PRIMARY KEY,
+  device_id TEXT NOT NULL,
+  token_type TEXT NOT NULL CHECK(token_type IN ('access', 'refresh')),
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT,
+  replaced_by_hash TEXT
+);
+CREATE INDEX IF NOT EXISTS mobile_tokens_device ON mobile_tokens(device_id, token_type);
 """
 
 # Spalten, die nach Version 0.1.0 dazugekommen sind
