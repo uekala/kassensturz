@@ -268,3 +268,52 @@ def test_local_admin_can_create_pairing_through_ingress_tls_termination(
         )
         assert cleartext_pair.status_code == 426
 
+def test_trusted_tailscale_proxy_can_reach_mobile_api_without_client_cidr(
+    db, monkeypatch
+):
+    reset_mobile_guards(monkeypatch)
+    trusted_peer = "172.30.32.1"
+    monkeypatch.setattr(
+        main,
+        "TRUSTED_PROXY_NETWORKS",
+        parse_trusted_proxy_networks(f"{trusted_peer}/32"),
+    )
+    with TestClient(
+        main.app,
+        client=(trusted_peer, 50123),
+    ) as client:
+        response = client.post(
+            "/api/v1/pair",
+            content=b"not-json",
+            headers={
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-For": "100.101.102.103",
+            },
+        )
+
+    # The request passed the transport and peer allowlists and was rejected
+    # only by the pairing handler's JSON validation.
+    assert response.status_code == 400
+
+
+def test_trusted_loopback_proxy_cannot_use_local_device_admin_routes(
+    db, monkeypatch
+):
+    from kassensturz import mobile_api
+
+    reset_mobile_guards(monkeypatch)
+    monkeypatch.setattr(
+        main,
+        "TRUSTED_PROXY_NETWORKS",
+        parse_trusted_proxy_networks("127.0.0.1/32"),
+    )
+    monkeypatch.setattr(
+        mobile_api,
+        "TRUSTED_PROXY_NETWORKS",
+        parse_trusted_proxy_networks("127.0.0.1/32"),
+    )
+    with https_client("127.0.0.1") as client:
+        response = client.post("/api/mobile/pairings")
+
+    assert response.status_code == 403
+
