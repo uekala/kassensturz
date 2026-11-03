@@ -17,11 +17,7 @@ class DemoNotice extends StatelessWidget {
       ),
       child: const Row(
         children: [
-          Icon(
-            Icons.info_outline_rounded,
-            size: 16,
-            color: AppTheme.brand,
-          ),
+          Icon(Icons.info_outline_rounded, size: 16, color: AppTheme.brand),
           SizedBox(width: 9),
           Expanded(
             child: Text(
