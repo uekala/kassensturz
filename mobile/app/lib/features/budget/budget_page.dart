@@ -392,7 +392,7 @@ class _BudgetPageState extends State<BudgetPage> {
             children: [
               const Icon(
                 Icons.lightbulb_outline_rounded,
-                color: Color(0xFF176B5E),
+                color: AppTheme.accent,
                 size: 20,
               ),
               const SizedBox(width: 10),
