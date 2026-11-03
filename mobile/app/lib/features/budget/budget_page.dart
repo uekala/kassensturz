@@ -5,10 +5,7 @@ import '../../core/data/budget_controller.dart';
 import '../../core/data/demo_finance_data.dart';
 
 class BudgetPage extends StatefulWidget {
-  const BudgetPage({
-    super.key,
-    required this.controller,
-  });
+  const BudgetPage({super.key, required this.controller});
 
   final BudgetController controller;
 
@@ -41,7 +38,9 @@ class _BudgetPageState extends State<BudgetPage> {
     if (!saved && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Budget konnte nicht gespeichert werden. Bitte erneut versuchen.'),
+          content: Text(
+            'Budget konnte nicht gespeichert werden. Bitte erneut versuchen.',
+          ),
         ),
       );
     }
@@ -109,8 +108,9 @@ class _BudgetPageState extends State<BudgetPage> {
     if (availableCategories.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Für alle verfügbaren Kategorien gibt es bereits Budgets.'),
+          content: Text(
+            'Für alle verfügbaren Kategorien gibt es bereits Budgets.',
+          ),
         ),
       );
       return Future.value(null);
@@ -158,8 +158,9 @@ class _BudgetPageState extends State<BudgetPage> {
                 TextFormField(
                   initialValue: amountText,
                   autofocus: true,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
                   ],
@@ -193,10 +194,7 @@ class _BudgetPageState extends State<BudgetPage> {
                 final limit = double.parse(amountText.replaceAll(',', '.'));
                 Navigator.pop(
                   dialogContext,
-                  _BudgetDraft(
-                    categoryId: selectedCategoryId,
-                    limit: limit,
-                  ),
+                  _BudgetDraft(categoryId: selectedCategoryId, limit: limit),
                 );
               },
               child: const Text('Speichern'),
@@ -282,8 +280,9 @@ class _BudgetPageState extends State<BudgetPage> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             ...List.generate(_months.length, (index) {
-              final label =
-                  _months[index].month == 11 ? 'November 2026' : 'Oktober 2026';
+              final label = _months[index].month == 11
+                  ? 'November 2026'
+                  : 'Oktober 2026';
               return ChoiceChip(
                 label: Text(label),
                 selected: _selectedMonth == index,
@@ -486,8 +485,9 @@ class _BudgetSummaryCard extends StatelessWidget {
               _SummaryValue(label: 'Gesamtbudget', value: formatEuro(budget)),
               _SummaryValue(
                 label: 'Genutzt',
-                value:
-                    budget <= 0 ? '0 %' : '${(spent / budget * 100).round()} %',
+                value: budget <= 0
+                    ? '0 %'
+                    : '${(spent / budget * 100).round()} %',
                 alignEnd: true,
               ),
             ],
@@ -512,8 +512,9 @@ class _SummaryValue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           label,
@@ -564,9 +565,7 @@ class _CategoryBudgetCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: colors.outlineVariant.withValues(alpha: 0.4),
-        ),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.4)),
       ),
       child: Column(
         children: [
@@ -638,10 +637,7 @@ class _CategoryBudgetCard extends StatelessWidget {
               ),
               Text(
                 'von ${formatEuro(limit)}',
-                style: TextStyle(
-                  color: colors.onSurfaceVariant,
-                  fontSize: 10,
-                ),
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 10),
               ),
             ],
           ),
@@ -652,10 +648,7 @@ class _CategoryBudgetCard extends StatelessWidget {
 }
 
 class _BudgetDraft {
-  const _BudgetDraft({
-    required this.categoryId,
-    required this.limit,
-  });
+  const _BudgetDraft({required this.categoryId, required this.limit});
 
   final String categoryId;
   final double limit;
