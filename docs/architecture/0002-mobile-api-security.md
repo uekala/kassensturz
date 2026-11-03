@@ -7,7 +7,7 @@ This document defines requirements, not a claim that the current API already mee
 
 ## Current state
 
-The current FastAPI application is designed for Home Assistant Ingress. Its middleware accepts only the Ingress peer and IPv4/IPv6 loopback; development mode does not bypass this boundary. This is not a mobile authentication system and must not be treated as one.
+The current FastAPI application is designed for Home Assistant Ingress. Existing non-mobile routes remain restricted to the Ingress peer and IPv4/IPv6 loopback; reserved mobile namespaces additionally require HTTPS and an explicitly configured private client network. Both allowlists are fail-closed by default where applicable, and development mode does not bypass the boundary. This is not yet a mobile authentication system and must not be treated as one.
 
 FinTS PINs and the Enable Banking private key are now stored in an AES-256-GCM encrypted envelope. The installation uses a local 256-bit key file with mode 0600 by default, or an externally supplied 64-hex-character `KASSENSTURZ_MASTER_KEY`. Home Assistant backups exclude both the encrypted secret file and its local key. See [local secret encryption](0005-local-secret-encryption.md) for migration, recovery and threat limitations.
 
