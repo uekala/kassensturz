@@ -90,10 +90,6 @@ void main() {
 
     await tester.tap(find.text('Hinzufügen'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Gesundheit').last);
-    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '100');
     await tester.tap(find.text('Speichern'));
     await tester.pumpAndSettle();
@@ -109,6 +105,11 @@ void main() {
     await tester.tap(find.text('Budget').last);
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.byTooltip('Budget bearbeiten: Lebensmittel'),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '400');
@@ -124,6 +125,11 @@ void main() {
     await tester.tap(find.text('Budget').last);
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.byTooltip('Budget löschen: Lebensmittel'),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.byTooltip('Budget löschen: Lebensmittel'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Löschen'));
