@@ -100,7 +100,9 @@ void main() {
     await tester.tap(find.text('Mehr').last);
     await tester.pumpAndSettle();
     expect(find.text('Noch nicht verbunden'), findsOneWidget);
-    expect(find.text('Pairing noch nicht verfügbar'), findsOneWidget);
+    expect(find.text('Einmaliger Pairing-Code'), findsOneWidget);
+    expect(find.text('Gerät sicher koppeln'), findsOneWidget);
+    expect(find.text('https://dein-server.ts.net'), findsOneWidget);
   });
 
   testWidgets(
@@ -301,3 +303,23 @@ class _FailingBudgetRepository implements BudgetRepository {
     throw StateError('Local storage is unavailable');
   }
 }
+
+  testWidgets('pairing form requires HTTPS server URL and a one-time code', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(const KassensturzApp());
+    await tester.tap(find.text('Mehr').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Gerät sicher koppeln'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Bitte eine gültige HTTPS-Adresse eingeben.'),
+      findsOneWidget,
+    );
+    expect(find.text('Der Pairing-Code ist ungültig.'), findsOneWidget);
+    expect(find.text('OFFLINE'), findsOneWidget);
+  });
+
