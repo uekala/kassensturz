@@ -4,6 +4,7 @@ import '../core/data/account_controller.dart';
 import '../core/data/account_repository.dart';
 import '../core/data/budget_controller.dart';
 import '../core/data/budget_repository.dart';
+import '../core/design/app_theme.dart';
 import '../core/widgets/demo_notice.dart';
 import '../core/networking/mobile_connection_controller.dart';
 import '../features/accounts/accounts_page.dart';
@@ -126,11 +127,11 @@ class _KassensturzShellState extends State<KassensturzShell> {
         title: Row(
           children: [
             Container(
-              width: 30,
-              height: 30,
+              width: 29,
+              height: 29,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius: BorderRadius.circular(9),
+                color: AppTheme.brand,
+                borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 Icons.account_balance_wallet_rounded,
@@ -145,9 +146,9 @@ class _KassensturzShellState extends State<KassensturzShell> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF152A27),
-                  letterSpacing: -0.3,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.ink,
+                  letterSpacing: -0.35,
                 ),
               ),
             ),
@@ -158,11 +159,9 @@ class _KassensturzShellState extends State<KassensturzShell> {
             animation: _mobileConnectionController,
             builder: (context, _) {
               final connected = _mobileConnectionController.isConnected;
-              final color = connected
-                  ? const Color(0xFF22613D)
-                  : const Color(0xFF865B12);
+              final color = connected ? AppTheme.brand : AppTheme.mutedInk;
               return Padding(
-                padding: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.only(right: 20),
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -170,10 +169,8 @@ class _KassensturzShellState extends State<KassensturzShell> {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: connected
-                          ? const Color(0xFFE8F5EE)
-                          : const Color(0xFFFFF1D6),
-                      borderRadius: BorderRadius.circular(20),
+                      color: connected ? AppTheme.softBrand : const Color(0xFFEFF1EF),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -215,10 +212,10 @@ class _KassensturzShellState extends State<KassensturzShell> {
               return Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                  horizontal: 20,
                   vertical: 9,
                 ),
-                color: const Color(0xFFE8F5EE),
+                color: AppTheme.softBrand,
                 child: const Text(
                   'Server verbunden: Übersicht und Buchungen zeigen Serverdaten. Konten und Budgets sind noch lokale App-Funktionen.',
                   style: TextStyle(
