@@ -49,7 +49,7 @@ beschreibt Installation, Datenablage und Backup.
 
 ## Mobile-App für iOS und Android
 
-Kassensturz erhält eine gemeinsame Flutter-App für iOS und Android. Die App verbindet sich direkt mit der eigenen Installation; sie benötigt kein Kassensturz-Cloudkonto. Der mobile Client und die sichere Geräteanmeldung sind noch in Entwicklung. Details: [Mobile-Client-Roadmap](mobile/README.md) und [Flutter-Architekturentscheidung](docs/architecture/0006-flutter-mobile-client.md).
+Kassensturz erhält eine gemeinsame Flutter-App für iOS und Android. Ein erster UI-Prototyp mit Übersicht, Konten, Buchungen und Einstellungen liegt unter `mobile/app`; alle sichtbaren Finanzwerte sind fiktive Beispieldaten. Eine Serververbindung und sichere Geräteanmeldung sind noch nicht implementiert. Details: [Mobile-Client-Roadmap](mobile/README.md) und [Flutter-Architekturentscheidung](docs/architecture/0006-flutter-mobile-client.md).
 
 ## Entwicklung
 
