@@ -111,6 +111,27 @@ class Account {
     return account;
   }
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Account &&
+          other.id == id &&
+          other.name == name &&
+          other.institution == institution &&
+          other.accountSuffix == accountSuffix &&
+          other.type == type &&
+          other.balanceCents == balanceCents;
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    institution,
+    accountSuffix,
+    type,
+    balanceCents,
+  );
+
   Account copyWith({
     String? name,
     String? institution,
