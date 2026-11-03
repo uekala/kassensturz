@@ -17,7 +17,7 @@ Every screen displays a persistent notice that the visible values are example da
 
 ## Requirements
 
-- Flutter SDK from the stable channel
+- Flutter SDK 3.47.9 from the stable channel (same version as CI)
 - Android SDK for Android development
 - Xcode on macOS for iOS development
 
