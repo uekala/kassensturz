@@ -73,9 +73,7 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(
-        find.text(
-          'Budgetinformationen können derzeit nicht angezeigt werden.',
-        ),
+        find.text('Budgetinformationen können derzeit nicht angezeigt werden.'),
         findsOneWidget,
       );
       expect(find.text('113,26 € ausgegeben'), findsNothing);
