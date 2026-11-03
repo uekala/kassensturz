@@ -64,23 +64,20 @@ class _TransactionsPageState extends State<TransactionsPage> {
             _FilterChip(
               label: 'Alle',
               selected: _filter == _TransactionFilter.all,
-              onSelected: () => setState(
-                () => _filter = _TransactionFilter.all,
-              ),
+              onSelected: () =>
+                  setState(() => _filter = _TransactionFilter.all),
             ),
             _FilterChip(
               label: 'Ausgaben',
               selected: _filter == _TransactionFilter.expenses,
-              onSelected: () => setState(
-                () => _filter = _TransactionFilter.expenses,
-              ),
+              onSelected: () =>
+                  setState(() => _filter = _TransactionFilter.expenses),
             ),
             _FilterChip(
               label: 'Einnahmen',
               selected: _filter == _TransactionFilter.income,
-              onSelected: () => setState(
-                () => _filter = _TransactionFilter.income,
-              ),
+              onSelected: () =>
+                  setState(() => _filter = _TransactionFilter.income),
             ),
           ],
         ),
@@ -135,9 +132,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
             const SizedBox(height: 9),
             Text(
               controller.financeError!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.error,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.error),
             ),
           ],
           const SizedBox(height: 9),
@@ -241,9 +238,7 @@ class _FilterChip extends StatelessWidget {
       side: BorderSide(
         color: selected ? AppTheme.softBrand : colors.outlineVariant,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
     );
   }
@@ -274,9 +269,9 @@ class _ListHeading extends StatelessWidget {
           Text(
             'BEISPIELDATEN',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  letterSpacing: 0.7,
-                  fontWeight: FontWeight.w700,
-                ),
+              letterSpacing: 0.7,
+              fontWeight: FontWeight.w700,
+            ),
           ),
       ],
     );
@@ -323,17 +318,11 @@ class _DemoTransactionTile extends StatelessWidget {
           color: colors.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(
-          category.icon,
-          size: 18,
-          color: colors.onSurfaceVariant,
-        ),
+        child: Icon(category.icon, size: 18, color: colors.onSurfaceVariant),
       ),
       title: Text(
         transaction.title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontSize: 14,
-            ),
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 14),
       ),
       subtitle: Text(
         '${category.name} · ${formatDemoDate(transaction.date)}',
@@ -342,8 +331,8 @@ class _DemoTransactionTile extends StatelessWidget {
       trailing: Text(
         formatSignedEuro(transaction.amount),
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: transaction.isExpense ? colors.onSurface : AppTheme.accent,
-            ),
+          color: transaction.isExpense ? colors.onSurface : AppTheme.accent,
+        ),
       ),
     );
   }
@@ -360,20 +349,17 @@ class _LiveTransactionTile extends StatelessWidget {
     final amountValue = item['amount_cents'];
     final cents = amountValue is int ? amountValue : 0;
     final category = item['category'];
-    final categoryName = category is Map
-        ? category['name']?.toString()
-        : null;
+    final categoryName = category is Map ? category['name']?.toString() : null;
     final counterparty = item['counterparty']?.toString() ?? '';
     final purpose = item['purpose']?.toString() ?? '';
     final title = counterparty.isNotEmpty
         ? counterparty
         : purpose.isNotEmpty
-            ? purpose
-            : 'Buchung';
+        ? purpose
+        : 'Buchung';
     final subtitle = <String>[
       if (categoryName != null && categoryName.isNotEmpty) categoryName,
-      if (item['account_name'] is String)
-        item['account_name'] as String,
+      if (item['account_name'] is String) item['account_name'] as String,
       if (item['booking_date'] is String)
         _formatDate(item['booking_date'] as String),
     ].join(' · ');
@@ -398,9 +384,7 @@ class _LiveTransactionTile extends StatelessWidget {
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontSize: 14,
-            ),
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 14),
       ),
       subtitle: Text(
         subtitle.isEmpty ? 'Buchung' : subtitle,
@@ -411,8 +395,8 @@ class _LiveTransactionTile extends StatelessWidget {
       trailing: Text(
         formatSignedEuro(cents / 100),
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: cents < 0 ? colors.onSurface : AppTheme.accent,
-            ),
+          color: cents < 0 ? colors.onSurface : AppTheme.accent,
+        ),
       ),
     );
   }
