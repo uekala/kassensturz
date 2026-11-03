@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/data/budget_controller.dart';
 import '../../core/data/demo_finance_data.dart';
+import '../../core/design/app_theme.dart';
 
 class BudgetPage extends StatefulWidget {
   const BudgetPage({super.key, required this.controller});
@@ -14,14 +15,32 @@ class BudgetPage extends StatefulWidget {
 }
 
 class _BudgetPageState extends State<BudgetPage> {
-  static final _months = [DateTime(2026, 11), DateTime(2026, 10)];
+  static final _months = [
+    DateTime.now(),
+    DateTime(DateTime.now().year, DateTime.now().month - 1),
+  ];
 
   int _selectedMonth = 0;
 
   Map<String, double> get _limits => widget.controller.limits;
   DateTime get _month => _months[_selectedMonth];
-  String get _monthLabel =>
-      _month.month == 11 ? 'November 2026' : 'Oktober 2026';
+  String get _monthLabel {
+    const names = [
+      'Januar',
+      'Februar',
+      'März',
+      'April',
+      'Mai',
+      'Juni',
+      'Juli',
+      'August',
+      'September',
+      'Oktober',
+      'November',
+      'Dezember',
+    ];
+    return '${names[_month.month - 1]} ${_month.year}';
+  }
   double get _totalBudget => DemoFinanceData.totalBudget(_limits);
   double get _totalSpent => DemoFinanceData.spentForBudgets(_month, _limits);
   double get _remaining => _totalBudget - _totalSpent;
@@ -259,13 +278,13 @@ class _BudgetPageState extends State<BudgetPage> {
     final textTheme = Theme.of(context).textTheme;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
         Text(
           'Deine Budgets',
           style: textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.55,
           ),
         ),
         const SizedBox(height: 5),
@@ -280,9 +299,7 @@ class _BudgetPageState extends State<BudgetPage> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             ...List.generate(_months.length, (index) {
-              final label = _months[index].month == 11
-                  ? 'November 2026'
-                  : 'Oktober 2026';
+              final label = _formatMonth(_months[index]);
               return ChoiceChip(
                 label: Text(label),
                 selected: _selectedMonth == index,
@@ -304,7 +321,7 @@ class _BudgetPageState extends State<BudgetPage> {
                       : colors.outlineVariant,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               );
             }),
@@ -330,7 +347,7 @@ class _BudgetPageState extends State<BudgetPage> {
               child: Text(
                 'Budget nach Kategorien',
                 style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
                 ),
               ),
@@ -366,8 +383,9 @@ class _BudgetPageState extends State<BudgetPage> {
         Container(
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: const Color(0xFFEAF3EF),
-            borderRadius: BorderRadius.circular(16),
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.outlineVariant),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,12 +447,8 @@ class _BudgetSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(19),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF176B5E), Color(0xFF10483F)],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: AppTheme.brand,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,15 +571,15 @@ class _CategoryBudgetCard extends StatelessWidget {
     final rawProgress = limit <= 0 ? 0.0 : spent / limit;
     final progress = rawProgress.clamp(0.0, 1.0).toDouble();
     final overBudget = rawProgress > 1;
-    final progressColor = overBudget ? colors.error : category.color;
+    final progressColor = overBudget ? colors.error : AppTheme.accent;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.4)),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         children: [
@@ -575,25 +589,25 @@ class _CategoryBudgetCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: category.color.withValues(alpha: 0.11),
-                  borderRadius: BorderRadius.circular(11),
+                  color: colors.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(category.icon, color: category.color, size: 19),
+                child: Icon(category.icon, color: colors.onSurfaceVariant, size: 19),
               ),
               const SizedBox(width: 11),
               Expanded(
                 child: Text(
                   category.name,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                   ),
                 ),
               ),
               Text(
                 formatEuro(spent),
                 style: const TextStyle(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   fontSize: 13,
                 ),
               ),
@@ -617,7 +631,7 @@ class _CategoryBudgetCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 7,
-              backgroundColor: const Color(0xFFE8EFEC),
+              backgroundColor: colors.surfaceContainerHigh,
               valueColor: AlwaysStoppedAnimation(progressColor),
             ),
           ),
@@ -645,6 +659,25 @@ class _CategoryBudgetCard extends StatelessWidget {
       ),
     );
   }
+}
+
+
+String _formatMonth(DateTime date) {
+  const names = [
+    'Januar',
+    'Februar',
+    'März',
+    'April',
+    'Mai',
+    'Juni',
+    'Juli',
+    'August',
+    'September',
+    'Oktober',
+    'November',
+    'Dezember',
+  ];
+  return '${names[date.month - 1]} ${date.year}';
 }
 
 class _BudgetDraft {
