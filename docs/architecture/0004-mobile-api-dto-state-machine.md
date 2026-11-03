@@ -18,6 +18,12 @@ Dieses Dokument präzisiert die Schnittstelle und den Zustandsautomaten. Pairing
 
 ## 2. Pairing
 
+### Öffentlicher Healthcheck vor dem Pairing
+
+`GET /api/v1/health`
+
+Der Healthcheck ist bewusst ohne Geräte-Token erreichbar, damit die Flutter-App vor Eingabe eines Pairing-Secrets die Serveradresse prüfen kann. Er gibt ausschließlich Status, API-Version und Produktversion zurück. HTTPS, die Netzwerk-/Proxy-Zulassung und ein eigenes Rate-Limit bleiben zwingend; es werden keine Konten, Finanzdaten, Geräte-IDs oder Geheimnisse ausgegeben.
+
 ### Administration: Pairing erzeugen
 
 `POST /api/mobile/pairings`
