@@ -69,7 +69,8 @@ class _PairingScannerPageState extends State<PairingScannerPage> {
                   'Kassensturz benötigt Kamerazugriff. Erlaube die Kamera-Berechtigung in den App-Einstellungen oder nutze die manuelle Code-Eingabe.',
                 MobileScannerErrorCode.unsupported =>
                   'Auf diesem Gerät ist keine unterstützte Kamera verfügbar. Nutze die manuelle Code-Eingabe.',
-                _ => 'Die Kamera konnte nicht gestartet werden. Prüfe die Berechtigung und versuche es erneut.',
+                _ =>
+                  'Die Kamera konnte nicht gestartet werden. Prüfe die Berechtigung und versuche es erneut.',
               };
               return ColoredBox(
                 color: Colors.black,
