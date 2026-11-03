@@ -63,7 +63,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
             _FilterChip(
               label: 'Alle',
               selected: _filter == _TransactionFilter.all,
-              onSelected: () => setState(() => _filter = _TransactionFilter.all),
+              onSelected: () =>
+                  setState(() => _filter = _TransactionFilter.all),
             ),
             _FilterChip(
               label: 'Ausgaben',
