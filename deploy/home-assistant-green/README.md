@@ -35,29 +35,36 @@ Share noch nicht installiert ist, kann es über den Home-Assistant-App-Store
 installiert werden. Alternativ kann ein bereits eingerichteter SSH-Zugang den
 lokalen Add-on-Pfad verwenden.
 
-Im Add-on-Share diesen Pfad anlegen:
+Im Samba-Share den Ordner `local_apps` öffnen (der ältere Freigabename
+`addons` zeigt auf denselben Bereich). Darin einen Ordner
+`kassensturz-mobile-test` anlegen:
 
 ```text
-addons/
-└── local/
-    └── kassensturz-mobile-test/
-        ├── config.yaml
-        ├── Dockerfile
-        ├── TEST-INSTANCE.txt
-        └── app/
-            ├── requirements.txt
-            └── kassensturz/
-                └── ...
+local_apps/
+└── kassensturz-mobile-test/
+    ├── config.yaml
+    ├── Dockerfile
+    ├── TEST-INSTANCE.txt
+    └── app/
+        ├── requirements.txt
+        └── kassensturz/
+            └── ...
 ```
 
-Den **Inhalt** des heruntergeladenen Artifacts nach
-`addons/local/kassensturz-mobile-test/` entpacken. Nicht in den bestehenden
-Produktionsordner `addons/local/kassensturz/` kopieren und dort keine Dateien
-überschreiben.
+Die ZIP-Datei öffnen und ihren **Inhalt** (also `config.yaml`, `Dockerfile`,
+`TEST-INSTANCE.txt` und `app/`) nach
+`local_apps/kassensturz-mobile-test/` kopieren. Falls der ZIP-Entpacker einen
+zusätzlichen übergeordneten Ordner anlegt, nicht diesen Ordner als App-Ordner
+verwenden: `config.yaml` muss direkt im Ordner
+`local_apps/kassensturz-mobile-test/` liegen.
 
-Home Assistant sucht lokale Apps unter `/addons/local/<app-slug>`. Danach im
+Nicht in den bestehenden Produktionsordner `local_apps/kassensturz/` kopieren
+und dort keine Dateien überschreiben.
+
+Home Assistant sucht lokale Apps direkt unter `/addons/<app-slug>`; die
+Samba-Freigabe `local_apps` stellt genau diesen Bereich bereit. Danach im
 App-Store über das Drei-Punkte-Menü **Apps neu laden / Check for updates**
-ausführen. Es sollte eine eigene Sektion für lokale Apps erscheinen.
+ausführen. Es sollte eine eigene Sektion **Lokale Apps** erscheinen.
 
 Dokumentation:
 https://www.home-assistant.io/common-tasks/os/
