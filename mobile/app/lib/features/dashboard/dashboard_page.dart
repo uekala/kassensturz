@@ -4,9 +4,11 @@ class DashboardPage extends StatelessWidget {
   const DashboardPage({
     super.key,
     required this.onOpenTransactions,
+    required this.onOpenBudget,
   });
 
   final VoidCallback onOpenTransactions;
+  final VoidCallback onOpenBudget;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +59,7 @@ class DashboardPage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        const _BudgetCard(),
+        _BudgetCard(onTap: onOpenBudget),
         const SizedBox(height: 24),
         _SectionHeading(
           title: 'Letzte Aktivitäten',
@@ -306,20 +308,27 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _BudgetCard extends StatelessWidget {
-  const _BudgetCard();
+  const _BudgetCard({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(17),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
-      ),
-      child: Column(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -328,10 +337,11 @@ class _BudgetCard extends StatelessWidget {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'Monatsbudget',
+                  'Variable Ausgaben',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
+              const Icon(Icons.chevron_right_rounded, size: 18),
               Text(
                 '38 % genutzt',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
