@@ -6,10 +6,7 @@ import 'mobile_session.dart';
 import 'mobile_session_store.dart';
 
 class MobileHttpResponse {
-  const MobileHttpResponse({
-    required this.statusCode,
-    required this.body,
-  });
+  const MobileHttpResponse({required this.statusCode, required this.body});
 
   final int statusCode;
   final String body;
@@ -135,10 +132,7 @@ class MobileApiClient {
     final response = await _requestJson(
       method: 'POST',
       uri: _endpoint(baseUrl, '/api/v1/pair'),
-      body: {
-        'pairing_secret': secret,
-        'device_name': name,
-      },
+      body: {'pairing_secret': secret, 'device_name': name},
     );
     final session = MobileSession.fromPairResponse(
       serverUrl: baseUrl,
@@ -148,15 +142,11 @@ class MobileApiClient {
     return session;
   }
 
-  Future<Map<String, dynamic>> me() => _authenticatedJson(
-    method: 'GET',
-    path: '/api/v1/me',
-  );
+  Future<Map<String, dynamic>> me() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/me');
 
-  Future<Map<String, dynamic>> overview() => _authenticatedJson(
-    method: 'GET',
-    path: '/api/v1/overview',
-  );
+  Future<Map<String, dynamic>> overview() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/overview');
 
   Future<Map<String, dynamic>> transactions({
     int limit = 50,
@@ -188,10 +178,7 @@ class MobileApiClient {
     final session = await _sessionStore.read();
     if (session == null) return;
     try {
-      await _authenticatedJson(
-        method: 'POST',
-        path: '/api/v1/auth/logout',
-      );
+      await _authenticatedJson(method: 'POST', path: '/api/v1/auth/logout');
     } finally {
       await _sessionStore.clear();
     }
@@ -246,9 +233,7 @@ class MobileApiClient {
     });
   }
 
-  Future<MobileSession> _rotateRefreshToken(
-    MobileSession staleSession,
-  ) async {
+  Future<MobileSession> _rotateRefreshToken(MobileSession staleSession) async {
     final current = await _sessionStore.read();
     if (current == null) throw const MobileSessionExpiredException();
 
