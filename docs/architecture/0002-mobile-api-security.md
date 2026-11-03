@@ -7,7 +7,7 @@ This document defines requirements, not a claim that the current API already mee
 
 ## Current state
 
-The current FastAPI application is designed for Home Assistant Ingress. Existing non-mobile routes remain restricted to the Ingress peer and IPv4/IPv6 loopback; reserved mobile namespaces additionally require HTTPS and an explicitly configured private client network. Both allowlists are fail-closed by default where applicable, and development mode does not bypass the boundary. This is not yet a mobile authentication system and must not be treated as one.
+The current FastAPI application is designed for Home Assistant Ingress. Existing non-mobile routes remain restricted to the Ingress peer and IPv4/IPv6 loopback. Mobile namespaces require HTTPS and accept either an explicitly configured client CIDR or a request from an explicitly trusted reverse-proxy peer. Both settings are empty by default, and development mode does not bypass the boundary. The API routes implement bearer-token authentication, but remote access is not enabled by default: the HA app port mapping remains disabled.
 
 FinTS PINs and the Enable Banking private key are now stored in an AES-256-GCM encrypted envelope. The installation uses a local 256-bit key file with mode 0600 by default, or an externally supplied 64-hex-character `KASSENSTURZ_MASTER_KEY`. Home Assistant backups exclude both the encrypted secret file and its local key. See [local secret encryption](0005-local-secret-encryption.md) for migration, recovery and threat limitations.
 
@@ -25,7 +25,7 @@ SQLite stores financial transactions and connection metadata. The data directory
 | Mobile device listing and revocation routes | Implemented: local admin only |
 | Authenticated mobile DTO routes | Implemented: `/api/v1/me`, `/overview` and paginated `/transactions` with field allowlists |
 | HTTPS enforcement for mobile namespaces | Middleware gate for `/api/v1/*` and `/api/mobile/*`; accepts direct TLS or `X-Forwarded-Proto: https` from explicitly allowlisted proxies. The listener remains restricted to Ingress/loopback plus the optional explicit mobile-network allowlist. |
-| Mobile client network allowlist | `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` accepts explicit IP/CIDR ranges; empty by default. Only reserved mobile namespaces can use it; the existing browser UI remains Ingress/loopback-only. |
+| Mobile client network allowlist | `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` accepts explicit IP/CIDR ranges; empty by default. The existing browser UI remains Ingress/loopback-only. An explicitly trusted reverse-proxy peer is admitted independently of this list; both controls remain opt-in. |
 | Network rate limiting | Bounded, process-local sliding-window limiter wired to pairing, refresh, logout, read and device-management routes. Per-device refresh limits and shared multi-worker storage remain outstanding. |
 | Flutter client | UI prototype; no server connection or mobile authentication |
 | Local account store | Encrypted SQLite3MultipleCiphers database; random 256-bit key in platform secure storage; manual account data only |
@@ -34,7 +34,7 @@ SQLite stores financial transactions and connection metadata. The data directory
 
 The FastAPI application now registers the versioned mobile endpoints alongside the existing Home Assistant routes. The existing legacy `/api/*` routes remain separate and must not be treated as device-authenticated routes. Mobile financial routes require a bearer token. Device creation/listing/revocation is restricted to the trusted Ingress peer or loopback; remote private-network clients cannot invoke these administrative routes. The standalone deployment still binds to loopback only and therefore does not expose the mobile API to LAN/VPN clients.
 
-The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The `mobile_auth.py` and `mobile_read.py` services are now exposed through `mobile_api.py`. The mobile routes require HTTPS for native clients and allow access only from explicitly configured `KASSENSTURZ_MOBILE_CLIENT_NETWORKS`; this list is empty by default. Local pairing/device administration is restricted to Ingress or loopback, where TLS may already be terminated by Home Assistant Ingress. Forwarded transport/client headers are considered only when the immediate peer is in `KASSENSTURZ_TRUSTED_PROXIES`. Network rate limits are wired before route dispatch, but the in-memory limiter is single-process only. Per-device rate limits, persistent shared rate-limit state, Flutter connection/pairing flow and release hardening remain outstanding.
+The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The `mobile_auth.py` and `mobile_read.py` services are exposed through `mobile_api.py`. The HA app settings `trusted_proxies` and `mobile_client_networks` now feed the same fail-closed policy as the standalone environment variables. Forwarded transport/client headers are considered only when the immediate peer is in `KASSENSTURZ_TRUSTED_PROXIES`. A trusted loopback proxy is explicitly denied access to the local device-administration routes, so a Tailscale proxy cannot inherit local Ingress privileges. The optional container port mapping for 8099/TCP is declared but disabled (`null`) by default. Network rate limits are wired before route dispatch, but the in-memory limiter is single-process only. Per-device rate limits, persistent shared rate-limit state, Flutter connection/pairing flow and release hardening remain outstanding.
 
 
 ## Required controls before wider mobile network access is enabled
@@ -104,4 +104,4 @@ The detailed contract in [0003](0003-mobile-api-contract.md) and state machine i
 
 ## Release gate
 
-A mobile API listener must remain disabled until the controls in the sections "Transport", "Pairing and device identity", "Session credentials" and "API authorization" are implemented and covered by tests.
+Remote access must remain disabled until the controls in the sections "Transport", "Pairing and device identity", "Session credentials" and "API authorization" are implemented and covered by tests. Before enabling the optional HA host-port mapping, configure the exact Tailscale reverse-proxy peer, verify forwarded HTTPS/client headers on the Green, configure a tailnet-only Tailscale Service grant, and prove that direct LAN requests are denied. Do not configure router port forwarding or Tailscale Funnel.
