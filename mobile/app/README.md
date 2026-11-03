@@ -4,7 +4,7 @@ Flutter client source for iOS and Android. Both platforms share the Dart applica
 
 ## Current status
 
-The repository contains a local-first Flutter prototype. It is **not yet connected to a Kassensturz server**. The server-side pairing, login/session and read API routes exist, but this Flutter client does not call them yet. Bank connections and live financial information are not implemented in the app.
+The repository contains a local-first Flutter client prototype. The Settings page can pair a device with a Kassensturz server over HTTPS, restore a saved session, check the authenticated server identity, rotate expired access tokens and log out. The server URL and credentials are stored using platform secure storage. The dashboard, account and transaction pages still show local/demo content; live server finance DTOs are not yet wired into these views. Bank connections and banking credentials remain on the server.
 
 The navigation contains:
 
@@ -71,6 +71,6 @@ flutter run
 
 ## Security and API integration
 
-No networking, pairing, mobile authentication or credential exchange is wired into the Flutter prototype yet. Do not add placeholder tokens, fake authentication, or insecure certificate exceptions. The Flutter integration must use the approved API contract, HTTPS certificate validation and platform-secure credential storage.
+The Flutter Settings page currently supports manual HTTPS server address and one-time pairing-code entry. QR scanning is still pending. The API client uses the platform's standard TLS certificate validation, disables redirects for authenticated requests, keeps access tokens in the Authorization header and sends the refresh token only in the HTTPS request body. Access-token 401 responses trigger a single-flight refresh; a rejected refresh removes the stored session. Credentials are stored together as one value in platform secure storage. Do not add placeholder tokens, certificate exceptions or logs containing credentials. Overview and transaction API methods exist, but the screens still need their live DTO integration.
 
 See [Mobile architecture](../../docs/architecture/0006-flutter-mobile-client.md) and [Mobile security requirements](../../docs/architecture/0002-mobile-api-security.md).
