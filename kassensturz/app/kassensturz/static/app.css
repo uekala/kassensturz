@@ -917,3 +917,11 @@ select, .input, textarea {
   .tabs { left: 7px; right: 7px; }
   .tabs a { font-size: .63rem; }
 }
+
+
+@media (min-width: 900px) {
+  main {
+    width: calc(100% - 248px);
+    max-width: 1440px;
+  }
+}
