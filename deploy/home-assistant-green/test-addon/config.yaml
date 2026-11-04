@@ -1,5 +1,5 @@
 name: Kassensturz Mobile Test
-version: "0.2.3"
+version: "0.2.4"
 slug: kassensturz-mobile-test
 description: Isolierte Testinstanz für die Kassensturz-Mobile-API
 url: https://github.com/uekala/kassensturz
