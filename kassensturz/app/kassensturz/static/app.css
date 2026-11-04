@@ -925,3 +925,25 @@ select, .input, textarea {
     max-width: 1440px;
   }
 }
+
+
+/* Responsive Dashboard: two columns only when the app content itself is wide enough. */
+@media (min-width: 900px) and (max-width: 1319px) {
+  .overview,
+  .cols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (min-width: 1320px) {
+  .overview {
+    grid-template-columns: minmax(0, 1.12fr) minmax(340px, .88fr);
+    gap: 20px;
+  }
+
+  .cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+}
