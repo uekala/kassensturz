@@ -31,7 +31,7 @@ jobs:
         working-directory: mobile/app
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Flutter stable
         uses: flutter-actions/setup-flutter@v4
@@ -64,7 +64,7 @@ jobs:
         working-directory: mobile/app
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Flutter stable
         uses: flutter-actions/setup-flutter@v4
@@ -97,7 +97,7 @@ jobs:
         working-directory: mobile/app
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Flutter stable
         uses: flutter-actions/setup-flutter@v4
