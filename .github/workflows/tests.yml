@@ -128,7 +128,7 @@ jobs:
             --load \
             "${RUNNER_TEMP}/kassensturz-mobile-test-addon"
       - name: Upload isolated local add-on bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kassensturz-mobile-test-addon
           path: ${{ runner.temp }}/kassensturz-mobile-test-addon/
