@@ -18,11 +18,45 @@ from fastapi.staticfiles import StaticFiles
 from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
                secrets_store, services)
 from .db import get_db, now_iso
+from .mobile_api import router as mobile_api_router
+from .mobile_security import (
+    InMemoryRateLimiter,
+    address_in_networks,
+    effective_client_ip,
+    parse_trusted_proxy_networks,
+    request_is_https,
+    request_rate_limit_key,
+    socket_peer,
+)
 
 log = logging.getLogger("kassensturz")
 STATIC = Path(__file__).parent / "static"
 INGRESS_IP = "172.30.32.2"
-DEV = os.environ.get("KASSENSTURZ_DEV") == "1"
+# HA app options and standalone environment variables both support explicit
+# proxy/client CIDR allowlists. Both values remain empty by default.
+NETWORK_SECURITY_SETTINGS = options.network_security_settings()
+TRUSTED_PROXY_NETWORKS = parse_trusted_proxy_networks(
+    NETWORK_SECURITY_SETTINGS["trusted_proxies"]
+)
+MOBILE_CLIENT_NETWORKS = parse_trusted_proxy_networks(
+    NETWORK_SECURITY_SETTINGS["mobile_client_networks"]
+)
+MOBILE_API_PREFIXES = ("/api/v1", "/api/mobile")
+
+# Per-process network limits. The limiter fails closed when its bounded key
+# table is full and must be replaced by shared storage before multi-worker use.
+MOBILE_RATE_LIMITER = InMemoryRateLimiter(max_keys=4096)
+MOBILE_RATE_LIMITS = {
+    ("GET", "/api/v1/health"): ("health", 60, 60),
+    ("POST", "/api/v1/pair"): ("pair", 10, 300),
+    ("POST", "/api/v1/auth/refresh"): ("refresh", 30, 60),
+    ("POST", "/api/v1/auth/logout"): ("logout", 20, 60),
+    ("GET", "/api/v1/me"): ("me", 120, 60),
+    ("GET", "/api/v1/overview"): ("overview", 120, 60),
+    ("GET", "/api/v1/transactions"): ("transactions", 120, 60),
+    ("POST", "/api/mobile/pairings"): ("pairing-create", 5, 900),
+    ("GET", "/api/mobile/devices"): ("device-list", 60, 60),
+}
 
 @asynccontextmanager
 async def lifespan(_app):
@@ -37,6 +71,7 @@ async def lifespan(_app):
 
 app = FastAPI(title="Kassensturz", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+app.include_router(mobile_api_router)
 
 _imports: dict[str, dict] = {}
 
@@ -44,8 +79,78 @@ _imports: dict[str, dict] = {}
 @app.middleware("http")
 async def only_ingress(request: Request, call_next):
     client = request.client.host if request.client else ""
-    if not DEV and client not in (INGRESS_IP, "127.0.0.1", "::1"):
-        return JSONResponse({"detail": "Nur über Home Assistant erreichbar."}, status_code=403)
+
+    # Mobile namespaces require direct TLS or an HTTPS assertion from an
+    # explicitly trusted proxy. Route registration does not publish a port;
+    # the add-on port mapping remains disabled until an administrator opts in.
+    is_mobile_api = request.url.path in MOBILE_API_PREFIXES or request.url.path.startswith(
+        tuple(prefix + "/" for prefix in MOBILE_API_PREFIXES)
+    )
+    peer = request.client.host if request.client else ""
+    existing_local_peer = peer in (INGRESS_IP, "127.0.0.1", "::1")
+    is_local_admin_path = (
+        request.url.path in ("/api/mobile/pairings", "/api/mobile/devices")
+        or request.url.path.startswith("/api/mobile/devices/")
+    )
+    # The HA Ingress and loopback admin plane is already protected by the
+    # trusted local boundary; TLS is terminated by HA in front of Ingress.
+    # Native mobile traffic must always use direct TLS or a trusted HTTPS proxy.
+    if (
+        is_mobile_api
+        and not request_is_https(request, TRUSTED_PROXY_NETWORKS)
+        and not (is_local_admin_path and existing_local_peer)
+    ):
+        return JSONResponse(
+            {"error": {"code": "https_required", "message": "HTTPS ist erforderlich."}},
+            status_code=426,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    # Existing browser/API traffic remains restricted to Ingress and loopback.
+    # Mobile namespaces additionally allow only explicitly configured private
+    # client networks; an empty allowlist therefore keeps remote access closed.
+    proxy_peer_allowed = address_in_networks(
+        socket_peer(request),
+        TRUSTED_PROXY_NETWORKS,
+    )
+    mobile_peer_allowed = is_mobile_api and (
+        proxy_peer_allowed
+        or address_in_networks(
+            effective_client_ip(request, TRUSTED_PROXY_NETWORKS),
+            MOBILE_CLIENT_NETWORKS,
+        )
+    )
+    if not existing_local_peer and not mobile_peer_allowed:
+        return JSONResponse({"detail": "Nur über Home Assistant oder ein freigegebenes privates Netz erreichbar."}, status_code=403)
+
+    if is_mobile_api:
+        policy = MOBILE_RATE_LIMITS.get((request.method.upper(), request.url.path))
+        if policy is None and request.method.upper() == "DELETE" and request.url.path.startswith(
+            "/api/mobile/devices/"
+        ):
+            policy = ("device-revoke", 10, 300)
+        if policy is not None:
+            scope, limit, window_seconds = policy
+            key = request_rate_limit_key(
+                request,
+                TRUSTED_PROXY_NETWORKS,
+                scope=scope,
+            )
+            decision = MOBILE_RATE_LIMITER.hit(
+                key,
+                limit=limit,
+                window_seconds=window_seconds,
+            )
+            if not decision.allowed:
+                return JSONResponse(
+                    {"error": {"code": "rate_limited", "message": "Zu viele Anfragen."}},
+                    status_code=429,
+                    headers={
+                        "Retry-After": str(decision.retry_after),
+                        "Cache-Control": "no-store",
+                    },
+                )
+
     response = await call_next(request)
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
@@ -433,8 +538,10 @@ def _match_account(db, res: dict, signature: str | None) -> int | None:
 
 @app.post("/api/import/analyze")
 async def import_analyze(file: UploadFile = File(...)):
-    data = await file.read()
-    if len(data) > 25 * 1024 * 1024:
+    # Stop reading as soon as the upload limit is exceeded instead of first
+    # allocating the complete untrusted upload in memory.
+    data = await file.read(importers.MAX_IMPORT_BYTES + 1)
+    if len(data) > importers.MAX_IMPORT_BYTES:
         _err(400, "Die Datei ist größer als 25 MB.")
     db = get_db()
     for tok in [t for t, v in _imports.items() if time.time() - v["created"] > 1800]:
@@ -705,7 +812,7 @@ def get_settings():
     db = get_db()
     opts = options.load()
     return {"profile": db.get_setting("profile", {}) or {}, "buffer_cents": db.get_setting("buffer_cents", 0) or 0,
-            "options": {k: opts.get(k) for k in ("sync_time", "sensors", "notify_service", "warn_threshold")},
+            "options": {k: opts.get(k) for k in ("sync_time", "sensors", "notify_service", "warn_threshold", "mobile_server_url")},
             "product_id": bool((opts.get("fints_product_id") or "").strip()), "ha": ha.available()}
 
 

@@ -9,7 +9,12 @@ arch:
 startup: application
 boot: auto
 ingress: true
+panel_admin: true
 ingress_port: 8099
+ports:
+  8099/tcp: null
+ports_description:
+  8099/tcp: Nur für den privaten Tailscale-Service; standardmäßig deaktiviert und nicht am Router freigeben
 panel_icon: mdi:cash-register
 panel_title: Kassensturz
 homeassistant_api: true
@@ -18,6 +23,7 @@ map:
     read_only: false
 backup_exclude:
   - "secrets.json"
+  - "secrets.key"
 options:
   fints_product_id: ""
   sync_time: "06:30"
@@ -25,6 +31,9 @@ options:
   notify_service: ""
   warn_threshold: 200
   import_folder: /share/kassensturz
+  trusted_proxies: ""
+  mobile_client_networks: ""
+  mobile_server_url: ""
 schema:
   fints_product_id: str?
   sync_time: match(^([01]\d|2[0-3]):[0-5]\d$)
@@ -32,3 +41,6 @@ schema:
   notify_service: str?
   warn_threshold: int
   import_folder: str?
+  trusted_proxies: str
+  mobile_client_networks: str
+  mobile_server_url: str

@@ -189,31 +189,36 @@ def start_auth(db: Database, aspsp_name: str, country: str, renew_id: int | None
     return {"url": url, "state": state, "days": days}
 
 
-def parse_return(text: str) -> tuple[str | None, str | None]:
-    """Liest Code und State aus der Rückkehr-Adresse (oder nimmt den reinen Code)."""
+def parse_return(text: str) -> tuple[str, str]:
+    """Liest den Freigabe-Code und den zwingend erforderlichen OAuth-State aus der Rückgabe-Adresse."""
     t = (text or "").strip()
     if not t:
-        raise EBError("Bitte die Adresse einfügen, auf der du nach der Freigabe gelandet bist.")
-    if "?" in t or "=" in t:
-        q = parse_qs(urlparse(t if "://" in t else "https://x/?" + t.split("?", 1)[-1]).query)
-        if q.get("error"):
-            desc = (q.get("error_description") or q.get("error"))[0]
-            raise EBError(f"Die Bank hat die Freigabe nicht erteilt: {desc}")
-        code = (q.get("code") or [None])[0]
-        state = (q.get("state") or [None])[0]
-        if not code:
-            raise EBError("In der Adresse steht kein Freigabe-Code. Kopiere die komplette Adresse aus der Adresszeile.")
-        return code, state
-    return t, None
+        raise EBError("Bitte die vollständige Rückgabe-Adresse nach der Freigabe einfügen.")
+    if "?" not in t and "=" not in t:
+        raise EBError("Die vollständige Rückgabe-Adresse mit code und state wird benötigt.")
+
+    q = parse_qs(urlparse(t if "://" in t else "https://x/?" + t.split("?", 1)[-1]).query)
+    if q.get("error"):
+        desc = (q.get("error_description") or q.get("error"))[0]
+        raise EBError(f"Die Bank hat die Freigabe nicht erteilt: {desc}")
+    codes = q.get("code") or []
+    states = q.get("state") or []
+    if len(codes) != 1 or not codes[0]:
+        raise EBError("In der Adresse fehlt ein eindeutiger Freigabe-Code.")
+    if len(states) != 1 or not states[0]:
+        raise EBError("In der Rückgabe fehlt der Sicherheitsparameter state. Bitte starte die Bankverbindung erneut "
+                      "und kopiere die vollständige Rückgabe-Adresse.")
+    return codes[0], states[0]
 
 
 def complete_auth(db: Database, text: str, psu: dict | None = None) -> dict:
     code, state = parse_return(text)
-    pend = _pending.pop(state, None) if state else None
-    if not pend and not state and len(_pending) == 1:
-        state, pend = _pending.popitem()
+    # Never associate a callback without its exact, single-use state with a pending flow.
+    pend = _pending.pop(state, None)
     if not pend:
         raise EBError("Diese Freigabe gehört zu keinem offenen Vorgang. Starte „Bank verbinden“ bitte noch einmal.")
+    if time.time() - pend["created"] > 3600:
+        raise EBError("Die Freigabe ist abgelaufen. Starte „Bank verbinden“ bitte erneut.")
     data = call("POST", "/sessions", db=db, body={"code": code}, psu=psu) or {}
     session_id = data.get("session_id")
     if not session_id:

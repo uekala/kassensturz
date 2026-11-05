@@ -1,0 +1,107 @@
+# Mobile API security requirements
+
+- Status: Proposed implementation baseline
+- Related decision: [Local-first architecture](0001-local-first-architecture.md)
+
+This document defines requirements, not a claim that the current API already meets them.
+
+## Current state
+
+The current FastAPI application is designed for Home Assistant Ingress. Existing non-mobile routes remain restricted to the Ingress peer and IPv4/IPv6 loopback. Mobile namespaces require HTTPS and accept either an explicitly configured client CIDR or a request from an explicitly trusted reverse-proxy peer. Both settings are configurable through the Home Assistant add-on options or standalone environment variables, and are empty by default. Development mode does not bypass the boundary. The API routes implement bearer-token authentication, but remote access is not enabled by default: the HA app port mapping remains disabled.
+
+FinTS PINs and the Enable Banking private key are now stored in an AES-256-GCM encrypted envelope. The installation uses a local 256-bit key file with mode 0600 by default, or an externally supplied 64-hex-character `KASSENSTURZ_MASTER_KEY`. Home Assistant backups exclude both the encrypted secret file and its local key. See [local secret encryption](0005-local-secret-encryption.md) for migration, recovery and threat limitations.
+
+SQLite stores financial transactions and connection metadata. The data directory is restricted to mode 0700 and the main database file to mode 0600. These controls do not encrypt the SQLite database or its backups. The local key file protects an isolated copy of the encrypted secrets file, but does not protect against an attacker who can read the entire live data directory.
+
+### Current mobile implementation status (2026-11-03)
+
+| Component | Status |
+|---|---|
+| Mobile pairing/device/token tables | Schema present; migration and constraints tested |
+| Pairing and token lifecycle service | Implemented as an internal HTTP-free service; unit tests cover one-time pairing, expiry, rotation, replay detection and revocation |
+| Overview and transaction DTO mappers | Implemented as internal read services with field allowlists, pagination and query validation tests |
+| Pairing-secret creation and redemption routes | Implemented: admin creation via trusted Ingress/loopback; single-use redemption via HTTPS mobile route |
+| Access-/refresh-token HTTP routes | Implemented: refresh rotation, bearer authentication and device logout |
+| Mobile device listing and revocation routes | Implemented: admin-only Home Assistant Ingress (`panel_admin: true`) or trusted local loopback; Ingress also requires the Supervisor-supplied `X-Remote-User-Id` header |
+| Authenticated mobile DTO routes | Implemented: `/api/v1/me`, `/overview` and paginated `/transactions` with field allowlists |
+| HTTPS enforcement for mobile namespaces | Middleware gate for `/api/v1/*` and `/api/mobile/*`; accepts direct TLS or `X-Forwarded-Proto: https` from explicitly allowlisted proxies. The listener remains restricted to Ingress/loopback plus the optional explicit mobile-network allowlist. |
+| Mobile client network allowlist | `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` accepts explicit IP/CIDR ranges; empty by default. The existing browser UI remains Ingress/loopback-only. An explicitly trusted reverse-proxy peer is admitted independently of this list; both controls remain opt-in. |
+| Network rate limiting | Bounded, process-local sliding-window limiter wired to pairing, refresh, logout, read and device-management routes. Per-device refresh limits and shared multi-worker storage remain outstanding. |
+| Flutter client | UI prototype; no server connection or mobile authentication |
+| Local account store | Encrypted SQLite3MultipleCiphers database; random 256-bit key in platform secure storage; manual account data only |
+| Local budget preferences | SharedPreferences; category IDs and limits only, not encrypted |
+| Bank account import / transaction sync | Not implemented |
+
+The FastAPI application now registers the versioned mobile endpoints alongside the existing Home Assistant routes. The existing legacy `/api/*` routes remain separate and must not be treated as device-authenticated routes. Mobile financial routes require a bearer token. Device creation/listing/revocation is restricted to the Ingress peer with a Supervisor-authenticated user ID or trusted local loopback. The add-on explicitly sets `panel_admin: true`, which prevents non-administrators from opening the Ingress panel; missing `X-Remote-User-Id` is denied at the API. The standalone deployment still binds to loopback only and therefore does not expose the mobile API to LAN/VPN clients.
+
+The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The `mobile_auth.py` and `mobile_read.py` services are exposed through `mobile_api.py`. The HA app settings `trusted_proxies` and `mobile_client_networks` now feed the same fail-closed policy as the standalone environment variables. Forwarded transport/client headers are considered only when the immediate peer is in `KASSENSTURZ_TRUSTED_PROXIES`. A trusted loopback proxy is explicitly denied access to the local device-administration routes, so a Tailscale proxy cannot inherit local Ingress privileges. The optional container port mapping for 8099/TCP is declared but disabled (`null`) by default. Network rate limits are wired before route dispatch, but the in-memory limiter is single-process only. Per-device rate limits, persistent shared rate-limit state, Flutter connection/pairing flow and release hardening remain outstanding.
+
+
+## Required controls before wider mobile network access is enabled
+
+### Transport
+- HTTPS is mandatory for pairing and authenticated API access.
+- Remote use should be through a customer-managed VPN.
+- Do not enable public port forwarding as the default setup.
+- Reject cleartext credentials and tokens.
+- Do not silently accept invalid TLS certificates.
+
+### Pairing and device identity
+- Pairing secrets are generated by the local instance, single-use and short-lived.
+- Pairing attempts are rate-limited.
+- Pairing secrets must have sufficient entropy; a short human code must be protected by strict attempt limits.
+- Each successful pairing creates a distinct device record.
+- Device records include creation time, last-used time and a user-editable device label.
+- Users can revoke one device without affecting other devices.
+- Device credentials are never written to application logs.
+
+### Session credentials
+- Use short-lived access credentials.
+- Use rotating, revocable refresh credentials.
+- Store a verifier/hash of refresh credentials on the server, not the raw credential.
+- Detect reuse of a rotated refresh credential and revoke the affected session family.
+- Avoid putting bearer credentials in URLs, query strings or analytics.
+- Define a secure credential reset and recovery procedure.
+
+### API authorization
+- Version mobile endpoints under `/api/v1`.
+- Require authorization for all financial data and mutation endpoints.
+- Default-deny unknown routes and methods.
+- Enforce request DTO validation, pagination limits and upload limits.
+- Apply network rate limits before dispatch and per-device rate limits to pairing, login/refresh and expensive operations. The current in-memory implementation is only valid for one process; use shared transactional state before multi-worker deployment.
+- Keep CORS disabled unless a documented browser client requires specific origins.
+- Prefer bearer authorization headers over cookie-based sessions for native clients.
+
+### Data protection
+- Never log PINs, TANs, private keys, access tokens, full IBANs or transaction purposes.
+- Redact provider errors before returning them to the mobile client.
+- Define encryption at rest for bank credentials and any local client cache.
+- Restrict file permissions for the database, secrets and backups.
+- Provide user-controlled data export and complete deletion.
+- Explain that encrypting a SQLite database does not automatically encrypt backups, WAL files, temporary files or mobile caches.
+
+### Import hardening
+- Enforce both compressed and expanded archive size limits.
+- Limit ZIP entry count, per-entry size, total expanded size and parser execution time.
+- Reject path traversal and symlink entries in archives.
+- Apply file size limits consistently to upload and watched-folder imports.
+- Do not trust file names, MIME types or CSV content.
+
+### Open Banking flow
+- Require exact matching of OAuth state; do not accept a callback code without its matching state.
+- Expire pending authorization state and consume it exactly once.
+- Treat the redirect URL and provider account identifiers as untrusted input.
+- Document which party provides the regulated account information service.
+- Confirm the provider's commercial / customer usage terms before enabling third-party users.
+
+## Security testing
+- Unit tests for pairing expiry, single use, token rotation, revocation, trusted proxy parsing, HTTPS enforcement and rate-limit boundaries.
+- API tests proving unauthenticated clients cannot read or modify financial data.
+- Tests for tenant isolation if multi-user support is ever introduced.
+- Import tests for oversized and malformed ZIP archives and XML files.
+- Static analysis and dependency vulnerability scanning in CI.
+- A release checklist covering backup restoration, secret rotation and device revocation.
+
+## Release gate
+
+Remote access must remain disabled until the controls in the sections "Transport", "Pairing and device identity", "Session credentials" and "API authorization" are implemented and covered by tests. Before enabling the optional HA host-port mapping, configure the exact Tailscale Services reverse-proxy peer in the add-on `trusted_proxies` option, verify `X-Forwarded-Proto: https` and source-address behavior on the Green, configure a tailnet-only Tailscale Service grant, and prove that direct LAN requests are denied. Do not configure router port forwarding or Tailscale Funnel.

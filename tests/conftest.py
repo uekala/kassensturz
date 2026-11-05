@@ -20,6 +20,7 @@ def db(tmp_path, monkeypatch):
 
     monkeypatch.setattr(dbmod, "DATA_DIR", tmp_path)
     monkeypatch.setattr(secrets_store, "_PATH", tmp_path / "secrets.json")
+    monkeypatch.setattr(secrets_store, "_KEY_PATH", tmp_path / "secrets.key")
     database = dbmod.reset_db_for_tests(tmp_path / "test.sqlite")
     categorize.ensure_categories(database)
     return database
@@ -31,7 +32,7 @@ def client(db):
 
     from kassensturz.main import app
 
-    with TestClient(app) as c:
+    with TestClient(app, client=("127.0.0.1", 50123)) as c:
         yield c
 
 

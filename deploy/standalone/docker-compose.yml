@@ -1,0 +1,40 @@
+services:
+  kassensturz:
+    build:
+      context: ../../kassensturz
+      dockerfile: Dockerfile
+    image: local/kassensturz:standalone
+    container_name: kassensturz
+    # Linux host networking lets the application bind to the host loopback only.
+    # Do not add a ports mapping or change KASSENSTURZ_HOST to 0.0.0.0.
+    network_mode: host
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      KASSENSTURZ_HOST: 127.0.0.1
+      KASSENSTURZ_PORT: "8099"
+      KASSENSTURZ_DATA: /data
+      KASSENSTURZ_LOG: INFO
+      KASSENSTURZ_MASTER_KEY: ${KASSENSTURZ_MASTER_KEY:-}
+      KASSENSTURZ_TRUSTED_PROXIES: ${KASSENSTURZ_TRUSTED_PROXIES:-}
+      KASSENSTURZ_MOBILE_CLIENT_NETWORKS: ${KASSENSTURZ_MOBILE_CLIENT_NETWORKS:-}
+    volumes:
+      - ./data:/data
+      - ./imports:/share/kassensturz
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8099/api/state', timeout=3).read()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

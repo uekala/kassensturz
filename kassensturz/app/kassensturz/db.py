@@ -185,6 +185,36 @@ CREATE TABLE IF NOT EXISTS inbox(
   count INTEGER,
   created TEXT
 );
+
+CREATE TABLE IF NOT EXISTS mobile_pairings(
+  id INTEGER PRIMARY KEY,
+  secret_hash TEXT NOT NULL UNIQUE CHECK(length(trim(secret_hash)) > 0),
+  created_at TEXT NOT NULL CHECK(length(trim(created_at)) > 0),
+  expires_at TEXT NOT NULL CHECK(length(trim(expires_at)) > 0),
+  consumed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS mobile_pairings_expiry ON mobile_pairings(expires_at);
+
+CREATE TABLE IF NOT EXISTS mobile_devices(
+  id TEXT NOT NULL PRIMARY KEY CHECK(length(trim(id)) > 0),
+  name TEXT NOT NULL CHECK(length(trim(name)) > 0),
+  created_at TEXT NOT NULL CHECK(length(trim(created_at)) > 0),
+  last_used_at TEXT,
+  revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS mobile_devices_active ON mobile_devices(revoked_at, last_used_at);
+
+CREATE TABLE IF NOT EXISTS mobile_tokens(
+  token_hash TEXT NOT NULL PRIMARY KEY CHECK(length(trim(token_hash)) > 0),
+  device_id TEXT NOT NULL CHECK(length(trim(device_id)) > 0),
+  token_type TEXT NOT NULL CHECK(token_type IN ('access', 'refresh')),
+  created_at TEXT NOT NULL CHECK(length(trim(created_at)) > 0),
+  expires_at TEXT NOT NULL CHECK(length(trim(expires_at)) > 0),
+  revoked_at TEXT,
+  replaced_by_hash TEXT
+);
+CREATE INDEX IF NOT EXISTS mobile_tokens_device ON mobile_tokens(device_id, token_type);
+CREATE INDEX IF NOT EXISTS mobile_tokens_expiry ON mobile_tokens(expires_at);
 """
 
 # Spalten, die nach Version 0.1.0 dazugekommen sind
@@ -199,7 +229,17 @@ def now_iso() -> str:
 
 class Database:
     def __init__(self, path: Path):
-        path.parent.mkdir(parents=True, exist_ok=True)
+        # Financial data lives in a private directory. Restrict the directory
+        # as well as the main database file so SQLite WAL/SHM sidecars inherit
+        # a private access boundary even when their own mode depends on umask.
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(path.parent, 0o700)
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(path, flags, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+        finally:
+            os.close(fd)
         self.path = path
         self.lock = threading.RLock()
         self.conn = sqlite3.connect(str(path), check_same_thread=False, isolation_level=None)
@@ -216,6 +256,93 @@ class Database:
             for name, typ in cols:
                 if name not in have:
                     self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {typ}")
+        self._migrate_mobile_tables()
+
+    def _migrate_mobile_tables(self) -> None:
+        """Härtet die noch nicht produktiv genutzten Mobile-Tabellen verlustfrei nach."""
+        specs = {
+            "mobile_pairings": {
+                "marker": "check(length(trim(secret_hash)) > 0)",
+                "columns": "id, secret_hash, created_at, expires_at, consumed_at",
+                "ddl": """
+                    CREATE TABLE mobile_pairings__migration(
+                      id INTEGER PRIMARY KEY,
+                      secret_hash TEXT NOT NULL UNIQUE CHECK(length(trim(secret_hash)) > 0),
+                      created_at TEXT NOT NULL CHECK(length(trim(created_at)) > 0),
+                      expires_at TEXT NOT NULL CHECK(length(trim(expires_at)) > 0),
+                      consumed_at TEXT
+                    )
+                """,
+            },
+            "mobile_devices": {
+                "marker": "check(length(trim(id)) > 0)",
+                "columns": "id, name, created_at, last_used_at, revoked_at",
+                "ddl": """
+                    CREATE TABLE mobile_devices__migration(
+                      id TEXT NOT NULL PRIMARY KEY CHECK(length(trim(id)) > 0),
+                      name TEXT NOT NULL CHECK(length(trim(name)) > 0),
+                      created_at TEXT NOT NULL CHECK(length(trim(created_at)) > 0),
+                      last_used_at TEXT,
+                      revoked_at TEXT
+                    )
+                """,
+            },
+            "mobile_tokens": {
+                "marker": "check(length(trim(token_hash)) > 0)",
+                "columns": "token_hash, device_id, token_type, created_at, expires_at, revoked_at, replaced_by_hash",
+                "ddl": """
+                    CREATE TABLE mobile_tokens__migration(
+                      token_hash TEXT NOT NULL PRIMARY KEY CHECK(length(trim(token_hash)) > 0),
+                      device_id TEXT NOT NULL CHECK(length(trim(device_id)) > 0),
+                      token_type TEXT NOT NULL CHECK(token_type IN ('access', 'refresh')),
+                      created_at TEXT NOT NULL CHECK(length(trim(created_at)) > 0),
+                      expires_at TEXT NOT NULL CHECK(length(trim(expires_at)) > 0),
+                      revoked_at TEXT,
+                      replaced_by_hash TEXT
+                    )
+                """,
+            },
+        }
+        rebuild = []
+        for table, spec in specs.items():
+            row = self.conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+                (table,),
+            ).fetchone()
+            definition = (row[0] or "").lower() if row else ""
+            if spec["marker"] not in definition:
+                rebuild.append((table, spec))
+
+        if rebuild:
+            self.conn.execute("BEGIN IMMEDIATE")
+            try:
+                for table, spec in rebuild:
+                    temporary = f"{table}__migration"
+                    self.conn.execute(f"DROP TABLE IF EXISTS {temporary}")
+                    self.conn.execute(spec["ddl"])
+                    self.conn.execute(
+                        f"INSERT INTO {temporary} ({spec['columns']}) "
+                        f"SELECT {spec['columns']} FROM {table}"
+                    )
+                    self.conn.execute(f"DROP TABLE {table}")
+                    self.conn.execute(f"ALTER TABLE {temporary} RENAME TO {table}")
+                self.conn.execute("COMMIT")
+            except Exception:
+                self.conn.execute("ROLLBACK")
+                raise
+
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS mobile_pairings_expiry ON mobile_pairings(expires_at)"
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS mobile_devices_active ON mobile_devices(revoked_at, last_used_at)"
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS mobile_tokens_device ON mobile_tokens(device_id, token_type)"
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS mobile_tokens_expiry ON mobile_tokens(expires_at)"
+        )
 
     # --- Grundoperationen -------------------------------------------------
     def query(self, sql: str, params=()) -> list[dict]:
@@ -237,17 +364,23 @@ class Database:
             cur = self.conn.execute(sql, params)
             return cur.lastrowid
 
+    def execute_count(self, sql: str, params=()) -> int:
+        """Führt ein Statement aus und gibt die Anzahl geänderter Zeilen zurück."""
+        with self.lock:
+            cur = self.conn.execute(sql, params)
+            return cur.rowcount
+
     def executemany(self, sql: str, seq) -> None:
         with self.lock:
             self.conn.executemany(sql, seq)
 
     @contextmanager
-    def tx(self):
-        """Verschachtelbare Transaktion."""
+    def tx(self, *, immediate: bool = False):
+        """Verschachtelbare Transaktion; immediate reserviert frühzeitig den Schreibzugriff."""
         with self.lock:
             outer = self._depth == 0
             if outer:
-                self.conn.execute("BEGIN")
+                self.conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
             self._depth += 1
             try:
                 yield self

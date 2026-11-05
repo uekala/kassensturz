@@ -44,6 +44,17 @@ Open Banking: alle Banken, die Enable Banking anbindet – darunter N26.
 FinTS: Sparkassen, Volks- und Raiffeisenbanken, ING, DKB, comdirect und alle weiteren Banken mit FinTS-PIN/TAN.
 Datei-Import und Eingangsordner: zusätzlich PayPal, American Express, Revolut, Klarna, Advanzia sowie CAMT.052/.053 und MT940.
 
+## Eigenständiger Betrieb
+
+Zusätzlich zum Home-Assistant-Add-on gibt es eine frühe Docker-Variante für Linux-Server.
+Sie bindet aus Sicherheitsgründen zunächst ausschließlich an `127.0.0.1`; LAN- und Mobile-Zugriff sind
+noch nicht freigegeben. Die [Anleitung für den eigenständigen Betrieb](deploy/standalone/README.md)
+beschreibt Installation, Datenablage und Backup.
+
+## Mobile-App für iOS und Android
+
+Kassensturz erhält eine gemeinsame Flutter-App für iOS und Android. Die App kann Geräte per HTTPS mit einem eigenen Kassensturz-Server koppeln, Sitzungen sicher speichern, die Verbindung prüfen und Tokens automatisch erneuern. Dashboard, Konten und Buchungen verwenden derzeit weiterhin Demo- bzw. lokale Daten; die Integration der echten Serverdaten folgt. Der vorgesehene erste Server ist ein vorhandener Home Assistant Green. Details: [Mobile-Client-Roadmap](mobile/README.md), [API-Spezifikation](docs/architecture/0003-mobile-api-contract.md), [Flutter-Architekturentscheidung](docs/architecture/0006-flutter-mobile-client.md) und [Green-Deployment](docs/architecture/0007-home-assistant-green-deployment.md). Der isolierte Test-Rollout ist in der [Green-Test-Installationsanleitung](deploy/home-assistant-green/README.md) beschrieben.
+
 ## Entwicklung
 
 ```bash
