@@ -1,0 +1,37 @@
+version: 2
+
+updates:
+      - package-ecosystem: "docker"
+          directories:
+            - "/kassensturz"
+            - "/deploy/home-assistant-green/test-addon"
+          schedule:
+            interval: "weekly"
+            day: "monday"
+            time: "05:00"
+            timezone: "Europe/Berlin"
+          open-pull-requests-limit: 5
+      - package-ecosystem: "pip"
+          directory: "/kassensturz/app"
+          schedule:
+            interval: "weekly"
+            day: "monday"
+            time: "05:00"
+            timezone: "Europe/Berlin"
+          open-pull-requests-limit: 5
+      - package-ecosystem: "pub"
+          directory: "/mobile/app"
+          schedule:
+            interval: "weekly"
+            day: "monday"
+            time: "05:00"
+            timezone: "Europe/Berlin"
+          open-pull-requests-limit: 5
+      - package-ecosystem: "github-actions"
+          directory: "/"
+          schedule:
+            interval: "weekly"
+            day: "monday"
+            time: "05:00"
+            timezone: "Europe/Berlin"
+          open-pull-requests-limit: 5
