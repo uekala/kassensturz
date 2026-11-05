@@ -72,6 +72,8 @@ pytest tests
 # optional mit der Test-Bank aus dem Quellcode von python-fints:
 FINTS_TESTS_DIR=/pfad/zu/python-fints/tests pytest tests/test_fints_mock.py
 ```
+## Lizenz
 
+Der Code steht unter der [MIT-Lizenz](LICENSE). Die mitgelieferte Schrift Archivo bleibt unter der SIL Open Font License.
 Aufbau: FastAPI und SQLite im Backend (`kassensturz/app/kassensturz`), eine Oberfläche ohne Build-Schritt in `static/`.
 FinTS übernimmt [python-fints](https://github.com/raphaelm/python-fints), Open Banking läuft über die API von Enable Banking. Die Schrift Archivo steht unter der SIL Open Font License.
