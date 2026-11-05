@@ -1,0 +1,19 @@
+name: Versionsprüfung
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check add-on changelog and Flutter version metadata
+        run: python3 tools/check_versions.py
