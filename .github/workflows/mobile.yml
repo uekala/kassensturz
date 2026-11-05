@@ -81,7 +81,7 @@ jobs:
         run: flutter build apk --debug --target-platform android-arm64
 
       - name: Upload Android test APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kassensturz-android-debug
           path: mobile/app/build/app/outputs/flutter-apk/app-debug.apk
