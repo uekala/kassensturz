@@ -64,11 +64,10 @@ def test_export_csv(client):
     assert r.status_code == 200 and r.text.lstrip("﻿").startswith("Buchungstag;")
 
 
-def test_ingress_only(db, monkeypatch):
+def test_ingress_only(db):
     from fastapi.testclient import TestClient
 
     from kassensturz import main
 
-    monkeypatch.setattr(main, "DEV", False)
-    with TestClient(main.app) as c:
+    with TestClient(main.app, client=("203.0.113.25", 50123)) as c:
         assert c.get("/api/state").status_code == 403

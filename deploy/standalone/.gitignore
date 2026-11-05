@@ -1,0 +1,4 @@
+data/
+imports/
+.env
+!.env.example

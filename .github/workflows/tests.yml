@@ -1,0 +1,136 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - "architecture/**"
+    paths:
+      - "kassensturz/**"
+      - "tests/**"
+      - ".github/workflows/tests.yml"
+      - "deploy/standalone/**"
+      - "deploy/home-assistant-green/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "kassensturz/**"
+      - "tests/**"
+      - ".github/workflows/tests.yml"
+      - "deploy/standalone/**"
+      - "deploy/home-assistant-green/**"
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: kassensturz/app/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r kassensturz/app/requirements.txt
+          python -m pip install pytest httpx
+
+      - name: Check dashboard JavaScript syntax
+        run: node --check kassensturz/app/kassensturz/static/app.js
+
+      - name: Run tests
+        env:
+          KASSENSTURZ_DEV: "1"
+          KASSENSTURZ_NO_BACKGROUND: "1"
+        run: python -m pytest -q tests
+
+  standalone-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Validate standalone Compose configuration
+        run: bash deploy/standalone/check-config.sh
+      - name: Build standalone Docker image
+        run: docker compose -f deploy/standalone/docker-compose.yml build
+
+  home-assistant-green-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Enable ARM64 emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Home Assistant add-on image for Home Assistant Green
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --tag kassensturz-ha-addon:green-test \
+            --file kassensturz/Dockerfile \
+            --load \
+            kassensturz
+
+  home-assistant-green-test-addon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Prepare isolated local test add-on
+        run: |
+          bash deploy/home-assistant-green/prepare-test-addon.sh "${RUNNER_TEMP}/kassensturz-mobile-test-addon"
+      - name: Validate test add-on metadata and default-deny settings
+        run: |
+          python -m pip install PyYAML
+          python - "${RUNNER_TEMP}/kassensturz-mobile-test-addon/config.yaml" <<'PY'
+          import sys
+          import yaml
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          config = yaml.safe_load(path.read_text(encoding="utf-8"))
+          assert config["slug"] == "kassensturz-mobile-test"
+          assert config["arch"] == ["aarch64"]
+          assert config["boot"] == "manual"
+          assert config["ingress"] is True
+          assert config["ingress_port"] == 8099
+          assert config["ports"] == {"8099/tcp": None}
+          assert config["options"]["sensors"] is False
+          assert config["options"]["trusted_proxies"] == ""
+          assert config["options"]["mobile_client_networks"] == ""
+          assert config["options"]["mobile_server_url"] == ""
+          assert (path.parent / "app" / "kassensturz" / "main.py").is_file()
+          PY
+      - name: Enable ARM64 emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build isolated test add-on image for Home Assistant Green
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --tag kassensturz-mobile-test:green-test \
+            --file "${RUNNER_TEMP}/kassensturz-mobile-test-addon/Dockerfile" \
+            --load \
+            "${RUNNER_TEMP}/kassensturz-mobile-test-addon"
+      - name: Upload isolated local add-on bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: kassensturz-mobile-test-addon
+          path: ${{ runner.temp }}/kassensturz-mobile-test-addon/
+          if-no-files-found: error
+          retention-days: 14
