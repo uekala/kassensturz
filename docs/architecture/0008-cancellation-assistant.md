@@ -165,3 +165,18 @@ Nach eigener Versandbestätigung kann der Nutzer zusätzlich dokumentieren, dass
 - Die Vertragszeile kennzeichnet Fristen bis 45 Tage als kritisch und Fristen zwischen 46 und 90 Tagen als Warnung.
 - Die Berechnung nutzt ausschließlich das gespeicherte Vertragsende und die Kündigungsfrist. Fehlen Angaben, wird keine Frist geraten.
 - Diese Ausbaustufe zeigt Hinweise innerhalb der App. Es gibt noch keine Hintergrundjobs, Push-/E-Mail-Erinnerungen oder automatische Kündigungen.
+
+### 8. Gestaffelte Home-Assistant-Erinnerungen
+
+- Die bestehende Hintergrundaktualisierung wertet Kündigungsfristen regelmäßig aus. Dafür wird kein zusätzlicher Scheduler benötigt: Der vorhandene Scheduler stößt die Aktualisierung alle 15 Minuten an; Änderungen können zusätzlich eine Aktualisierung auslösen.
+- Benachrichtigt werden ausschließlich laufende Ausgabenverträge mit berechenbarer Kündigungsfrist.
+- Die Erinnerungsstufen sind fest definiert:
+  - 45 bis 22 Tage vor Fristende: Warnung
+  - 21 bis 8 Tage vor Fristende: erneute Warnung
+  - 7 bis 0 Tage vor Fristende: kritische Warnung
+  - nach Fristende: kritischer Hinweis auf die überfällige Frist
+- Jede Stufe erhält einen stabilen Benachrichtigungsschlüssel aus Stufe, Vertrag und Fristdatum. Der vorhandene Benachrichtigungsspeicher verhindert dadurch, dass dieselbe Stufe bei jedem Refresh erneut versendet wird. Eine geänderte Frist erzeugt eine neue Erinnerungsfolge.
+- Die Zustellung nutzt den konfigurierten Home-Assistant-Benachrichtigungsdienst. Ist kein Dienst konfiguriert, greift der vorhandene Fallback auf persistente Home-Assistant-Benachrichtigungen zurück.
+- Die Erinnerungen sind Hinweise, keine Kündigung: Es wird weder eine E-Mail versendet noch ein Kündigungsereignis erzeugt oder der Vertragsstatus automatisch geändert.
+- Die Stufen sind derzeit fest im Code hinterlegt und nicht über die Einstellungen konfigurierbar.
+
