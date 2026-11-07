@@ -873,6 +873,26 @@ def cancellation_contact_put(key: str, body: dict = Body(...)):
     return cancellation_contact_get(key)
 
 
+
+
+@app.post("/api/contracts/{key:path}/cancellation-research")
+def cancellation_research(key: str):
+    from . import provider_research
+
+    db = get_db()
+    contract = db.one("SELECT * FROM contracts WHERE key = ?", (key,))
+    if not contract:
+        _err(404, "Vertrag nicht gefunden.")
+    provider_name = (contract.get("counterparty") or contract.get("name") or "").strip()
+    try:
+        result = provider_research.search_provider(provider_name)
+    except ValueError as exc:
+        _err(400, str(exc))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Anbietersuche fehlgeschlagen: %s", exc)
+        _err(502, "Die Anbietersuche ist momentan nicht verfügbar. Bitte später erneut versuchen.")
+    return result
+
 @app.post("/api/contracts/{key:path}/cancellation-events")
 def cancellation_event_create(key: str, body: dict = Body(...)):
     db = get_db()
