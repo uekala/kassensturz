@@ -71,3 +71,49 @@ def test_ingress_only(db):
 
     with TestClient(main.app, client=("203.0.113.25", 50123)) as c:
         assert c.get("/api/state").status_code == 403
+
+
+def test_cancellation_contact_sources_and_event(client):
+    client.post("/api/demo")
+    contract = next(
+        c for c in client.get("/api/contracts").json()["items"]
+        if c["name"] == "Telekom Deutschland GmbH"
+    )
+    key = contract["key"]
+    empty = client.get(f"/api/contracts/{key}/cancellation-contact").json()
+    assert empty["contact"] is None and empty["sources"] == []
+
+    saved = client.put(
+        f"/api/contracts/{key}/cancellation-contact",
+        json={
+            "email": "kuendigung@telekom.example",
+            "postal_address": "Telekom Kundenservice, 53171 Bonn",
+            "cancellation_url": "https://www.telekom.de/kontakt",
+            "status": "verified",
+            "sources": [{
+                "title": "Offizielle Kontaktseite",
+                "url": "https://www.telekom.de/kontakt",
+                "source_type": "official",
+                "excerpt": "Kontaktmöglichkeiten für Kunden",
+            }],
+        },
+    )
+    assert saved.status_code == 200
+    assert saved.json()["contact"]["status"] == "verified"
+    assert saved.json()["contact"]["email"] == "kuendigung@telekom.example"
+    assert len(saved.json()["sources"]) == 1
+
+    event = client.post(
+        f"/api/contracts/{key}/cancellation-events",
+        json={"mode": "ordinary"},
+    )
+    assert event.status_code == 200
+    assert event.json()["status"] == "prepared"
+    assert event.json()["user_confirmed_sent_at"] is None
+
+    invalid = client.put(
+        f"/api/contracts/{key}/cancellation-contact",
+        json={"contact_url": "http://example.org"},
+    )
+    assert invalid.status_code == 400
+
