@@ -789,6 +789,106 @@ def delete_contract(key: str):
     return {"ok": True}
 
 
+
+
+def _provider_key(contract: dict) -> str:
+    import hashlib
+    import re
+    name = (contract.get("counterparty") or contract.get("name") or "").strip().casefold()
+    normalized = re.sub(r"[^a-z0-9]+", "-", name).strip("-") or "unknown"
+    return normalized[:48] + "-" + hashlib.sha256(name.encode("utf-8")).hexdigest()[:10]
+
+
+@app.get("/api/contracts/{key:path}/cancellation-contact")
+def cancellation_contact_get(key: str):
+    db = get_db()
+    contract = db.one("SELECT * FROM contracts WHERE key = ?", (key,))
+    if not contract:
+        _err(404, "Vertrag nicht gefunden.")
+    provider_key = _provider_key(contract)
+    contact = db.one("SELECT * FROM provider_contacts WHERE provider_key = ?", (provider_key,))
+    sources = db.query(
+        "SELECT id, source_type, title, url, checked_at, excerpt FROM provider_contact_sources "
+        "WHERE provider_key = ? ORDER BY checked_at DESC, id DESC", (provider_key,)
+    )
+    return {"provider_key": provider_key, "provider_name": contract.get("counterparty") or contract.get("name"),
+            "contact": contact, "sources": sources}
+
+
+@app.put("/api/contracts/{key:path}/cancellation-contact")
+def cancellation_contact_put(key: str, body: dict = Body(...)):
+    from urllib.parse import urlparse
+
+    db = get_db()
+    contract = db.one("SELECT * FROM contracts WHERE key = ?", (key,))
+    if not contract:
+        _err(404, "Vertrag nicht gefunden.")
+    provider_key = _provider_key(contract)
+
+    def clean(value, limit):
+        value = (value or "").strip()
+        return value[:limit] or None
+
+    email = clean(body.get("email"), 254)
+    if email and ("@" not in email or any(ch.isspace() for ch in email)):
+        _err(400, "Die E-Mail-Adresse ist ungültig.")
+    urls = {}
+    for field in ("cancellation_url", "contact_url"):
+        value = clean(body.get(field), 2048)
+        if value:
+            parsed = urlparse(value)
+            if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+                _err(400, "Quellen und Kontaktseiten müssen gültige HTTPS-URLs ohne Zugangsdaten sein.")
+        urls[field] = value
+    checked_at = now_iso()
+    status = body.get("status") if body.get("status") in ("unverified", "partially_verified", "verified", "conflicting") else "unverified"
+    sources = body.get("sources") or []
+    if not isinstance(sources, list) or len(sources) > 20:
+        _err(400, "Es sind höchstens 20 Quellen erlaubt.")
+    with db.tx(immediate=True):
+        db.execute(
+            "INSERT INTO provider_contacts(provider_key, provider_name, email, postal_address, cancellation_url, contact_url, status, checked_at, notes, updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(provider_key) DO UPDATE SET provider_name=excluded.provider_name, "
+            "email=excluded.email, postal_address=excluded.postal_address, cancellation_url=excluded.cancellation_url, "
+            "contact_url=excluded.contact_url, status=excluded.status, checked_at=excluded.checked_at, notes=excluded.notes, updated_at=excluded.updated_at",
+            (provider_key, contract.get("counterparty") or contract.get("name") or "Unbekannt", email,
+             clean(body.get("postal_address"), 1000), urls["cancellation_url"], urls["contact_url"], status,
+             checked_at, clean(body.get("notes"), 2000), checked_at)
+        )
+        for source in sources:
+            if not isinstance(source, dict):
+                _err(400, "Eine Quellenangabe ist ungültig.")
+            title = clean(source.get("title"), 200)
+            url = clean(source.get("url"), 2048)
+            parsed = urlparse(url or "")
+            if not title or parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+                _err(400, "Jede Quelle benötigt Titel und eine gültige HTTPS-URL.")
+            db.execute(
+                "INSERT INTO provider_contact_sources(provider_key, source_type, title, url, checked_at, excerpt) "
+                "VALUES(?,?,?,?,?,?) ON CONFLICT(provider_key, url) DO UPDATE SET title=excluded.title, "
+                "source_type=excluded.source_type, checked_at=excluded.checked_at, excerpt=excluded.excerpt",
+                (provider_key, clean(source.get("source_type"), 30) or "official", title, url, checked_at,
+                 clean(source.get("excerpt"), 500))
+            )
+    return cancellation_contact_get(key)
+
+
+@app.post("/api/contracts/{key:path}/cancellation-events")
+def cancellation_event_create(key: str, body: dict = Body(...)):
+    db = get_db()
+    contract = db.one("SELECT * FROM contracts WHERE key = ?", (key,))
+    if not contract:
+        _err(404, "Vertrag nicht gefunden.")
+    provider_key = _provider_key(contract)
+    mode = body.get("mode") if body.get("mode") in ("ordinary", "extraordinary", "withdrawal") else "ordinary"
+    event_id = db.insert("cancellation_events", {
+        "contract_key": key, "provider_key": provider_key, "mode": mode,
+        "status": "prepared", "prepared_at": now_iso(),
+        "notes": (body.get("notes") or "").strip()[:1000] or None,
+    })
+    return db.one("SELECT * FROM cancellation_events WHERE id = ?", (event_id,))
+
+
 @app.post("/api/letter")
 def letter(body: dict = Body(...)):
     db = get_db()
