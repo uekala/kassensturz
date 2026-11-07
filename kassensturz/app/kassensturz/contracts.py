@@ -46,14 +46,21 @@ def _pretty(name: str) -> str:
 
 def _analyze(txs: list[dict], tol_ratio: float) -> dict | None:
     """Prüft eine Buchungsfolge auf Regelmäßigkeit und stabile Beträge."""
-    by_day: dict[str, int] = {}
+    by_day: dict[str, list[int]] = defaultdict(list)
     for t in txs:
-        by_day[t["booking_date"]] = by_day.get(t["booking_date"], 0) + t["amount_cents"]
+        by_day[t["booking_date"]].append(t["amount_cents"])
     days = sorted(by_day)
     if len(days) < 2:
         return None
     dates = [date.fromisoformat(d) for d in days]
-    amounts = [by_day[d] for d in days]
+    # Mehrere Buchungen am selben Tag sind keine gemeinsame Zahlung. Für eine
+    # bereits nach Betrag gruppierte Folge wird ein tatsächlich gebuchter
+    # Repräsentant gewählt, statt die Einzelbeträge zu einer Summe zu addieren.
+    amounts = []
+    for day in days:
+        values = by_day[day]
+        median = statistics.median(values)
+        amounts.append(min(values, key=lambda value: abs(value - median)))
     gaps = [(b - a).days for a, b in zip(dates, dates[1:])]
     best = None
     for name, length, tol, min_n, _months in INTERVALS:
@@ -131,7 +138,11 @@ def detect(db: Database) -> dict:
     found: dict[str, tuple[dict, list[dict]]] = {}
     for key, group in groups.items():
         tol = 0.30 if key.startswith("cred:") else 0.12
-        res = _analyze(group, tol)
+        # Bei mehreren Buchungen desselben Zahlungspartners am selben Tag
+        # zuerst nach Einzelbeträgen clustern. Eine Gesamtsumme pro Tag kann
+        # sonst unterschiedliche Abos oder Käufe zu einer Zahlung verfälschen.
+        has_same_day_bookings = len({t["booking_date"] for t in group}) < len(group)
+        res = None if has_same_day_bookings else _analyze(group, tol)
         if res:
             found[key] = (res, group)
             continue
