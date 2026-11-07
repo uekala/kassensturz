@@ -59,8 +59,6 @@ def alerts(db: Database, summary: dict) -> list[dict]:
             # Jede Stufe wird genau einmal pro Vertrag und Frist gemeldet.
             # Der vorhandene notices-Speicher verhindert Wiederholungen bei jedem Refresh.
             if dl < 0:
-                stage, level, timing = "overdue", "critical", "Die Kündigungsfrist ist bereits abgelaufen"
-            if dl < 0:
                 stage, level = "overdue", "critical"
                 message = f"Die Kündigungsfrist endete am {date.fromisoformat(c['deadline']).strftime('%d.%m.%Y')}. Bitte Vertragsstatus prüfen."
             else:
