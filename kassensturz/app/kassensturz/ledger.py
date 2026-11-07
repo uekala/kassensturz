@@ -26,8 +26,9 @@ def import_rows(db: Database, account_id: int, rows: list[dict], source: str, fi
             "SELECT booking_date, amount_cents, hash FROM transactions WHERE account_id = ? AND booking_date BETWEEN ? AND ?",
             (account_id, first, last),
         )
-        have_keys = Counter((e["booking_date"], e["amount_cents"]) for e in existing)
-        have_hashes = {e["hash"] for e in existing}
+        have_counts: dict[tuple, Counter] = defaultdict(Counter)
+        for e in existing:
+            have_counts[(e["booking_date"], e["amount_cents"])][e["hash"]] += 1
         groups: dict[tuple, list[dict]] = defaultdict(list)
         for r in rows:
             r["hash"] = tx_hash(account_id, r["booking_date"], r["amount_cents"], r.get("counterparty"), r.get("purpose"))
@@ -37,16 +38,25 @@ def import_rows(db: Database, account_id: int, rows: list[dict], source: str, fi
                                                "added": 0, "skipped": 0})
             created = now_iso()
             for key, group in groups.items():
-                n_insert = len(group) - have_keys.get(key, 0)
-                if n_insert <= 0:
-                    skipped += len(group)
-                    continue
-                group.sort(key=lambda r: r["hash"] in have_hashes)
-                for r in group[:n_insert]:
+                # Match exact hashes first, consuming each existing occurrence only once.
+                # Remaining same-day/same-amount rows retain the legacy fuzzy fallback
+                # (e.g. changed merchant text between FinTS and CSV imports).
+                available = have_counts.get(key, Counter()).copy()
+                unmatched = []
+                exact_matches = 0
+                for r in group:
+                    if available[r["hash"]] > 0:
+                        available[r["hash"]] -= 1
+                        exact_matches += 1
+                    else:
+                        unmatched.append(r)
+                fuzzy_matches = min(len(unmatched), sum(available.values()))
+                to_insert = unmatched[fuzzy_matches:]
+                for r in to_insert:
                     data = {c: r.get(c) for c in TX_COLUMNS}
                     data.update({"account_id": account_id, "source": source, "import_id": import_id, "hash": r["hash"], "created": created})
                     added_ids.append(db.insert("transactions", data))
-                skipped += len(group) - n_insert
+                skipped += exact_matches + fuzzy_matches
             db.update("imports", "id", import_id, {"added": len(added_ids), "skipped": skipped})
         categorize.recategorize(db, added_ids)
     if meta and meta.get("balance_cents") is not None and meta.get("balance_date"):

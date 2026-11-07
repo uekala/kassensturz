@@ -103,3 +103,22 @@ def test_cancelled_contract_leaves_forecast(db):
     db.update("contracts", "key", c["key"], {"status": "cancelled", "cancel_effective": date.today().isoformat()})
     after = [u for u in contracts.upcoming(db, date.today() + timedelta(days=1), date.today() + timedelta(days=60)) if u["key"] == c["key"]]
     assert after == []
+
+
+def test_exact_existing_transaction_does_not_hide_new_same_amount_transaction(db):
+    aid = _acc(db)
+    existing = _row("2026-11-06", -2500, "REWE Markt GmbH", "Kartenzahlung")
+    assert ledger.import_rows(db, aid, [existing], "csv")["added"] == 1
+
+    overlapping = [
+        _row("2026-11-06", -2500, "REWE Markt GmbH", "Kartenzahlung"),
+        _row("2026-11-06", -2500, "Shell Tankstelle", "Kartenzahlung"),
+    ]
+    result = ledger.import_rows(db, aid, overlapping, "fints")
+
+    assert result["added"] == 1
+    rows = db.query(
+        "SELECT counterparty FROM transactions WHERE account_id = ? AND booking_date = ? AND amount_cents = ?",
+        (aid, "2026-11-06", -2500),
+    )
+    assert sorted(r["counterparty"] for r in rows) == ["REWE Markt GmbH", "Shell Tankstelle"]
