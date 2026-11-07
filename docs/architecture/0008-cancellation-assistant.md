@@ -165,3 +165,15 @@ Nach eigener Versandbestätigung kann der Nutzer zusätzlich dokumentieren, dass
 - Die Vertragszeile kennzeichnet Fristen bis 45 Tage als kritisch und Fristen zwischen 46 und 90 Tagen als Warnung.
 - Die Berechnung nutzt ausschließlich das gespeicherte Vertragsende und die Kündigungsfrist. Fehlen Angaben, wird keine Frist geraten.
 - Diese Ausbaustufe zeigt Hinweise innerhalb der App. Es gibt noch keine Hintergrundjobs, Push-/E-Mail-Erinnerungen oder automatische Kündigungen.
+
+
+
+### 9. Erinnerung bei ausstehender Versandbestätigung
+
+- Kündigungsvorgänge im Status `prepared` oder `handed_off` gelten nach 24 Stunden ohne ausdrückliche Versandbestätigung als offen.
+- Die App zeigt dann einen Warnhinweis in der Übersicht und nutzt denselben Home-Assistant-Benachrichtigungskanal wie die übrigen Erinnerungen.
+- Die Erinnerung wird pro Kündigungsvorgang nur einmal ausgelöst. Der stabile Schlüssel basiert auf der Ereignis-ID; regelmäßige Aktualisierungen erzeugen keine Wiederholungen.
+- Sobald der Nutzer den Versand ausdrücklich bestätigt (`sent`), entfällt der Hinweis. Auch bestätigte Anbieter-Eingänge (`provider_confirmed`) werden nicht erinnert.
+- Ignorierte oder bereits als gekündigt markierte Verträge werden ausgeschlossen.
+- Die Erinnerung behauptet nicht, dass eine Kündigung nicht versendet wurde. Sie fordert lediglich zur Prüfung auf, weil Kassensturz keinen Zugriff auf den tatsächlichen Versand der externen Mail-App hat.
+- Es erfolgt weder automatischer Versand noch eine automatische Änderung des Vertragsstatus.
