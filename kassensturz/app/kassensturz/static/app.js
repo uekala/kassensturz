@@ -719,6 +719,17 @@ function contractSheet(c) {
         const button = $("#c-confirm-contact", out);
         button.disabled = true;
         try {
+          await api(`contracts/${encodeURIComponent(c.key)}/cancellation-contact`, {
+            method: "PUT",
+            body: {
+              email: $("#c-mail", sh.el).value.trim(),
+              postal_address: $("#c-addr", sh.el).value.trim(),
+              status: "unverified",
+              sources: sources.map(item => ({
+                title: item.title, url: item.url, source_type: "search_candidate", excerpt: item.snippet,
+              })),
+            },
+          });
           await api(`contracts/${encodeURIComponent(c.key)}/cancellation-contact/confirm`, {
             method: "POST",
             body: { user_confirmed: true, source_url: source.url, email, postal_address: address, cancellation_url: cancellationUrl },
