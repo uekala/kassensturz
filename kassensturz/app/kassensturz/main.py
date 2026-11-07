@@ -875,6 +875,73 @@ def cancellation_contact_put(key: str, body: dict = Body(...)):
 
 
 
+@app.post("/api/contracts/{key:path}/cancellation-contact/confirm")
+def cancellation_contact_confirm(key: str, body: dict = Body(...)):
+    """Speichert einen vom Nutzer ausdrücklich geprüften Kontaktbeleg."""
+    from urllib.parse import urlparse
+
+    db = get_db()
+    contract = db.one("SELECT * FROM contracts WHERE key = ?", (key,))
+    if not contract:
+        _err(404, "Vertrag nicht gefunden.")
+    if body.get("user_confirmed") is not True:
+        _err(400, "Bitte bestätige ausdrücklich, dass du die Angaben auf der Anbieterquelle selbst geprüft hast.")
+
+    source_url = (body.get("source_url") or "").strip()
+    parsed = urlparse(source_url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.port not in (None, 443):
+        _err(400, "Die bestätigte Quelle muss eine gültige HTTPS-Adresse sein.")
+    provider_key = _provider_key(contract)
+    source = db.one(
+        "SELECT id, title, url FROM provider_contact_sources WHERE provider_key = ? AND url = ?",
+        (provider_key, source_url),
+    )
+    if not source:
+        _err(400, "Die Quelle muss zuerst als Recherchequelle gespeichert werden.")
+
+    email = (body.get("email") or "").strip()[:254] or None
+    if email and ("@" not in email or any(ch.isspace() for ch in email)):
+        _err(400, "Die E-Mail-Adresse ist ungültig.")
+    address = (body.get("postal_address") or "").strip()[:1000] or None
+    cancellation_url = (body.get("cancellation_url") or "").strip() or None
+    if cancellation_url:
+        cp = urlparse(cancellation_url)
+        if cp.scheme != "https" or not cp.hostname or cp.username or cp.password or cp.port not in (None, 443):
+            _err(400, "Der Kündigungslink muss eine gültige HTTPS-Adresse sein.")
+
+    # Never overwrite existing contract fields silently. The user can resolve
+    # differences in the normal contract editor after seeing the conflict.
+    if email and contract.get("provider_email") and contract["provider_email"].strip().lower() != email.lower():
+        _err(409, "Im Vertrag ist bereits eine andere Anbieter-E-Mail hinterlegt. Bitte prüfe den Konflikt zuerst in den Vertragsdaten.")
+    if address and contract.get("provider_address") and contract["provider_address"].strip() != address:
+        _err(409, "Im Vertrag ist bereits eine andere Anbieteranschrift hinterlegt. Bitte prüfe den Konflikt zuerst in den Vertragsdaten.")
+
+    checked_at = now_iso()
+    with db.tx(immediate=True):
+        db.execute(
+            "INSERT INTO provider_contacts(provider_key, provider_name, email, postal_address, cancellation_url, contact_url, status, checked_at, notes, updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(provider_key) DO UPDATE SET provider_name=excluded.provider_name, "
+            "email=excluded.email, postal_address=excluded.postal_address, cancellation_url=excluded.cancellation_url, "
+            "contact_url=excluded.contact_url, status=excluded.status, checked_at=excluded.checked_at, notes=excluded.notes, updated_at=excluded.updated_at",
+            (provider_key, contract.get("counterparty") or contract.get("name") or "Unbekannt", email, address,
+             cancellation_url, source_url, "verified", checked_at,
+             "Vom Nutzer ausdrücklich auf der angegebenen Quelle geprüft und bestätigt.", checked_at)
+        )
+        db.execute(
+            "UPDATE provider_contact_sources SET source_type = ?, checked_at = ?, excerpt = ? WHERE id = ?",
+            ("user_confirmed", checked_at, "Nutzer hat diese Quelle und die übernommenen Kontaktangaben ausdrücklich geprüft.", source["id"])
+        )
+        updates = {}
+        if email and not contract.get("provider_email"):
+            updates["provider_email"] = email
+        if address and not contract.get("provider_address"):
+            updates["provider_address"] = address
+        if updates:
+            db.update("contracts", "key", key, updates)
+    return {"ok": True, "contact": db.one("SELECT * FROM provider_contacts WHERE provider_key = ?", (provider_key,)),
+            "contract_fields_updated": list(updates)}
+
+
 @app.post("/api/contracts/{key:path}/cancellation-research")
 def cancellation_research(key: str):
     from . import provider_research

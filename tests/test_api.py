@@ -150,3 +150,56 @@ def test_cancellation_source_preflight_api(client, monkeypatch):
         json={"url": "http://127.0.0.1/"},
     )
     assert rejected.status_code == 400
+
+
+
+def test_confirmed_provider_contact_requires_user_confirmation_and_saved_source(client):
+    client.post("/api/demo")
+    contract = next(
+        c for c in client.get("/api/contracts").json()["items"]
+        if c["name"] == "Telekom Deutschland GmbH"
+    )
+    key = contract["key"]
+    source_url = "https://www.telekom.de/kontakt"
+    client.put(
+        f"/api/contracts/{key}/cancellation-contact",
+        json={"status": "unverified", "sources": [{
+            "title": "Telekom Kontakt", "url": source_url,
+            "source_type": "search_candidate", "excerpt": "Kontaktseite",
+        }]},
+    )
+    denied = client.post(
+        f"/api/contracts/{key}/cancellation-contact/confirm",
+        json={"user_confirmed": False, "source_url": source_url, "email": "kuendigung@telekom.example"},
+    )
+    assert denied.status_code == 400
+
+    accepted = client.post(
+        f"/api/contracts/{key}/cancellation-contact/confirm",
+        json={"user_confirmed": True, "source_url": source_url, "email": "kuendigung@telekom.example"},
+    )
+    assert accepted.status_code == 200
+    assert accepted.json()["contact"]["status"] == "verified"
+    updated = next(c for c in client.get("/api/contracts").json()["items"] if c["key"] == key)
+    assert updated["provider_email"] == "kuendigung@telekom.example"
+    assert accepted.json()["contract_fields_updated"] == ["provider_email"]
+
+
+def test_confirmed_provider_contact_does_not_overwrite_manual_email(client):
+    client.post("/api/demo")
+    contract = next(
+        c for c in client.get("/api/contracts").json()["items"]
+        if c["name"] == "Telekom Deutschland GmbH"
+    )
+    key = contract["key"]
+    client.patch(f"/api/contracts/{key}", json={"provider_email": "existing@example.org"})
+    source_url = "https://www.telekom.de/kontakt"
+    client.put(
+        f"/api/contracts/{key}/cancellation-contact",
+        json={"sources": [{"title": "Kontakt", "url": source_url}]},
+    )
+    response = client.post(
+        f"/api/contracts/{key}/cancellation-contact/confirm",
+        json={"user_confirmed": True, "source_url": source_url, "email": "new@example.org"},
+    )
+    assert response.status_code == 409
