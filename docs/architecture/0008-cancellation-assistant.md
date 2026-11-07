@@ -146,3 +146,8 @@ Nächste Schritte: offizielle Domains besser erkennen, eine sichere und begrenzt
 - Vorhandene manuelle Anbieter-E-Mail und Anschrift im Vertrag werden nicht überschrieben. Bei abweichenden Werten antwortet die API mit HTTP 409 und verlangt eine manuelle Konfliktklärung.
 - Leere Vertragsfelder werden erst nach Bestätigung mit den eingegebenen Werten befüllt. Dadurch verwendet die vorhandene Kündigungsvorlage die bestätigte E-Mail für ihren `mailto:`-Link, ohne den bestehenden Briefgenerator zu verändern.
 - Der Button öffnet weiterhin keine Mail-App und versendet nichts.
+
+
+### 5. Editierbare E-Mail vor Übergabe
+
+Vor dem Öffnen der System-Mail-App zeigt Kassensturz Empfänger, Betreff und Nachrichtentext als bearbeitbare Felder. Die App übergibt exakt diese vom Nutzer geprüften Werte per `mailto:`. Eine leere oder ungültige Empfängeradresse sowie ein leerer Betreff/Text verhindern die Übergabe. Bei einer Kündigung zu einem bestimmten Datum wird dieses Datum als Notiz im Kündigungsverlauf gespeichert.
