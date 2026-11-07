@@ -376,3 +376,39 @@ def test_invalid_cancellation_reminder_days_fall_back_to_defaults(monkeypatch):
 
     monkeypatch.setattr(options, "load", lambda: dict(options.DEFAULTS, cancellation_reminder_days="0,abc,999"))
     assert options.cancellation_reminder_days() == [7, 21, 45]
+
+
+
+def test_contract_list_includes_open_cancellation_worklist(client):
+    client.post("/api/demo")
+    contract = next(
+        item for item in client.get("/api/contracts").json()["items"]
+        if item["name"] == "Telekom Deutschland GmbH"
+    )
+    key = contract["key"]
+    event = client.post(
+        f"/api/contracts/{key}/cancellation-events",
+        json={"mode": "ordinary"},
+    ).json()
+
+    result = client.get("/api/contracts").json()
+    assert len(result["pending_cancellations"]) == 1
+    listed = result["pending_cancellations"][0]
+    assert listed["id"] == event["id"]
+    assert listed["contract_key"] == key
+    assert listed["contract_name"] == "Telekom Deutschland GmbH"
+    assert listed["status"] == "prepared"
+
+    client.post(f"/api/contracts/{key}/cancellation-events/{event['id']}/handoff")
+    client.post(
+        f"/api/contracts/{key}/cancellation-events/{event['id']}/confirm-sent",
+        json={"user_confirmed_sent": True},
+    )
+    result = client.get("/api/contracts").json()
+    assert result["pending_cancellations"][0]["status"] == "sent"
+
+    client.post(
+        f"/api/contracts/{key}/cancellation-events/{event['id']}/confirm-received",
+        json={"user_confirmed_received": True},
+    )
+    assert client.get("/api/contracts").json()["pending_cancellations"] == []
