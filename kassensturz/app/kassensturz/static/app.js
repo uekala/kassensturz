@@ -683,7 +683,7 @@ function contractSheet(c) {
     }).join("") : "Bisher keine Kündigungsvorgänge dokumentiert.";
   }).catch((error) => { history.textContent = "Verlauf konnte nicht geladen werden: " + error.message; });
   on(history, "[data-abort-cancellation]", "click", async (_event, button) => {
-    if (!window.confirm("Diesen Kündigungsvorgang wirklich abbrechen? Der Vertragsstatus bleibt unverändert.")) return;
+    if (!window.confirm("Diesen Vorgang in Kassensturz abbrechen? Eine bereits geöffnete Mail-App wird dadurch nicht geschlossen oder verändert. Der Vertragsstatus bleibt unverändert.")) return;
     button.disabled = true;
     try {
       await api("contracts/" + encodeURIComponent(c.key) + "/cancellation-events/" + button.dataset.abortCancellation + "/abort", { method: "POST", body: { user_confirmed_aborted: true } });
