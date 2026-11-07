@@ -89,7 +89,7 @@ def test_cancellation_contact_sources_and_event(client):
             "email": "kuendigung@telekom.example",
             "postal_address": "Telekom Kundenservice, 53171 Bonn",
             "cancellation_url": "https://www.telekom.de/kontakt",
-            "status": "verified",
+            "status": "verified",  # ignored by the ordinary save endpoint
             "sources": [{
                 "title": "Offizielle Kontaktseite",
                 "url": "https://www.telekom.de/kontakt",
@@ -99,7 +99,7 @@ def test_cancellation_contact_sources_and_event(client):
         },
     )
     assert saved.status_code == 200
-    assert saved.json()["contact"]["status"] == "verified"
+    assert saved.json()["contact"]["status"] == "unverified"
     assert saved.json()["contact"]["email"] == "kuendigung@telekom.example"
     assert len(saved.json()["sources"]) == 1
 

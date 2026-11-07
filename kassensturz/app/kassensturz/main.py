@@ -841,7 +841,8 @@ def cancellation_contact_put(key: str, body: dict = Body(...)):
                 _err(400, "Quellen und Kontaktseiten müssen gültige HTTPS-URLs ohne Zugangsdaten sein.")
         urls[field] = value
     checked_at = now_iso()
-    status = body.get("status") if body.get("status") in ("unverified", "partially_verified", "verified", "conflicting") else "unverified"
+    # Only the explicit confirmation endpoint may set status="verified".
+    status = body.get("status") if body.get("status") in ("unverified", "partially_verified", "conflicting") else "unverified"
     sources = body.get("sources") or []
     if not isinstance(sources, list) or len(sources) > 20:
         _err(400, "Es sind höchstens 20 Quellen erlaubt.")
