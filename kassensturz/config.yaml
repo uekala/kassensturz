@@ -30,6 +30,7 @@ options:
   sensors: true
   notify_service: ""
   warn_threshold: 200
+  cancellation_reminder_days: "45,21,7"
   import_folder: /share/kassensturz
   trusted_proxies: ""
   mobile_client_networks: ""
@@ -40,6 +41,7 @@ schema:
   sensors: bool
   notify_service: str?
   warn_threshold: int
+  cancellation_reminder_days: str
   import_folder: str?
   trusted_proxies: str
   mobile_client_networks: str
