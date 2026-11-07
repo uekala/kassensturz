@@ -234,7 +234,8 @@ class _ServerBudgetPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Ausgegeben: ${formatEuro(totalSpent / 100)} von ${formatEuro(totalLimit / 100)}',
+                  'Ausgegeben: ${formatEuro(totalSpent / 100)} '
+                  'von ${formatEuro(totalLimit / 100)}',
                   style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
@@ -279,7 +280,9 @@ class _ServerBudgetPage extends StatelessWidget {
                           Expanded(
                             child: Text(
                               name,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                           Text(
@@ -309,7 +312,8 @@ class _ServerBudgetPage extends StatelessWidget {
                           Text(
                             over
                                 ? 'Budget überschritten'
-                                : '${(spent / (limit == 0 ? 1 : limit) * 100).round()} % genutzt',
+                                : '${(spent / (limit == 0 ? 1 : limit) * 100).round()} '
+                                  '% genutzt',
                             style: TextStyle(color: color, fontSize: 11),
                           ),
                           Text(
