@@ -102,3 +102,15 @@ Für die erste lauffähige Ausbaustufe ist ein austauschbarer Recherche-Adapter 
 ## Verknüpfung
 
 GitHub Issue: [#14 – Intelligenter Kündigungsassistent mit Anbieterrecherche](https://github.com/uekala/kassensturz/issues/14)
+
+
+## Implementierter erster Recherche-Schritt
+
+- Die App kann über einen Suchadapter öffentliche Web-Suchergebnisse anhand des Anbieternamens abrufen.
+- Die Suche übermittelt ausschließlich den Anbieternamen und allgemeine Begriffe wie „Kündigung“, „Kontakt“ und „Impressum“. Kunden-, Vertrags- und Bankdaten werden nicht in die Suchanfrage aufgenommen.
+- Ergebnisse werden als **ungeprüfte Kandidaten** angezeigt. Sie werden erst nach bewusster Aktion als Quellenhinweis gespeichert; sie gelten dadurch ausdrücklich noch nicht als verifizierte Kontaktadresse.
+- Es gibt bewusst noch kein automatisches Auslesen oder Übernehmen von E-Mail-Adressen aus beliebigen Webseiten. Der Nutzer kann die Quelle öffnen und die Kontaktdaten prüfen.
+- Die Suchanfrage ist auf wenige Treffer, kurze Timeouts und eine begrenzte Antwortgröße beschränkt. HTTP-, Zugangsdaten- und lokale Ziel-URLs werden als Kandidaten verworfen.
+- Die Suchfunktion benötigt ausgehenden Internetzugriff der Kassensturz-Instanz. Der Suchanbieter kann seine HTML-Antwort oder Verfügbarkeit ändern; ein Fehler wird als nicht verfügbare Suche gemeldet, nicht als „keine Kontaktdaten“ ausgegeben.
+
+Nächste Schritte: offizielle Domains besser erkennen, eine sichere und begrenzte Inhaltsprüfung offizieller Webseiten ergänzen, anschließend die geprüften Kontaktdaten in die bestehende Kündigungsvorlage und die Mail-App-Übergabe integrieren.
