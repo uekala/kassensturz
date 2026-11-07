@@ -73,7 +73,7 @@ jobs:
         with:
           platforms: arm64
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build Home Assistant add-on image for Home Assistant Green
         run: |
           docker buildx build \
@@ -118,7 +118,7 @@ jobs:
         with:
           platforms: arm64
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build isolated test add-on image for Home Assistant Green
         run: |
           docker buildx build \
