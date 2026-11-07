@@ -635,7 +635,25 @@ function contractSheet(c) {
       <label class="field"><span>Notizen</span><textarea id="c-notes" rows="2">${c.notes || ""}</textarea></label>
       <div class="actions"><button class="btn primary" id="c-save">Speichern</button><button class="btn" id="c-research">Anbieter recherchieren</button></div>
       <div id="c-research-results" class="note" aria-live="polite"></div>
+      <section class="section" style="margin-top:14px">
+        <strong>Kündigungshistorie</strong>
+        <div id="c-cancellation-history" class="note" aria-live="polite">Lade Verlauf …</div>
+      </section>
     </details>`.s);
+  const history = $("#c-cancellation-history", sh.el);
+  api(`contracts/${encodeURIComponent(c.key)}/cancellation-events`).then((result) => {
+    const items = result.items || [];
+    const mode = { ordinary: "Fristgerechte Kündigung", extraordinary: "Sonderkündigung", withdrawal: "Widerruf" };
+    const status = { prepared: "Vorbereitet", handed_off: "An Mail-App übergeben", sent: "Von dir als versendet bestätigt" };
+    const when = (value) => value ? new Date(value).toLocaleString("de-DE") : "";
+    history.innerHTML = items.length ? items.map((event) => {
+      let row = "<p><strong>" + (mode[event.mode] || "Kündigung") + "</strong><br>" + (status[event.status] || event.status);
+      row += "<br><small>Erstellt: " + when(event.prepared_at);
+      if (event.handed_off_at) row += "<br>Übergeben: " + when(event.handed_off_at);
+      if (event.user_confirmed_sent_at) row += "<br>Versand bestätigt: " + when(event.user_confirmed_sent_at);
+      return row + "</small></p>";
+    }).join("") : "Bisher keine Kündigungsvorgänge dokumentiert.";
+  }).catch((error) => { history.textContent = "Verlauf konnte nicht geladen werden: " + error.message; });
   const patch = async (body, msg) => { await api(`contracts/${encodeURIComponent(c.key)}`, { method: body === null ? "DELETE" : "PATCH", body: body || undefined }); sh.close(); toast(msg); rerender(); };
   $("#c-cancelled", sh.el).onchange = (e) => { $("#c-eff-wrap", sh.el).hidden = !e.target.checked; };
   $("#c-save", sh.el).onclick = () => patch({
