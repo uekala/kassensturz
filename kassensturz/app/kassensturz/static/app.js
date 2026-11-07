@@ -633,7 +633,8 @@ function contractSheet(c) {
       <label class="check"><input type="checkbox" id="c-cancelled" ${c.status === "cancelled" ? raw("checked") : ""}><span>Gekündigt</span></label>
       <label class="field" id="c-eff-wrap" ${c.status === "cancelled" ? "" : raw("hidden")}><span>Letzte Zahlung bis einschließlich</span><input class="input" type="date" id="c-eff" value="${c.cancel_effective || ""}"></label>
       <label class="field"><span>Notizen</span><textarea id="c-notes" rows="2">${c.notes || ""}</textarea></label>
-      <div class="actions"><button class="btn primary" id="c-save">Speichern</button></div>
+      <div class="actions"><button class="btn primary" id="c-save">Speichern</button><button class="btn" id="c-research">Anbieter recherchieren</button></div>
+      <div id="c-research-results" class="note" aria-live="polite"></div>
     </details>`.s);
   const patch = async (body, msg) => { await api(`contracts/${encodeURIComponent(c.key)}`, { method: body === null ? "DELETE" : "PATCH", body: body || undefined }); sh.close(); toast(msg); rerender(); };
   $("#c-cancelled", sh.el).onchange = (e) => { $("#c-eff-wrap", sh.el).hidden = !e.target.checked; };
@@ -649,6 +650,39 @@ function contractSheet(c) {
   if ($("#c-letter", sh.el)) $("#c-letter", sh.el).onclick = () => { sh.close(); letterSheet(c, "ordentlich"); };
   if ($("#c-letter2", sh.el)) $("#c-letter2", sh.el).onclick = () => { sh.close(); letterSheet(c, "sonder"); };
   if ($("#c-tx", sh.el)) $("#c-tx", sh.el).onclick = () => sh.close();
+  $("#c-research", sh.el).onclick = async () => {
+    const btn = $("#c-research", sh.el);
+    const out = $("#c-research-results", sh.el);
+    btn.disabled = true;
+    out.textContent = "Suche nach offiziellen Kontakt- und Kündigungsseiten …";
+    try {
+      const result = await api(`contracts/${encodeURIComponent(c.key)}/cancellation-research`, { method: "POST" });
+      const sources = result.results || [];
+      out.innerHTML = html`
+        <strong>${sources.length ? "Gefundene Suchtreffer – noch nicht verifiziert" : "Keine Suchtreffer gefunden"}</strong>
+        ${sources.map((source, index) => html`<p><a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.title}</a><br><small>${source.domain} · ${source.snippet}</small></p>`)}
+        ${sources.length ? html`<button class="btn small" id="c-save-sources">Quellen als ungeprüft speichern</button>` : ""}
+        <p><small>${result.notice}</small></p>`.s;
+      if ($("#c-save-sources", out)) $("#c-save-sources", out).onclick = async () => {
+        await api(`contracts/${encodeURIComponent(c.key)}/cancellation-contact`, {
+          method: "PUT",
+          body: {
+            email: $("#c-mail", sh.el).value.trim(),
+            postal_address: $("#c-addr", sh.el).value.trim(),
+            status: "unverified",
+            sources: sources.map(source => ({
+              title: source.title, url: source.url, source_type: "search_candidate", excerpt: source.snippet
+            })),
+          },
+        });
+        toast("Quellen gespeichert – Kontaktdaten bleiben ungeprüft");
+      };
+    } catch (error) {
+      out.textContent = error.message;
+    } finally {
+      btn.disabled = false;
+    }
+  };
 }
 
 async function letterSheet(c, mode) {
