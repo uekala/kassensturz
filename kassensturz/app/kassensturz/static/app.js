@@ -667,7 +667,7 @@ function contractSheet(c) {
   api(`contracts/${encodeURIComponent(c.key)}/cancellation-events`).then((result) => {
     const items = result.items || [];
     const mode = { ordinary: "Fristgerechte Kündigung", extraordinary: "Sonderkündigung", withdrawal: "Widerruf" };
-    const status = { prepared: "Vorbereitet", handed_off: "An Mail-App übergeben", sent: "Von dir als versendet bestätigt", provider_confirmed: "Eingangsbestätigung vom Anbieter erhalten" };
+    const status = { prepared: "Vorbereitet", handed_off: "An Mail-App übergeben", sent: "Von dir als versendet bestätigt", provider_confirmed: "Eingangsbestätigung vom Anbieter erhalten", aborted: "Abgebrochen" };
     const when = (value) => value ? new Date(value).toLocaleString("de-DE") : "";
     history.innerHTML = items.length ? items.map((event) => {
       let row = "<p><strong>" + (mode[event.mode] || "Kündigung") + "</strong><br>" + (status[event.status] || event.status);
@@ -675,11 +675,23 @@ function contractSheet(c) {
       if (event.handed_off_at) row += "<br>Übergeben: " + when(event.handed_off_at);
       if (event.user_confirmed_sent_at) row += "<br>Versand bestätigt: " + when(event.user_confirmed_sent_at);
       if (event.provider_confirmed_at) row += "<br>Anbieterbestätigung: " + when(event.provider_confirmed_at);
+      if (event.aborted_at) row += "<br>Abgebrochen: " + when(event.aborted_at);
       row += "</small>";
+      if (["prepared", "handed_off"].includes(event.status)) row += '<br><button class="btn small" data-abort-cancellation="' + event.id + '">Vorgang abbrechen</button>';
       if (event.status === "sent") row += '<br><button class="btn small" data-confirm-received="' + event.id + '">Bestätigung vom Anbieter erhalten</button>';
       return row + "</p>";
     }).join("") : "Bisher keine Kündigungsvorgänge dokumentiert.";
   }).catch((error) => { history.textContent = "Verlauf konnte nicht geladen werden: " + error.message; });
+  on(history, "[data-abort-cancellation]", "click", async (_event, button) => {
+    if (!window.confirm("Diesen Vorgang in Kassensturz abbrechen? Eine bereits geöffnete Mail-App wird dadurch nicht geschlossen oder verändert. Der Vertragsstatus bleibt unverändert.")) return;
+    button.disabled = true;
+    try {
+      await api("contracts/" + encodeURIComponent(c.key) + "/cancellation-events/" + button.dataset.abortCancellation + "/abort", { method: "POST", body: { user_confirmed_aborted: true } });
+      toast("Kündigungsvorgang abgebrochen");
+      sh.close();
+      rerender();
+    } catch (error) { toast(error.message); button.disabled = false; }
+  });
   on(history, "[data-confirm-received]", "click", async (_event, button) => {
     button.disabled = true;
     try {
