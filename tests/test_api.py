@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from conftest import fixture_bytes
 
 
@@ -238,3 +239,39 @@ def test_confirmed_provider_contact_does_not_overwrite_manual_email(client):
         json={"user_confirmed": True, "source_url": source_url, "email": "new@example.org"},
     )
     assert response.status_code == 409
+
+
+
+def test_cancellation_deadline_alerts_are_staged(client):
+    client.post("/api/demo")
+    contract = next(
+        item for item in client.get("/api/contracts").json()["items"]
+        if item["name"] == "Telekom Deutschland GmbH"
+    )
+    key = contract["key"]
+
+    # Vertragsende 70 Tage entfernt, Kündigungsfrist ein Monat:
+    # Die erste Erinnerung soll in der 45-Tage-Stufe erscheinen.
+    client.patch(
+        f"/api/contracts/{key}",
+        json={"contract_end": (date.today() + timedelta(days=70)).isoformat(), "notice_months": 1},
+    )
+    overview = client.get("/api/overview").json()
+    reminder = next(
+        alert for alert in overview["alerts"]
+        if alert.get("contract") == key and alert["key"].startswith("deadline:")
+    )
+    assert ":45d:" in reminder["key"]
+    assert reminder["level"] == "warning"
+
+    # Bei näher rückender Frist wird eine neue, getrennte Erinnerungsstufe fällig.
+    client.patch(
+        f"/api/contracts/{key}",
+        json={"contract_end": (date.today() + timedelta(days=50)).isoformat(), "notice_months": 1},
+    )
+    overview = client.get("/api/overview").json()
+    reminder = next(
+        alert for alert in overview["alerts"]
+        if alert.get("contract") == key and alert["key"].startswith("deadline:")
+    )
+    assert ":21d:" in reminder["key"]
