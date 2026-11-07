@@ -70,7 +70,6 @@ def alerts(db: Database, summary: dict) -> list[dict]:
                 stage = None
             if stage:
                 deadline_label = date.fromisoformat(c["deadline"]).strftime("%d.%m.%Y")
-                remaining = f" – noch {dl} Tage" if dl >= 0 else f" (seit {abs(dl)} Tagen überschritten)"
                 message = (f"{timing}. Spätestens kündigen bis {deadline_label}."
                            if dl < 0 else f"{timing} {dl} Tage. Spätestens kündigen bis {deadline_label}.")
                 out.append({"key": f"deadline:{stage}:{c['key']}:{c['deadline']}", "level": level,
