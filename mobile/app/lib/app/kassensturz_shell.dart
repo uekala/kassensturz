@@ -8,6 +8,7 @@ import '../core/design/app_theme.dart';
 import '../core/widgets/demo_notice.dart';
 import '../core/networking/mobile_connection_controller.dart';
 import '../features/accounts/accounts_page.dart';
+import '../features/accounts/server_finance_pages.dart';
 import '../features/budget/budget_page.dart';
 import '../features/dashboard/dashboard_page.dart';
 import '../features/more/more_page.dart';
@@ -115,8 +116,14 @@ class _KassensturzShellState extends State<KassensturzShell> {
         budgetController: _budgetController,
         mobileController: _mobileConnectionController,
       ),
-      AccountsPage(controller: _accountController),
-      BudgetPage(controller: _budgetController),
+      ServerAwareAccountsPage(
+        controller: _mobileConnectionController,
+        fallback: AccountsPage(controller: _accountController),
+      ),
+      ServerAwareBudgetPage(
+        controller: _mobileConnectionController,
+        fallback: BudgetPage(controller: _budgetController),
+      ),
       TransactionsPage(controller: _mobileConnectionController),
       MorePage(controller: _mobileConnectionController),
     ];
@@ -219,7 +226,7 @@ class _KassensturzShellState extends State<KassensturzShell> {
                 ),
                 color: AppTheme.softBrand,
                 child: const Text(
-                  'Server verbunden: Übersicht und Buchungen zeigen Serverdaten. Konten und Budgets sind noch lokale App-Funktionen.',
+                  'Server verbunden: Übersicht, Konten, Budgets und Buchungen zeigen Serverdaten. Konten und Budgetlimits werden hier derzeit nur angezeigt.',
                   style: TextStyle(
                     color: AppTheme.brand,
                     fontSize: 11,
