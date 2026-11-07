@@ -995,6 +995,19 @@ def cancellation_page_evidence(key: str, body: dict = Body(...)):
         _err(502, str(exc))
 
 
+@app.get("/api/contracts/{key:path}/cancellation-events")
+def cancellation_events_get(key: str):
+    db = get_db()
+    contract = db.one("SELECT key FROM contracts WHERE key = ?", (key,))
+    if not contract:
+        _err(404, "Vertrag nicht gefunden.")
+    events = db.query(
+        "SELECT id, mode, status, prepared_at, handed_off_at, user_confirmed_sent_at, notes "
+        "FROM cancellation_events WHERE contract_key = ? ORDER BY prepared_at DESC, id DESC",
+        (key,),
+    )
+    return {"items": events}
+
 @app.post("/api/contracts/{key:path}/cancellation-events")
 def cancellation_event_create(key: str, body: dict = Body(...)):
     db = get_db()
