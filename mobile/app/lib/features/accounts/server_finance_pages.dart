@@ -48,7 +48,10 @@ class _ServerAccountsPage extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          Text('Deine Konten', style: Theme.of(context).textTheme.headlineSmall),
+          Text(
+            'Deine Konten',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
           const SizedBox(height: 5),
           Text(
             'Konten und Salden direkt von deinem Kassensturz-Server.',
@@ -89,9 +92,14 @@ class _ServerAccountsPage extends StatelessWidget {
           if (controller.financeLoading && data == null)
             const Center(child: CircularProgressIndicator())
           else if (data == null)
-            _LoadError(message: controller.financeError, onRetry: controller.loadFinancialData)
+            _LoadError(
+              message: controller.financeError,
+              onRetry: controller.loadFinancialData,
+            )
           else if (accounts.isEmpty)
-            const _EmptyServerState(message: 'Der Server liefert noch keine Konten.')
+            const _EmptyServerState(
+              message: 'Der Server liefert noch keine Konten.',
+            )
           else
             ...accounts.map((account) {
               final name = _string(account['name'], 'Konto');
@@ -127,7 +135,8 @@ class _ServerAccountsPage extends StatelessWidget {
           ],
           const SizedBox(height: 8),
           Text(
-            'Serveransicht · Änderungen an Konten erfolgen weiterhin in der Kassensturz-Administration.',
+            'Serveransicht · Änderungen an Konten erfolgen weiterhin in der '
+            'Kassensturz-Administration.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: colors.onSurfaceVariant,
@@ -188,7 +197,10 @@ class _ServerBudgetPage extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          Text('Deine Budgets', style: Theme.of(context).textTheme.headlineSmall),
+          Text(
+            'Deine Budgets',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
           const SizedBox(height: 5),
           Text(
             'Budgetlimits und Ausgaben aus deinem Kassensturz-Server.',
@@ -231,14 +243,17 @@ class _ServerBudgetPage extends StatelessWidget {
           else if (data == null)
             _LoadError(message: controller.financeError, onRetry: controller.loadFinancialData)
           else if (budgets.isEmpty)
-            const _EmptyServerState(message: 'Der Server liefert noch keine Budgets.')
+            const _EmptyServerState(
+              message: 'Der Server liefert noch keine Budgets.',
+            )
           else
             ...budgets.map((budget) {
               final name = _string(budget['name'], 'Budget');
               final limit = _integer(budget['limit_cents']);
               final spent = _integer(budget['spent_cents']);
               final left = _integer(budget['remaining_cents']);
-              final progress = limit <= 0 ? 0.0 : (spent / limit).clamp(0.0, 1.0);
+              final progress =
+                  limit <= 0 ? 0.0 : (spent / limit).clamp(0.0, 1.0);
               final over = spent > limit;
               final state = _string(budget['state'], 'ok');
               final color = over || state == 'over'
@@ -263,7 +278,10 @@ class _ServerBudgetPage extends StatelessWidget {
                           ),
                           Text(
                             '${formatEuro(spent / 100)} / ${formatEuro(limit / 100)}',
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -282,7 +300,9 @@ class _ServerBudgetPage extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            over ? 'Budget überschritten' : '${(spent / (limit == 0 ? 1 : limit) * 100).round()} % genutzt',
+                            over
+                                ? 'Budget überschritten'
+                                : '${(spent / (limit == 0 ? 1 : limit) * 100).round()} % genutzt',
                             style: TextStyle(color: color, fontSize: 11),
                           ),
                           Text(
@@ -305,7 +325,8 @@ class _ServerBudgetPage extends StatelessWidget {
           ],
           const SizedBox(height: 8),
           Text(
-            'Serveransicht · Budgetlimits werden aktuell in der Kassensturz-Administration verwaltet.',
+            'Serveransicht · Budgetlimits werden aktuell in der '
+            'Kassensturz-Administration verwaltet.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: colors.onSurfaceVariant,
