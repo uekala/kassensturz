@@ -412,3 +412,35 @@ def test_contract_list_includes_open_cancellation_worklist(client):
         json={"user_confirmed_received": True},
     )
     assert client.get("/api/contracts").json()["pending_cancellations"] == []
+
+
+def test_cancellation_event_can_be_explicitly_aborted(client):
+    client.post("/api/demo")
+    contract = next(c for c in client.get("/api/contracts").json()["items"] if c["name"] == "Telekom Deutschland GmbH")
+    key = contract["key"]
+    event = client.post("/api/contracts/" + key + "/cancellation-events", json={"mode": "ordinary"}).json()
+    event_url = "/api/contracts/" + key + "/cancellation-events/" + str(event["id"])
+    denied = client.post(event_url + "/abort", json={"user_confirmed_aborted": False})
+    assert denied.status_code == 400
+    aborted = client.post(event_url + "/abort", json={"user_confirmed_aborted": True})
+    assert aborted.status_code == 200
+    assert aborted.json()["status"] == "aborted"
+    assert aborted.json()["aborted_at"] is not None
+    history = client.get("/api/contracts/" + key + "/cancellation-events").json()["items"]
+    assert history[0]["status"] == "aborted"
+    assert history[0]["aborted_at"] is not None
+    assert client.get("/api/contracts").json()["pending_cancellations"] == []
+    assert client.post(event_url + "/handoff").status_code == 409
+
+
+def test_sent_cancellation_event_cannot_be_aborted(client):
+    client.post("/api/demo")
+    contract = next(c for c in client.get("/api/contracts").json()["items"] if c["name"] == "Telekom Deutschland GmbH")
+    key = contract["key"]
+    event = client.post("/api/contracts/" + key + "/cancellation-events", json={"mode": "ordinary"}).json()
+    event_url = "/api/contracts/" + key + "/cancellation-events/" + str(event["id"])
+    assert client.post(event_url + "/handoff").status_code == 200
+    assert client.post(event_url + "/confirm-sent", json={"user_confirmed_sent": True}).status_code == 200
+    response = client.post(event_url + "/abort", json={"user_confirmed_aborted": True})
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Nur vorbereitete oder an die Mail-App übergebene Vorgänge können abgebrochen werden."
