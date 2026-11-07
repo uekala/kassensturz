@@ -731,8 +731,17 @@ def list_contracts():
     cons = contracts.list_contracts(db)
     today = date.today()
     running = [c for c in cons if c["status"] != "ignored" and contracts.is_running(c, today)]
+    pending_cancellations = db.query(
+        "SELECT e.id, e.contract_key, e.mode, e.status, e.prepared_at, e.handed_off_at, "
+        "e.user_confirmed_sent_at, c.name AS contract_name "
+        "FROM cancellation_events e JOIN contracts c ON c.key = e.contract_key "
+        "WHERE e.status IN ('prepared', 'handed_off', 'sent') "
+        "AND c.status NOT IN ('cancelled', 'ignored') "
+        "ORDER BY e.prepared_at ASC, e.id ASC"
+    )
     return {
         "items": cons,
+        "pending_cancellations": pending_cancellations,
         "fixed_monthly_cents": analytics.fixed_costs_monthly(running),
         "income_monthly_cents": sum(c["monthly_cents"] for c in running if c["kind"] == "income"),
         "intervals": [i[0] for i in contracts.INTERVALS],
