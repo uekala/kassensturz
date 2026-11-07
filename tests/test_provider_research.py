@@ -96,3 +96,83 @@ def test_public_url_preflight_reports_only_dns_check(monkeypatch):
     result = provider_research.inspect_public_https_url("https://example.org/contact")
     assert result["status"] == "public_host_only"
     assert result["verified"] is False
+
+
+
+def test_page_evidence_fetch_uses_pinned_ip_and_never_follows_redirects(monkeypatch):
+    import http.client
+
+    captured = {}
+
+    class FakeResponse:
+        status = 200
+
+        def getheader(self, name):
+            return {
+                "Content-Type": "text/html; charset=utf-8",
+                "Content-Length": "120",
+            }.get(name)
+
+        def read(self, size):
+            return b'<html><title>Example Kontakt</title><a href="mailto:kuendigung@example.org">Mail</a></html>'
+
+    class FakeConnection:
+        def __init__(self, host, address, timeout):
+            captured.update(host=host, address=address, timeout=timeout)
+
+        def request(self, method, path, headers):
+            captured.update(method=method, path=path, headers=headers)
+
+        def getresponse(self):
+            return FakeResponse()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(
+        provider_research.socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [
+            (provider_research.socket.AF_INET, provider_research.socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+        ],
+    )
+    monkeypatch.setattr(provider_research, "_PinnedHTTPSConnection", FakeConnection)
+    result = provider_research.fetch_public_page_evidence("https://example.org/kontakt")
+    assert captured["address"] == "93.184.216.34"
+    assert captured["method"] == "GET"
+    assert result["page_title"] == "Example Kontakt"
+    assert result["emails_found"] == ["kuendigung@example.org"]
+    assert result["verified"] is False
+
+
+def test_page_evidence_does_not_follow_redirects(monkeypatch):
+    class FakeResponse:
+        status = 302
+
+        def getheader(self, name):
+            return "text/html" if name == "Content-Type" else None
+
+    class FakeConnection:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def request(self, *args, **kwargs):
+            pass
+
+        def getresponse(self):
+            return FakeResponse()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(
+        provider_research.socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [
+            (provider_research.socket.AF_INET, provider_research.socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+        ],
+    )
+    monkeypatch.setattr(provider_research, "_PinnedHTTPSConnection", FakeConnection)
+    import pytest
+    with pytest.raises(RuntimeError, match="leitet weiter"):
+        provider_research.fetch_public_page_evidence("https://example.org/contact")
