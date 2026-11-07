@@ -909,6 +909,24 @@ def cancellation_source_check(key: str, body: dict = Body(...)):
         _err(400, str(exc))
 
 
+@app.post("/api/contracts/{key:path}/cancellation-page-evidence")
+def cancellation_page_evidence(key: str, body: dict = Body(...)):
+    from . import provider_research
+
+    db = get_db()
+    if not db.one("SELECT key FROM contracts WHERE key = ?", (key,)):
+        _err(404, "Vertrag nicht gefunden.")
+    url = (body.get("url") or "").strip()
+    if len(url) > 2048:
+        _err(400, "Die Quellen-URL ist zu lang.")
+    try:
+        return provider_research.fetch_public_page_evidence(url)
+    except ValueError as exc:
+        _err(400, str(exc))
+    except RuntimeError as exc:
+        _err(502, str(exc))
+
+
 @app.post("/api/contracts/{key:path}/cancellation-events")
 def cancellation_event_create(key: str, body: dict = Body(...)):
     db = get_db()
