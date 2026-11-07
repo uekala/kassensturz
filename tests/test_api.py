@@ -133,6 +133,18 @@ def test_cancellation_contact_sources_and_event(client):
     assert sent.status_code == 200
     assert sent.json()["status"] == "sent"
     assert sent.json()["user_confirmed_sent_at"] is not None
+    denied_received = client.post(
+        f"/api/contracts/{key}/cancellation-events/{event.json()['id']}/confirm-received",
+        json={"user_confirmed_received": False},
+    )
+    assert denied_received.status_code == 400
+    received = client.post(
+        f"/api/contracts/{key}/cancellation-events/{event.json()['id']}/confirm-received",
+        json={"user_confirmed_received": True},
+    )
+    assert received.status_code == 200
+    assert received.json()["status"] == "provider_confirmed"
+    assert received.json()["provider_confirmed_at"] is not None
 
     invalid = client.put(
         f"/api/contracts/{key}/cancellation-contact",
