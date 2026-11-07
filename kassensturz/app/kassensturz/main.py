@@ -1049,6 +1049,19 @@ def cancellation_event_confirm_sent(key: str, event_id: int, body: dict = Body(.
     db.update("cancellation_events", "id", event_id, {"status": "sent", "user_confirmed_sent_at": now_iso()})
     return db.one("SELECT * FROM cancellation_events WHERE id = ?", (event_id,))
 
+@app.post("/api/contracts/{key:path}/cancellation-events/{event_id}/confirm-received")
+def cancellation_event_confirm_received(key: str, event_id: int, body: dict = Body(...)):
+    db = get_db()
+    event = db.one("SELECT * FROM cancellation_events WHERE id = ? AND contract_key = ?", (event_id, key))
+    if not event:
+        _err(404, "Kündigungsvorgang nicht gefunden.")
+    if body.get("user_confirmed_received") is not True:
+        _err(400, "Bitte bestätige ausdrücklich den Erhalt einer Anbieterbestätigung.")
+    if event.get("status") != "sent":
+        _err(409, "Der Versand muss zuerst von dir bestätigt worden sein.")
+    db.update("cancellation_events", "id", event_id, {"status": "provider_confirmed", "provider_confirmed_at": now_iso()})
+    return db.one("SELECT * FROM cancellation_events WHERE id = ?", (event_id,))
+
 @app.post("/api/letter")
 def letter(body: dict = Body(...)):
     db = get_db()
