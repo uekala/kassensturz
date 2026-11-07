@@ -660,9 +660,27 @@ function contractSheet(c) {
       const sources = result.results || [];
       out.innerHTML = html`
         <strong>${sources.length ? "Gefundene Suchtreffer – noch nicht verifiziert" : "Keine Suchtreffer gefunden"}</strong>
-        ${sources.map((source, index) => html`<p><a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.title}</a><br><small>${source.domain} · ${source.snippet}</small></p>`)}
+        ${sources.map((source, index) => html`<p><a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.title}</a><br><small>${source.domain} · ${source.snippet}</small><br><button class="btn small" data-source-check="${index}">Öffentliche DNS prüfen</button> <small id="source-check-${index}"></small></p>`)}
         ${sources.length ? html`<button class="btn small" id="c-save-sources">Quellen als ungeprüft speichern</button>` : ""}
         <p><small>${result.notice}</small></p>`.s;
+      out.querySelectorAll("[data-source-check]").forEach((checkButton) => {
+        checkButton.onclick = async () => {
+          const index = Number(checkButton.dataset.sourceCheck);
+          const status = $(`#source-check-${index}`, out);
+          checkButton.disabled = true;
+          status.textContent = "Prüfe DNS-Ziel …";
+          try {
+            const checked = await api(`contracts/${encodeURIComponent(c.key)}/cancellation-source-check`, {
+              method: "POST", body: { url: sources[index].url },
+            });
+            status.textContent = `Öffentliche DNS-Adresse: ${checked.addresses.join(", ")} – Anbieteridentität weiterhin ungeprüft.`;
+          } catch (error) {
+            status.textContent = error.message;
+          } finally {
+            checkButton.disabled = false;
+          }
+        };
+      });
       if ($("#c-save-sources", out)) $("#c-save-sources", out).onclick = async () => {
         await api(`contracts/${encodeURIComponent(c.key)}/cancellation-contact`, {
           method: "PUT",
