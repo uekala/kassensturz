@@ -151,3 +151,8 @@ Nächste Schritte: offizielle Domains besser erkennen, eine sichere und begrenzt
 ### 5. Editierbare E-Mail vor Übergabe
 
 Vor dem Öffnen der System-Mail-App zeigt Kassensturz Empfänger, Betreff und Nachrichtentext als bearbeitbare Felder. Die App übergibt exakt diese vom Nutzer geprüften Werte per `mailto:`. Eine leere oder ungültige Empfängeradresse sowie ein leerer Betreff/Text verhindern die Übergabe. Bei einer Kündigung zu einem bestimmten Datum wird dieses Datum als Notiz im Kündigungsverlauf gespeichert.
+
+
+### 6. Eingangsbestätigung des Anbieters
+
+Nach eigener Versandbestätigung kann der Nutzer zusätzlich dokumentieren, dass eine Eingangs- oder Kündigungsbestätigung des Anbieters eingegangen ist. Dieser Status wird ausschließlich durch eine ausdrückliche Nutzeraktion gesetzt und mit Zeitstempel gespeichert. Er wird nicht automatisch aus dem E-Mail-Versand abgeleitet und ändert den Vertragsstatus nicht.
