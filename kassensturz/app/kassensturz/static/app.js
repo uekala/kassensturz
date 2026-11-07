@@ -569,6 +569,13 @@ async function renderContracts(view, _params, seq) {
   const deadlineItems = running
     .filter((c) => c.deadline && c.days_to_deadline <= 90)
     .sort((a, b) => a.days_to_deadline - b.days_to_deadline);
+  const pendingCancellations = data.pending_cancellations || [];
+  const cancellationStatus = {
+    prepared: "Vorbereitet – Versand noch offen",
+    handed_off: "An Mail-App übergeben – Versand bestätigen",
+    sent: "Versendet – Anbieterbestätigung offen",
+  };
+  const cancellationMode = { ordinary: "Fristgerechte Kündigung", extraordinary: "Sonderkündigung", withdrawal: "Widerruf" };
   const row = (c) => {
     const chips = [];
     if (c.price_change_cents && c.kind === "expense" && c.price_change_cents < 0) chips.push(html`<span class="chip warn">${money(-c.price_change_cents, { plus: true })}</span>`);
@@ -591,6 +598,13 @@ async function renderContracts(view, _params, seq) {
       <p class="hero-caption">Fixkosten pro Monat aus ${running.length} laufenden Verträgen${priceUp ? html`, davon ${priceUp} zuletzt teurer geworden` : ""}. Jährliche und vierteljährliche Zahlungen sind anteilig eingerechnet.</p>
     </section>
     ${items.length ? "" : html`<p class="muted">Noch keine wiederkehrenden Zahlungen erkannt. Dafür braucht es meist drei Monate Umsätze.</p>`}
+    ${pendingCancellations.length ? html`<section class="section">
+      <div class="section-head"><h2>Offene Kündigungsvorgänge</h2><span class="small muted">${pendingCancellations.length} offen</span></div>
+      <ul class="list">${pendingCancellations.map((event) => html`<li><button class="row" data-pending-contract="${event.contract_key}">
+        <span class="title">${event.contract_name}</span>
+        <span class="sub">${cancellationMode[event.mode] || "Kündigung"} · ${cancellationStatus[event.status] || event.status} · erstellt ${new Date(event.prepared_at).toLocaleDateString("de-DE")}</span>
+        <span class="amount">Öffnen</span></button></li>`)}</ul>
+    </section>` : ""}
     <div class="cols"><div>
       ${section("Kündigungsfristen", deadlineItems, "überfällig oder innerhalb von 90 Tagen")}
       ${section("Laufend", running, "nach Betrag")}
@@ -601,6 +615,7 @@ async function renderContracts(view, _params, seq) {
       ${ignored.length ? html`<section class="section"><details><summary class="link-btn">${ignored.length} ausgeblendete Zahlungen</summary><ul class="list">${ignored.map(row)}</ul></details></section>` : ""}
     </div></div>`.s;
   on(view, "[data-contract]", "click", (_e, el) => contractSheet(items.find((c) => c.key === el.dataset.contract)));
+  on(view, "[data-pending-contract]", "click", (_e, el) => contractSheet(items.find((c) => c.key === el.dataset.pendingContract)));
   $("#c-add").onclick = () => manualContractSheet(data.intervals);
 }
 
