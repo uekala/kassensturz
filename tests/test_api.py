@@ -275,3 +275,42 @@ def test_cancellation_deadline_alerts_are_staged(client):
         if alert.get("contract") == key and alert["key"].startswith("deadline:")
     )
     assert ":21d:" in reminder["key"]
+
+
+
+def test_cancellation_reminder_days_are_configurable(client, monkeypatch):
+    from kassensturz import options
+
+    client.post("/api/demo")
+    contract = next(
+        item for item in client.get("/api/contracts").json()["items"]
+        if item["name"] == "Telekom Deutschland GmbH"
+    )
+    key = contract["key"]
+    configured = dict(options.DEFAULTS, cancellation_reminder_days="30,10")
+    monkeypatch.setattr(options, "load", lambda: configured)
+
+    # 25 Tage bis zur Kündigungsfrist: erste, 30-Tage-Stufe.
+    client.patch(
+        f"/api/contracts/{key}",
+        json={"contract_end": (date.today() + timedelta(days=55)).isoformat(), "notice_months": 1},
+    )
+    alerts = client.get("/api/overview").json()["alerts"]
+    reminder = next(a for a in alerts if a.get("contract") == key and a["key"].startswith("deadline:"))
+    assert ":30d:" in reminder["key"] and reminder["level"] == "warning"
+
+    # 8 Tage bis zur Frist: letzte, kritische 10-Tage-Stufe.
+    client.patch(
+        f"/api/contracts/{key}",
+        json={"contract_end": (date.today() + timedelta(days=38)).isoformat(), "notice_months": 1},
+    )
+    alerts = client.get("/api/overview").json()["alerts"]
+    reminder = next(a for a in alerts if a.get("contract") == key and a["key"].startswith("deadline:"))
+    assert ":10d:" in reminder["key"] and reminder["level"] == "critical"
+
+
+def test_invalid_cancellation_reminder_days_fall_back_to_defaults(monkeypatch):
+    from kassensturz import options
+
+    monkeypatch.setattr(options, "load", lambda: dict(options.DEFAULTS, cancellation_reminder_days="0,abc,999"))
+    assert options.cancellation_reminder_days() == [7, 21, 45]
