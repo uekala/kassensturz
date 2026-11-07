@@ -69,7 +69,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
       - name: Enable ARM64 emulation
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
       - name: Set up Docker Buildx
@@ -114,7 +114,7 @@ jobs:
           assert (path.parent / "app" / "kassensturz" / "main.py").is_file()
           PY
       - name: Enable ARM64 emulation
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
       - name: Set up Docker Buildx
