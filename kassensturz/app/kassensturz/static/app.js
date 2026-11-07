@@ -766,6 +766,7 @@ function contractSheet(c) {
 }
 
 async function letterSheet(c, mode) {
+  let cancellationEventId = null;
   const sh = openSheet(html`${sheetHead("Kündigung " + c.name)}<div class="progress"><div class="spinner"></div></div>`.s, { wide: true });
   const draw = async () => {
     const date = mode === "termin" ? ($("#l-date", sh.el)?.value || c.contract_end || todayIso()) : null;
@@ -780,10 +781,11 @@ async function letterSheet(c, mode) {
       <div class="letter print-area" id="l-text">${l.letter}</div>
       <p class="small muted">Eine Vorlage, keine Rechtsberatung. Online abgeschlossene Verträge lassen sich außerdem über den Kündigungsbutton auf der Website des Anbieters beenden (§ 312k BGB).</p>
       <div class="actions">
-        ${l.mailto ? html`<a class="btn primary" href="${l.mailto}">E-Mail öffnen</a>` : ""}
-        <button class="btn ${l.mailto ? "" : "primary"}" id="l-copy">Text kopieren</button>
+        ${l.mailto ? html`<button class="btn primary" id="l-email">E-Mail öffnen</button>` : ""}
+        ${cancellationEventId ? html`<button class="btn primary" id="l-confirm-sent">Ich habe die Kündigung tatsächlich versendet</button>` : ""}
+        <button class="btn" id="l-copy">Text kopieren</button>
         <button class="btn" id="l-print">Drucken oder als PDF</button>
-        <button class="btn" id="l-done">Als gekündigt markieren</button>
+        <button class="btn" id="l-close">Schließen</button>
       </div>`.s);
     on(sh.el, "[data-mode]", "click", (_e, el) => { mode = el.dataset.mode; draw(); });
     if ($("#l-date", sh.el)) $("#l-date", sh.el).onchange = draw;
@@ -792,9 +794,30 @@ async function letterSheet(c, mode) {
       catch { const r = document.createRange(); r.selectNodeContents($("#l-text", sh.el)); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Text markiert – jetzt kopieren"); }
     };
     $("#l-print", sh.el).onclick = () => window.print();
-    $("#l-done", sh.el).onclick = async () => {
-      await api(`contracts/${encodeURIComponent(c.key)}`, { method: "PATCH", body: { status: "cancelled", cancel_effective: date || c.contract_end || "" } });
-      sh.close(); toast("Als gekündigt markiert"); rerender();
+    $("#l-close", sh.el).onclick = () => sh.close();
+    if ($("#l-email", sh.el)) $("#l-email", sh.el).onclick = async () => {
+      const button = $("#l-email", sh.el);
+      button.disabled = true;
+      try {
+        const event = await api(`contracts/${encodeURIComponent(c.key)}/cancellation-events`, {
+          method: "POST", body: { mode: mode === "sonder" ? "extraordinary" : "ordinary" },
+        });
+        await api(`contracts/${encodeURIComponent(c.key)}/cancellation-events/${event.id}/handoff`, { method: "POST" });
+        cancellationEventId = event.id;
+        await draw();
+        window.location.href = l.mailto;
+      } catch (error) { toast(error.message); button.disabled = false; }
+    };
+    if ($("#l-confirm-sent", sh.el)) $("#l-confirm-sent", sh.el).onclick = async () => {
+      const button = $("#l-confirm-sent", sh.el);
+      button.disabled = true;
+      try {
+        await api(`contracts/${encodeURIComponent(c.key)}/cancellation-events/${cancellationEventId}/confirm-sent`, {
+          method: "POST", body: { user_confirmed_sent: true },
+        });
+        toast("Versand von dir bestätigt und dokumentiert");
+        sh.close();
+      } catch (error) { toast(error.message); button.disabled = false; }
     };
   };
   draw();
