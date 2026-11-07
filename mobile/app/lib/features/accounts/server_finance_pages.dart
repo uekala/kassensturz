@@ -82,7 +82,8 @@ class _ServerAccountsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${accounts.length} ${accounts.length == 1 ? 'Konto' : 'Konten'} vom Server',
+                  '${accounts.length} ${accounts.length == 1 ? 'Konto' : 'Konten'} '
+                  'vom Server',
                   style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
@@ -121,7 +122,9 @@ class _ServerAccountsPage extends StatelessWidget {
                   ].join(' · ')),
                   trailing: Text(
                     known ? formatEuro(balance / 100) : '–',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                   ),
                 ),
               );
@@ -241,7 +244,10 @@ class _ServerBudgetPage extends StatelessWidget {
           if (controller.financeLoading && data == null)
             const Center(child: CircularProgressIndicator())
           else if (data == null)
-            _LoadError(message: controller.financeError, onRetry: controller.loadFinancialData)
+            _LoadError(
+              message: controller.financeError,
+              onRetry: controller.loadFinancialData,
+            )
           else if (budgets.isEmpty)
             const _EmptyServerState(
               message: 'Der Server liefert noch keine Budgets.',
@@ -277,7 +283,8 @@ class _ServerBudgetPage extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${formatEuro(spent / 100)} / ${formatEuro(limit / 100)}',
+                            '${formatEuro(spent / 100)} / '
+                            '${formatEuro(limit / 100)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
@@ -307,7 +314,10 @@ class _ServerBudgetPage extends StatelessWidget {
                           ),
                           Text(
                             '${formatEuro(left / 100)} übrig',
-                            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11),
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontSize: 11,
+                            ),
                           ),
                         ],
                       ),
