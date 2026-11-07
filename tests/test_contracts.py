@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from kassensturz.contracts import detect
+from kassensturz.contracts import deadline_for, detect
 from kassensturz.db import now_iso
 
 
@@ -62,3 +62,13 @@ def test_identical_same_day_payments_count_once_per_due_date(db):
     assert db.scalar(
         "SELECT COUNT(*) FROM transactions WHERE contract_key IS NOT NULL"
     ) == 8
+
+
+
+def test_cancellation_deadline_is_calculated_from_contract_end_and_notice_period():
+    assert deadline_for({"contract_end": "2027-01-31", "notice_months": 1}) == "2026-12-31"
+
+
+def test_cancellation_deadline_is_missing_without_complete_contract_data():
+    assert deadline_for({"contract_end": "2027-01-31", "notice_months": None}) is None
+    assert deadline_for({"contract_end": None, "notice_months": 1}) is None
