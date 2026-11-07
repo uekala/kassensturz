@@ -135,3 +135,14 @@ Nächste Schritte: offizielle Domains besser erkennen, eine sichere und begrenzt
 - Es werden keine Formulare abgesendet, keine Skripte ausgeführt und keine Login-/CAPTCHA-Schranken umgangen.
 - Der Rückgabestatus ist stets `page_fetched_unverified`. Seitentitel und E-Mail-Adressen sind untrusted evidence und werden nicht automatisch als Kontakt gespeichert oder in Kündigungen eingesetzt.
 - Diese Prüfung bestätigt weder, dass die Domain dem Anbieter gehört, noch dass eine E-Mail-Adresse für Kündigungen zuständig ist. Dafür braucht es einen separaten, nachvollziehbaren Nutzer-Prüfschritt.
+
+
+## Ergänzung: explizit bestätigte Kontaktübernahme
+
+- Neue API: `POST /api/contracts/{key}/cancellation-contact/confirm`.
+- Die Oberfläche zeigt Kontaktfelder erst im Recherchebereich und verlangt eine ausdrückliche Bestätigung, dass der Nutzer die Angaben selbst auf der ausgewählten Quelle geprüft hat.
+- Die ausgewählte URL muss zuvor als Recherchequelle für genau diesen Anbieter gespeichert sein.
+- Die Übernahme protokolliert die Quelle als `user_confirmed` und den Kontaktstatus als `verified`; das bedeutet hier ausdrücklich: vom Nutzer selbst geprüft und bestätigt, nicht unabhängig durch Kassensturz zertifiziert.
+- Vorhandene manuelle Anbieter-E-Mail und Anschrift im Vertrag werden nicht überschrieben. Bei abweichenden Werten antwortet die API mit HTTP 409 und verlangt eine manuelle Konfliktklärung.
+- Leere Vertragsfelder werden erst nach Bestätigung mit den eingegebenen Werten befüllt. Dadurch verwendet die vorhandene Kündigungsvorlage die bestätigte E-Mail für ihren `mailto:`-Link, ohne den bestehenden Briefgenerator zu verändern.
+- Der Button öffnet weiterhin keine Mail-App und versendet nichts.
