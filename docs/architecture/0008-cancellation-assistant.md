@@ -156,3 +156,12 @@ Vor dem Öffnen der System-Mail-App zeigt Kassensturz Empfänger, Betreff und Na
 ### 6. Eingangsbestätigung des Anbieters
 
 Nach eigener Versandbestätigung kann der Nutzer zusätzlich dokumentieren, dass eine Eingangs- oder Kündigungsbestätigung des Anbieters eingegangen ist. Dieser Status wird ausschließlich durch eine ausdrückliche Nutzeraktion gesetzt und mit Zeitstempel gespeichert. Er wird nicht automatisch aus dem E-Mail-Versand abgeleitet und ändert den Vertragsstatus nicht.
+
+
+### 7. Kündigungsfristen-Monitor (erste Ausbaustufe)
+
+- Die Vertragsübersicht zeigt laufende Ausgabenverträge mit berechenbarer Kündigungsfrist zusätzlich im Abschnitt „Kündigungsfristen“.
+- Angezeigt werden überfällige Fristen sowie Fristen innerhalb der nächsten 90 Tage; die Liste ist nach Dringlichkeit sortiert.
+- Die Vertragszeile kennzeichnet Fristen bis 45 Tage als kritisch und Fristen zwischen 46 und 90 Tagen als Warnung.
+- Die Berechnung nutzt ausschließlich das gespeicherte Vertragsende und die Kündigungsfrist. Fehlen Angaben, wird keine Frist geraten.
+- Diese Ausbaustufe zeigt Hinweise innerhalb der App. Es gibt noch keine Hintergrundjobs, Push-/E-Mail-Erinnerungen oder automatische Kündigungen.
