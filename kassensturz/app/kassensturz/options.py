@@ -12,6 +12,7 @@ DEFAULTS = {
     "sensors": True,
     "notify_service": "",
     "warn_threshold": 200,
+    "cancellation_reminder_days": "45,21,7",
     "import_folder": "/share/kassensturz",
     "trusted_proxies": "",
     "mobile_client_networks": "",
@@ -45,3 +46,16 @@ def network_security_settings() -> dict[str, str]:
             raise ValueError(f"{option_name} must be a comma-separated string of IPs/CIDRs.")
         settings[option_name] = value
     return settings
+
+
+def cancellation_reminder_days() -> list[int]:
+    """Return configured reminder offsets, falling back safely to the defaults."""
+    raw = load().get("cancellation_reminder_days", DEFAULTS["cancellation_reminder_days"])
+    if not isinstance(raw, str):
+        return [7, 21, 45]
+    try:
+        values = [int(part.strip()) for part in raw.split(",")]
+    except (TypeError, ValueError):
+        return [7, 21, 45]
+    values = sorted({value for value in values if 1 <= value <= 365})
+    return values if values else [7, 21, 45]
