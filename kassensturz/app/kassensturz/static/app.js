@@ -797,9 +797,15 @@ async function letterSheet(c, mode) {
       ${!l.profile_complete ? html`<p class="note">Dein Name und deine Anschrift fehlen noch. <a href="#/einstellungen" data-close>In den Einstellungen eintragen</a></p>` : ""}
       ${!c.customer_no || !c.provider_address ? html`<p class="note">Trag Kundennummer und Anschrift des Anbieters in den Vertragsdaten ein, dann stehen sie im Schreiben.</p>` : ""}
       <div class="letter print-area" id="l-text">${l.letter}</div>
-      <p class="small muted">Eine Vorlage, keine Rechtsberatung. Online abgeschlossene Verträge lassen sich außerdem über den Kündigungsbutton auf der Website des Anbieters beenden (§ 312k BGB).</p>
+      <details open style="margin-top:12px">
+        <summary class="link-btn">E-Mail vor dem Öffnen prüfen und bearbeiten</summary>
+        <label class="field"><span>Empfänger</span><input class="input" type="email" id="l-email-to" value="${c.provider_email || ""}" placeholder="kuendigung@anbieter.de"></label>
+        <label class="field"><span>Betreff</span><input class="input" id="l-email-subject" value="${l.subject}"></label>
+        <label class="field"><span>E-Mail-Text</span><textarea id="l-email-body" rows="10">${l.body}</textarea></label>
+      </details>
+      <p class="small muted">Eine Vorlage, keine Rechtsberatung. Vor dem Öffnen kannst du Empfänger, Betreff und Inhalt bearbeiten. Online abgeschlossene Verträge lassen sich außerdem über den Kündigungsbutton auf der Website des Anbieters beenden (§ 312k BGB).</p>
       <div class="actions">
-        ${l.mailto ? html`<button class="btn primary" id="l-email">E-Mail öffnen</button>` : ""}
+        <button class="btn primary" id="l-email">E-Mail öffnen</button>
         ${cancellationEventId ? html`<button class="btn primary" id="l-confirm-sent">Ich habe die Kündigung tatsächlich versendet</button>` : ""}
         <button class="btn" id="l-copy">Text kopieren</button>
         <button class="btn" id="l-print">Drucken oder als PDF</button>
@@ -817,13 +823,20 @@ async function letterSheet(c, mode) {
       const button = $("#l-email", sh.el);
       button.disabled = true;
       try {
+        const recipient = $("#l-email-to", sh.el).value.trim();
+        const subject = $("#l-email-subject", sh.el).value.trim();
+        const body = $("#l-email-body", sh.el).value;
+        if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(recipient)) throw new Error("Bitte eine gültige Empfänger-E-Mail-Adresse eintragen.");
+        if (!subject || !body.trim()) throw new Error("Betreff und E-Mail-Text dürfen nicht leer sein.");
+        const mailto = "mailto:" + encodeURIComponent(recipient) + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+        const notes = mode === "termin" && date ? "Kündigung zum " + date : null;
         const event = await api(`contracts/${encodeURIComponent(c.key)}/cancellation-events`, {
-          method: "POST", body: { mode: mode === "sonder" ? "extraordinary" : "ordinary" },
+          method: "POST", body: { mode: mode === "sonder" ? "extraordinary" : "ordinary", notes },
         });
         await api(`contracts/${encodeURIComponent(c.key)}/cancellation-events/${event.id}/handoff`, { method: "POST" });
         cancellationEventId = event.id;
         await draw();
-        window.location.href = l.mailto;
+        window.location.href = mailto;
       } catch (error) { toast(error.message); button.disabled = false; }
     };
     if ($("#l-confirm-sent", sh.el)) $("#l-confirm-sent", sh.el).onclick = async () => {
