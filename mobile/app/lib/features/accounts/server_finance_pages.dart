@@ -141,8 +141,9 @@ class _ServerAccountsPage extends StatelessWidget {
             'Serveransicht · Änderungen an Konten erfolgen weiterhin in der '
             'Kassensturz-Administration.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: colors.onSurfaceVariant),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
           ),
         ],
       ),
@@ -342,8 +343,9 @@ class _ServerBudgetPage extends StatelessWidget {
             'Serveransicht · Budgetlimits werden aktuell in der '
             'Kassensturz-Administration verwaltet.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: colors.onSurfaceVariant),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
           ),
         ],
       ),

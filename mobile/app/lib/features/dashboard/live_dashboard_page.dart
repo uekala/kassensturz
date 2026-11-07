@@ -143,8 +143,9 @@ class LiveDashboardPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   controller.financeError!,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: Theme.of(context).colorScheme.error),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ],
             ],
@@ -418,8 +419,10 @@ class _CashFlowMetric extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.35),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.35,
+              ),
             ),
           ),
         ],
@@ -515,8 +518,9 @@ class _AccountRow extends StatelessWidget {
               children: [
                 Text(
                   account['name']?.toString() ?? 'Konto',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontSize: 14),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -595,8 +599,9 @@ class _BudgetRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   budget['name']?.toString() ?? 'Kategorie',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontSize: 14),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
                 ),
               ),
               Text(
@@ -668,8 +673,9 @@ class _AlertRow extends StatelessWidget {
               children: [
                 Text(
                   alert['title']?.toString() ?? 'Hinweis',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontSize: 14),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
                 ),
                 if ((alert['message']?.toString() ?? '').isNotEmpty) ...[
                   const SizedBox(height: 3),
@@ -739,8 +745,9 @@ class _TransactionRow extends StatelessWidget {
       ),
       trailing: Text(
         formatSignedEuro(amount / 100),
-        style: Theme.of(context).textTheme.labelLarge
-            ?.copyWith(color: amount < 0 ? colors.onSurface : AppTheme.accent),
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: amount < 0 ? colors.onSurface : AppTheme.accent,
+        ),
       ),
     );
   }

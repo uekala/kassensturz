@@ -319,8 +319,10 @@ class _CashFlowMetric extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.35),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.35,
+              ),
             ),
           ),
         ],
@@ -443,12 +445,15 @@ class _BudgetSummary extends StatelessWidget {
                 const SizedBox(height: 7),
                 Text(
                   '${formatEuro(remaining)} noch verfügbar',
-                  style: Theme.of(context).textTheme.labelMedium
-                      ?.copyWith(color: AppTheme.accent),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: AppTheme.accent),
                 ),
               ] else
                 Text(
-                  loading ? 'Budgetdaten werden geladen.' : 'Budgetinformationen können derzeit nicht angezeigt werden.',
+                  loading
+                      ? 'Budgetdaten werden geladen.'
+                      : 'Budgetinformationen können derzeit nicht angezeigt werden.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
             ],
