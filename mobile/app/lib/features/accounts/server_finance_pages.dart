@@ -115,16 +115,16 @@ class _ServerAccountsPage extends StatelessWidget {
                     child: Icon(Icons.account_balance_outlined),
                   ),
                   title: Text(name),
-                  subtitle: Text([
-                    type,
-                    if (date.isNotEmpty) 'Stand: $date',
-                    if (!known) 'Saldo nicht bestätigt',
-                  ].join(' · ')),
+                  subtitle: Text(
+                    [
+                      type,
+                      if (date.isNotEmpty) 'Stand: $date',
+                      if (!known) 'Saldo nicht bestätigt',
+                    ].join(' · '),
+                  ),
                   trailing: Text(
                     known ? formatEuro(balance / 100) : '–',
-                    style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               );
@@ -141,9 +141,8 @@ class _ServerAccountsPage extends StatelessWidget {
             'Serveransicht · Änderungen an Konten erfolgen weiterhin in der '
             'Kassensturz-Administration.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: colors.onSurfaceVariant),
           ),
         ],
       ),
@@ -259,15 +258,16 @@ class _ServerBudgetPage extends StatelessWidget {
               final limit = _integer(budget['limit_cents']);
               final spent = _integer(budget['spent_cents']);
               final left = _integer(budget['remaining_cents']);
-              final progress =
-                  limit <= 0 ? 0.0 : (spent / limit).clamp(0.0, 1.0);
+              final progress = limit <= 0
+                  ? 0.0
+                  : (spent / limit).clamp(0.0, 1.0);
               final over = spent > limit;
               final state = _string(budget['state'], 'ok');
               final color = over || state == 'over'
                   ? colors.error
                   : state == 'warn'
-                      ? colors.tertiary
-                      : AppTheme.accent;
+                  ? colors.tertiary
+                  : AppTheme.accent;
               return Card(
                 margin: const EdgeInsets.only(bottom: 9),
                 child: Padding(
@@ -313,7 +313,7 @@ class _ServerBudgetPage extends StatelessWidget {
                             over
                                 ? 'Budget überschritten'
                                 : '${(spent / (limit == 0 ? 1 : limit) * 100).round()} '
-                                  '% genutzt',
+                                      '% genutzt',
                             style: TextStyle(color: color, fontSize: 11),
                           ),
                           Text(
@@ -342,9 +342,8 @@ class _ServerBudgetPage extends StatelessWidget {
             'Serveransicht · Budgetlimits werden aktuell in der '
             'Kassensturz-Administration verwaltet.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: colors.onSurfaceVariant),
           ),
         ],
       ),
