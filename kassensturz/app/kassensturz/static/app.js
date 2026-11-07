@@ -662,6 +662,14 @@ function contractSheet(c) {
         <strong>${sources.length ? "Gefundene Suchtreffer – noch nicht verifiziert" : "Keine Suchtreffer gefunden"}</strong>
         ${sources.map((source, index) => html`<p><a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.title}</a><br><small>${source.domain} · ${source.snippet}</small><br><button class="btn small" data-source-check="${index}">Öffentliche DNS prüfen</button> <button class="btn small" data-page-check="${index}">Webseite sicher prüfen</button> <small id="source-check-${index}"></small></p>`)}
         ${sources.length ? html`<button class="btn small" id="c-save-sources">Quellen als ungeprüft speichern</button>` : ""}
+        ${sources.length ? html`<div class="field"><span>Kontaktangaben aus geprüfter Quelle übernehmen</span>
+          <select class="input" id="c-confirm-source">${sources.map((source, index) => html`<option value="${index}">${source.domain} – ${source.title}</option>`)}</select>
+          <input class="input" id="c-confirm-email" type="email" placeholder="Kündigungs-E-Mail (optional)">
+          <textarea id="c-confirm-address" rows="2" placeholder="Postanschrift (optional)"></textarea>
+          <input class="input" id="c-confirm-url" type="url" placeholder="Direkter Kündigungslink (optional)">
+          <label class="check"><input type="checkbox" id="c-user-confirmed"><span>Ich habe diese Angaben selbst auf der ausgewählten Anbieterquelle geprüft.</span></label>
+          <button class="btn primary small" id="c-confirm-contact">Geprüfte Kontaktdaten übernehmen</button>
+        </div>` : ""}
         <p><small>${result.notice}</small></p>`.s;
       out.querySelectorAll("[data-source-check]").forEach((checkButton) => {
         checkButton.onclick = async () => {
@@ -699,6 +707,31 @@ function contractSheet(c) {
           }
         };
       });
+      if ($("#c-confirm-contact", out)) $("#c-confirm-contact", out).onclick = async () => {
+        const index = Number($("#c-confirm-source", out).value);
+        const source = sources[index];
+        const confirmed = $("#c-user-confirmed", out).checked;
+        if (!confirmed) { toast("Bitte bestätige zuerst deine eigene Prüfung der Quelle"); return; }
+        const email = $("#c-confirm-email", out).value.trim();
+        const address = $("#c-confirm-address", out).value.trim();
+        const cancellationUrl = $("#c-confirm-url", out).value.trim();
+        if (!email && !address && !cancellationUrl) { toast("Bitte mindestens eine Kontaktangabe eintragen"); return; }
+        const button = $("#c-confirm-contact", out);
+        button.disabled = true;
+        try {
+          await api(`contracts/${encodeURIComponent(c.key)}/cancellation-contact/confirm`, {
+            method: "POST",
+            body: { user_confirmed: true, source_url: source.url, email, postal_address: address, cancellation_url: cancellationUrl },
+          });
+          toast("Kontaktangaben geprüft und gespeichert");
+          $("#c-mail", sh.el).value = email || $("#c-mail", sh.el).value;
+          $("#c-addr", sh.el).value = address || $("#c-addr", sh.el).value;
+        } catch (error) {
+          toast(error.message);
+        } finally {
+          button.disabled = false;
+        }
+      };
       if ($("#c-save-sources", out)) $("#c-save-sources", out).onclick = async () => {
         await api(`contracts/${encodeURIComponent(c.key)}/cancellation-contact`, {
           method: "PUT",
