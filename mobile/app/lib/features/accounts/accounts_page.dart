@@ -511,9 +511,8 @@ class _AccountCard extends StatelessWidget {
           ),
           title: Text(
             account.name,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontSize: 14),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontSize: 14),
           ),
           subtitle: Text(
             account.details,

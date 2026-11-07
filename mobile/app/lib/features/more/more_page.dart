@@ -58,9 +58,8 @@ class _MorePageState extends State<MorePage> {
         ),
       );
     } on FormatException catch (error) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message.toString())));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message.toString())));
     }
   }
 
