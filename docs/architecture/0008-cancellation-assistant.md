@@ -114,3 +114,24 @@ GitHub Issue: [#14 – Intelligenter Kündigungsassistent mit Anbieterrecherche]
 - Die Suchfunktion benötigt ausgehenden Internetzugriff der Kassensturz-Instanz. Der Suchanbieter kann seine HTML-Antwort oder Verfügbarkeit ändern; ein Fehler wird als nicht verfügbare Suche gemeldet, nicht als „keine Kontaktdaten“ ausgegeben.
 
 Nächste Schritte: offizielle Domains besser erkennen, eine sichere und begrenzte Inhaltsprüfung offizieller Webseiten ergänzen, anschließend die geprüften Kontaktdaten in die bestehende Kündigungsvorlage und die Mail-App-Übergabe integrieren.
+
+
+## Ergänzung: SSRF-Vorprüfung für Quellen-URLs
+
+- Neue API: `POST /api/contracts/{key}/cancellation-source-check` mit einer Quellen-URL.
+- Akzeptiert werden ausschließlich HTTPS-URLs auf Port 443 ohne Zugangsdaten.
+- IP-Literale sowie lokale Hostnamen werden abgewiesen.
+- Der Hostname wird aufgelöst und **jede** zurückgelieferte Adresse muss global routbar sein. Gemischte öffentliche/private DNS-Antworten werden vollständig abgelehnt.
+- Der Endpunkt ruft die Zielseite ausdrücklich noch nicht ab und meldet daher nur `public_host_only`, niemals `verified`.
+- Das ist eine Vorprüfung gegen offensichtliche SSRF-Ziele, aber noch keine vollständige Absicherung eines späteren HTTP-Abrufs: Ein zukünftiger Abruf muss die tatsächlich verwendete Ziel-IP beim Verbindungsaufbau pinnen bzw. Redirects und DNS-Auflösung für jeden Hop erneut prüfen.
+
+
+## Ergänzung: begrenzter Abruf öffentlicher Seiten
+
+- Neue API: `POST /api/contracts/{key}/cancellation-page-evidence`.
+- Die URL durchläuft zuerst dieselbe öffentliche DNS-Vorprüfung. Der HTTP-Client verbindet sich anschließend direkt mit einer der geprüften IP-Adressen (DNS-Pinning); TLS prüft weiterhin den ursprünglichen Hostnamen.
+- Es werden ausschließlich HTTPS/Port 443, GET und HTML-Antworten akzeptiert. Zugangsdaten, IP-Literale, lokale/private Ziele und Weiterleitungen werden abgelehnt.
+- Timeout und Antwortgröße sind begrenzt; es werden nur Seitentitel und einfache `mailto:`-Hinweise extrahiert.
+- Es werden keine Formulare abgesendet, keine Skripte ausgeführt und keine Login-/CAPTCHA-Schranken umgangen.
+- Der Rückgabestatus ist stets `page_fetched_unverified`. Seitentitel und E-Mail-Adressen sind untrusted evidence und werden nicht automatisch als Kontakt gespeichert oder in Kündigungen eingesetzt.
+- Diese Prüfung bestätigt weder, dass die Domain dem Anbieter gehört, noch dass eine E-Mail-Adresse für Kündigungen zuständig ist. Dafür braucht es einen separaten, nachvollziehbaren Nutzer-Prüfschritt.
