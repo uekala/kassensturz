@@ -826,7 +826,7 @@ async function letterSheet(c, mode) {
         const recipient = $("#l-email-to", sh.el).value.trim();
         const subject = $("#l-email-subject", sh.el).value.trim();
         const body = $("#l-email-body", sh.el).value;
-        if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(recipient)) throw new Error("Bitte eine gültige Empfänger-E-Mail-Adresse eintragen.");
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) throw new Error("Bitte eine gültige Empfänger-E-Mail-Adresse eintragen.");
         if (!subject || !body.trim()) throw new Error("Betreff und E-Mail-Text dürfen nicht leer sein.");
         const mailto = "mailto:" + encodeURIComponent(recipient) + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
         const notes = mode === "termin" && date ? "Kündigung zum " + date : null;
