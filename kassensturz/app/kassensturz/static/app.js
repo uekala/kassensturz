@@ -566,10 +566,17 @@ async function renderContracts(view, _params, seq) {
   const ended = items.filter((c) => !c.active && !c.manual && c.status !== "ignored" && c.status !== "cancelled");
   const ignored = items.filter((c) => c.status === "ignored");
   const priceUp = running.filter((c) => c.price_change_cents && c.price_change_cents < 0).length;
+  const deadlineItems = running
+    .filter((c) => c.deadline && c.days_to_deadline <= 90)
+    .sort((a, b) => a.days_to_deadline - b.days_to_deadline);
   const row = (c) => {
     const chips = [];
     if (c.price_change_cents && c.kind === "expense" && c.price_change_cents < 0) chips.push(html`<span class="chip warn">${money(-c.price_change_cents, { plus: true })}</span>`);
-    if (c.days_to_deadline !== null && c.days_to_deadline >= 0 && c.days_to_deadline <= 45) chips.push(html`<span class="chip crit">Frist ${dShort(c.deadline)}</span>`);
+    if (c.days_to_deadline !== null && c.days_to_deadline <= 90) {
+      const urgency = c.days_to_deadline < 0 || c.days_to_deadline <= 45 ? "crit" : "warn";
+      const label = c.days_to_deadline < 0 ? "Frist abgelaufen" : `Frist ${dShort(c.deadline)}`;
+      chips.push(html`<span class="chip ${urgency}">${label}</span>`);
+    }
     if (c.status === "cancelled") chips.push(html`<span class="chip neutral">gekündigt${c.cancel_effective ? " zum " + dShort(c.cancel_effective) : ""}</span>`);
     const sub = c.active ? `${c.interval}, nächste ${relDay(c.next_due)}` : `zuletzt ${dShort(c.last_date)}`;
     const monthly = c.interval !== "monatlich" && c.monthly_cents ? html`<small>≈ ${money(c.monthly_cents)} im Monat</small>` : "";
@@ -585,6 +592,7 @@ async function renderContracts(view, _params, seq) {
     </section>
     ${items.length ? "" : html`<p class="muted">Noch keine wiederkehrenden Zahlungen erkannt. Dafür braucht es meist drei Monate Umsätze.</p>`}
     <div class="cols"><div>
+      ${section("Kündigungsfristen", deadlineItems, "überfällig oder innerhalb von 90 Tagen")}
       ${section("Laufend", running, "nach Betrag")}
       ${section("Gekündigt", cancelled)}
     </div><div>
