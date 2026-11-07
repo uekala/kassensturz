@@ -140,6 +140,44 @@ CREATE TABLE IF NOT EXISTS contracts(
   updated TEXT
 );
 
+CREATE TABLE IF NOT EXISTS provider_contacts(
+  provider_key TEXT PRIMARY KEY,
+  provider_name TEXT NOT NULL,
+  email TEXT,
+  postal_address TEXT,
+  cancellation_url TEXT,
+  contact_url TEXT,
+  status TEXT NOT NULL DEFAULT 'unverified',
+  checked_at TEXT,
+  notes TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS provider_contact_sources(
+  id INTEGER PRIMARY KEY,
+  provider_key TEXT NOT NULL,
+  source_type TEXT NOT NULL DEFAULT 'official',
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  checked_at TEXT NOT NULL,
+  excerpt TEXT,
+  UNIQUE(provider_key, url)
+);
+CREATE INDEX IF NOT EXISTS provider_sources_provider ON provider_contact_sources(provider_key);
+
+CREATE TABLE IF NOT EXISTS cancellation_events(
+  id INTEGER PRIMARY KEY,
+  contract_key TEXT NOT NULL,
+  provider_key TEXT NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'ordinary',
+  status TEXT NOT NULL DEFAULT 'prepared',
+  prepared_at TEXT NOT NULL,
+  handed_off_at TEXT,
+  user_confirmed_sent_at TEXT,
+  notes TEXT
+);
+CREATE INDEX IF NOT EXISTS cancellation_events_contract ON cancellation_events(contract_key, prepared_at);
+
 CREATE TABLE IF NOT EXISTS imports(
   id INTEGER PRIMARY KEY,
   account_id INTEGER,
