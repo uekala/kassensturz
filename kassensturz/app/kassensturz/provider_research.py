@@ -6,7 +6,9 @@ dass eine gefundene Adresse ein bestätigter Kündigungskontakt ist.
 from __future__ import annotations
 
 from html.parser import HTMLParser
-from urllib.parse import parse_qs, quote_plus, urlparse
+import ipaddress
+import socket
+from urllib.parse import parse_qs, urlparse
 
 import requests
 
@@ -120,4 +122,54 @@ def search_provider(provider_name: str) -> dict:
         "status": "candidates_found" if results else "no_results",
         "results": results,
         "notice": "Suchtreffer sind ungeprüfte Kandidaten. Kontaktdaten erst nach Prüfung einer offiziellen Anbieterquelle übernehmen.",
+    }
+
+
+def inspect_public_https_url(raw_url: str) -> dict:
+    """Prüft URL-Form und DNS-Ziele, ohne die Zielseite abzurufen.
+
+    Dies ist eine SSRF-Vorprüfung, keine Bestätigung der Anbieteridentität.
+    Ein späterer Abruf muss DNS-Ziele beim Verbindungsaufbau erneut absichern.
+    """
+    parsed = urlparse((raw_url or "").strip())
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.port not in (None, 443)
+        or parsed.fragment
+    ):
+        raise ValueError("Nur HTTPS-URLs auf Port 443 ohne Zugangsdaten sind erlaubt.")
+
+    host = parsed.hostname.rstrip(".").lower()
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        raise ValueError("IP-Adressen sind als Quellenziel nicht zulässig.")
+
+    if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".home", ".lan")):
+        raise ValueError("Lokale Hostnamen sind als Quellenziel nicht zulässig.")
+
+    try:
+        records = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+    except (OSError, socket.gaierror):
+        raise ValueError("Der Hostname konnte nicht sicher aufgelöst werden.") from None
+
+    addresses = sorted({record[4][0] for record in records})
+    if not addresses:
+        raise ValueError("Der Hostname besitzt keine auflösbare öffentliche Adresse.")
+    for address in addresses:
+        ip = ipaddress.ip_address(address.split("%", 1)[0])
+        if not ip.is_global:
+            raise ValueError("Der Hostname verweist auf eine nicht öffentliche Netzwerkadresse.")
+
+    return {
+        "host": host,
+        "addresses": addresses,
+        "status": "public_host_only",
+        "verified": False,
+        "notice": "Nur die öffentliche DNS-Auflösung wurde geprüft. Anbieterzugehörigkeit und Kontaktangaben sind damit nicht bestätigt.",
     }
