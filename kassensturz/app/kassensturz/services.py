@@ -59,19 +59,19 @@ def alerts(db: Database, summary: dict) -> list[dict]:
             # Jede Stufe wird genau einmal pro Vertrag und Frist gemeldet.
             # Der vorhandene notices-Speicher verhindert Wiederholungen bei jedem Refresh.
             if dl < 0:
-                stage, level, timing = "overdue", "critical", "Die Kündigungsfrist ist bereits abgelaufen"
-            elif dl <= 7:
-                stage, level, timing = "7d", "critical", "Nur noch"
-            elif dl <= 21:
-                stage, level, timing = "21d", "warning", "Nur noch"
-            elif dl <= 45:
-                stage, level, timing = "45d", "warning", "Noch"
+                stage, level = "overdue", "critical"
+                message = f"Die Kündigungsfrist endete am {date.fromisoformat(c['deadline']).strftime('%d.%m.%Y')}. Bitte Vertragsstatus prüfen."
             else:
-                stage = None
+                offsets = options.cancellation_reminder_days()
+                threshold = next((value for value in offsets if dl <= value), None)
+                if threshold is None:
+                    stage = None
+                else:
+                    stage = f"{threshold}d"
+                    level = "critical" if threshold == min(offsets) else "warning"
+                    timing = "Noch" if threshold == max(offsets) else "Nur noch"
+                    message = f"{timing} {dl} Tage. Spätestens kündigen bis {date.fromisoformat(c['deadline']).strftime('%d.%m.%Y')}."
             if stage:
-                deadline_label = date.fromisoformat(c["deadline"]).strftime("%d.%m.%Y")
-                message = (f"{timing}. Spätestens kündigen bis {deadline_label}."
-                           if dl < 0 else f"{timing} {dl} Tage. Spätestens kündigen bis {deadline_label}.")
                 out.append({"key": f"deadline:{stage}:{c['key']}:{c['deadline']}", "level": level,
                             "contract": c["key"], "title": f"Kündigungsfrist {c['name']}", "text": message})
     # Remind about cancellation events that were not explicitly confirmed as sent.
