@@ -14,6 +14,9 @@ configuration:
   warn_threshold:
     name: Warnschwelle in Euro
     description: Warnen, wenn der prognostizierte Kontostand unter diesen Betrag fällt.
+  cancellation_reminder_days:
+    name: Erinnerungen vor Kündigungsfrist (Tage)
+    description: Kommagetrennte Tage vor Fristende, z. B. 45,21,7. Größter Wert ist die erste Warnung, kleinster Wert die kritische letzte Warnung. Erlaubt sind 1 bis 365.
   import_folder:
     name: Eingangsordner
     description: Kontoauszug-Dateien, die hier landen, werden automatisch importiert. Leer lassen zum Abschalten.
