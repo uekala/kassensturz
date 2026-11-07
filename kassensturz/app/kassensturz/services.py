@@ -54,10 +54,26 @@ def alerts(db: Database, summary: dict) -> list[dict]:
                         "text": f"Zuletzt {euro(-c['amount_cents'])} statt {euro(-c['prev_amount_cents'])} – "
                                 f"{euro(-ch * round(12 * contracts.monthly_factor(c['interval'])))} mehr im Jahr."})
         dl = c.get("days_to_deadline")
-        if dl is not None and 0 <= dl <= 21 and c["status"] != "cancelled":
-            out.append({"key": f"deadline:{c['key']}:{c['deadline']}", "level": "warning", "contract": c["key"],
-                        "title": f"Kündigungsfrist {c['name']}",
-                        "text": f"Kündigen bis {date.fromisoformat(c['deadline']).strftime('%d.%m.%Y')} – noch {dl} Tage."})
+        if (dl is not None and c["kind"] == "expense" and contracts.is_running(c, today)
+                and c["status"] != "cancelled"):
+            # Jede Stufe wird genau einmal pro Vertrag und Frist gemeldet.
+            # Der vorhandene notices-Speicher verhindert Wiederholungen bei jedem Refresh.
+            if dl < 0:
+                stage, level, timing = "overdue", "critical", "Die Kündigungsfrist ist bereits abgelaufen"
+            elif dl <= 7:
+                stage, level, timing = "7d", "critical", "Nur noch"
+            elif dl <= 21:
+                stage, level, timing = "21d", "warning", "Nur noch"
+            elif dl <= 45:
+                stage, level, timing = "45d", "warning", "Noch"
+            else:
+                stage = None
+            if stage:
+                deadline_label = date.fromisoformat(c["deadline"]).strftime("%d.%m.%Y")
+                message = (f"{timing}. Spätestens kündigen bis {deadline_label}."
+                           if dl < 0 else f"{timing} {dl} Tage. Spätestens kündigen bis {deadline_label}.")
+                out.append({"key": f"deadline:{stage}:{c['key']}:{c['deadline']}", "level": level,
+                            "contract": c["key"], "title": f"Kündigungsfrist {c['name']}", "text": message})
     for b in summary["budgets"]:
         if b["state"] == "over":
             out.append({"key": f"budget:{b['category_id']}:{today:%Y-%m}", "level": "warning", "title": f"Budget {b['name']} überschritten",
