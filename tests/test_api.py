@@ -117,3 +117,36 @@ def test_cancellation_contact_sources_and_event(client):
     )
     assert invalid.status_code == 400
 
+
+
+
+def test_cancellation_source_preflight_api(client, monkeypatch):
+    import socket
+
+    from kassensturz import provider_research
+
+    client.post("/api/demo")
+    contract = next(
+        c for c in client.get("/api/contracts").json()["items"]
+        if c["name"] == "Telekom Deutschland GmbH"
+    )
+    monkeypatch.setattr(
+        provider_research.socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+        ],
+    )
+    result = client.post(
+        f"/api/contracts/{contract['key']}/cancellation-source-check",
+        json={"url": "https://www.telekom.de/kontakt"},
+    )
+    assert result.status_code == 200
+    assert result.json()["status"] == "public_host_only"
+    assert result.json()["verified"] is False
+
+    rejected = client.post(
+        f"/api/contracts/{contract['key']}/cancellation-source-check",
+        json={"url": "http://127.0.0.1/"},
+    )
+    assert rejected.status_code == 400
