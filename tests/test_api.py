@@ -62,7 +62,31 @@ def test_demo_overview_and_letter(client):
 def test_export_csv(client):
     client.post("/api/demo")
     r = client.get("/api/export.csv")
-    assert r.status_code == 200 and r.text.lstrip("﻿").startswith("Buchungstag;")
+    assert r.status_code == 200 and r.text.lstrip("\ufeff").startswith("Buchungstag;")
+
+
+def test_export_csv_neutralizes_spreadsheet_formulas(client, db):
+    import csv
+    import io
+
+    account_id = db.insert("accounts", {"name": "=1+1"})
+    db.insert("transactions", {
+        "account_id": account_id,
+        "booking_date": "2026-11-07",
+        "amount_cents": -1234,
+        "counterparty": "@SUM(A1:A2)",
+        "purpose": "+cmd|' /C calc'!A0",
+        "note": "  =HYPERLINK('https://example.invalid')",
+    })
+
+    response = client.get("/api/export.csv")
+    rows = list(csv.DictReader(io.StringIO(response.text.lstrip("\ufeff")), delimiter=";"))
+
+    assert response.status_code == 200
+    assert rows[0]["Konto"] == "'=1+1"
+    assert rows[0]["Gegenseite"] == "'@SUM(A1:A2)"
+    assert rows[0]["Verwendungszweck"] == "'+cmd|' /C calc'!A0"
+    assert rows[0]["Notiz"] == "'  =HYPERLINK('https://example.invalid')"
 
 
 def test_ingress_only(db):
