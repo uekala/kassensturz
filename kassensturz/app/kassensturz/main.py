@@ -1148,6 +1148,14 @@ def refresh():
     return {"ok": True}
 
 
+def _csv_safe_text(value: str | None) -> str:
+    """Prevent spreadsheet formula execution when untrusted text is opened from CSV."""
+    text = str(value or "")
+    if text.lstrip(" \t\r\n").startswith(("=", "+", "-", "@")):
+        return "'" + text
+    return text
+
+
 @app.get("/api/export.csv")
 def export_csv():
     db = get_db()
@@ -1158,8 +1166,10 @@ def export_csv():
     w = csv.writer(buf, delimiter=";")
     w.writerow(["Buchungstag", "Wertstellung", "Konto", "Gegenseite", "IBAN", "Verwendungszweck", "Betrag", "Kategorie", "Umbuchung", "Notiz"])
     for r in rows:
-        w.writerow([r["booking_date"], r["value_date"], r["konto"], r["counterparty"] or "", r["counterparty_iban"] or "", r["purpose"] or "",
-                    f"{r['amount_cents'] / 100:.2f}".replace(".", ","), r["kategorie"] or "", "ja" if r["is_transfer"] else "", r["note"] or ""])
+        w.writerow([r["booking_date"], r["value_date"], _csv_safe_text(r["konto"]), _csv_safe_text(r["counterparty"]),
+                    _csv_safe_text(r["counterparty_iban"]), _csv_safe_text(r["purpose"]),
+                    f"{r['amount_cents'] / 100:.2f}".replace(".", ","), _csv_safe_text(r["kategorie"]),
+                    "ja" if r["is_transfer"] else "", _csv_safe_text(r["note"])])
     return Response(buf.getvalue().encode("utf-8-sig"), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="kassensturz-{date.today()}.csv"'})
 
