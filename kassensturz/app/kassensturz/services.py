@@ -74,6 +74,31 @@ def alerts(db: Database, summary: dict) -> list[dict]:
                            if dl < 0 else f"{timing} {dl} Tage. Spätestens kündigen bis {deadline_label}.")
                 out.append({"key": f"deadline:{stage}:{c['key']}:{c['deadline']}", "level": level,
                             "contract": c["key"], "title": f"Kündigungsfrist {c['name']}", "text": message})
+    # Remind about cancellation events that were not explicitly confirmed as sent.
+    # The stable event key prevents repeats during the regular refresh cycle.
+    pending_events = db.query(
+        "SELECT e.id, e.contract_key, e.status, e.prepared_at, c.name "
+        "FROM cancellation_events e JOIN contracts c ON c.key = e.contract_key "
+        "WHERE e.status IN ('prepared', 'handed_off') AND c.status NOT IN ('cancelled', 'ignored')"
+    )
+    now = datetime.now()
+    for event in pending_events:
+        try:
+            prepared_at = datetime.fromisoformat(event["prepared_at"])
+        except (TypeError, ValueError):
+            continue
+        age = now - prepared_at
+        if age < timedelta(hours=24):
+            continue
+        age_days = max(1, age.days)
+        action = "an die Mail-App übergeben" if event["status"] == "handed_off" else "vorbereitet"
+        out.append({
+            "key": f"cancellation-pending:{event['id']}",
+            "level": "warning",
+            "contract": event["contract_key"],
+            "title": f"Kündigung noch nicht bestätigt: {event['name']}",
+            "text": f"Vor {age_days} Tagen {action}. Bitte prüfen, ob die Kündigung tatsächlich versendet wurde.",
+        })
     for b in summary["budgets"]:
         if b["state"] == "over":
             out.append({"key": f"budget:{b['category_id']}:{today:%Y-%m}", "level": "warning", "title": f"Budget {b['name']} überschritten",
