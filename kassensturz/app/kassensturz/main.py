@@ -1011,6 +1011,31 @@ def cancellation_event_create(key: str, body: dict = Body(...)):
     return db.one("SELECT * FROM cancellation_events WHERE id = ?", (event_id,))
 
 
+@app.post("/api/contracts/{key:path}/cancellation-events/{event_id}/handoff")
+def cancellation_event_handoff(key: str, event_id: int):
+    db = get_db()
+    event = db.one("SELECT * FROM cancellation_events WHERE id = ? AND contract_key = ?", (event_id, key))
+    if not event:
+        _err(404, "Kündigungsvorgang nicht gefunden.")
+    if event.get("status") != "prepared":
+        _err(409, "Dieser Kündigungsvorgang wurde bereits übergeben oder weiterbearbeitet.")
+    db.update("cancellation_events", "id", event_id, {"status": "handed_off", "handed_off_at": now_iso()})
+    return db.one("SELECT * FROM cancellation_events WHERE id = ?", (event_id,))
+
+
+@app.post("/api/contracts/{key:path}/cancellation-events/{event_id}/confirm-sent")
+def cancellation_event_confirm_sent(key: str, event_id: int, body: dict = Body(...)):
+    db = get_db()
+    event = db.one("SELECT * FROM cancellation_events WHERE id = ? AND contract_key = ?", (event_id, key))
+    if not event:
+        _err(404, "Kündigungsvorgang nicht gefunden.")
+    if body.get("user_confirmed_sent") is not True:
+        _err(400, "Bitte bestätige ausdrücklich, dass du die Kündigung tatsächlich versendet hast.")
+    if event.get("status") != "handed_off":
+        _err(409, "Die Kündigung muss zuerst an die Mail-App übergeben worden sein.")
+    db.update("cancellation_events", "id", event_id, {"status": "sent", "user_confirmed_sent_at": now_iso()})
+    return db.one("SELECT * FROM cancellation_events WHERE id = ?", (event_id,))
+
 @app.post("/api/letter")
 def letter(body: dict = Body(...)):
     db = get_db()
