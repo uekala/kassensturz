@@ -275,3 +275,65 @@ def test_cancellation_deadline_alerts_are_staged(client):
         if alert.get("contract") == key and alert["key"].startswith("deadline:")
     )
     assert ":21d:" in reminder["key"]
+
+
+
+def test_unconfirmed_cancellation_event_reminder(client, db):
+    from datetime import datetime, timedelta
+
+    client.post("/api/demo")
+    contract = next(
+        item for item in client.get("/api/contracts").json()["items"]
+        if item["name"] == "Telekom Deutschland GmbH"
+    )
+    key = contract["key"]
+    event = client.post(
+        f"/api/contracts/{key}/cancellation-events",
+        json={"mode": "ordinary"},
+    ).json()
+
+    # Freshly prepared cancellations must not trigger a reminder yet.
+    alerts = client.get("/api/overview").json()["alerts"]
+    assert not any(a["key"] == f"cancellation-pending:{event['id']}" for a in alerts)
+
+    # After 24 hours without explicit send confirmation, a warning appears.
+    old = (datetime.now() - timedelta(hours=25)).replace(microsecond=0).isoformat()
+    db.conn.execute(
+        "UPDATE cancellation_events SET prepared_at = ? WHERE id = ?",
+        (old, event["id"]),
+    )
+    alerts = client.get("/api/overview").json()["alerts"]
+    reminder = next(a for a in alerts if a["key"] == f"cancellation-pending:{event['id']}")
+    assert reminder["contract"] == key
+    assert reminder["level"] == "warning"
+    assert "tatsächlich versendet" in reminder["text"]
+
+    # After explicit send confirmation, the reminder disappears.
+    client.post(f"/api/contracts/{key}/cancellation-events/{event['id']}/handoff")
+    sent = client.post(
+        f"/api/contracts/{key}/cancellation-events/{event['id']}/confirm-sent",
+        json={"user_confirmed_sent": True},
+    )
+    assert sent.status_code == 200
+    alerts = client.get("/api/overview").json()["alerts"]
+    assert not any(a["key"] == f"cancellation-pending:{event['id']}" for a in alerts)
+
+
+def test_unconfirmed_cancellation_event_reminder_ignores_cancelled_contract(client, db):
+    from datetime import datetime, timedelta
+
+    client.post("/api/demo")
+    contract = next(
+        item for item in client.get("/api/contracts").json()["items"]
+        if item["name"] == "Telekom Deutschland GmbH"
+    )
+    key = contract["key"]
+    event = client.post(
+        f"/api/contracts/{key}/cancellation-events",
+        json={"mode": "ordinary"},
+    ).json()
+    old = (datetime.now() - timedelta(hours=25)).replace(microsecond=0).isoformat()
+    db.conn.execute("UPDATE cancellation_events SET prepared_at = ? WHERE id = ?", (old, event["id"]))
+    client.patch(f"/api/contracts/{key}", json={"status": "cancelled"})
+    alerts = client.get("/api/overview").json()["alerts"]
+    assert not any(a["key"] == f"cancellation-pending:{event['id']}" for a in alerts)
