@@ -65,6 +65,30 @@ def test_export_csv(client):
     assert r.status_code == 200 and r.text.lstrip("\ufeff").startswith("Buchungstag;")
 
 
+def test_export_csv_includes_transaction_splits(client, db):
+    import csv
+    import io
+
+    account_id = db.insert("accounts", {"name": "Girokonto"})
+    category_id = db.insert("categories", {"name": "Lebensmittel", "kind": "expense"})
+    tx_id = db.insert("transactions", {
+        "account_id": account_id,
+        "booking_date": "2026-11-07",
+        "amount_cents": -5000,
+        "counterparty": "Supermarkt",
+    })
+    db.insert("splits", {"tx_id": tx_id, "amount_cents": -3000, "category_id": category_id})
+    db.insert("splits", {"tx_id": tx_id, "amount_cents": -2000, "category_id": None})
+
+    response = client.get("/api/export.csv")
+    rows = list(csv.DictReader(io.StringIO(response.text.lstrip("\\ufeff")), delimiter=";"))
+
+    assert response.status_code == 200
+    assert len(rows) == 1
+    assert rows[0]["Betrag"] == "-50,00"
+    assert rows[0]["Aufteilungen"] == "Lebensmittel: -30,00 EUR | Ohne Kategorie: -20,00 EUR"
+
+
 def test_export_csv_neutralizes_spreadsheet_formulas(client, db):
     import csv
     import io
