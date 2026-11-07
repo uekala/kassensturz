@@ -1159,17 +1159,30 @@ def _csv_safe_text(value: str | None) -> str:
 @app.get("/api/export.csv")
 def export_csv():
     db = get_db()
-    rows = db.query("SELECT t.booking_date, t.value_date, a.name AS konto, t.counterparty, t.counterparty_iban, t.purpose, t.amount_cents, "
+    rows = db.query("SELECT t.id, t.booking_date, t.value_date, a.name AS konto, t.counterparty, t.counterparty_iban, t.purpose, t.amount_cents, "
                     "c.name AS kategorie, t.is_transfer, t.note FROM transactions t JOIN accounts a ON a.id = t.account_id "
                     "LEFT JOIN categories c ON c.id = t.category_id ORDER BY t.booking_date, t.id")
+    split_rows = db.query(
+        "SELECT s.tx_id, s.amount_cents, c.name AS category_name FROM splits s "
+        "LEFT JOIN categories c ON c.id = s.category_id ORDER BY s.tx_id, s.id"
+    )
+    splits_by_tx = {}
+    for split in split_rows:
+        splits_by_tx.setdefault(split["tx_id"], []).append(split)
+
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
-    w.writerow(["Buchungstag", "Wertstellung", "Konto", "Gegenseite", "IBAN", "Verwendungszweck", "Betrag", "Kategorie", "Umbuchung", "Notiz"])
+    w.writerow(["Buchungstag", "Wertstellung", "Konto", "Gegenseite", "IBAN", "Verwendungszweck", "Betrag", "Kategorie", "Umbuchung", "Notiz", "Aufteilungen"])
     for r in rows:
+        split_text = " | ".join(
+            f"{_csv_safe_text(split['category_name'] or 'Ohne Kategorie')}: "
+            f"{split['amount_cents'] / 100:.2f}".replace(".", ",") + " EUR"
+            for split in splits_by_tx.get(r["id"], [])
+        )
         w.writerow([r["booking_date"], r["value_date"], _csv_safe_text(r["konto"]), _csv_safe_text(r["counterparty"]),
                     _csv_safe_text(r["counterparty_iban"]), _csv_safe_text(r["purpose"]),
                     f"{r['amount_cents'] / 100:.2f}".replace(".", ","), _csv_safe_text(r["kategorie"]),
-                    "ja" if r["is_transfer"] else "", _csv_safe_text(r["note"])])
+                    "ja" if r["is_transfer"] else "", _csv_safe_text(r["note"]), _csv_safe_text(split_text)])
     return Response(buf.getvalue().encode("utf-8-sig"), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="kassensturz-{date.today()}.csv"'})
 
