@@ -1011,7 +1011,7 @@ def cancellation_events_get(key: str):
     if not contract:
         _err(404, "Vertrag nicht gefunden.")
     events = db.query(
-        "SELECT id, mode, status, prepared_at, handed_off_at, user_confirmed_sent_at, notes "
+        "SELECT id, mode, status, prepared_at, handed_off_at, user_confirmed_sent_at, provider_confirmed_at, aborted_at, notes "
         "FROM cancellation_events WHERE contract_key = ? ORDER BY prepared_at DESC, id DESC",
         (key,),
     )
@@ -1057,6 +1057,20 @@ def cancellation_event_confirm_sent(key: str, event_id: int, body: dict = Body(.
         _err(409, "Die Kündigung muss zuerst an die Mail-App übergeben worden sein.")
     db.update("cancellation_events", "id", event_id, {"status": "sent", "user_confirmed_sent_at": now_iso()})
     return db.one("SELECT * FROM cancellation_events WHERE id = ?", (event_id,))
+
+@app.post("/api/contracts/{key:path}/cancellation-events/{event_id}/abort")
+def cancellation_event_abort(key: str, event_id: int, body: dict = Body(...)):
+    db = get_db()
+    event = db.one("SELECT * FROM cancellation_events WHERE id = ? AND contract_key = ?", (event_id, key))
+    if not event:
+        _err(404, "Kündigungsvorgang nicht gefunden.")
+    if body.get("user_confirmed_aborted") is not True:
+        _err(400, "Bitte bestätige ausdrücklich, dass du diesen Kündigungsvorgang abbrechen möchtest.")
+    if event.get("status") not in ("prepared", "handed_off"):
+        _err(409, "Nur vorbereitete oder an die Mail-App übergebene Vorgänge können abgebrochen werden.")
+    db.update("cancellation_events", "id", event_id, {"status": "aborted", "aborted_at": now_iso()})
+    return db.one("SELECT * FROM cancellation_events WHERE id = ?", (event_id,))
+
 
 @app.post("/api/contracts/{key:path}/cancellation-events/{event_id}/confirm-received")
 def cancellation_event_confirm_received(key: str, event_id: int, body: dict = Body(...)):
