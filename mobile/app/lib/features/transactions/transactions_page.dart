@@ -131,9 +131,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
             const SizedBox(height: 9),
             Text(
               controller.financeError!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.error),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: colors.error),
             ),
           ],
           const SizedBox(height: 9),
@@ -267,10 +266,8 @@ class _ListHeading extends StatelessWidget {
         if (isDemo)
           Text(
             'BEISPIELDATEN',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              letterSpacing: 0.7,
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(letterSpacing: 0.7, fontWeight: FontWeight.w700),
           ),
       ],
     );
@@ -393,9 +390,8 @@ class _LiveTransactionTile extends StatelessWidget {
       ),
       trailing: Text(
         formatSignedEuro(cents / 100),
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: cents < 0 ? colors.onSurface : AppTheme.accent,
-        ),
+        style: Theme.of(context).textTheme.labelLarge
+            ?.copyWith(color: cents < 0 ? colors.onSurface : AppTheme.accent),
       ),
     );
   }
