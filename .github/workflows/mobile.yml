@@ -18,6 +18,12 @@ on:
     paths:
       - "mobile/**"
       - ".github/workflows/mobile.yml"
+  workflow_dispatch:
+    inputs:
+      ios:
+        description: "iOS-Simulator-Build ausführen (macOS-Runner, zählt zehnfach bei den Actions-Minuten)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -90,6 +96,8 @@ jobs:
 
   ios-simulator:
     name: iOS simulator build
+    # macOS-Minuten zählen zehnfach: nur bei manuellem Start, nicht bei jedem Push oder PR.
+    if: github.event_name == 'workflow_dispatch' && inputs.ios
     runs-on: macos-latest
     needs: flutter-tests
     defaults:
