@@ -955,3 +955,47 @@ select, .input, textarea {
     padding: 10px 10px 7px;
   }
 }
+
+
+/* HA-Ingress: Kopfzeile und Einstellungen auf schmalen Displays explizit sichtbar halten. */
+@media (max-width: 899px) {
+  header.top {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: sticky !important;
+    inset: auto !important;
+    top: 0 !important;
+    z-index: 45 !important;
+    width: 100% !important;
+    min-height: 60px !important;
+    height: auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 9px 16px !important;
+    margin: 0 !important;
+    background: var(--surface) !important;
+    border-bottom: 1px solid var(--rule) !important;
+  }
+  header.top .brand {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 1 1 auto !important;
+    margin: 0 auto 0 0 !important;
+    color: var(--ink) !important;
+  }
+  header.top .settings-link {
+    display: inline-grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    height: 42px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: var(--muted) !important;
+    background: transparent !important;
+  }
+  header.top .settings-link::after { content: none !important; }
+}
