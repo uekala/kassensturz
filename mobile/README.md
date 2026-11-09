@@ -141,15 +141,14 @@ So ist es jetzt gelöst:
 - **Prüfung:** `tool/verify-apk-signature.sh` bricht ab, wenn die APK mit einem Debug-Schlüssel signiert ist oder ein anderes Zertifikat trägt als in der Repository-Variable `ANDROID_SIGNING_CERT_SHA256` hinterlegt.
 - **Debug-APKs** aus Pushes und Pull Requests bleiben Test-Builds. Sie lassen sich nicht als Update über eine Release-Version installieren.
 
-### Einmalige Einrichtung (nur durch dich, Schlüssel nie ins Repo oder in einen Chat)
+### Einmalige Einrichtung und Prüfung (nur durch dich; Schlüssel nie ins Repo oder in einen Chat)
 
-1. Schlüssel lokal erzeugen:
-   `keytool -genkeypair -v -keystore kassensturz-upload.jks -keyalg RSA -keysize 4096 -validity 10000 -alias upload`
-2. Keystore und Passwörter sicher aufbewahren (z. B. Passwortmanager plus Offline-Kopie). Ohne diesen Schlüssel sind später keine Updates mehr möglich.
-3. Secrets setzen (GitHub CLI, im Repository-Verzeichnis):
-   `base64 -w0 kassensturz-upload.jks | gh secret set ANDROID_KEYSTORE_BASE64`
-   `gh secret set ANDROID_KEYSTORE_PASSWORD`, `gh secret set ANDROID_KEY_ALIAS` (Wert `upload`), `gh secret set ANDROID_KEY_PASSWORD`
-4. Fingerabdruck als Variable hinterlegen:
-   `keytool -list -v -keystore kassensturz-upload.jks -alias upload | grep SHA256`
-   `gh variable set ANDROID_SIGNING_CERT_SHA256 --body "<Wert>"`
-5. Bereits installierte Test-Apps einmal deinstallieren; danach kommen alle Updates ohne Neuinstallation.
+1. **Schlüssel und Secrets auf deinem Rechner anlegen** (Linux, macOS oder Git Bash/WSL unter Windows; braucht `keytool` aus einem JDK und ein angemeldetes `gh`):
+   `bash mobile/app/tool/setup-android-signing.sh uekala/kassensturz`
+   Das Skript fragt ein Passwort ab, erzeugt `kassensturz-upload.jks` (oder nutzt eine vorhandene Datei), setzt die vier Secrets und die Variable `ANDROID_SIGNING_CERT_SHA256`. Hat das Repo schon einen Schlüssel, bricht es ab, weil ein zweiter Schlüssel Updates verhindern würde.
+2. **Sichern:** Keystore-Datei und Passwort (Passwortmanager plus Offline-Kopie). Ohne beides sind keine Updates mehr möglich.
+3. **Erster signierter Build:** `gh workflow run "Mobile Flutter" --repo uekala/kassensturz --ref main -f android_release=true -f ios=false`. In der Zusammenfassung des Laufs muss der Abschnitt „Android-Signatur“ das Zertifikat und „Abgleich mit `ANDROID_SIGNING_CERT_SHA256`: ok“ zeigen.
+4. APK laden (`gh run download <run-id> --repo uekala/kassensturz -n kassensturz-android-release`), die installierte Test-App einmal deinstallieren, dann `adb install app-release.apk`.
+5. **Update-Test:** Workflow ein zweites Mal starten, neue APK laden, `adb install -r app-release.apk`. Erwartet: `Success`; `adb shell dumpsys package de.uekala.kassensturz.kassensturz_mobile | grep versionCode` zeigt die höhere Build-Nummer. Erst dann ist der Signatur-Fix bestätigt.
+
+Hinweis: Kassensturz ist ein privates Repository. Solange GitHub Actions dort wegen der Abrechnung keine Jobs startet, sind Schritt 3 bis 5 nicht möglich.
