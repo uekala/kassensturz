@@ -12,6 +12,8 @@ coverage/
 android/.gradle/
 android/local.properties
 android/key.properties
+*.jks
+*.keystore
 android/app/debug/
 android/app/profile/
 android/app/release/
