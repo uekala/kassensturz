@@ -124,11 +124,20 @@ def test_command_line_exit_codes(tmp_path):
     )
     assert missing.returncode == 1
     assert "::error::" in missing.stderr
+    output = tmp_path / "github_output"
+    skipped = subprocess.run(
+        ["python3", str(script), "--app-dir", str(app)],
+        env={**env, "GITHUB_OUTPUT": str(output)}, capture_output=True, text=True, check=False,
+    )
+    assert skipped.returncode == 0
+    assert output.read_text() == "signed=false\n"
     ok = subprocess.run(
         ["python3", str(script), "--required", "--app-dir", str(app)],
-        env={**env, **SECRETS}, capture_output=True, text=True, check=False,
+        env={**env, **SECRETS, "GITHUB_OUTPUT": str(output)},
+        capture_output=True, text=True, check=False,
     )
     assert ok.returncode == 0, ok.stderr
+    assert output.read_text().endswith("signed=true\n")
 
 
 def _fake_apksigner(tmp_path: Path, subject: str, digest: str) -> dict[str, str]:

@@ -18,6 +18,7 @@ Environment variables (GitHub Actions secrets):
     ANDROID_KEY_PASSWORD       key password
 
 Passwords are never written to disk: Gradle reads them from the environment.
+In GitHub Actions the step output `signed` is set to `true` or `false`.
 The keystore is written to android/app/release-upload.jks (mode 0600, ignored
 by git) and should be deleted after the build.
 """
@@ -107,10 +108,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
-        configure(Path(args.app_dir), dict(os.environ), args.required)
+        signed = configure(Path(args.app_dir), dict(os.environ), args.required)
     except SigningError as err:
         print(f"::error::{err}", file=sys.stderr)
         return 1
+    output = os.environ.get("GITHUB_OUTPUT")
+    if output:
+        with open(output, "a", encoding="utf-8") as handle:
+            handle.write(f"signed={'true' if signed else 'false'}\n")
     return 0
 
 
