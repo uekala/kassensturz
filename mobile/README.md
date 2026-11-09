@@ -128,3 +128,28 @@ Die Spezifikation steht in:
 5. Den ersten echten End-to-End-Ablauf vom Pairing bis zum Dashboard integrieren.
 6. Auf realen iOS- und Android-Geräten testen.
 7. Signierte Builds und App-Store-/Google-Play-Veröffentlichung vorbereiten.
+
+## Android-Updates und Signatur
+
+Android installiert ein Update nur über eine vorhandene App, wenn beide mit demselben Schlüssel signiert sind und die Build-Nummer (`versionCode`) steigt. Die CI erzeugt die Android-Projektdateien bei jedem Lauf neu; ohne eigene Konfiguration signiert Flutter Release-Builds dann mit dem zufälligen Debug-Schlüssel des jeweiligen Runners. Deshalb ließ sich bisher keine neue APK über eine installierte Version installieren.
+
+So ist es jetzt gelöst:
+
+- **Release-APK nur auf Anforderung:** Workflow „Mobile Flutter“ → *Run workflow* → „Signierte Android-Release-APK bauen“. Ergebnis: Artefakt `kassensturz-android-release`.
+- **Dauerhafter Upload-Schlüssel:** `tool/configure-android-signing.py` richtet nach `flutter create` die Release-Signatur ein. Der Schlüssel kommt aus GitHub-Actions-Secrets, Passwörter liest Gradle aus Umgebungsvariablen; nichts davon landet im Repository. Der Keystore wird nach dem Build vom Runner gelöscht.
+- **Build-Nummer:** Laufnummer des Workflows + 1, steigt also bei jedem Build.
+- **Prüfung:** `tool/verify-apk-signature.sh` bricht ab, wenn die APK mit einem Debug-Schlüssel signiert ist oder ein anderes Zertifikat trägt als in der Repository-Variable `ANDROID_SIGNING_CERT_SHA256` hinterlegt.
+- **Debug-APKs** aus Pushes und Pull Requests bleiben Test-Builds. Sie lassen sich nicht als Update über eine Release-Version installieren.
+
+### Einmalige Einrichtung (nur durch dich, Schlüssel nie ins Repo oder in einen Chat)
+
+1. Schlüssel lokal erzeugen:
+   `keytool -genkeypair -v -keystore kassensturz-upload.jks -keyalg RSA -keysize 4096 -validity 10000 -alias upload`
+2. Keystore und Passwörter sicher aufbewahren (z. B. Passwortmanager plus Offline-Kopie). Ohne diesen Schlüssel sind später keine Updates mehr möglich.
+3. Secrets setzen (GitHub CLI, im Repository-Verzeichnis):
+   `base64 -w0 kassensturz-upload.jks | gh secret set ANDROID_KEYSTORE_BASE64`
+   `gh secret set ANDROID_KEYSTORE_PASSWORD`, `gh secret set ANDROID_KEY_ALIAS` (Wert `upload`), `gh secret set ANDROID_KEY_PASSWORD`
+4. Fingerabdruck als Variable hinterlegen:
+   `keytool -list -v -keystore kassensturz-upload.jks -alias upload | grep SHA256`
+   `gh variable set ANDROID_SIGNING_CERT_SHA256 --body "<Wert>"`
+5. Bereits installierte Test-Apps einmal deinstallieren; danach kommen alle Updates ohne Neuinstallation.
