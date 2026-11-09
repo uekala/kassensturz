@@ -1,5 +1,5 @@
 name: Kassensturz
-version: "0.2.0"
+version: "0.2.1"
 slug: kassensturz
 description: Haushaltsbuch mit Bankabruf per FinTS und Open Banking, Eingangsordner, Vertragserkennung, Budgets und Prognose
 url: https://github.com/uekala/kassensturz
