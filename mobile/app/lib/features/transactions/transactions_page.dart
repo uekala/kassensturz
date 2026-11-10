@@ -123,10 +123,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
     }
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => TransactionEditorPage(
-          controller: controller,
-          existing: existing,
-        ),
+        builder: (_) =>
+            TransactionEditorPage(controller: controller, existing: existing),
       ),
     );
     if (saved == true) _showMessage('Auf dem Server gespeichert.');
