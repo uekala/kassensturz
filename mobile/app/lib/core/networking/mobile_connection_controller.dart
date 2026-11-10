@@ -298,10 +298,8 @@ class MobileConnectionController extends ChangeNotifier {
         : const {};
   }
 
-  Future<Map<String, dynamic>> _loadTransactionPage() => _apiClient.transactions(
-    accountId: _filterAccountId,
-    categoryId: _filterCategoryId,
-  );
+  Future<Map<String, dynamic>> _loadTransactionPage() => _apiClient
+      .transactions(accountId: _filterAccountId, categoryId: _filterCategoryId);
 
   /// Read calls change nothing on the server, so one automatic repetition
   /// after a transport failure is safe.

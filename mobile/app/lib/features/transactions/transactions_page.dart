@@ -212,8 +212,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       for (final account in controller.accounts) account.id: account.name,
     };
     final categoryNames = {
-      for (final category in controller.categories)
-        category.id: category.name,
+      for (final category in controller.categories) category.id: category.name,
     };
 
     return RefreshIndicator(
