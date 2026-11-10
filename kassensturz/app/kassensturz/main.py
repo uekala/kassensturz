@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
                secrets_store, services)
-from .db import get_db, now_iso
+from .db import close_db, get_db, now_iso
 from .mobile_api import router as mobile_api_router
 from .mobile_security import (
     InMemoryRateLimiter,
@@ -66,7 +66,13 @@ async def lifespan(_app):
     if not os.environ.get("KASSENSTURZ_NO_BACKGROUND"):
         services.start_background()
         services.schedule_refresh()
-    yield
+    try:
+        yield
+    finally:
+        # Home Assistant stops the app for a cold backup (SIGTERM). Leave one
+        # complete database file behind: checkpoint the WAL and close.
+        close_db()
+        logging.getLogger("kassensturz").info("Kassensturz beendet, Datenbank geschlossen")
 
 
 app = FastAPI(title="Kassensturz", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)

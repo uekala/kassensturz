@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.2.2
+
+- **Konsistente Home-Assistant-Backups:** Home Assistant hält die App während einer Sicherung kurz an (`backup: cold`).
+  Vorher wurde die SQLite-Datenbank im laufenden Betrieb gesichert; im WAL-Modus konnten Datenbankdatei und
+  Schreibprotokoll dabei zu unterschiedlichen Zeitpunkten kopiert werden.
+- Beim Beenden schreibt die App das Schreibprotokoll in die Datenbank und schließt sie. Offene Anfragen bekommen dafür
+  höchstens 5 Sekunden, weniger als die 10 Sekunden, nach denen Home Assistant eine App hart beendet.
+- Getestet mit Python 3.15, der Version im Add-on-Image.
+
 ## 0.2.1
 
 - Kündigungsassistent: Anbieter-Kontakt suchen und nach Prüfung übernehmen, Kündigungs-E-Mail vor dem Versand

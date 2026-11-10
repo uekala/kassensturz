@@ -192,5 +192,6 @@ Oberfläche nicht ändern. Nach einem Neustart von Home Assistant sind sie spät
 - Verbindungen gibt es nur zu deiner Bank (FinTS), zu Enable Banking (falls eingerichtet) und zu Home Assistant selbst. Die Schrift ist
   eingebettet, es werden keine externen Ressourcen geladen.
 - Daten liegen in `/data/kassensturz.sqlite` und sind Teil der Home-Assistant-Backups; gespeicherte PINs und der
-  Enable-Banking-Schlüssel nicht.
+  Enable-Banking-Schlüssel nicht. Während einer Sicherung hält Home Assistant die App für wenige Sekunden an, damit die
+  Datenbank vollständig und in sich stimmig gesichert wird.
 - *Einstellungen → Alle Buchungen als CSV* exportiert alles in einer Datei.

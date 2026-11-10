@@ -1,5 +1,5 @@
 name: Kassensturz
-version: "0.2.1"
+version: "0.2.2"
 slug: kassensturz
 description: Haushaltsbuch mit Bankabruf per FinTS und Open Banking, Eingangsordner, Vertragserkennung, Budgets und Prognose
 url: https://github.com/uekala/kassensturz
@@ -21,6 +21,9 @@ homeassistant_api: true
 map:
   - type: share
     read_only: false
+# Home Assistant stops the app during a backup, so the SQLite database
+# (WAL mode) is never copied mid-write.
+backup: cold
 backup_exclude:
   - "secrets.json"
   - "secrets.key"
