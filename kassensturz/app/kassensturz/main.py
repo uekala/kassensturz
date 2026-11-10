@@ -125,7 +125,12 @@ async def only_ingress(request: Request, call_next):
         )
     )
     if not existing_local_peer and not mobile_peer_allowed:
-        return JSONResponse({"detail": "Nur über Home Assistant oder ein freigegebenes privates Netz erreichbar."}, status_code=403)
+        message = "Nur über Home Assistant oder ein freigegebenes privates Netz erreichbar."
+        # "detail" stays for the existing web client; mobile clients read "error".
+        body: dict = {"detail": message}
+        if is_mobile_api:
+            body["error"] = {"code": "network_not_allowed", "message": message}
+        return JSONResponse(body, status_code=403, headers={"Cache-Control": "no-store"})
 
     if is_mobile_api:
         policy = MOBILE_RATE_LIMITS.get((request.method.upper(), request.url.path))

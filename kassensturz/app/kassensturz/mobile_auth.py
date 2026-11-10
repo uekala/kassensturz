@@ -18,6 +18,11 @@ from .db import Database
 PAIRING_TTL = timedelta(minutes=5)
 ACCESS_TTL = timedelta(minutes=10)
 REFRESH_TTL = timedelta(days=30)
+# A client whose refresh response got lost (connection drop) may present the
+# just-replaced refresh token once more within this window without being
+# treated as a replay, as long as the successor token was never used. The
+# window equals the lifetime of the access token that was lost with it.
+REFRESH_RETRY_GRACE = ACCESS_TTL
 MAX_ACTIVE_PAIRINGS = 3
 MAX_DEVICE_NAME_LENGTH = 64
 
@@ -257,7 +262,63 @@ class MobileAuthService:
             ):
                 raise InvalidCredential("Authentication required.")
 
+            successor = None
             if row["replaced_by_hash"] is not None:
+                successor = self._db.one(
+                    "SELECT token_hash, created_at, revoked_at, replaced_by_hash "
+                    "FROM mobile_tokens WHERE token_hash = ? AND token_type = 'refresh'",
+                    (row["replaced_by_hash"],),
+                )
+            lost_response_retry = (
+                successor is not None
+                and successor["revoked_at"] is None
+                and successor["replaced_by_hash"] is None
+                and timedelta(0)
+                <= now - _parse_stamp(successor["created_at"])
+                <= REFRESH_RETRY_GRACE
+                and _parse_stamp(row["expires_at"]) > now
+            )
+
+            if lost_response_retry:
+                # The successor pair never reached the client. Retire it and
+                # the access token issued with it, then issue a fresh pair for
+                # the same predecessor.
+                self._db.execute(
+                    "UPDATE mobile_tokens SET revoked_at = ? "
+                    "WHERE device_id = ? AND revoked_at IS NULL AND created_at = ? "
+                    "AND (token_hash = ? OR token_type = 'access')",
+                    (
+                        now_text,
+                        row["device_id"],
+                        successor["created_at"],
+                        successor["token_hash"],
+                    ),
+                )
+                access_token = _opaque_secret()
+                new_refresh_token = _opaque_secret()
+                new_refresh_hash = _typed_hash("refresh", new_refresh_token)
+                self._db.execute(
+                    "UPDATE mobile_tokens SET replaced_by_hash = ? WHERE token_hash = ?",
+                    (new_refresh_hash, old_hash),
+                )
+                self._insert_token(
+                    _typed_hash("access", access_token),
+                    row["device_id"],
+                    "access",
+                    now,
+                    ACCESS_TTL,
+                )
+                self._insert_token(
+                    new_refresh_hash, row["device_id"], "refresh", now, REFRESH_TTL
+                )
+                self._db.update(
+                    "mobile_devices",
+                    "id",
+                    row["device_id"],
+                    {"last_used_at": now_text},
+                )
+                response = self._token_response(access_token, new_refresh_token)
+            elif row["replaced_by_hash"] is not None:
                 # Commit the revocation before raising the replay error.
                 self._db.update(
                     "mobile_devices",

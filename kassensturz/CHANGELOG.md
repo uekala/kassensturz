@@ -7,6 +7,9 @@
   Bei Bankumsätzen lassen sich Kategorie und Notiz ändern; löschen lassen sie sich nicht.
 - Kein doppeltes Buchen: Wird eine Anfrage nach einem Verbindungsabbruch wiederholt, legt der Server den Umsatz
   nur einmal an. Ein späterer Datei-Import desselben Umsatzes erkennt die von Hand angelegte Buchung als vorhanden.
+- Mobile App: Geht die Antwort beim Erneuern der Anmeldung durch einen Verbindungsabbruch verloren, darf das Gerät
+  es innerhalb von zehn Minuten noch einmal versuchen und bleibt gekoppelt. Spätere Wiederverwendung sperrt das Gerät weiter.
+- Mobile App: verständliche Fehlermeldung, wenn die Anfrage aus einem nicht freigegebenen Netz kommt.
 - Datenbank: eine zusätzliche Spalte für die Anfragekennung; bestehende Buchungen bleiben unverändert.
 - Einstellungen der App: Beschreibungen für die drei Optionen der Mobile-Verbindung ergänzt.
 

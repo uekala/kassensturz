@@ -5,6 +5,7 @@ import pytest
 from kassensturz.mobile_auth import (
     ACCESS_TTL,
     MAX_ACTIVE_PAIRINGS,
+    REFRESH_RETRY_GRACE,
     REFRESH_TTL,
     InvalidCredential,
     MobileAuthService,
@@ -129,7 +130,7 @@ def test_access_token_expires_and_device_revocation_is_immediate(db, mobile_auth
 
 
 def test_refresh_rotation_and_replay_revoke_the_entire_device(db, mobile_auth):
-    service, _ = mobile_auth
+    service, clock = mobile_auth
     pairing = service.create_pairing()
     initial = service.redeem_pairing(pairing["pairing_secret"], "iPhone")
 
@@ -140,6 +141,7 @@ def test_refresh_rotation_and_replay_revoke_the_entire_device(db, mobile_auth):
         initial["device"]["id"]
     )
 
+    clock.advance(REFRESH_RETRY_GRACE + timedelta(seconds=1))
     with pytest.raises(RefreshReplayDetected):
         service.rotate_refresh_token(initial["refresh_token"])
 
@@ -169,3 +171,58 @@ def test_unknown_refresh_token_does_not_create_a_device(db, mobile_auth):
 
     assert db.scalar("SELECT COUNT(*) FROM mobile_devices") == 0
     assert db.scalar("SELECT COUNT(*) FROM mobile_tokens") == 0
+
+
+def test_lost_refresh_response_can_be_retried_once_within_grace(db, mobile_auth):
+    service, clock = mobile_auth
+    pairing = service.create_pairing()
+    initial = service.redeem_pairing(pairing["pairing_secret"], "Pixel")
+    device_id = initial["device"]["id"]
+
+    lost = service.rotate_refresh_token(initial["refresh_token"])
+    clock.advance(timedelta(seconds=20))
+    retried = service.rotate_refresh_token(initial["refresh_token"])
+
+    assert retried["refresh_token"] not in (initial["refresh_token"], lost["refresh_token"])
+    assert service.authenticate_access_token(retried["access_token"]).id == device_id
+    # The pair that never reached the client is retired, the device stays paired.
+    with pytest.raises(InvalidCredential):
+        service.authenticate_access_token(lost["access_token"])
+    with pytest.raises(InvalidCredential):
+        service.rotate_refresh_token(lost["refresh_token"])
+    device = next(item for item in service.list_devices() if item["id"] == device_id)
+    assert device["revoked_at"] is None
+
+    # The retried pair keeps rotating normally.
+    clock.advance(timedelta(minutes=5))
+    following = service.rotate_refresh_token(retried["refresh_token"])
+    assert service.authenticate_access_token(following["access_token"]).id == device_id
+
+
+def test_old_refresh_token_is_a_replay_once_the_successor_was_used(db, mobile_auth):
+    service, clock = mobile_auth
+    pairing = service.create_pairing()
+    initial = service.redeem_pairing(pairing["pairing_secret"], "Pixel")
+
+    second = service.rotate_refresh_token(initial["refresh_token"])
+    clock.advance(timedelta(seconds=5))
+    service.rotate_refresh_token(second["refresh_token"])
+
+    # Still inside the grace window, but the client demonstrably received the
+    # successor: presenting the first token again is a replay.
+    with pytest.raises(RefreshReplayDetected):
+        service.rotate_refresh_token(initial["refresh_token"])
+    device = service.list_devices()[0]
+    assert device["revoked_at"] is not None
+
+
+def test_refresh_retry_is_refused_after_the_grace_window(db, mobile_auth):
+    service, clock = mobile_auth
+    pairing = service.create_pairing()
+    initial = service.redeem_pairing(pairing["pairing_secret"], "Pixel")
+
+    service.rotate_refresh_token(initial["refresh_token"])
+    clock.advance(REFRESH_RETRY_GRACE + timedelta(seconds=1))
+
+    with pytest.raises(RefreshReplayDetected):
+        service.rotate_refresh_token(initial["refresh_token"])

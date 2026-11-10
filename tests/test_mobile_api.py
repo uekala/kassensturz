@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 
-from kassensturz import main, options
+from datetime import timedelta
+
+from kassensturz import main, mobile_auth, options
 from kassensturz.mobile_security import InMemoryRateLimiter, parse_trusted_proxy_networks
 
 
@@ -156,6 +158,7 @@ def test_refresh_rotates_credentials_and_old_refresh_cannot_be_reused(
         )
         assert new_me.status_code == 200
 
+        monkeypatch.setattr(mobile_auth, "REFRESH_RETRY_GRACE", timedelta(seconds=-1))
         replay = client.post(
             "/api/v1/auth/refresh",
             json={"refresh_token": old_refresh},
@@ -473,3 +476,36 @@ def test_pairing_qr_rejects_non_https_or_path_server_url_before_creating_secret(
     assert response.json()["error"]["code"] == "mobile_server_url_invalid"
     assert db.scalar("SELECT COUNT(*) FROM mobile_pairings") == 0
 
+
+
+def test_refresh_retry_after_lost_response_keeps_the_device_paired(db, monkeypatch):
+    reset_mobile_guards(monkeypatch)
+    with https_client() as client:
+        _, credentials = create_device(client)
+        first = client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": credentials["refresh_token"]},
+        )
+        assert first.status_code == 200
+        retry = client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": credentials["refresh_token"]},
+        )
+        assert retry.status_code == 200
+        me = client.get(
+            "/api/v1/me",
+            headers={"Authorization": f"Bearer {retry.json()['access_token']}"},
+        )
+        assert me.status_code == 200
+
+
+def test_blocked_network_gets_mobile_error_format_on_mobile_paths_only(db, monkeypatch):
+    reset_mobile_guards(monkeypatch)
+    with https_client(peer="192.168.50.77") as client:
+        mobile = client.get("/api/v1/health")
+        web = client.get("/api/state")
+    assert mobile.status_code == 403
+    assert mobile.json()["error"]["code"] == "network_not_allowed"
+    assert mobile.json()["detail"] == mobile.json()["error"]["message"]
+    assert web.status_code == 403
+    assert "error" not in web.json() and web.json()["detail"]
