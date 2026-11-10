@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/data/demo_finance_data.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
+import '../../core/networking/mobile_models.dart';
+import 'transaction_editor_page.dart';
 
 enum _TransactionFilter { all, expenses, income }
 
@@ -102,6 +104,103 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
+  Future<void> _openEditor(
+    MobileConnectionController controller, {
+    Map<String, dynamic>? item,
+  }) async {
+    ServerTransaction? existing;
+    if (item != null) {
+      try {
+        existing = ServerTransaction.fromJson(item);
+      } on FormatException {
+        // An older server does not send the fields needed for editing.
+        _showMessage(
+          'Bitte aktualisiere Kassensturz in Home Assistant, um Umsätze '
+          'zu bearbeiten.',
+        );
+        return;
+      }
+    }
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => TransactionEditorPage(
+          controller: controller,
+          existing: existing,
+        ),
+      ),
+    );
+    if (saved == true) _showMessage('Auf dem Server gespeichert.');
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _chooseAccountFilter(
+    MobileConnectionController controller,
+  ) async {
+    final picked = await _pickFilter(
+      title: 'Konto',
+      options: {
+        for (final account in controller.accounts) account.id: account.name,
+      },
+    );
+    if (picked == null) return;
+    await controller.setTransactionFilter(
+      accountId: picked == 0 ? null : picked,
+      categoryId: controller.filterCategoryId,
+    );
+  }
+
+  Future<void> _chooseCategoryFilter(
+    MobileConnectionController controller,
+  ) async {
+    final picked = await _pickFilter(
+      title: 'Kategorie',
+      options: {
+        for (final category in controller.categories)
+          category.id: category.name,
+      },
+    );
+    if (picked == null) return;
+    await controller.setTransactionFilter(
+      accountId: controller.filterAccountId,
+      categoryId: picked == 0 ? null : picked,
+    );
+  }
+
+  /// Returns the chosen id, 0 for "all" or null when the dialog was closed.
+  Future<int?> _pickFilter({
+    required String title,
+    required Map<int, String> options,
+  }) {
+    return showDialog<int>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: Text(title),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(dialogContext).pop(0),
+            child: const Text('Alle'),
+          ),
+          for (final entry in options.entries)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(dialogContext).pop(entry.key),
+              child: Text(entry.value),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _nameOf(Map<int, String> names, int? id, String fallback) {
+    if (id == null) return fallback;
+    return names[id] ?? fallback;
+  }
+
   Widget _buildLive(
     BuildContext context,
     MobileConnectionController controller,
@@ -109,6 +208,15 @@ class _TransactionsPageState extends State<TransactionsPage> {
     final items = controller.transactionItems;
     final total = controller.transactionTotal;
     final colors = Theme.of(context).colorScheme;
+    final canWrite = controller.canWriteTransactions;
+    final hasManualAccount = controller.manualAccounts.isNotEmpty;
+    final accountNames = {
+      for (final account in controller.accounts) account.id: account.name,
+    };
+    final categoryNames = {
+      for (final category in controller.categories)
+        category.id: category.name,
+    };
 
     return RefreshIndicator(
       onRefresh: controller.refreshTransactions,
@@ -121,6 +229,50 @@ class _TransactionsPageState extends State<TransactionsPage> {
             title: 'Buchungen',
             subtitle: 'Aktuelle Buchungen von deinem Kassensturz-Server.',
           ),
+          if (canWrite) ...[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: hasManualAccount
+                  ? () => _openEditor(controller)
+                  : null,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Umsatz anlegen'),
+            ),
+            if (!hasManualAccount) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Umsätze lassen sich nur auf Konten ohne Bankabruf anlegen. '
+                'Lege dafür in Kassensturz ein Konto an, zum Beispiel '
+                'Bargeld.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _FilterChip(
+                  label: _nameOf(
+                    accountNames,
+                    controller.filterAccountId,
+                    'Alle Konten',
+                  ),
+                  selected: controller.filterAccountId != null,
+                  onSelected: () => _chooseAccountFilter(controller),
+                ),
+                _FilterChip(
+                  label: _nameOf(
+                    categoryNames,
+                    controller.filterCategoryId,
+                    'Alle Kategorien',
+                  ),
+                  selected: controller.filterCategoryId != null,
+                  onSelected: () => _chooseCategoryFilter(controller),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 20),
           _ListHeading(
             count: total,
@@ -149,7 +301,12 @@ class _TransactionsPageState extends State<TransactionsPage> {
               children: [
                 for (var index = 0; index < items.length; index++) ...[
                   if (index > 0) const Divider(height: 1, indent: 58),
-                  _LiveTransactionTile(item: items[index]),
+                  _LiveTransactionTile(
+                    item: items[index],
+                    onTap: canWrite
+                        ? () => _openEditor(controller, item: items[index])
+                        : null,
+                  ),
                 ],
               ],
             ),
@@ -338,9 +495,10 @@ class _DemoTransactionTile extends StatelessWidget {
 }
 
 class _LiveTransactionTile extends StatelessWidget {
-  const _LiveTransactionTile({required this.item});
+  const _LiveTransactionTile({required this.item, required this.onTap});
 
   final Map<String, dynamic> item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -361,9 +519,11 @@ class _LiveTransactionTile extends StatelessWidget {
       if (item['account_name'] is String) item['account_name'] as String,
       if (item['booking_date'] is String)
         _formatDate(item['booking_date'] as String),
+      if (item['manual'] == true) 'von Hand',
     ].join(' · ');
 
     return ListTile(
+      onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(vertical: 5),
       minLeadingWidth: 38,
       leading: Container(

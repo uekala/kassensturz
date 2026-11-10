@@ -43,7 +43,8 @@ Die erste Serverplattform ist der vorhandene **Home Assistant Green**. Kassenstu
 - [x] Manuelle lokale Kontenpflege mit verschlüsselter SQLite-Datenbank und Schlüsselablage im Betriebssystem.
 - [x] Lokale Speicherung der Budgetlimits.
 - [x] Allowlist-DTOs und geschützte Server-Endpunkte für Übersicht, Konten, Budgets und paginierte Buchungsliste.
-- [ ] Flutter-Anbindung an echte Serverdaten; Verträge und weitere Live-Funktionen.
+- [x] Flutter-Anbindung an echte Serverdaten: Konten, Kategorien, Verträge, Umsätze anlegen/ändern/löschen (Server ab 0.3.0).
+- [ ] Prüfung des neuen App-Stands durch die CI und auf einem Gerät.
 - [ ] Integrationstests auf iOS und Android.
 - [ ] Signierte Builds und Store-Veröffentlichungen.
 

@@ -91,6 +91,8 @@ for qualifier in ("mipmap-anydpi-v26",):
     (resource_dir / "ic_launcher_round.xml").write_text(adaptive, encoding="utf-8")
 PY
 
+python3 "$(dirname "${BASH_SOURCE[0]}")/configure-android-manifest.py"
+
 echo "Android- und iOS-Projektdateien wurden erstellt."
 echo "Das Kassensturz-App-Icon wurde im Original-Theme eingerichtet."
 echo "Nächster Schritt: flutter pub get && flutter test"

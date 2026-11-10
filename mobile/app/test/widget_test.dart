@@ -309,6 +309,38 @@ void main() {
     expect(find.text('Der Pairing-Code ist ungültig.'), findsOneWidget);
     expect(find.text('OFFLINE'), findsOneWidget);
   });
+
+  testWidgets('installed app asks to connect instead of showing examples', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(const KassensturzApp(serverOnly: true));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Noch nicht verbunden'), findsWidgets);
+    expect(find.text('NICHT VERBUNDEN'), findsOneWidget);
+    expect(find.text('DEMO'), findsNothing);
+    expect(
+      find.text('Beispieldaten – noch nicht mit deinem Server verbunden'),
+      findsNothing,
+    );
+    expect(find.text('Dein Überblick'), findsNothing);
+  });
+
+  testWidgets('connect button of the installed app opens the settings', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(const KassensturzApp(serverOnly: true));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Mit Server verbinden').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('MIT DEINEM SERVER VERBINDEN'), findsOneWidget);
+    expect(find.text('Gerät sicher koppeln'), findsOneWidget);
+    expect(find.text('OFFLINE'), findsOneWidget);
+  });
 }
 
 class _FailingBudgetRepository implements BudgetRepository {

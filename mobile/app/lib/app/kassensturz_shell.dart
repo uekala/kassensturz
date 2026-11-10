@@ -11,6 +11,7 @@ import '../features/accounts/accounts_page.dart';
 import '../features/accounts/server_finance_pages.dart';
 import '../features/budget/budget_page.dart';
 import '../features/dashboard/dashboard_page.dart';
+import '../features/more/connect_required_page.dart';
 import '../features/more/more_page.dart';
 import '../features/transactions/transactions_page.dart';
 
@@ -20,17 +21,23 @@ class KassensturzShell extends StatefulWidget {
     this.budgetRepository,
     this.accountRepository,
     this.mobileConnectionController,
+    this.serverOnly = false,
   });
 
   final BudgetRepository? budgetRepository;
   final AccountRepository? accountRepository;
   final MobileConnectionController? mobileConnectionController;
 
+  /// The installed app shows server data only. Without a connection it asks
+  /// the user to connect instead of showing example or device-local data.
+  final bool serverOnly;
+
   @override
   State<KassensturzShell> createState() => _KassensturzShellState();
 }
 
-class _KassensturzShellState extends State<KassensturzShell> {
+class _KassensturzShellState extends State<KassensturzShell>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   late final BudgetController _budgetController;
   late final AccountController _accountController;
@@ -39,6 +46,7 @@ class _KassensturzShellState extends State<KassensturzShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _budgetController = BudgetController(
       repository: widget.budgetRepository ?? InMemoryBudgetRepository(),
     );
@@ -54,7 +62,16 @@ class _KassensturzShellState extends State<KassensturzShell> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Returning to the app is the moment to reconnect and show fresh data.
+    if (state == AppLifecycleState.resumed) {
+      _mobileConnectionController.refreshIfStale();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _budgetController.dispose();
     _accountController.dispose();
     _mobileConnectionController.dispose();
@@ -105,26 +122,47 @@ class _KassensturzShellState extends State<KassensturzShell> {
     setState(() => _selectedIndex = 2);
   }
 
+  void _openSettings() {
+    setState(() => _selectedIndex = 4);
+  }
+
+  /// In the installed app the four data tabs need a server connection.
+  Widget _serverData(Widget page) {
+    if (!widget.serverOnly) return page;
+    return AnimatedBuilder(
+      animation: _mobileConnectionController,
+      builder: (context, _) => _mobileConnectionController.isConnected
+          ? page
+          : ConnectRequiredPage(onOpenSettings: _openSettings),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
     final pages = [
-      DashboardPage(
-        onOpenTransactions: _openTransactions,
-        onOpenBudget: _openBudget,
-        budgetController: _budgetController,
-        mobileController: _mobileConnectionController,
+      _serverData(
+        DashboardPage(
+          onOpenTransactions: _openTransactions,
+          onOpenBudget: _openBudget,
+          budgetController: _budgetController,
+          mobileController: _mobileConnectionController,
+        ),
       ),
-      ServerAwareAccountsPage(
-        controller: _mobileConnectionController,
-        fallback: AccountsPage(controller: _accountController),
+      _serverData(
+        ServerAwareAccountsPage(
+          controller: _mobileConnectionController,
+          fallback: AccountsPage(controller: _accountController),
+        ),
       ),
-      ServerAwareBudgetPage(
-        controller: _mobileConnectionController,
-        fallback: BudgetPage(controller: _budgetController),
+      _serverData(
+        ServerAwareBudgetPage(
+          controller: _mobileConnectionController,
+          fallback: BudgetPage(controller: _budgetController),
+        ),
       ),
-      TransactionsPage(controller: _mobileConnectionController),
+      _serverData(TransactionsPage(controller: _mobileConnectionController)),
       MorePage(controller: _mobileConnectionController),
     ];
 
@@ -166,7 +204,19 @@ class _KassensturzShellState extends State<KassensturzShell> {
             animation: _mobileConnectionController,
             builder: (context, _) {
               final connected = _mobileConnectionController.isConnected;
-              final color = connected ? AppTheme.brand : AppTheme.mutedInk;
+              final unreachable =
+                  _mobileConnectionController.linkState ==
+                  ServerLinkState.unreachable;
+              final color = connected && !unreachable
+                  ? AppTheme.brand
+                  : AppTheme.mutedInk;
+              final label = unreachable
+                  ? 'KEINE VERBINDUNG'
+                  : connected
+                  ? 'SERVER'
+                  : widget.serverOnly
+                  ? 'NICHT VERBUNDEN'
+                  : 'DEMO';
               return Padding(
                 padding: const EdgeInsets.only(right: 20),
                 child: Center(
@@ -176,16 +226,16 @@ class _KassensturzShellState extends State<KassensturzShell> {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: connected
-                          ? AppTheme.softBrand
-                          : const Color(0xFFEFF1EF),
+                      color: AppTheme.softBrand,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          connected
+                          unreachable
+                              ? Icons.cloud_off_outlined
+                              : connected
                               ? Icons.cloud_done_outlined
                               : Icons.science_outlined,
                           size: 13,
@@ -193,7 +243,7 @@ class _KassensturzShellState extends State<KassensturzShell> {
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          connected ? 'SERVER' : 'DEMO',
+                          label,
                           style: TextStyle(
                             color: color,
                             fontSize: 10,
@@ -215,8 +265,25 @@ class _KassensturzShellState extends State<KassensturzShell> {
           AnimatedBuilder(
             animation: _mobileConnectionController,
             builder: (context, _) {
-              if (!_mobileConnectionController.isConnected) {
-                return const DemoNotice();
+              final controller = _mobileConnectionController;
+              if (!controller.isConnected) {
+                return widget.serverOnly
+                    ? const SizedBox.shrink()
+                    : const DemoNotice();
+              }
+              final String message;
+              if (controller.linkState == ServerLinkState.unreachable) {
+                message =
+                    'Server nicht erreichbar. Angezeigt wird der zuletzt '
+                    'geladene Stand; Änderungen brauchen eine Verbindung.';
+              } else if (controller.serverNeedsUpdate) {
+                message =
+                    'Server verbunden. Zum Anlegen von Umsätzen bitte '
+                    'Kassensturz in Home Assistant aktualisieren.';
+              } else {
+                message =
+                    'Server verbunden: Alle Daten kommen von deinem '
+                    'Kassensturz-Server und werden dort gespeichert.';
               }
               return Container(
                 width: double.infinity,
@@ -225,9 +292,9 @@ class _KassensturzShellState extends State<KassensturzShell> {
                   vertical: 9,
                 ),
                 color: AppTheme.softBrand,
-                child: const Text(
-                  'Server verbunden: Übersicht, Konten, Budgets und Buchungen zeigen Serverdaten. Konten und Budgetlimits werden hier derzeit nur angezeigt.',
-                  style: TextStyle(
+                child: Text(
+                  message,
+                  style: const TextStyle(
                     color: AppTheme.brand,
                     fontSize: 11,
                     height: 1.35,

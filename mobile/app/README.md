@@ -4,35 +4,28 @@ Flutter client source for iOS and Android. Both platforms share the Dart applica
 
 ## Current status
 
-The repository contains a local-first Flutter client prototype. The Settings page can pair a device with a Kassensturz server over HTTPS, restore a saved session, check the authenticated server identity, rotate expired access tokens and log out. The server URL and credentials are stored using platform secure storage. The dashboard, account and transaction pages still show local/demo content; live server finance DTOs are not yet wired into these views. Bank connections and banking credentials remain on the server.
+The app is a client for exactly one Kassensturz server. All financial data lives on the server; the installed app keeps only the server address and the device credentials (in platform secure storage).
 
-The navigation contains:
+With a paired server (0.3.0 or newer) the app
 
-- Overview dashboard
-- Accounts
-- Transactions
-- Budgets
-- More / settings
+- shows overview, accounts, budgets, transactions and contracts from the server,
+- creates, edits and deletes manual transactions on accounts without a bank feed,
+- changes category and note of bank transactions,
+- filters the transaction list by account and category,
+- shows the connection state, the last successful synchronisation and a cause-specific message when the server cannot be reached,
+- reloads when the app returns to the foreground.
 
-Dashboard, transactions and budget spending are based on synthetic example data. Account records created in the production app are manually entered by the user. They are not imported from a bank, synchronized with a server or reconciled against transactions.
+Without a connection the installed app shows a "connect" page instead of example data. Paired with an older server it stays read-only and asks to update the server.
 
-## Local account management
+The demo dashboard, the device-local account editor (encrypted SQLite) and the device-local budget limits still exist in the code and in the widget tests, but `main.dart` no longer uses them (`serverOnly: true`). Files written by earlier versions stay on the device and are not read.
 
-Accounts can be created, edited and deleted on the device. Each record contains a name, account type, optional institution, optional final four digits and a manually entered EUR balance. Balances are stored as signed integer cents to avoid floating-point storage errors.
+## Saving and repeated requests
 
-The app deliberately rejects complete account/card numbers. It does not ask for or store an IBAN, card number, PIN, TAN or online-banking credentials.
+Every "new transaction" form creates one request id and sends it with each attempt to save. The server stores the id, so repeating a save after a lost connection never books twice. Write requests are never repeated automatically; read requests are repeated once.
 
-In the production entry point, account records are stored in an SQLite database encrypted with SQLite3MultipleCiphers in SQLCipher compatibility mode. A random 256-bit database key is kept separately using flutter_secure_storage (Android secure storage / iOS Keychain). The test and preview app constructor uses an in-memory repository with synthetic example accounts.
+## Session renewal
 
-This storage design protects the account database at rest; it is not a complete security certification. Operating-system backups, device compromise, memory exposure, recovery and key-loss handling still require a dedicated release review. Losing the platform-stored database key can make the local account database unreadable.
-
-## Budgets and local persistence
-
-Budget category limits can be created, edited and deleted. The prototype calculates spending against shared synthetic transaction examples and displays the result for the selected month. The dashboard and budget screen use the same budget state.
-
-Budget limits are currently stored on the device using the asynchronous SharedPreferences API. Only category IDs and budget amounts are stored there; credentials, bank details and transaction data are not. SharedPreferences is lightweight app storage and is not encrypted. It is not used for account balances or other account records.
-
-The repository abstractions allow storage implementations to evolve as the Flutter client is connected to the existing Kassensturz server and mobile API.
+Access tokens are renewed with the refresh token as soon as the server answers 401. Only one renewal runs at a time. The server accepts a replaced refresh token exactly once more, within ten minutes, to cover a lost answer. The client therefore repeats a renewal once, immediately, when the connection broke after the request was sent, and does not repeat it when the connection was never established. If the server rejects the renewal, the local session is removed and the device has to be paired again.
 
 ## Requirements
 
@@ -52,9 +45,9 @@ flutter test
 flutter analyze
 ```
 
-The automated suite covers account model validation, secure-key handling, encrypted database persistence and wrong-key rejection, budget persistence, and the app's main widget flows.
+The automated suite covers the API client (pairing, renewal, repeated renewal, write calls), the connection controller (state, synchronisation, saving, filters), response models, error messages, the legacy local repositories and the main widget flows. The Android manifest hardening is tested with pytest (`tests/test_android_manifest.py`).
 
-Generate the native Android and iOS project files once:
+Generate the native Android and iOS project files once. The script also declares the INTERNET permission in the release manifest and excludes the app data from Android backup and device transfer:
 
 ```bash
 bash tool/bootstrap-platforms.sh
@@ -71,6 +64,6 @@ flutter run
 
 ## Security and API integration
 
-The Flutter app includes HTTPS health checks, one-time pairing, automatic refresh, read-only overview/transaction sync and a native QR scanner for the versioned Kassensturz pairing payload. QR scanning uses the device camera only after the user opens the scanner; the iOS bootstrap adds the required camera usage explanation. The API client uses standard TLS certificate validation, disables redirects for authenticated requests, keeps access tokens in the Authorization header and sends refresh tokens only in the HTTPS request body. Access-token 401 responses trigger a single-flight refresh; a rejected refresh removes the stored session. Credentials are stored in platform secure storage. Do not add placeholder tokens, certificate exceptions or logs containing credentials.
+The Flutter app includes HTTPS health checks, one-time pairing, automatic refresh, server-backed reads and writes and a native QR scanner for the versioned Kassensturz pairing payload. QR scanning uses the device camera only after the user opens the scanner; the iOS bootstrap adds the required camera usage explanation. The API client uses standard TLS certificate validation, disables redirects for authenticated requests, keeps access tokens in the Authorization header and sends refresh tokens only in the HTTPS request body. Access-token 401 responses trigger a single-flight refresh; a rejected refresh removes the stored session. Credentials are stored in platform secure storage. Do not add placeholder tokens, certificate exceptions or logs containing credentials.
 
 See [Mobile architecture](../../docs/architecture/0006-flutter-mobile-client.md) and [Mobile security requirements](../../docs/architecture/0002-mobile-api-security.md).

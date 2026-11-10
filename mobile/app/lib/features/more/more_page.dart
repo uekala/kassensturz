@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_pairing_payload.dart';
+import 'contracts_page.dart';
 import 'pairing_scanner_page.dart';
 
 class MorePage extends StatefulWidget {
@@ -77,6 +78,49 @@ class _MorePageState extends State<MorePage> {
     }
   }
 
+  Future<void> _disconnect() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Verbindung trennen?'),
+        content: const Text(
+          'Dieses Gerät wird am Server abgemeldet. Deine Daten bleiben auf '
+          'dem Server. Zum erneuten Verbinden brauchst du einen neuen '
+          'QR-Code aus Kassensturz.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Trennen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await widget.controller.logout();
+  }
+
+  void _openContracts() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ContractsPage(controller: widget.controller),
+      ),
+    );
+  }
+
+  static String _formatSync(DateTime? value) {
+    if (value == null) return 'Noch nicht synchronisiert';
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$day.$month.${local.year}, $hour:$minute Uhr';
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -107,6 +151,7 @@ class _MorePageState extends State<MorePage> {
               loading: state.isLoading,
               busy: state.isBusy,
               connected: connected,
+              unreachable: state.linkState == ServerLinkState.unreachable,
               serverUrl: session?.serverUrl,
               deviceName: session?.deviceName,
               error: state.errorMessage,
@@ -114,7 +159,7 @@ class _MorePageState extends State<MorePage> {
               onCheck: connected && !state.isBusy
                   ? state.checkConnection
                   : null,
-              onLogout: connected && !state.isBusy ? state.logout : null,
+              onLogout: connected && !state.isBusy ? _disconnect : null,
             ),
             if (!connected) ...[
               const SizedBox(height: 22),
@@ -242,6 +287,28 @@ class _MorePageState extends State<MorePage> {
                 title: 'Gekoppeltes Gerät',
                 subtitle: session.deviceName,
               ),
+              _InfoTile(
+                icon: Icons.sync_rounded,
+                title: 'Letzte erfolgreiche Synchronisierung',
+                subtitle: _formatSync(state.lastSyncAt),
+              ),
+              if (state.serverNeedsUpdate)
+                const _InfoTile(
+                  icon: Icons.system_update_alt_rounded,
+                  title: 'Server aktualisieren',
+                  subtitle:
+                      'Dieser Server kann noch keine Umsätze speichern. '
+                      'Aktualisiere Kassensturz in Home Assistant.',
+                ),
+              const SizedBox(height: 18),
+              _sectionTitle(context, 'DATEN'),
+              const SizedBox(height: 8),
+              _InfoTile(
+                icon: Icons.description_outlined,
+                title: 'Verträge',
+                subtitle: 'Laufende Verträge und Fixkosten vom Server',
+                onTap: state.canWriteTransactions ? _openContracts : null,
+              ),
               const SizedBox(height: 18),
               _sectionTitle(context, 'SICHERHEIT'),
               const SizedBox(height: 8),
@@ -297,6 +364,7 @@ class _StatusCard extends StatelessWidget {
     required this.loading,
     required this.busy,
     required this.connected,
+    required this.unreachable,
     required this.serverUrl,
     required this.deviceName,
     required this.error,
@@ -308,6 +376,7 @@ class _StatusCard extends StatelessWidget {
   final bool loading;
   final bool busy;
   final bool connected;
+  final bool unreachable;
   final String? serverUrl;
   final String? deviceName;
   final String? error;
@@ -318,10 +387,11 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final background = connected
+    final online = connected && !unreachable;
+    final background = online
         ? const Color(0xFFE8F5EE)
         : const Color(0xFFFFF1D6);
-    final foreground = connected
+    final foreground = online
         ? const Color(0xFF22613D)
         : const Color(0xFF865B12);
     return Container(
@@ -339,9 +409,7 @@ class _StatusCard extends StatelessWidget {
               CircleAvatar(
                 backgroundColor: background,
                 child: Icon(
-                  connected
-                      ? Icons.cloud_done_outlined
-                      : Icons.cloud_off_outlined,
+                  online ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
                   color: foreground,
                 ),
               ),
@@ -353,8 +421,10 @@ class _StatusCard extends StatelessWidget {
                     Text(
                       loading
                           ? 'Sitzung wird geladen'
-                          : connected
+                          : online
                           ? 'Mit Kassensturz verbunden'
+                          : connected
+                          ? 'Server nicht erreichbar'
                           : 'Noch nicht verbunden',
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
@@ -372,7 +442,11 @@ class _StatusCard extends StatelessWidget {
                 ),
               ),
               Text(
-                connected ? 'VERBUNDEN' : 'OFFLINE',
+                online
+                    ? 'VERBUNDEN'
+                    : connected
+                    ? 'NICHT ERREICHBAR'
+                    : 'OFFLINE',
                 style: TextStyle(
                   color: foreground,
                   fontSize: 9,
@@ -408,12 +482,12 @@ class _StatusCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: busy ? null : onCheck,
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Verbindung prüfen'),
+                  label: const Text('Verbindung testen'),
                 ),
                 TextButton.icon(
                   onPressed: busy ? null : onLogout,
-                  icon: const Icon(Icons.logout_rounded),
-                  label: const Text('Abmelden'),
+                  icon: const Icon(Icons.link_off_rounded),
+                  label: const Text('Trennen'),
                 ),
               ],
             ),
@@ -433,11 +507,13 @@ class _InfoTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -450,12 +526,16 @@ class _InfoTile extends StatelessWidget {
       ),
       child: ListTile(
         dense: true,
+        onTap: onTap,
         leading: Icon(icon, color: colors.primary),
         title: Text(
           title,
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
         ),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
+        trailing: onTap == null
+            ? null
+            : const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
