@@ -188,8 +188,6 @@ def test_lost_refresh_response_can_be_retried_once_within_grace(db, mobile_auth)
     # The pair that never reached the client is retired, the device stays paired.
     with pytest.raises(InvalidCredential):
         service.authenticate_access_token(lost["access_token"])
-    with pytest.raises(InvalidCredential):
-        service.rotate_refresh_token(lost["refresh_token"])
     device = next(item for item in service.list_devices() if item["id"] == device_id)
     assert device["revoked_at"] is None
 
@@ -226,3 +224,19 @@ def test_refresh_retry_is_refused_after_the_grace_window(db, mobile_auth):
 
     with pytest.raises(RefreshReplayDetected):
         service.rotate_refresh_token(initial["refresh_token"])
+
+
+def test_presenting_a_token_retired_by_a_retry_revokes_the_device(db, mobile_auth):
+    service, clock = mobile_auth
+    pairing = service.create_pairing()
+    initial = service.redeem_pairing(pairing["pairing_secret"], "Pixel")
+
+    retired = service.rotate_refresh_token(initial["refresh_token"])
+    clock.advance(timedelta(seconds=20))
+    current = service.rotate_refresh_token(initial["refresh_token"])
+
+    with pytest.raises(RefreshReplayDetected):
+        service.rotate_refresh_token(retired["refresh_token"])
+    assert service.list_devices()[0]["revoked_at"] is not None
+    with pytest.raises(InvalidCredential):
+        service.authenticate_access_token(current["access_token"])
