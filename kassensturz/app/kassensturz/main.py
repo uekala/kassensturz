@@ -54,6 +54,10 @@ MOBILE_RATE_LIMITS = {
     ("GET", "/api/v1/me"): ("me", 120, 60),
     ("GET", "/api/v1/overview"): ("overview", 120, 60),
     ("GET", "/api/v1/transactions"): ("transactions", 120, 60),
+    ("POST", "/api/v1/transactions"): ("transaction-write", 60, 60),
+    ("GET", "/api/v1/accounts"): ("accounts", 120, 60),
+    ("GET", "/api/v1/categories"): ("categories", 120, 60),
+    ("GET", "/api/v1/contracts"): ("contracts", 60, 60),
     ("POST", "/api/mobile/pairings"): ("pairing-create", 5, 900),
     ("GET", "/api/mobile/devices"): ("device-list", 60, 60),
 }
@@ -129,6 +133,10 @@ async def only_ingress(request: Request, call_next):
             "/api/mobile/devices/"
         ):
             policy = ("device-revoke", 10, 300)
+        if policy is None and request.method.upper() in ("PATCH", "DELETE") and request.url.path.startswith(
+            "/api/v1/transactions/"
+        ):
+            policy = ("transaction-write", 60, 60)
         if policy is not None:
             scope, limit, window_seconds = policy
             key = request_rate_limit_key(

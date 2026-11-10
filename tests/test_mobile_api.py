@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from kassensturz import main
+from kassensturz import main, options
 from kassensturz.mobile_security import InMemoryRateLimiter, parse_trusted_proxy_networks
 
 
@@ -61,7 +61,14 @@ def test_pairing_returns_secret_once_and_me_endpoint_authenticates_device(
         assert me.status_code == 200
         assert me.json()["device"] == credentials["device"]
         assert me.json()["server"]["name"] == "Kassensturz"
-        assert me.json()["capabilities"] == ["overview", "transactions"]
+        assert me.json()["capabilities"] == [
+            "overview",
+            "transactions",
+            "accounts",
+            "categories",
+            "contracts",
+            "transactions.write",
+        ]
 
         replay = client.post(
             "/api/v1/pair",
@@ -363,7 +370,7 @@ def test_mobile_health_is_available_before_pairing_without_sensitive_data(
     assert response.json() == {
         "status": "ok",
         "api_version": 1,
-        "server": {"name": "Kassensturz", "version": "0.2.0"},
+        "server": {"name": "Kassensturz", "version": options.VERSION},
     }
     assert "authorization" not in response.text.lower()
     assert "database" not in response.text.lower()

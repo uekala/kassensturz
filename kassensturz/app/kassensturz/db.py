@@ -259,6 +259,8 @@ CREATE INDEX IF NOT EXISTS mobile_tokens_expiry ON mobile_tokens(expires_at);
 MIGRATIONS = {
     "accounts": [("eb_session_id", "INTEGER"), ("eb_uid", "TEXT"), ("eb_ident", "TEXT")],
     "cancellation_events": [("provider_confirmed_at", "TEXT"), ("aborted_at", "TEXT")],
+    # Kennung, mit der ein Mobilgerät eine von Hand angelegte Buchung genau einmal anlegt
+    "transactions": [("client_request_id", "TEXT")],
 }
 
 
@@ -295,6 +297,10 @@ class Database:
             for name, typ in cols:
                 if name not in have:
                     self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {typ}")
+        self.conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS tx_client_request ON transactions(client_request_id) "
+            "WHERE client_request_id IS NOT NULL"
+        )
         self._migrate_mobile_tables()
 
     def _migrate_mobile_tables(self) -> None:

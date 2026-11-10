@@ -34,6 +34,12 @@ if not headings or headings[0] != addon_version:
         f"Add-on changelog starts at {latest}, config.yaml says {addon_version}"
     )
 
+options_source = (ROOT / "kassensturz" / "app" / "kassensturz" / "options.py").read_text(encoding="utf-8")
+options_match = re.search(r'^VERSION\s*=\s*"([^"]+)"', options_source, re.MULTILINE)
+if not options_match or options_match.group(1) != addon_version:
+    found = options_match.group(1) if options_match else "no VERSION"
+    raise SystemExit(f"options.py reports {found}, config.yaml says {addon_version}")
+
 mobile_version = read_value(ROOT / "mobile" / "app" / "pubspec.yaml", "version")
 if not FLUTTER_VERSION.fullmatch(mobile_version):
     raise SystemExit(f"Invalid Flutter app version: {mobile_version!r}")

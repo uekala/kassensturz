@@ -20,3 +20,12 @@ configuration:
   import_folder:
     name: Eingangsordner
     description: Kontoauszug-Dateien, die hier landen, werden automatisch importiert. Leer lassen zum Abschalten.
+  trusted_proxies:
+    name: Vertrauenswürdige Proxys (Mobile App)
+    description: Kommagetrennte IP-Adressen oder Netze, von denen die Mobile-Schnittstelle HTTPS-Anfragen annimmt, z. B. 172.30.32.1/32 für den Tailscale-Service. Leer lassen, wenn keine Mobile App verbunden wird.
+  mobile_client_networks:
+    name: Erlaubte Client-Netze (Mobile App)
+    description: Kommagetrennte private Netze, aus denen Geräte die Mobile-Schnittstelle direkt per HTTPS erreichen dürfen. Für den Weg über den Tailscale-Service leer lassen.
+  mobile_server_url:
+    name: Serveradresse für die Mobile App
+    description: HTTPS-Adresse ohne Pfad, die im QR-Code zum Koppeln steht, z. B. https://kassensturz-prod.example.ts.net. Leer lassen schaltet den QR-Code ab.
