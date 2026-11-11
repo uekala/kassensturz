@@ -89,6 +89,7 @@ const fullCapabilities = [
   'contracts',
   'transactions.write',
   'transactions.search',
+  'stats',
 ];
 
 /// Answers like a Kassensturz server 0.3.0 with one cash account and one
@@ -144,6 +145,55 @@ MobileHttpResponse serverAnswer(
         {'id': 5, 'name': 'Wohnen', 'kind': 'expense', 'parent_id': null},
         {'id': 6, 'name': 'Lebensmittel', 'kind': 'expense', 'parent_id': 5},
       ],
+    });
+  }
+  if (path == '/api/v1/stats') {
+    final now = DateTime.now();
+    final month =
+        request.uri.queryParameters['month'] ??
+        '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    return jsonResponse(200, {
+      'month': {
+        'month': month,
+        'income_cents': 324000,
+        'expense_cents': 207800,
+        'balance_cents': 116200,
+      },
+      'categories': [
+        {
+          'category_id': 6,
+          'name': 'Lebensmittel',
+          'cents': 155850,
+          'share': 0.75,
+        },
+        {'category_id': 9, 'name': 'Freizeit', 'cents': 51950, 'share': 0.25},
+      ],
+      'history': [
+        for (var index = 1; index <= 12; index++)
+          {
+            'month': '2026-${index.toString().padLeft(2, '0')}',
+            'income_cents': 300000 + index * 1000,
+            'expense_cents': 200000 + index * 500,
+          },
+      ],
+      'balance_curve': {
+        'today': '2026-11-10',
+        'low_point': {'date': '2026-11-28', 'cents': -4500},
+        'points': [
+          for (var day = 1; day <= 10; day++)
+            {
+              'date': '2026-11-${day.toString().padLeft(2, '0')}',
+              'cents': 400000 - day * 9000,
+              'forecast': false,
+            },
+          for (var day = 11; day <= 30; day++)
+            {
+              'date': '2026-11-$day',
+              'cents': 310000 - (day - 10) * 16000,
+              'forecast': true,
+            },
+        ],
+      },
     });
   }
   if (path == '/api/v1/contracts') {

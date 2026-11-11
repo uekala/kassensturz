@@ -300,6 +300,41 @@ void main() {
     controller.dispose();
   });
 
+  test('the analysis is loaded on demand, also for another month', () async {
+    final transport = ScriptedTransport(serverAnswer);
+    final controller = _controller(await pairedStore(), transport);
+    await controller.restore();
+    expect(controller.canShowStats, isTrue);
+    expect(transport.count('GET', '/api/v1/stats'), 0);
+
+    await controller.loadStats();
+    expect(controller.stats?['categories'], hasLength(2));
+    expect(transport.requests.last.uri.queryParameters, isEmpty);
+
+    await controller.loadStats(month: '2026-10');
+    expect(controller.stats?['month']?['month'], '2026-10');
+    expect(transport.requests.last.uri.queryParameters['month'], '2026-10');
+    expect(controller.statsError, isNull);
+    controller.dispose();
+  });
+
+  test('a server without analysis is not asked for it', () async {
+    final transport = ScriptedTransport(
+      (request) => serverAnswer(
+        request,
+        capabilities: const ['overview', 'transactions', 'transactions.write'],
+      ),
+    );
+    final controller = _controller(await pairedStore(), transport);
+    await controller.restore();
+
+    await controller.loadStats();
+
+    expect(controller.canShowStats, isFalse);
+    expect(transport.count('GET', '/api/v1/stats'), 0);
+    controller.dispose();
+  });
+
   test('contracts are loaded on demand', () async {
     final transport = ScriptedTransport(serverAnswer);
     final controller = _controller(await pairedStore(), transport);

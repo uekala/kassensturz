@@ -37,6 +37,7 @@ CAPABILITIES = (
     "contracts",
     "transactions.write",
     "transactions.search",
+    "stats",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -356,6 +357,18 @@ def _transaction_id(value: str) -> int | None:
     if not value.isascii() or not value.isdigit() or len(value) > 18:
         return None
     return int(value)
+
+
+@router.get("/api/v1/stats")
+def stats(request: Request, month: str | None = Query(default=None)):
+    """Return category spending, monthly totals and the balance curve."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    try:
+        return mobile_read.get_stats(get_db(), month=month)
+    except mobile_read.MobileQueryError:
+        return _error(400, "invalid_query", "Ungültiger Monat.")
 
 
 @router.get("/api/v1/accounts")

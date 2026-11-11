@@ -247,6 +247,14 @@ class MobileApiClient {
   Future<Map<String, dynamic>> categories() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/categories');
 
+  /// Category spending, monthly totals and the balance curve. [month] is
+  /// 'YYYY-MM'; without it the server answers for the current month.
+  Future<Map<String, dynamic>> stats({String? month}) => _authenticatedJson(
+    method: 'GET',
+    path: '/api/v1/stats',
+    query: {if (month != null && month.isNotEmpty) 'month': month},
+  );
+
   Future<Map<String, dynamic>> contracts() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/contracts');
 

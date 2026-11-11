@@ -124,6 +124,28 @@ void main() {
     expect(find.text('1.284,50 €'), findsOneWidget);
     expect(find.text('Budget überschritten'), findsOneWidget);
 
+    await tester.tap(find.text('Auswertung'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nach Kategorie'), findsOneWidget);
+    expect(find.text('Freizeit'), findsOneWidget);
+    expect(find.textContaining('75 %'), findsOneWidget);
+    expect(find.text('Letzte 12 Monate'), findsOneWidget);
+    await tester.tap(find.byTooltip('Vorheriger Monat'));
+    await tester.pumpAndSettle();
+    final now = DateTime.now();
+    final previous = DateTime(now.year, now.month - 1);
+    expect(
+      transport.requests.last.uri.queryParameters['month'],
+      '${previous.year}-${previous.month.toString().padLeft(2, '0')}',
+    );
+    expect(find.text('Freizeit'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('Tiefster erwarteter Stand'),
+      300,
+    );
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Umsätze').last);
     await tester.pumpAndSettle();
     expect(find.text('3 Buchungen'), findsOneWidget);
@@ -177,6 +199,12 @@ void main() {
     expect(Theme.of(context).brightness, Brightness.dark);
     expect(KlarColors.of(context).surface, KlarColors.dark.surface);
     expect(Theme.of(context).scaffoldBackgroundColor, KlarColors.dark.surface);
+
+    await tester.tap(find.text('Auswertung'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nach Kategorie'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     for (final tab in ['Umsätze', 'Planung', 'Konten']) {
       await tester.tap(find.text(tab).last);

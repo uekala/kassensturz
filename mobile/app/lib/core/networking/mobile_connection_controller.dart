@@ -26,6 +26,7 @@ class MobileConnectionController extends ChangeNotifier {
 
   static const writeCapability = 'transactions.write';
   static const searchCapability = 'transactions.search';
+  static const statsCapability = 'stats';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -53,6 +54,9 @@ class MobileConnectionController extends ChangeNotifier {
   int? _filterCategoryId;
   String _filterSearch = '';
   String? _filterKind;
+  Map<String, dynamic>? _stats;
+  bool _statsLoading = false;
+  String? _statsError;
   bool _disposed = false;
 
   void _notifyIfMounted() {
@@ -101,6 +105,14 @@ class MobileConnectionController extends ChangeNotifier {
   List<ServerContract> get contracts => _contracts;
   bool get contractsLoading => _contractsLoading;
   String? get contractsError => _contractsError;
+
+  /// True once the server offers the figures for the analysis page.
+  bool get canShowStats => _capabilities.contains(statsCapability);
+
+  /// The analysis last loaded with [loadStats], as the server sent it.
+  Map<String, dynamic>? get stats => _stats;
+  bool get statsLoading => _statsLoading;
+  String? get statsError => _statsError;
 
   /// True once the server can search transactions and split them by kind.
   bool get canSearchTransactions => _capabilities.contains(searchCapability);
@@ -418,6 +430,26 @@ class MobileConnectionController extends ChangeNotifier {
     await refreshTransactions();
   }
 
+  /// Loads the analysis for [month] ('YYYY-MM'); null is the current month.
+  /// The previous analysis stays visible until the new one has arrived.
+  Future<void> loadStats({String? month}) async {
+    if (_session == null || _statsLoading || !canShowStats) return;
+    _statsLoading = true;
+    _statsError = null;
+    _notifyIfMounted();
+    try {
+      _stats = await _read(() => _apiClient.stats(month: month));
+      _unreachable = false;
+    } catch (error) {
+      _unreachable = isConnectivityFailure(error);
+      _statsError = describeMobileError(error);
+      await _clearLocalSessionIfExpired(error);
+    } finally {
+      _statsLoading = false;
+      _notifyIfMounted();
+    }
+  }
+
   Future<void> loadContracts() async {
     if (_session == null || _contractsLoading) return;
     _contractsLoading = true;
@@ -501,6 +533,8 @@ class MobileConnectionController extends ChangeNotifier {
     _filterCategoryId = null;
     _filterSearch = '';
     _filterKind = null;
+    _stats = null;
+    _statsError = null;
   }
 
   @override

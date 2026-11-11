@@ -10,12 +10,14 @@ class LiveDashboardPage extends StatelessWidget {
     required this.controller,
     required this.onOpenTransactions,
     required this.onOpenBudget,
+    required this.onOpenAnalysis,
     super.key,
   });
 
   final MobileConnectionController controller;
   final VoidCallback onOpenTransactions;
   final VoidCallback onOpenBudget;
+  final VoidCallback onOpenAnalysis;
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +102,10 @@ class LiveDashboardPage extends StatelessWidget {
                   ),
                 ],
               ),
+              if (controller.canShowStats) ...[
+                const SizedBox(height: 18),
+                _AnalysisLink(onTap: onOpenAnalysis),
+              ],
               if (alerts.isNotEmpty) ...[
                 const SizedBox(height: 20),
                 for (final alert in alerts) _AlertRow(alert: alert),
@@ -220,6 +226,52 @@ class _DashboardUnavailable extends StatelessWidget {
               label: const Text('Erneut versuchen'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AnalysisLink extends StatelessWidget {
+  const _AnalysisLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
+    final textTheme = Theme.of(context).textTheme;
+    return Material(
+      color: klar.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: klar.ink, width: 1.5),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            children: [
+              Icon(Icons.insights_rounded, color: klar.brand),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Auswertung', style: textTheme.titleMedium),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Kategorien, Monatsvergleich, Verlauf',
+                      style: textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: klar.ink),
+            ],
+          ),
         ),
       ),
     );

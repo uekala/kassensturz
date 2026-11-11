@@ -436,3 +436,20 @@ def test_transaction_list_accepts_search_and_kind_over_the_api(db, monkeypatch):
     assert invalid.status_code == 400 and invalid.json()["error"]["code"] == "invalid_query"
     assert unauthenticated.status_code == 401
     assert "transactions.search" in capabilities
+
+
+def test_stats_endpoint_needs_a_device_and_validates_the_month(db, monkeypatch):
+    reset_mobile_guards(monkeypatch)
+    cash_account(db)
+    with https_client() as client:
+        headers = paired_headers(client)
+        ok = client.get("/api/v1/stats", headers=headers)
+        invalid = client.get("/api/v1/stats", params={"month": "bald"}, headers=headers)
+        unauthenticated = client.get("/api/v1/stats")
+        capabilities = client.get("/api/v1/me", headers=headers).json()["capabilities"]
+
+    assert ok.status_code == 200
+    assert set(ok.json()) == {"month", "categories", "history", "balance_curve"}
+    assert invalid.status_code == 400 and invalid.json()["error"]["code"] == "invalid_query"
+    assert unauthenticated.status_code == 401
+    assert "stats" in capabilities

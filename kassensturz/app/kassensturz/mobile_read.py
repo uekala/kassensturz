@@ -9,7 +9,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from . import contracts, services
+from . import analytics, contracts, services
 from .db import Database
 
 
@@ -220,6 +220,66 @@ def get_overview(db: Database, *, as_of: datetime | None = None) -> dict:
     summary = services.build_summary(db)
     alert_items = services.alerts(db, summary)
     return serialize_overview(summary, alert_items, as_of=as_of)
+
+
+MAX_STATS_CATEGORIES = 40
+CURVE_PAST_DAYS = 30
+
+
+def get_stats(db: Database, *, month: str | None = None) -> dict:
+    """Return the figures behind the app's analysis page.
+
+    Spending of one month by top-level category, income and expenses of the
+    last twelve months, and the balance curve: the last days as booked, the
+    coming days as forecast. Transfers between own accounts are left out, as
+    everywhere else. Only names and amounts leave the server.
+    """
+    selected = _validate_month(month) or date.today().strftime("%Y-%m")
+    stats = analytics.month_stats(db, selected)
+    expense = int(stats["expense_cents"])
+    categories = [
+        {
+            "category_id": item["category_id"],
+            "name": str(item["name"]),
+            "cents": int(item["cents"]),
+            "share": round(item["cents"] / expense, 4) if expense > 0 else 0.0,
+        }
+        for item in stats["breakdown"][:MAX_STATS_CATEGORIES]
+    ]
+    history = [
+        {
+            "month": item["month"],
+            "income_cents": int(item["income_cents"]),
+            "expense_cents": int(item["expense_cents"]),
+        }
+        for item in analytics.monthly_totals(db, 12)
+    ]
+    forecast = analytics.forecast(db)
+    points = [
+        {"date": day, "cents": int(cents), "forecast": False}
+        for day, cents in forecast["past"][-CURVE_PAST_DAYS:]
+    ] + [
+        {"date": day, "cents": int(cents), "forecast": True}
+        for day, cents in forecast["future"]
+    ]
+    return {
+        "month": {
+            "month": selected,
+            "income_cents": int(stats["income_cents"]),
+            "expense_cents": expense,
+            "balance_cents": int(stats["saldo_cents"]),
+        },
+        "categories": categories,
+        "history": history,
+        "balance_curve": {
+            "today": forecast["today"],
+            "low_point": {
+                "date": forecast["low_point"]["date"],
+                "cents": int(forecast["low_point"]["cents"]),
+            },
+            "points": points,
+        },
+    }
 
 
 def list_transactions(

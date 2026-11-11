@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.3
+
+- Mobile App: neue Schnittstelle für die Auswertung – Ausgaben eines Monats nach Kategorie, Einnahmen und Ausgaben
+  der letzten zwölf Monate und der Verlauf des Kontostands mit Prognose. Es verlassen nur Namen und Beträge den Server.
+
 ## 0.3.2
 
 - Mobile App: Umsätze lassen sich durchsuchen (Empfänger, Verwendungszweck, Notiz) und auf Einnahmen oder Ausgaben
