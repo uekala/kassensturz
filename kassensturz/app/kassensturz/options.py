@@ -19,7 +19,7 @@ DEFAULTS = {
     "mobile_server_url": "",
 }
 
-VERSION = "0.3.4"
+VERSION = "0.3.5"
 
 
 def load() -> dict:
