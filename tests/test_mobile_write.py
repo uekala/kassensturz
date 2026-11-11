@@ -72,7 +72,7 @@ def test_write_routes_require_a_device_token(db, monkeypatch):
         assert client.delete("/api/v1/transactions/1").status_code == 401
         for path in ("/api/v1/accounts", "/api/v1/categories", "/api/v1/contracts"):
             assert client.get(path).status_code == 401
-    assert db.scalar("SELECT COUNT(*) FROM transactions") == 0
+        assert db.scalar("SELECT COUNT(*) FROM transactions") == 0
 
 
 def test_create_manual_transaction_updates_balance_and_is_listed(db, monkeypatch):
@@ -110,10 +110,10 @@ def test_create_manual_transaction_updates_balance_and_is_listed(db, monkeypatch
         assert listed["items"][0]["id"] == transaction["id"]
         assert listed["items"][0]["manual"] is True
 
-    stored = db.one("SELECT source, hash, client_request_id FROM transactions")
-    assert stored["source"] == "manual"
-    assert stored["hash"]
-    assert stored["client_request_id"] == REQUEST_ID
+        stored = db.one("SELECT source, hash, client_request_id FROM transactions")
+        assert stored["source"] == "manual"
+        assert stored["hash"]
+        assert stored["client_request_id"] == REQUEST_ID
 
 
 def test_repeating_the_same_request_id_does_not_book_twice(db, monkeypatch):
@@ -128,12 +128,12 @@ def test_repeating_the_same_request_id_does_not_book_twice(db, monkeypatch):
             json=new_payload(account_id, amount_cents=-99999),
             headers=headers,
         )
-    assert first.status_code == 201
-    assert again.status_code == 200 and again.json()["created"] is False
-    assert changed.status_code == 200
-    assert again.json()["transaction"] == first.json()["transaction"]
-    assert changed.json()["transaction"]["amount_cents"] == -450
-    assert db.scalar("SELECT COUNT(*) FROM transactions") == 1
+        assert first.status_code == 201
+        assert again.status_code == 200 and again.json()["created"] is False
+        assert changed.status_code == 200
+        assert again.json()["transaction"] == first.json()["transaction"]
+        assert changed.json()["transaction"]["amount_cents"] == -450
+        assert db.scalar("SELECT COUNT(*) FROM transactions") == 1
 
 
 def test_request_id_is_unique_in_the_database(db):
@@ -181,8 +181,8 @@ def test_accounts_with_bank_feed_reject_manual_transactions(db, monkeypatch):
             item["id"]: item["manual_entries"]
             for item in client.get("/api/v1/accounts", headers=headers).json()["items"]
         }
-    assert flags == {fints_account: False, open_banking_account: False}
-    assert db.scalar("SELECT COUNT(*) FROM transactions") == 0
+        assert flags == {fints_account: False, open_banking_account: False}
+        assert db.scalar("SELECT COUNT(*) FROM transactions") == 0
 
 
 def test_create_rejects_invalid_input_without_writing(db, monkeypatch):
@@ -218,7 +218,7 @@ def test_create_rejects_invalid_input_without_writing(db, monkeypatch):
             assert response.json()["error"]["code"] == "invalid_request"
         not_an_object = client.post("/api/v1/transactions", json=[1, 2], headers=headers)
         assert not_an_object.status_code == 400
-    assert db.scalar("SELECT COUNT(*) FROM transactions") == 0
+        assert db.scalar("SELECT COUNT(*) FROM transactions") == 0
 
 
 def test_manual_transaction_can_be_changed_and_deleted(db, monkeypatch):
@@ -261,8 +261,8 @@ def test_manual_transaction_can_be_changed_and_deleted(db, monkeypatch):
         assert client.patch(
             f"/api/v1/transactions/{tx_id}", json={"note": "x"}, headers=headers
         ).status_code == 404
-    assert db.scalar("SELECT COUNT(*) FROM transactions") == 0
-    assert db.scalar("SELECT COUNT(*) FROM splits") == 0
+        assert db.scalar("SELECT COUNT(*) FROM transactions") == 0
+        assert db.scalar("SELECT COUNT(*) FROM splits") == 0
 
 
 def test_bank_transactions_keep_their_data_and_cannot_be_deleted(db, monkeypatch):
@@ -310,11 +310,11 @@ def test_bank_transactions_keep_their_data_and_cannot_be_deleted(db, monkeypatch
             assert client.patch(
                 f"/api/v1/transactions/{bad_id}", json={"note": "x"}, headers=headers
             ).status_code == 404
-    row = db.one("SELECT * FROM transactions WHERE id = ?", (tx_id,))
-    assert (row["amount_cents"], row["booking_date"], row["counterparty"], row["hash"], row["source"]) == (
-        -1234, "2026-11-03", "Supermarkt", "bank-hash", "fints",
-    )
-    assert row["category_id"] == category_id and row["note"] == "Wocheneinkauf"
+        row = db.one("SELECT * FROM transactions WHERE id = ?", (tx_id,))
+        assert (row["amount_cents"], row["booking_date"], row["counterparty"], row["hash"], row["source"]) == (
+            -1234, "2026-11-03", "Supermarkt", "bank-hash", "fints",
+        )
+        assert row["category_id"] == category_id and row["note"] == "Wocheneinkauf"
 
 
 def test_later_file_import_does_not_duplicate_a_manual_transaction(db, monkeypatch):
@@ -325,17 +325,17 @@ def test_later_file_import_does_not_duplicate_a_manual_transaction(db, monkeypat
         assert client.post(
             "/api/v1/transactions", json=new_payload(account_id), headers=headers
         ).status_code == 201
-    result = import_rows(
-        db,
-        account_id,
-        [
-            {"booking_date": "2026-11-09", "amount_cents": -450, "counterparty": "BAECKEREI 123", "purpose": "Karte"},
-            {"booking_date": "2026-11-09", "amount_cents": -700, "counterparty": "Kiosk", "purpose": ""},
-        ],
-        source="csv",
-    )
-    assert result["added"] == 1 and result["skipped"] == 1
-    assert db.scalar("SELECT COUNT(*) FROM transactions") == 2
+        result = import_rows(
+            db,
+            account_id,
+            [
+                {"booking_date": "2026-11-09", "amount_cents": -450, "counterparty": "BAECKEREI 123", "purpose": "Karte"},
+                {"booking_date": "2026-11-09", "amount_cents": -700, "counterparty": "Kiosk", "purpose": ""},
+            ],
+            source="csv",
+        )
+        assert result["added"] == 1 and result["skipped"] == 1
+        assert db.scalar("SELECT COUNT(*) FROM transactions") == 2
 
 
 def test_categories_and_contracts_are_allowlisted(db, monkeypatch):
@@ -390,8 +390,8 @@ def test_write_routes_are_rate_limited_before_dispatch(db, monkeypatch):
             ).status_code
             for index in range(3)
         ]
-    assert codes == [201, 201, 429]
-    assert db.scalar("SELECT COUNT(*) FROM transactions") == 2
+        assert codes == [201, 201, 429]
+        assert db.scalar("SELECT COUNT(*) FROM transactions") == 2
 
 
 def test_request_id_column_is_added_to_an_existing_database(tmp_path):

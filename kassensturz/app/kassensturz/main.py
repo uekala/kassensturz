@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
                secrets_store, services)
-from .db import get_db, now_iso
+from .db import close_db, get_db, now_iso
 from .mobile_api import router as mobile_api_router
 from .mobile_security import (
     InMemoryRateLimiter,
@@ -70,7 +70,13 @@ async def lifespan(_app):
     if not os.environ.get("KASSENSTURZ_NO_BACKGROUND"):
         services.start_background()
         services.schedule_refresh()
-    yield
+    try:
+        yield
+    finally:
+        # Home Assistant stops the app for a cold backup (SIGTERM). Leave one
+        # complete database file behind: checkpoint the WAL and close.
+        close_db()
+        logging.getLogger("kassensturz").info("Kassensturz beendet, Datenbank geschlossen")
 
 
 app = FastAPI(title="Kassensturz", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -168,6 +174,34 @@ async def only_ingress(request: Request, call_next):
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response
+
+
+# Ohne Zeitplan-Durchlauf seit dieser Zeit gilt die App als hängend.
+SCHEDULER_STALE_SECONDS = 900
+
+
+@app.get("/healthz")
+def healthz():
+    """Für Watchdog und Healthcheck: nur lokal erreichbar, ohne Finanzdaten."""
+    problems = []
+    try:
+        database = get_db()
+        # Eine laufende Transaktion (z. B. ein großer Import) ist kein Fehler.
+        if database.lock.acquire(timeout=2):
+            try:
+                database.conn.execute("SELECT 1").fetchone()
+            finally:
+                database.lock.release()
+    except Exception:  # noqa: BLE001
+        log.exception("Datenbank antwortet nicht")
+        problems.append("database")
+    if not os.environ.get("KASSENSTURZ_NO_BACKGROUND") and services.scheduler_age_seconds() > SCHEDULER_STALE_SECONDS:
+        problems.append("scheduler")
+    return JSONResponse(
+        {"status": "error" if problems else "ok", "version": options.VERSION, "problems": problems},
+        status_code=503 if problems else 200,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/")

@@ -291,6 +291,19 @@ class Database:
         self._migrate()
         self._depth = 0
 
+    def close(self) -> None:
+        """Write the WAL into the database file and close the connection.
+
+        Called on shutdown: Home Assistant stops the app for a cold backup, and
+        the backup then holds one complete database file instead of a database
+        plus write-ahead log. A running transaction finishes first (lock).
+        """
+        with self.lock:
+            try:
+                self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            finally:
+                self.conn.close()
+
     def _migrate(self) -> None:
         for table, cols in MIGRATIONS.items():
             have = {r[1] for r in self.conn.execute(f"PRAGMA table_info({table})").fetchall()}
@@ -473,8 +486,23 @@ _db: Database | None = None
 def get_db() -> Database:
     global _db
     if _db is None:
-        _db = Database(DATA_DIR / "kassensturz.sqlite")
+        # Spät importiert: beide Module bauen auf diesem auf.
+        from . import backup
+        from .options import VERSION
+
+        path = DATA_DIR / "kassensturz.sqlite"
+        backup.before_update(path, VERSION)
+        _db = Database(path)
+        _db.set_setting(backup.VERSION_KEY, VERSION)
     return _db
+
+
+def close_db() -> None:
+    """Close the shared database on shutdown (see Database.close)."""
+    global _db
+    if _db is not None:
+        database, _db = _db, None
+        database.close()
 
 
 def reset_db_for_tests(path: Path) -> Database:

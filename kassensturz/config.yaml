@@ -1,5 +1,5 @@
 name: Kassensturz
-version: "0.3.0"
+version: "0.3.1"
 slug: kassensturz
 description: Haushaltsbuch mit Bankabruf per FinTS und Open Banking, Eingangsordner, Vertragserkennung, Budgets und Prognose
 url: https://github.com/uekala/kassensturz
@@ -11,6 +11,8 @@ boot: auto
 ingress: true
 panel_admin: true
 ingress_port: 8099
+# Antwortet die App nicht mehr, startet Home Assistant sie neu.
+watchdog: "http://[HOST]:[PORT:8099]/healthz"
 ports:
   8099/tcp: null
 ports_description:
@@ -21,9 +23,14 @@ homeassistant_api: true
 map:
   - type: share
     read_only: false
+# Home Assistant stops the app during a backup, so the SQLite database
+# (WAL mode) is never copied mid-write.
+backup: cold
 backup_exclude:
   - "secrets.json"
   - "secrets.key"
+  # Eigene Kopien der Datenbank; die Sicherung enthält die Datenbank selbst.
+  - "backups/*"
 options:
   fints_product_id: ""
   sync_time: "06:30"

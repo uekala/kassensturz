@@ -471,10 +471,12 @@ def test_pairing_qr_rejects_non_https_or_path_server_url_before_creating_secret(
     )
     with https_client() as client:
         response = client.post("/api/mobile/pairings")
+        # Checked while the app runs: shutting the app down closes the database.
+        pairings = db.scalar("SELECT COUNT(*) FROM mobile_pairings")
 
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "mobile_server_url_invalid"
-    assert db.scalar("SELECT COUNT(*) FROM mobile_pairings") == 0
+    assert pairings == 0
 
 
 

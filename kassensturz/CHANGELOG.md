@@ -1,5 +1,19 @@
 # Änderungen
 
+## 0.3.1
+
+- **Überwachung:** Antwortet die App nicht mehr oder steht der Zeitplan für Abruf und Eingangsordner länger als
+  15 Minuten, startet Home Assistant sie neu (Watchdog über `/healthz`, nur lokal erreichbar, ohne Finanzdaten).
+- **Eigene Sicherungskopien:** Einmal am Tag und vor dem ersten Start einer neuen Version legt die App eine in sich
+  stimmige Kopie der Datenbank in `/data/backups` ab. Aufbewahrt werden die letzten 7 Tageskopien und die letzten
+  3 Kopien vor einem Versionswechsel.
+- **Konsistente Home-Assistant-Backups:** Home Assistant hält die App während einer Sicherung kurz an (`backup: cold`).
+  Vorher wurde die SQLite-Datenbank im laufenden Betrieb gesichert; im WAL-Modus konnten Datenbankdatei und
+  Schreibprotokoll dabei zu unterschiedlichen Zeitpunkten kopiert werden.
+- Beim Beenden schreibt die App das Schreibprotokoll in die Datenbank und schließt sie. Offene Anfragen bekommen dafür
+  höchstens 5 Sekunden, weniger als die 10 Sekunden, nach denen Home Assistant eine App hart beendet.
+- Getestet mit Python 3.15, der Version im Add-on-Image.
+
 ## 0.3.0
 
 - Mobile App: Konten, Kategorien und Verträge direkt vom Server; die App führt keine eigenen Bestände mehr.

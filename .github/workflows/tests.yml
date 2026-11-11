@@ -28,7 +28,13 @@ permissions:
 
 jobs:
   python-tests:
+    name: python-tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.15 is the version in the add-on image (python:3.15-slim-bookworm).
+        python-version: ["3.12", "3.15"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -36,7 +42,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: kassensturz/app/requirements.txt
 

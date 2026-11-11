@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import analytics, contracts, fints_sync, ha, inbox, ledger, openbanking, options, secrets_store
+from . import analytics, backup, contracts, fints_sync, ha, inbox, ledger, openbanking, options, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -157,10 +157,28 @@ def _refresh_loop() -> None:
             log.exception("Neuberechnung fehlgeschlagen")
 
 
+# Zeitpunkt des letzten Durchlaufs; /healthz meldet, wenn der Zeitplan steht.
+_last_tick = time.monotonic()
+
+
+def scheduler_age_seconds() -> float:
+    return time.monotonic() - _last_tick
+
+
 def _scheduler_loop() -> None:
+    global _last_tick
     last_sync_day = None
     last_push = 0.0
+    backup_retry_at = 0.0
     while True:
+        _last_tick = time.monotonic()
+        if time.monotonic() >= backup_retry_at:
+            try:
+                backup.run_if_due(get_db())
+            except Exception:  # noqa: BLE001
+                # Nicht alle 30 Sekunden erneut versuchen und protokollieren.
+                backup_retry_at = time.monotonic() + 3600
+                log.exception("Sicherungskopie fehlgeschlagen, nächster Versuch in einer Stunde")
         try:
             opts = options.load()
             now = datetime.now()
@@ -207,6 +225,8 @@ def _watch_background_job(job) -> None:
 
 
 def start_background() -> None:
+    global _last_tick
+    _last_tick = time.monotonic()
     threading.Thread(target=_refresh_loop, name="refresh", daemon=True).start()
     threading.Thread(target=_scheduler_loop, name="scheduler", daemon=True).start()
 
