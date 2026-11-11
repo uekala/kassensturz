@@ -47,7 +47,7 @@ Wichtige Grenzen:
        path: /
    ```
 
-   Tailscale provisioniert das TLS-Zertifikat für `https://kassensturz.tail1966da.ts.net`. MagicDNS und HTTPS-Zertifikate müssen im Tailnet aktiviert sein. Funnel bleibt deaktiviert.
+   Tailscale provisioniert das TLS-Zertifikat für `https://kassensturz.example.ts.net`. MagicDNS und HTTPS-Zertifikate müssen im Tailnet aktiviert sein. Funnel bleibt deaktiviert.
 4. Der bestehende Home-Assistant-Tailscale-Knoten wechselt durch `advertise_tags: [tag:homeassistant]` von persönlicher Benutzeridentität zu einer tagbasierten Geräteidentität. Tailscale Services erfordern diese Identität; das ist keine rein zusätzliche Kennzeichnung. Daher werden vorher in der Policy `tagOwners` sowie automatische Genehmigungen für die bestehende Subnetzroute `192.168.50.0/24` und den Exit-Node vorbereitet. Die vorhandene `advertise_routes`-, `advertise_exit_node`-, SNAT- und TUN-Konfiguration bleibt erhalten. Die allgemeine Zugriffsregel wird während dieses Schritts nicht verändert.
 5. Der Kassensturz-Service-Host wird zunächst **manuell** auf der Services-Seite freigegeben, nicht automatisch über `autoApprovers.services`. So bleibt die erste Aktivierung ein bewusster administrativer Schritt. Die Service-Definition ist bereits angelegt; der Host ist zum aktuellen Stand noch nicht advertised.
 6. Die `trusted_proxies`-Option wird erst nach der Prüfung der tatsächlichen TCP-Gegenstelle und der vom Tailscale-Service gelieferten `X-Forwarded-Proto`-Header gesetzt. `mobile_client_networks` bleibt für diesen Proxy-Weg leer. Die Middleware verlangt von einem vertrauenswürdigen Proxy exakt `X-Forwarded-Proto: https`; keine pauschale Freigabe des Supervisor-Netzes.
