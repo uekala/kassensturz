@@ -98,3 +98,10 @@ Für den ersten realen Test wird ein separates lokales Add-on unter dem Slug `ka
 - Die Kassensturz-Web-App bleibt über Ingress nutzbar.
 - Mobile-Zugriff ist noch nicht betriebsbereit, nur weil die API-Routen im Feature-Branch registriert sind.
 - Kein Wechsel auf main und keine Installation auf dem realen Green im Rahmen dieser Architekturentscheidung.
+
+## Nachtrag vom 11.11.2026
+
+Der isolierte Test ist abgeschlossen. Die Mobile-API läuft in der Produktionsinstanz `local_kassensturz` (ab 0.3.3); das
+Test-Add-on `kassensturz-mobile-test` wurde auf dem Green deinstalliert und samt CI-Job aus dem Repository entfernt. Die
+Produktion nutzt den Host-Port 18099 und den vorhandenen Tailscale-Service. Der aktuelle Betrieb steht in
+`deploy/home-assistant-green/README.md`.

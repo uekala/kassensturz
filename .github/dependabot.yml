@@ -4,7 +4,6 @@ updates:
   - package-ecosystem: "docker"
     directories:
       - "/kassensturz"
-      - "/deploy/home-assistant-green/test-addon"
     schedule:
       interval: "weekly"
       day: "monday"

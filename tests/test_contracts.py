@@ -72,3 +72,19 @@ def test_cancellation_deadline_is_calculated_from_contract_end_and_notice_period
 def test_cancellation_deadline_is_missing_without_complete_contract_data():
     assert deadline_for({"contract_end": "2027-01-31", "notice_months": None}) is None
     assert deadline_for({"contract_end": None, "notice_months": 1}) is None
+
+
+def test_confirmed_contracts_disappear_with_their_deleted_account(db):
+    from kassensturz import demo, ledger
+
+    demo.load_demo(db)
+    detect(db)
+    detected = db.query("SELECT key, account_id FROM contracts WHERE manual = 0")
+    assert detected
+    db.execute("UPDATE contracts SET status = 'confirmed', notes = 'Testnotiz' WHERE manual = 0")
+
+    for account in db.query("SELECT id FROM accounts"):
+        ledger.delete_account(db, account["id"])
+    detect(db)
+
+    assert db.scalar("SELECT COUNT(*) FROM contracts WHERE manual = 0") == 0

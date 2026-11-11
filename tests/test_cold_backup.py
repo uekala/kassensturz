@@ -33,19 +33,16 @@ def _config(path: Path) -> str:
 
 
 def _backup_exclude(config: str) -> list[str]:
-    block = re.search(r"^backup_exclude:\n((?:\s+- .+\n)+)", config, re.MULTILINE)
+    block = re.search(r"^backup_exclude:\n((?:\s+(?:- |#).+\n)+)", config, re.MULTILINE)
     assert block, "backup_exclude fehlt"
-    return [line.split("-", 1)[1].strip().strip('"') for line in block.group(1).splitlines()]
+    entries = [line for line in block.group(1).splitlines() if line.strip().startswith("- ")]
+    return [line.split("-", 1)[1].strip().strip('"') for line in entries]
 
 
-@pytest.mark.parametrize(
-    "config_path",
-    [ROOT / "kassensturz" / "config.yaml", ROOT / "deploy/home-assistant-green/test-addon/config.yaml"],
-)
-def test_addons_use_cold_backups_and_keep_secrets_out(config_path):
-    config = _config(config_path)
+def test_addon_uses_cold_backups_and_keeps_secrets_out():
+    config = _config(ROOT / "kassensturz" / "config.yaml")
     assert re.search(r"^backup: cold$", config, re.MULTILINE)
-    assert _backup_exclude(config) == ["secrets.json", "secrets.key"]
+    assert _backup_exclude(config) == ["secrets.json", "secrets.key", "backups/*"]
 
 
 def test_graceful_shutdown_stays_below_the_supervisor_timeout():
@@ -138,6 +135,8 @@ class App:
         except subprocess.TimeoutExpired as err:
             self.kill()
             raise AssertionError(f"Nicht innerhalb von {SUPERVISOR_STOP_TIMEOUT}s beendet") from err
+        # Der Supervisor wertet jeden anderen Code als „SIGTERM nicht behandelt“.
+        assert self.process.returncode == 0, f"Rückgabewert {self.process.returncode}:\n{self.log.read_text()}"
         return time.monotonic() - started
 
     def kill(self) -> None:
