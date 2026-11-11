@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kassensturz_mobile/app/kassensturz_app.dart';
+import 'package:kassensturz_mobile/core/design/app_theme.dart';
 import 'package:kassensturz_mobile/core/networking/mobile_api_client.dart';
 import 'package:kassensturz_mobile/core/networking/mobile_connection_controller.dart';
 
@@ -92,25 +93,29 @@ MobileHttpResponse _answer(RecordedRequest request) {
   return serverAnswer(request, transactions: _transactions);
 }
 
+Future<void> _pumpConnectedApp(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  final controller = MobileConnectionController(
+    apiClient: MobileApiClient(
+      sessionStore: await pairedStore(),
+      transport: ScriptedTransport(_answer),
+      refreshRetryDelay: Duration.zero,
+    ),
+    readRetryDelay: Duration.zero,
+  );
+  await tester.pumpWidget(
+    KassensturzApp(mobileConnectionController: controller),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('connected app shows server data on every tab', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    final controller = MobileConnectionController(
-      apiClient: MobileApiClient(
-        sessionStore: await pairedStore(),
-        transport: ScriptedTransport(_answer),
-        refreshRetryDelay: Duration.zero,
-      ),
-      readRetryDelay: Duration.zero,
-    );
-    await tester.pumpWidget(
-      KassensturzApp(mobileConnectionController: controller),
-    );
-    await tester.pumpAndSettle();
+    await _pumpConnectedApp(tester);
 
     expect(find.text('NICHT VERBUNDEN'), findsNothing);
     expect(find.text('Frei verfügbar'), findsOneWidget);
@@ -144,5 +149,24 @@ void main() {
     await tester.tap(find.byTooltip('Umsatz anlegen'));
     await tester.pumpAndSettle();
     expect(find.text('Neuer Umsatz'), findsOneWidget);
+  });
+
+  testWidgets('the app follows the dark setting of the phone', (tester) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await _pumpConnectedApp(tester);
+
+    final context = tester.element(find.text('Frei verfügbar'));
+    expect(Theme.of(context).brightness, Brightness.dark);
+    expect(KlarColors.of(context).surface, KlarColors.dark.surface);
+    expect(Theme.of(context).scaffoldBackgroundColor, KlarColors.dark.surface);
+
+    for (final tab in ['Umsätze', 'Planung', 'Konten']) {
+      await tester.tap(find.text(tab).last);
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.byTooltip('Umsatz anlegen'));
+    await tester.pumpAndSettle();
+    expect(find.text('Betrag in Euro'), findsOneWidget);
   });
 }

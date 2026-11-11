@@ -146,7 +146,7 @@ class _MorePageState extends State<MorePage> {
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(17),
-                decoration: _cardDecoration(),
+                decoration: _cardDecoration(KlarColors.of(context)),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -322,10 +322,10 @@ class _MorePageState extends State<MorePage> {
     ),
   );
 
-  static BoxDecoration _cardDecoration() => BoxDecoration(
-    color: Colors.white,
+  static BoxDecoration _cardDecoration(KlarColors klar) => BoxDecoration(
+    color: klar.surface,
     borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: AppTheme.ink, width: 1.5),
+    border: Border.all(color: klar.ink, width: 1.5),
   );
 }
 
@@ -356,16 +356,17 @@ class _StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final colors = Theme.of(context).colorScheme;
     final online = connected && !unreachable;
-    final background = online ? AppTheme.softBrand : const Color(0xFFFBEADF);
-    final foreground = online ? AppTheme.brand : AppTheme.warn;
+    final background = online ? klar.softBrand : klar.softWarn;
+    final foreground = online ? klar.brand : klar.warn;
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: klar.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.ink, width: 1.5),
+        border: Border.all(color: klar.ink, width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,10 +400,7 @@ class _StatusCard extends StatelessWidget {
                       connected
                           ? (deviceName ?? 'Dieses Gerät')
                           : 'Dein eigener Kassensturz-Server',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.mutedInk,
-                      ),
+                      style: TextStyle(fontSize: 12, color: klar.mutedInk),
                     ),
                   ],
                 ),
@@ -426,7 +424,7 @@ class _StatusCard extends StatelessWidget {
             const SizedBox(height: 10),
             SelectableText(
               serverUrl!,
-              style: const TextStyle(fontSize: 12, color: AppTheme.mutedInk),
+              style: TextStyle(fontSize: 12, color: klar.mutedInk),
             ),
           ],
           if (error != null) ...[
@@ -452,7 +450,7 @@ class _StatusCard extends StatelessWidget {
                 ),
                 TextButton.icon(
                   onPressed: busy ? null : onLogout,
-                  style: TextButton.styleFrom(foregroundColor: AppTheme.warn),
+                  style: TextButton.styleFrom(foregroundColor: klar.warn),
                   icon: const Icon(Icons.link_off_rounded),
                   label: const Text('Trennen'),
                 ),
@@ -482,11 +480,12 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final colors = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: klar.surface,
         borderRadius: BorderRadius.circular(14),
       ),
       child: ListTile(

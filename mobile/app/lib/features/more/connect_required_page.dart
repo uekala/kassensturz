@@ -11,6 +11,7 @@ class ConnectRequiredPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final textTheme = Theme.of(context).textTheme;
     return Center(
       child: SingleChildScrollView(
@@ -22,12 +23,12 @@ class ConnectRequiredPage extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: AppTheme.softBrand,
+                color: klar.softBrand,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.cloud_sync_outlined,
-                color: AppTheme.brand,
+                color: klar.brand,
                 size: 30,
               ),
             ),
