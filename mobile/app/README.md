@@ -67,3 +67,7 @@ flutter run
 The Flutter app includes HTTPS health checks, one-time pairing, automatic refresh, server-backed reads and writes and a native QR scanner for the versioned Kassensturz pairing payload. QR scanning uses the device camera only after the user opens the scanner; the iOS bootstrap adds the required camera usage explanation. The API client uses standard TLS certificate validation, disables redirects for authenticated requests, keeps access tokens in the Authorization header and sends refresh tokens only in the HTTPS request body. Access-token 401 responses trigger a single-flight refresh; a rejected refresh removes the stored session. Credentials are stored in platform secure storage. Do not add placeholder tokens, certificate exceptions or logs containing credentials.
 
 See [Mobile architecture](../../docs/architecture/0006-flutter-mobile-client.md) and [Mobile security requirements](../../docs/architecture/0002-mobile-api-security.md).
+
+## Releasing
+
+A tag `mobile-v<version>` (the version in `pubspec.yaml` without the build number, e.g. `mobile-v0.3.4`) runs the tests, builds the signed arm64 APK and attaches it to a GitHub release with the matching section of `CHANGELOG.md`. The build needs the four `ANDROID_*` repository secrets; without them it stops before building. The build number comes from the run number of the workflow, so every release installs over the previous one.

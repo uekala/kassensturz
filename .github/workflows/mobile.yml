@@ -9,6 +9,9 @@ on:
     branches:
       - main
       - "architecture/**"
+    # Ein Tag wie mobile-v0.3.4 baut die signierte APK und hängt sie an ein GitHub-Release.
+    tags:
+      - "mobile-v*"
     paths:
       - "mobile/**"
       - ".github/workflows/mobile.yml"
@@ -102,9 +105,12 @@ jobs:
 
   android-release:
     name: Android release build (signiert)
-    # Nur auf Anforderung: Die Release-APK ist mit dem dauerhaften Upload-Schlüssel
-    # signiert und lässt sich deshalb über eine installierte Version installieren.
-    if: github.event_name == 'workflow_dispatch' && inputs.android_release
+    # Nur auf Anforderung oder bei einem Tag mobile-v*: Die Release-APK ist mit dem
+    # dauerhaften Upload-Schlüssel signiert und lässt sich deshalb über eine
+    # installierte Version installieren.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.android_release)
+      || startsWith(github.ref, 'refs/tags/mobile-v')
     runs-on: ubuntu-latest
     needs: flutter-tests
     defaults:
@@ -121,6 +127,15 @@ jobs:
           version: 3.47.9
           cache: true
           cache-sdk: true
+
+      - name: Check that the tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/mobile-v')
+        run: |
+          VERSION=$(sed -n 's/^version: *\([0-9.]*\).*/\1/p' pubspec.yaml)
+          if [ "mobile-v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME passt nicht zur Version $VERSION in pubspec.yaml."
+            exit 1
+          fi
 
       - name: Generate Android and iOS project files
         run: bash tool/bootstrap-platforms.sh
@@ -161,6 +176,35 @@ jobs:
           path: mobile/app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
+
+  publish-android-release:
+    name: GitHub-Release mit signierter APK
+    if: startsWith(github.ref, 'refs/tags/mobile-v')
+    runs-on: ubuntu-latest
+    needs: android-release
+    # Nur dieser Job darf Releases anlegen; er sieht die Signatur-Secrets nicht.
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Download signed release APK
+        uses: actions/download-artifact@v7
+        with:
+          name: kassensturz-android-release
+          path: dist
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#mobile-v}"
+          APK="dist/kassensturz-$VERSION.apk"
+          mv dist/app-release.apk "$APK"
+          python3 tools/changelog_section.py mobile/app/CHANGELOG.md "$VERSION" > notes.md
+          gh release create "$GITHUB_REF_NAME" "$APK" \
+            --title "Kassensturz Mobile $VERSION" --notes-file notes.md
 
   ios-simulator:
     name: iOS simulator build
