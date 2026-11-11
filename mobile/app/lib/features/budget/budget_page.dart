@@ -489,7 +489,7 @@ class _BudgetSummaryCard extends StatelessWidget {
               value: progress,
               minHeight: 8,
               backgroundColor: Colors.white24,
-              valueColor: const AlwaysStoppedAnimation(Color(0xFFBDE9D6)),
+              valueColor: const AlwaysStoppedAnimation(Color(0xFFC9D6FB)),
             ),
           ),
           const SizedBox(height: 12),

@@ -1,5 +1,15 @@
 # Änderungen der Mobile-App
 
+## 0.3.0
+
+- Neues Erscheinungsbild: weiße Flächen, dunkle Schrift, ein kräftiges Blau; Umrisse statt getönter Karten,
+  große Beträge, dicke Balken für Budgets.
+- Neue Aufteilung: vier Bereiche „Heute“, „Umsätze“, „Planung“ (Budgets und Verträge) und „Konten“.
+  Die Einstellungen liegen hinter dem Symbol oben rechts.
+- Der Plus-Knopf in der Leiste legt von jedem Bereich aus einen Umsatz an.
+- Der Verbindungsstatus ist ein Punkt am Einstellungssymbol; ein Hinweis erscheint nur noch bei Problemen.
+- Umsätze sind nach Tagen gegliedert.
+
 ## 0.2.0
 
 - Alle Daten kommen vom gekoppelten Kassensturz-Server (ab Server 0.3.0): Übersicht, Konten, Budgets, Buchungen,

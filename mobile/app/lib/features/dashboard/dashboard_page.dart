@@ -224,7 +224,7 @@ class _DemoBalanceCard extends StatelessWidget {
                 child: Text(
                   'MONATSBILANZ',
                   style: TextStyle(
-                    color: Color(0xFFD5E4DE),
+                    color: Color(0xFFE4EAFD),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1,
@@ -267,7 +267,7 @@ class _DemoBalanceCard extends StatelessWidget {
           const SizedBox(height: 7),
           Text(
             'Einnahmen minus Ausgaben · $month',
-            style: const TextStyle(color: Color(0xFFD5E4DE), fontSize: 12),
+            style: const TextStyle(color: Color(0xFFE4EAFD), fontSize: 12),
           ),
         ],
       ),

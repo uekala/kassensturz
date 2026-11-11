@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_pairing_payload.dart';
-import 'contracts_page.dart';
 import 'pairing_scanner_page.dart';
 
 class MorePage extends StatefulWidget {
@@ -103,14 +103,6 @@ class _MorePageState extends State<MorePage> {
     if (confirmed == true) await widget.controller.logout();
   }
 
-  void _openContracts() {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => ContractsPage(controller: widget.controller),
-      ),
-    );
-  }
-
   static String _formatSync(DateTime? value) {
     if (value == null) return 'Noch nicht synchronisiert';
     final local = value.toLocal();
@@ -134,19 +126,6 @@ class _MorePageState extends State<MorePage> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            Text(
-              'Einstellungen',
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              'Deine Verbindung und Geräteverwaltung.',
-              style: TextStyle(color: colors.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
             _StatusCard(
               loading: state.isLoading,
               busy: state.isBusy,
@@ -167,7 +146,7 @@ class _MorePageState extends State<MorePage> {
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(17),
-                decoration: _cardDecoration(colors),
+                decoration: _cardDecoration(),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -301,15 +280,6 @@ class _MorePageState extends State<MorePage> {
                       'Aktualisiere Kassensturz in Home Assistant.',
                 ),
               const SizedBox(height: 18),
-              _sectionTitle(context, 'DATEN'),
-              const SizedBox(height: 8),
-              _InfoTile(
-                icon: Icons.description_outlined,
-                title: 'Verträge',
-                subtitle: 'Laufende Verträge und Fixkosten vom Server',
-                onTap: state.canWriteTransactions ? _openContracts : null,
-              ),
-              const SizedBox(height: 18),
               _sectionTitle(context, 'SICHERHEIT'),
               const SizedBox(height: 8),
               const _InfoTile(
@@ -352,10 +322,10 @@ class _MorePageState extends State<MorePage> {
     ),
   );
 
-  static BoxDecoration _cardDecoration(ColorScheme colors) => BoxDecoration(
+  static BoxDecoration _cardDecoration() => BoxDecoration(
     color: Colors.white,
-    borderRadius: BorderRadius.circular(18),
-    border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: AppTheme.ink, width: 1.5),
   );
 }
 
@@ -388,18 +358,14 @@ class _StatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final online = connected && !unreachable;
-    final background = online
-        ? const Color(0xFFE8F5EE)
-        : const Color(0xFFFFF1D6);
-    final foreground = online
-        ? const Color(0xFF22613D)
-        : const Color(0xFF865B12);
+    final background = online ? AppTheme.softBrand : const Color(0xFFFBEADF);
+    final foreground = online ? AppTheme.brand : AppTheme.warn;
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.ink, width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -434,8 +400,8 @@ class _StatusCard extends StatelessWidget {
                           ? (deviceName ?? 'Dieses Gerät')
                           : 'Dein eigener Kassensturz-Server',
                       style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF65736F),
+                        fontSize: 12,
+                        color: AppTheme.mutedInk,
                       ),
                     ),
                   ],
@@ -460,7 +426,7 @@ class _StatusCard extends StatelessWidget {
             const SizedBox(height: 10),
             SelectableText(
               serverUrl!,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF65736F)),
+              style: const TextStyle(fontSize: 12, color: AppTheme.mutedInk),
             ),
           ],
           if (error != null) ...[
@@ -486,6 +452,7 @@ class _StatusCard extends StatelessWidget {
                 ),
                 TextButton.icon(
                   onPressed: busy ? null : onLogout,
+                  style: TextButton.styleFrom(foregroundColor: AppTheme.warn),
                   icon: const Icon(Icons.link_off_rounded),
                   label: const Text('Trennen'),
                 ),
@@ -507,13 +474,11 @@ class _InfoTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -526,16 +491,12 @@ class _InfoTile extends StatelessWidget {
       ),
       child: ListTile(
         dense: true,
-        onTap: onTap,
         leading: Icon(icon, color: colors.primary),
         title: Text(
           title,
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
         ),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
-        trailing: onTap == null
-            ? null
-            : const Icon(Icons.chevron_right_rounded),
       ),
     );
   }

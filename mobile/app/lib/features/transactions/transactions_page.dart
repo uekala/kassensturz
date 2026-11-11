@@ -4,6 +4,7 @@ import '../../core/data/demo_finance_data.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
+import '../../core/widgets/klar_widgets.dart';
 import 'transaction_editor_page.dart';
 
 enum _TransactionFilter { all, expenses, income }
@@ -199,15 +200,31 @@ class _TransactionsPageState extends State<TransactionsPage> {
     return names[id] ?? fallback;
   }
 
+  static bool _startsDay(List<Map<String, dynamic>> items, int index) {
+    if (index == 0) return true;
+    return items[index]['booking_date'] != items[index - 1]['booking_date'];
+  }
+
+  static String _dayLabel(dynamic value) {
+    final date = value is String ? DateTime.tryParse(value) : null;
+    if (date == null) return 'Ohne Datum';
+    final now = DateTime.now();
+    final today = DateTime.utc(now.year, now.month, now.day);
+    final day = DateTime.utc(date.year, date.month, date.day);
+    final distance = today.difference(day).inDays;
+    if (distance == 0) return 'Heute';
+    if (distance == 1) return 'Gestern';
+    return formatDemoDate(date);
+  }
+
   Widget _buildLive(
     BuildContext context,
     MobileConnectionController controller,
   ) {
     final items = controller.transactionItems;
     final total = controller.transactionTotal;
-    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final canWrite = controller.canWriteTransactions;
-    final hasManualAccount = controller.manualAccounts.isNotEmpty;
     final accountNames = {
       for (final account in controller.accounts) account.id: account.name,
     };
@@ -219,73 +236,50 @@ class _TransactionsPageState extends State<TransactionsPage> {
       onRefresh: controller.refreshTransactions,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          const _PageHeading(
-            eyebrow: 'FINANZAKTIVITÄTEN',
-            title: 'Buchungen',
-            subtitle: 'Aktuelle Buchungen von deinem Kassensturz-Server.',
+          Text(
+            '$total ${total == 1 ? 'Buchung' : 'Buchungen'}',
+            style: textTheme.bodyMedium,
           ),
           if (canWrite) ...[
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: hasManualAccount
-                  ? () => _openEditor(controller)
-                  : null,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Umsatz anlegen'),
-            ),
-            if (!hasManualAccount) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Umsätze lassen sich nur auf Konten ohne Bankabruf anlegen. '
-                'Lege dafür in Kassensturz ein Konto an, zum Beispiel '
-                'Bargeld.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
             const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            Row(
               children: [
-                _FilterChip(
-                  label: _nameOf(
-                    accountNames,
-                    controller.filterAccountId,
-                    'Alle Konten',
+                Expanded(
+                  child: _FilterButton(
+                    label: _nameOf(
+                      accountNames,
+                      controller.filterAccountId,
+                      'Alle Konten',
+                    ),
+                    active: controller.filterAccountId != null,
+                    onPressed: () => _chooseAccountFilter(controller),
                   ),
-                  selected: controller.filterAccountId != null,
-                  onSelected: () => _chooseAccountFilter(controller),
                 ),
-                _FilterChip(
-                  label: _nameOf(
-                    categoryNames,
-                    controller.filterCategoryId,
-                    'Alle Kategorien',
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _FilterButton(
+                    label: _nameOf(
+                      categoryNames,
+                      controller.filterCategoryId,
+                      'Alle Kategorien',
+                    ),
+                    active: controller.filterCategoryId != null,
+                    onPressed: () => _chooseCategoryFilter(controller),
                   ),
-                  selected: controller.filterCategoryId != null,
-                  onSelected: () => _chooseCategoryFilter(controller),
                 ),
               ],
             ),
           ],
-          const SizedBox(height: 20),
-          _ListHeading(
-            count: total,
-            noun: total == 1 ? 'Buchung' : 'Buchungen',
-            isDemo: false,
-          ),
           if (controller.financeError != null) ...[
-            const SizedBox(height: 9),
+            const SizedBox(height: 10),
             Text(
               controller.financeError!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.error),
+              style: textTheme.bodySmall?.copyWith(color: AppTheme.warn),
             ),
           ],
-          const SizedBox(height: 9),
+          const SizedBox(height: 6),
           if (items.isEmpty && controller.financeLoading)
             const Padding(
               padding: EdgeInsets.all(28),
@@ -294,19 +288,18 @@ class _TransactionsPageState extends State<TransactionsPage> {
           else if (items.isEmpty)
             const _EmptyState('Noch keine Buchungen vorhanden.')
           else
-            _TransactionGroup(
-              children: [
-                for (var index = 0; index < items.length; index++) ...[
-                  if (index > 0) const Divider(height: 1, indent: 58),
-                  _LiveTransactionTile(
-                    item: items[index],
-                    onTap: canWrite
-                        ? () => _openEditor(controller, item: items[index])
-                        : null,
-                  ),
-                ],
-              ],
-            ),
+            for (var index = 0; index < items.length; index++) ...[
+              if (_startsDay(items, index))
+                _DayHeading(_dayLabel(items[index]['booking_date']))
+              else
+                const Divider(height: 1),
+              _LiveTransactionTile(
+                item: items[index],
+                onTap: canWrite
+                    ? () => _openEditor(controller, item: items[index])
+                    : null,
+              ),
+            ],
           if (items.length < total) ...[
             const SizedBox(height: 14),
             OutlinedButton(
@@ -324,6 +317,57 @@ class _TransactionsPageState extends State<TransactionsPage> {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _FilterButton extends StatelessWidget {
+  const _FilterButton({
+    required this.label,
+    required this.active,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool active;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        backgroundColor: active ? AppTheme.softBrand : AppTheme.surface,
+        foregroundColor: AppTheme.ink,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        side: BorderSide(
+          color: active ? AppTheme.brand : AppTheme.fieldBorder,
+          width: 1.5,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const Icon(Icons.expand_more_rounded, size: 18),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayHeading extends StatelessWidget {
+  const _DayHeading(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 2),
+      child: Text(label, style: Theme.of(context).textTheme.labelMedium),
     );
   }
 }
@@ -499,7 +543,6 @@ class _LiveTransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final amountValue = item['amount_cents'];
     final cents = amountValue is int ? amountValue : 0;
     final category = item['category'];
@@ -511,56 +554,19 @@ class _LiveTransactionTile extends StatelessWidget {
         : purpose.isNotEmpty
         ? purpose
         : 'Buchung';
-    final subtitle = <String>[
+    final detail = <String>[
       if (categoryName != null && categoryName.isNotEmpty) categoryName,
       if (item['account_name'] is String) item['account_name'] as String,
-      if (item['booking_date'] is String)
-        _formatDate(item['booking_date'] as String),
-      if (item['manual'] == true) 'von Hand',
     ].join(' · ');
 
-    return ListTile(
+    return EntryRow(
+      title: title,
+      detail: detail.isEmpty ? 'Buchung' : detail,
+      amount: formatSignedEuro(cents / 100),
+      positive: cents > 0,
+      badge: item['manual'] == true ? 'von Hand' : null,
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(vertical: 5),
-      minLeadingWidth: 38,
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          cents < 0 ? Icons.north_east_rounded : Icons.south_west_rounded,
-          color: colors.onSurfaceVariant,
-          size: 18,
-        ),
-      ),
-      title: Text(
-        title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 14),
-      ),
-      subtitle: Text(
-        subtitle.isEmpty ? 'Buchung' : subtitle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      trailing: Text(
-        formatSignedEuro(cents / 100),
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: cents < 0 ? colors.onSurface : AppTheme.accent,
-        ),
-      ),
     );
-  }
-
-  static String _formatDate(String value) {
-    final date = DateTime.tryParse(value);
-    if (date == null) return value;
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 }
 
