@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.4
+
+- Beim Beenden meldet die App jetzt den Rückgabewert 0. Bisher schloss sie zwar sauber, endete aber mit 143, und
+  Home Assistant schrieb bei jedem Stopp „SIGTERM nicht behandelt“ ins Protokoll.
+
 ## 0.3.3
 
 - Mobile App: neue Schnittstelle für die Auswertung – Ausgaben eines Monats nach Kategorie, Einnahmen und Ausgaben
