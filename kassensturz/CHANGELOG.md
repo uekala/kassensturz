@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.6
+
+- Umzug in eine andere Installation, etwa von der lokalen App zur Installation über GitHub: *Einstellungen → Daten →
+  Datenbank für Umzug* lädt eine vollständige Kopie herunter. Eine neue Installation ohne Konten und Umsätze übernimmt
+  sie beim Start aus dem Eingangsordner (`umzug/kassensturz-umzug.sqlite`) und löscht die Datei danach. Eine
+  Installation mit Daten wird nie überschrieben. PINs und der Enable-Banking-Schlüssel ziehen nicht mit um.
+
 ## 0.3.5
 
 - Web-Oberfläche im selben Stil wie die Mobile-App („Klar“): Weiß, Tinte, ein Blau, keine grauen Flächen und keine

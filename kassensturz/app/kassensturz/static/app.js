@@ -1583,6 +1583,7 @@ async function renderSettings(view, _params, seq) {
         <div class="section-head"><h2>Daten</h2></div>
         <div class="actions" style="margin-top:0">
           <a class="btn small" href="api/export.csv" download>Alle Buchungen als CSV</a>
+          <a class="btn small" href="api/umzug/export" download>Datenbank für Umzug</a>
           <button class="btn small" id="d-recat">Alles neu kategorisieren</button>
           ${store.state.demo ? html`<button class="btn small danger" id="d-demo-off">Beispieldaten entfernen</button>` : html`<button class="btn small" id="d-demo">Beispieldaten laden</button>`}
         </div>

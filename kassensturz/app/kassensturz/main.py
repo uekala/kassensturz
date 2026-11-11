@@ -5,6 +5,8 @@ import csv
 import io
 import logging
 import os
+import shutil
+import tempfile
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -14,9 +16,10 @@ from pathlib import Path
 from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 
 from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
-               secrets_store, services)
+               secrets_store, services, umzug)
 from .db import close_db, get_db, now_iso
 from .mobile_api import router as mobile_api_router
 from .mobile_security import (
@@ -1202,6 +1205,22 @@ def _csv_safe_text(value: str | None) -> str:
     if text.lstrip(" \t\r\n").startswith(("=", "+", "-", "@")):
         return "'" + text
     return text
+
+
+@app.get("/api/umzug/export")
+def umzug_export():
+    """Vollständige Kopie der Datenbank für den Umzug in eine andere Installation."""
+    db = get_db()
+    target = Path(tempfile.mkdtemp(prefix="kassensturz-umzug-")) / umzug.FILENAME
+    with db.lock:
+        if db._depth:
+            raise HTTPException(409, "Gerade läuft eine Änderung. Bitte gleich noch einmal versuchen.")
+        umzug.write_copy(db.conn, target)
+    return FileResponse(
+        target, media_type="application/vnd.sqlite3", filename=umzug.FILENAME,
+        headers={"Cache-Control": "no-store"},
+        background=BackgroundTask(shutil.rmtree, target.parent, ignore_errors=True),
+    )
 
 
 @app.get("/api/export.csv")

@@ -199,3 +199,20 @@ Oberfläche nicht ändern. Nach einem Neustart von Home Assistant sind sie spät
   der Home-Assistant-Backups, weil dort die Datenbank selbst enthalten ist.
 - Antwortet die App nicht mehr, startet Home Assistant sie über den Watchdog neu.
 - *Einstellungen → Alle Buchungen als CSV* exportiert alles in einer Datei.
+
+## Umzug in eine andere Installation
+
+So ziehen alle Daten um, zum Beispiel von der lokalen App zur Installation über GitHub oder auf ein anderes Gerät:
+
+1. In der alten Installation ein Home-Assistant-Backup anlegen.
+2. *Einstellungen → Daten → Datenbank für Umzug* wählen. Der Browser lädt `kassensturz-umzug.sqlite` herunter. Die Datei
+   enthält alle Konten und Umsätze; behandle sie wie einen Kontoauszug.
+3. Die alte Installation stoppen, damit nicht zwei Instanzen dieselben Konten abrufen.
+4. Die neue Installation einrichten, aber noch nicht starten. Die Datei in den Eingangsordner unter
+   `umzug/kassensturz-umzug.sqlite` legen (Standard: `/share/kassensturz/umzug/`).
+5. Die neue Installation starten. Im Protokoll steht „Daten aus der Umzugsdatei übernommen“, die Datei wird danach
+   gelöscht. Optionen der App, PINs und den Enable-Banking-Schlüssel trägst du neu ein.
+6. Stimmt alles, die alte Installation entfernen.
+
+Die Übernahme findet nur statt, solange die neue Installation keine Konten und keine Umsätze hat. Hat sie schon Daten,
+bleibt die Datei liegen und im Protokoll steht ein Hinweis.
