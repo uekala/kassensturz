@@ -203,8 +203,14 @@ jobs:
           APK="dist/kassensturz-$VERSION.apk"
           mv dist/app-release.apk "$APK"
           python3 tools/changelog_section.py mobile/app/CHANGELOG.md "$VERSION" > notes.md
-          gh release create "$GITHUB_REF_NAME" "$APK" \
-            --title "Kassensturz Mobile $VERSION" --notes-file notes.md
+          # Wurde das Release schon im Browser angelegt, APK und Text ergänzen.
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$APK" --clobber
+            gh release edit "$GITHUB_REF_NAME" --title "Kassensturz Mobile $VERSION" --notes-file notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" "$APK" \
+              --title "Kassensturz Mobile $VERSION" --notes-file notes.md
+          fi
 
   ios-simulator:
     name: iOS simulator build
