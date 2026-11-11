@@ -4,6 +4,9 @@
 
 - Beim Beenden meldet die App jetzt den Rückgabewert 0. Bisher schloss sie zwar sauber, endete aber mit 143, und
   Home Assistant schrieb bei jedem Stopp „SIGTERM nicht behandelt“ ins Protokoll.
+- Web-Oberfläche am Handy: Kopfzeile mit Schriftzug und Einstellungen ist wieder sichtbar, die Reiterleiste sitzt
+  unten. Bisher lag die Leiste oben über der Kopfzeile, die Einstellungen waren am Handy nicht erreichbar.
+  Der Zugang zu den Einstellungen ist dort jetzt beschriftet.
 
 ## 0.3.3
 

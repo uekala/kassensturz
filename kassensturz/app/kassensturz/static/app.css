@@ -976,6 +976,11 @@ select, .input, textarea {
     margin: 0 !important;
     background: var(--surface) !important;
     border-bottom: 1px solid var(--rule) !important;
+    /* Ein Filter auf der Kopfzeile macht sie zum Bezugsrahmen für die fest
+       positionierte Reiterleiste: Die rutscht dann nach oben und verdeckt
+       Schriftzug und Zahnrad. */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
   header.top .brand {
     display: inline-flex !important;
@@ -986,16 +991,22 @@ select, .input, textarea {
     color: var(--ink) !important;
   }
   header.top .settings-link {
-    display: inline-grid !important;
     visibility: visible !important;
     opacity: 1 !important;
-    flex: 0 0 42px !important;
-    width: 42px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
     height: 42px !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 0 11px !important;
     color: var(--muted) !important;
     background: transparent !important;
   }
-  header.top .settings-link::after { content: none !important; }
+  header.top .settings-link::after {
+    content: "Einstellungen" !important;
+    font-size: .82rem !important;
+    font-weight: 620 !important;
+  }
 }
