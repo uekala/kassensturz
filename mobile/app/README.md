@@ -17,7 +17,7 @@ With a paired server (0.3.0 or newer) the app
 
 Without a connection the installed app shows a "connect" page instead of example data. Paired with an older server it stays read-only and asks to update the server.
 
-The demo dashboard, the device-local account editor (encrypted SQLite) and the device-local budget limits still exist in the code and in the widget tests, but `main.dart` no longer uses them (`serverOnly: true`). Files written by earlier versions stay on the device and are not read.
+The demo dashboard, the device-local account editor (encrypted SQLite) and the device-local budget limits were removed in 0.3.1, together with the packages they needed. Files written by versions before 0.2.0 stay on the device and are not read.
 
 ## Saving and repeated requests
 
@@ -45,7 +45,7 @@ flutter test
 flutter analyze
 ```
 
-The automated suite covers the API client (pairing, renewal, repeated renewal, write calls), the connection controller (state, synchronisation, saving, filters), response models, error messages, the legacy local repositories and the main widget flows. The Android manifest hardening is tested with pytest (`tests/test_android_manifest.py`).
+The automated suite covers the API client (pairing, renewal, repeated renewal, write calls), the connection controller (state, synchronisation, saving, filters), response models, error messages, the unpaired app and the connected app on every tab at phone size. The code is checked with `flutter_lints`. The Android manifest hardening is tested with pytest (`tests/test_android_manifest.py`).
 
 Generate the native Android and iOS project files once. The script also declares the INTERNET permission in the release manifest and excludes the app data from Android backup and device transfer:
 

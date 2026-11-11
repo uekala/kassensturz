@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/data/demo_finance_data.dart';
 import '../../core/design/app_theme.dart';
+import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 

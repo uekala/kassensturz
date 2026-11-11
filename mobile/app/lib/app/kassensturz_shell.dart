@@ -1,38 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../core/data/account_controller.dart';
-import '../core/data/account_repository.dart';
-import '../core/data/budget_controller.dart';
-import '../core/data/budget_repository.dart';
 import '../core/design/app_theme.dart';
-import '../core/widgets/demo_notice.dart';
 import '../core/networking/mobile_connection_controller.dart';
-import '../features/accounts/accounts_page.dart';
 import '../features/accounts/server_finance_pages.dart';
-import '../features/budget/budget_page.dart';
 import '../features/budget/planning_page.dart';
-import '../features/dashboard/dashboard_page.dart';
+import '../features/dashboard/live_dashboard_page.dart';
 import '../features/more/connect_required_page.dart';
 import '../features/more/more_page.dart';
 import '../features/transactions/transaction_editor_page.dart';
 import '../features/transactions/transactions_page.dart';
 
 class KassensturzShell extends StatefulWidget {
-  const KassensturzShell({
-    super.key,
-    this.budgetRepository,
-    this.accountRepository,
-    this.mobileConnectionController,
-    this.serverOnly = false,
-  });
+  const KassensturzShell({super.key, this.mobileConnectionController});
 
-  final BudgetRepository? budgetRepository;
-  final AccountRepository? accountRepository;
+  /// The app shows server data only. Without a connection it asks the user
+  /// to connect; there is no example or device-local data.
   final MobileConnectionController? mobileConnectionController;
-
-  /// The installed app shows server data only. Without a connection it asks
-  /// the user to connect instead of showing example or device-local data.
-  final bool serverOnly;
 
   @override
   State<KassensturzShell> createState() => _KassensturzShellState();
@@ -41,22 +24,12 @@ class KassensturzShell extends StatefulWidget {
 class _KassensturzShellState extends State<KassensturzShell>
     with WidgetsBindingObserver {
   int _selectedIndex = 0;
-  late final BudgetController _budgetController;
-  late final AccountController _accountController;
   late final MobileConnectionController _mobileConnectionController;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _budgetController = BudgetController(
-      repository: widget.budgetRepository ?? InMemoryBudgetRepository(),
-    );
-    _budgetController.load();
-    _accountController = AccountController(
-      repository: widget.accountRepository ?? InMemoryAccountRepository(),
-    );
-    _accountController.load();
     _mobileConnectionController =
         widget.mobileConnectionController ??
         MobileConnectionController.preview();
@@ -74,8 +47,6 @@ class _KassensturzShellState extends State<KassensturzShell>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _budgetController.dispose();
-    _accountController.dispose();
     _mobileConnectionController.dispose();
     super.dispose();
   }
@@ -138,9 +109,8 @@ class _KassensturzShellState extends State<KassensturzShell>
     if (saved == true) _showMessage('Auf dem Server gespeichert.');
   }
 
-  /// In the installed app the four data tabs need a server connection.
+  /// The four data tabs need a server connection.
   Widget _serverData(Widget page) {
-    if (!widget.serverOnly) return page;
     return AnimatedBuilder(
       animation: _mobileConnectionController,
       builder: (context, _) => _mobileConnectionController.isConnected
@@ -156,15 +126,13 @@ class _KassensturzShellState extends State<KassensturzShell>
       return 'KEINE VERBINDUNG';
     }
     if (controller.isConnected) return null;
-    return widget.serverOnly ? 'NICHT VERBUNDEN' : 'DEMO';
+    return 'NICHT VERBUNDEN';
   }
 
   /// A hint below the header, shown only when something needs attention.
   Widget _notice() {
     final controller = _mobileConnectionController;
-    if (!controller.isConnected) {
-      return widget.serverOnly ? const SizedBox.shrink() : const DemoNotice();
-    }
+    if (!controller.isConnected) return const SizedBox.shrink();
     final String message;
     if (controller.linkState == ServerLinkState.unreachable) {
       message =
@@ -194,31 +162,23 @@ class _KassensturzShellState extends State<KassensturzShell>
 
   @override
   Widget build(BuildContext context) {
+    final controller = _mobileConnectionController;
     final pages = [
       _serverData(
-        DashboardPage(
+        LiveDashboardPage(
+          controller: controller,
           onOpenTransactions: _openTransactions,
           onOpenBudget: _openBudget,
-          budgetController: _budgetController,
-          mobileController: _mobileConnectionController,
         ),
       ),
-      _serverData(TransactionsPage(controller: _mobileConnectionController)),
+      _serverData(TransactionsPage(controller: controller)),
       _serverData(
         PlanningPage(
-          controller: _mobileConnectionController,
-          budgets: ServerAwareBudgetPage(
-            controller: _mobileConnectionController,
-            fallback: BudgetPage(controller: _budgetController),
-          ),
+          controller: controller,
+          budgets: ServerBudgetPage(controller: controller),
         ),
       ),
-      _serverData(
-        ServerAwareAccountsPage(
-          controller: _mobileConnectionController,
-          fallback: AccountsPage(controller: _accountController),
-        ),
-      ),
+      _serverData(ServerAccountsPage(controller: controller)),
     ];
 
     return Scaffold(
@@ -228,16 +188,12 @@ class _KassensturzShellState extends State<KassensturzShell>
           children: [
             AnimatedBuilder(
               animation: _mobileConnectionController,
-              builder: (context, _) {
-                final controller = _mobileConnectionController;
-                final demo = !widget.serverOnly && !controller.isConnected;
-                return _ShellHeader(
-                  title: demo ? 'Kassensturz' : _titles[_selectedIndex],
-                  status: _statusLabel(),
-                  online: controller.linkState == ServerLinkState.connected,
-                  onOpenSettings: _openSettings,
-                );
-              },
+              builder: (context, _) => _ShellHeader(
+                title: _titles[_selectedIndex],
+                status: _statusLabel(),
+                online: controller.linkState == ServerLinkState.connected,
+                onOpenSettings: _openSettings,
+              ),
             ),
             AnimatedBuilder(
               animation: _mobileConnectionController,

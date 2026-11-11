@@ -142,7 +142,8 @@ jobs:
           # versionCode muss bei jedem Update steigen; die Laufnummer dieses Workflows tut das.
           BUILD_NUMBER=$((GITHUB_RUN_NUMBER + 1))
           echo "Build-Nummer: $BUILD_NUMBER"
-          flutter build apk --release --build-number="$BUILD_NUMBER"
+          # Nur 64-Bit-ARM: Das deckt alle aktuellen Android-Handys ab und hält die APK klein.
+          flutter build apk --release --target-platform android-arm64 --build-number="$BUILD_NUMBER"
 
       - name: Verify release signature
         env:

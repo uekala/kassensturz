@@ -1,35 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design/app_theme.dart';
+import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
-import '../../core/data/demo_finance_data.dart';
 import '../../core/widgets/klar_widgets.dart';
 
-/// Switches to server-backed account data when a mobile session is active.
-/// The existing local account editor remains available in demo mode.
-class ServerAwareAccountsPage extends StatelessWidget {
-  const ServerAwareAccountsPage({
-    required this.controller,
-    required this.fallback,
-    super.key,
-  });
-
-  final MobileConnectionController controller;
-  final Widget fallback;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) => controller.isConnected
-          ? _ServerAccountsPage(controller: controller)
-          : fallback,
-    );
-  }
-}
-
-class _ServerAccountsPage extends StatelessWidget {
-  const _ServerAccountsPage({required this.controller});
+/// Accounts as the server reports them; they are managed in Home Assistant.
+class ServerAccountsPage extends StatelessWidget {
+  const ServerAccountsPage({required this.controller, super.key});
 
   final MobileConnectionController controller;
 
@@ -136,31 +114,9 @@ class _AccountPanel extends StatelessWidget {
   }
 }
 
-/// Switches to server-backed budget data when a mobile session is active.
-/// Local budget editing remains available in demo mode.
-class ServerAwareBudgetPage extends StatelessWidget {
-  const ServerAwareBudgetPage({
-    required this.controller,
-    required this.fallback,
-    super.key,
-  });
-
-  final MobileConnectionController controller;
-  final Widget fallback;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) => controller.isConnected
-          ? _ServerBudgetPage(controller: controller)
-          : fallback,
-    );
-  }
-}
-
-class _ServerBudgetPage extends StatelessWidget {
-  const _ServerBudgetPage({required this.controller});
+/// Budgets of the current month as the server reports them.
+class ServerBudgetPage extends StatelessWidget {
+  const ServerBudgetPage({required this.controller, super.key});
 
   final MobileConnectionController controller;
 

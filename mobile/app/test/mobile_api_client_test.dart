@@ -201,14 +201,14 @@ void main() {
     expect(transport.requests, hasLength(3));
     expect(
       transport.requests[0].headers['Authorization'],
-      'Bearer ' + token('a'),
+      'Bearer ${token('a')}',
     );
     expect(transport.requests[1].uri.path, '/api/v1/auth/refresh');
     expect(transport.requests[1].body, contains(token('r')));
     expect(transport.requests[1].uri.query, isEmpty);
     expect(
       transport.requests[2].headers['Authorization'],
-      'Bearer ' + token('b'),
+      'Bearer ${token('b')}',
     );
     final saved = await store.read();
     expect(saved?.accessToken, token('b'));
@@ -255,7 +255,7 @@ void main() {
       expect(request.uri.path, '/api/v1/transactions');
       expect(request.uri.queryParameters['month'], '2026-11');
       expect(request.uri.queryParameters['account_id'], '7');
-      expect(request.headers['Authorization'], 'Bearer ' + token('a'));
+      expect(request.headers['Authorization'], 'Bearer ${token('a')}');
       expect(request.uri.query, isNot(contains(token('a'))));
       client.close();
     },
