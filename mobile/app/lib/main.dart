@@ -7,12 +7,11 @@ import 'core/networking/mobile_session_store.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // The installed app keeps no financial records on the device: accounts,
-  // budgets and transactions come from the paired Kassensturz server only.
-  // Files written by earlier versions are left untouched and are not read.
+  // The app keeps no financial records on the device: accounts, budgets and
+  // transactions come from the paired Kassensturz server only. Files written
+  // by versions before 0.2.0 are left untouched and are not read.
   runApp(
     KassensturzApp(
-      serverOnly: true,
       mobileConnectionController: MobileConnectionController(
         apiClient: MobileApiClient(sessionStore: SecureMobileSessionStore()),
       ),

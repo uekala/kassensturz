@@ -108,7 +108,7 @@ void main() {
       readRetryDelay: Duration.zero,
     );
     await tester.pumpWidget(
-      KassensturzApp(serverOnly: true, mobileConnectionController: controller),
+      KassensturzApp(mobileConnectionController: controller),
     );
     await tester.pumpAndSettle();
 

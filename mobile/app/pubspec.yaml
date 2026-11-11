@@ -1,7 +1,7 @@
 name: kassensturz_mobile
 description: Local-first companion app for a user's Kassensturz server.
 publish_to: none
-version: 0.3.0+1
+version: 0.3.1+1
 
 environment:
   sdk: ">=3.11.0 <4.0.0"
@@ -11,19 +11,11 @@ dependencies:
     sdk: flutter
   flutter_secure_storage: ^11.2.0
   mobile_scanner: ^7.5.0
-  path: ^1.9.1
-  path_provider: ^2.1.5
-  shared_preferences: ^2.5.6
-  sqlite3: ^3.8.0
 
 dev_dependencies:
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
 
 flutter:
   uses-material-design: true
-
-hooks:
-  user_defines:
-    sqlite3:
-      source: sqlite3mc

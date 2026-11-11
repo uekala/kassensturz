@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/data/demo_finance_data.dart';
 import '../../core/design/app_theme.dart';
+import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
@@ -30,7 +30,7 @@ class _ContractsViewState extends State<ContractsView> {
   static String _date(String? value) {
     final date = value == null ? null : DateTime.tryParse(value);
     if (date == null) return '';
-    return formatDemoDate(date);
+    return formatDate(date);
   }
 
   @override

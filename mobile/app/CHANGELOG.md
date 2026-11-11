@@ -1,5 +1,12 @@
 # Änderungen der Mobile-App
 
+## 0.3.1
+
+- Aufgeräumt: Beispieldaten sowie die frühere Konten- und Budgetablage auf dem Gerät sind entfernt. Die App zeigt
+  ausschließlich Daten des gekoppelten Servers. Dateien aus Versionen vor 0.2.0 bleiben unberührt und ungelesen.
+- Kleinere Installationsdatei: nur noch für 64-Bit-ARM gebaut, ohne die nicht mehr benötigte Datenbankbibliothek.
+- Strengere Codeprüfung mit `flutter_lints`.
+
 ## 0.3.0
 
 - Neues Erscheinungsbild: weiße Flächen, dunkle Schrift, ein kräftiges Blau; Umrisse statt getönter Karten,
