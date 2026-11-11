@@ -9,7 +9,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from . import contracts, services
+from . import analytics, contracts, services
 from .db import Database
 
 
@@ -68,6 +68,38 @@ def _validate_month(month: str | None) -> str | None:
     except ValueError as exc:
         raise MobileQueryError("month must use YYYY-MM format.") from exc
     return month
+
+
+MAX_SEARCH_LENGTH = 80
+TRANSACTION_KINDS = ("in", "out")
+
+
+def _validate_search(value: Any) -> str | None:
+    """Return the trimmed search text, or None when nothing is searched."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise MobileQueryError("q must be text.")
+    text = value.strip()
+    if not text:
+        return None
+    if len(text) > MAX_SEARCH_LENGTH:
+        raise MobileQueryError("q is too long.")
+    return text
+
+
+def _validate_kind(value: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    if value not in TRANSACTION_KINDS:
+        raise MobileQueryError("kind must be 'in' or 'out'.")
+    return value
+
+
+def _like_pattern(text: str) -> str:
+    """Search for the text as typed: % and _ are ordinary characters."""
+    escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
 
 
 def _forecast_dto(source: dict) -> dict:
@@ -190,6 +222,66 @@ def get_overview(db: Database, *, as_of: datetime | None = None) -> dict:
     return serialize_overview(summary, alert_items, as_of=as_of)
 
 
+MAX_STATS_CATEGORIES = 40
+CURVE_PAST_DAYS = 30
+
+
+def get_stats(db: Database, *, month: str | None = None) -> dict:
+    """Return the figures behind the app's analysis page.
+
+    Spending of one month by top-level category, income and expenses of the
+    last twelve months, and the balance curve: the last days as booked, the
+    coming days as forecast. Transfers between own accounts are left out, as
+    everywhere else. Only names and amounts leave the server.
+    """
+    selected = _validate_month(month) or date.today().strftime("%Y-%m")
+    stats = analytics.month_stats(db, selected)
+    expense = int(stats["expense_cents"])
+    categories = [
+        {
+            "category_id": item["category_id"],
+            "name": str(item["name"]),
+            "cents": int(item["cents"]),
+            "share": round(item["cents"] / expense, 4) if expense > 0 else 0.0,
+        }
+        for item in stats["breakdown"][:MAX_STATS_CATEGORIES]
+    ]
+    history = [
+        {
+            "month": item["month"],
+            "income_cents": int(item["income_cents"]),
+            "expense_cents": int(item["expense_cents"]),
+        }
+        for item in analytics.monthly_totals(db, 12)
+    ]
+    forecast = analytics.forecast(db)
+    points = [
+        {"date": day, "cents": int(cents), "forecast": False}
+        for day, cents in forecast["past"][-CURVE_PAST_DAYS:]
+    ] + [
+        {"date": day, "cents": int(cents), "forecast": True}
+        for day, cents in forecast["future"]
+    ]
+    return {
+        "month": {
+            "month": selected,
+            "income_cents": int(stats["income_cents"]),
+            "expense_cents": expense,
+            "balance_cents": int(stats["saldo_cents"]),
+        },
+        "categories": categories,
+        "history": history,
+        "balance_curve": {
+            "today": forecast["today"],
+            "low_point": {
+                "date": forecast["low_point"]["date"],
+                "cents": int(forecast["low_point"]["cents"]),
+            },
+            "points": points,
+        },
+    }
+
+
 def list_transactions(
     db: Database,
     *,
@@ -198,8 +290,15 @@ def list_transactions(
     month: str | None = None,
     account_id: int | None = None,
     category_id: int | None = None,
+    q: str | None = None,
+    kind: str | None = None,
 ) -> dict:
-    """Return paginated transaction DTOs without internal or banking metadata."""
+    """Return paginated transaction DTOs without internal or banking metadata.
+
+    ``q`` searches counterparty, purpose and note; ``kind`` limits the list to
+    income ("in") or expenses ("out"), both without transfers between own
+    accounts, as in the web interface.
+    """
     page_size = _integer(
         limit,
         default=DEFAULT_PAGE_SIZE,
@@ -217,6 +316,8 @@ def list_transactions(
     selected_month = _validate_month(month)
     selected_account = _optional_positive_id(account_id, "account_id")
     selected_category = _optional_positive_id(category_id, "category_id")
+    search = _validate_search(q)
+    selected_kind = _validate_kind(kind)
 
     where = ["a.archived = 0"]
     params: list[Any] = []
@@ -229,6 +330,16 @@ def list_transactions(
     if selected_category is not None:
         where.append("t.category_id = ?")
         params.append(selected_category)
+    if search is not None:
+        where.append(
+            "(t.counterparty LIKE ? ESCAPE '\\' OR t.purpose LIKE ? ESCAPE '\\' "
+            "OR t.note LIKE ? ESCAPE '\\')"
+        )
+        params.extend([_like_pattern(search)] * 3)
+    if selected_kind == "in":
+        where.append("t.amount_cents > 0 AND t.is_transfer = 0")
+    elif selected_kind == "out":
+        where.append("t.amount_cents < 0 AND t.is_transfer = 0")
 
     predicate = " AND ".join(where)
     total = db.scalar(

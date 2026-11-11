@@ -93,16 +93,17 @@ MobileHttpResponse _answer(RecordedRequest request) {
   return serverAnswer(request, transactions: _transactions);
 }
 
-Future<void> _pumpConnectedApp(WidgetTester tester) async {
+Future<ScriptedTransport> _pumpConnectedApp(WidgetTester tester) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
+  final transport = ScriptedTransport(_answer);
   final controller = MobileConnectionController(
     apiClient: MobileApiClient(
       sessionStore: await pairedStore(),
-      transport: ScriptedTransport(_answer),
+      transport: transport,
       refreshRetryDelay: Duration.zero,
     ),
     readRetryDelay: Duration.zero,
@@ -111,21 +112,59 @@ Future<void> _pumpConnectedApp(WidgetTester tester) async {
     KassensturzApp(mobileConnectionController: controller),
   );
   await tester.pumpAndSettle();
+  return transport;
 }
 
 void main() {
   testWidgets('connected app shows server data on every tab', (tester) async {
-    await _pumpConnectedApp(tester);
+    final transport = await _pumpConnectedApp(tester);
 
     expect(find.text('NICHT VERBUNDEN'), findsNothing);
     expect(find.text('Frei verfügbar'), findsOneWidget);
     expect(find.text('1.284,50 €'), findsOneWidget);
     expect(find.text('Budget überschritten'), findsOneWidget);
 
+    await tester.tap(find.text('Auswertung'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nach Kategorie'), findsOneWidget);
+    expect(find.text('Freizeit'), findsOneWidget);
+    expect(find.textContaining('75 %'), findsOneWidget);
+    expect(find.text('Letzte 12 Monate'), findsOneWidget);
+    await tester.tap(find.byTooltip('Vorheriger Monat'));
+    await tester.pumpAndSettle();
+    final now = DateTime.now();
+    final previous = DateTime(now.year, now.month - 1);
+    expect(
+      transport.requests.last.uri.queryParameters['month'],
+      '${previous.year}-${previous.month.toString().padLeft(2, '0')}',
+    );
+    expect(find.text('Freizeit'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('Tiefster erwarteter Stand'),
+      300,
+    );
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Umsätze').last);
     await tester.pumpAndSettle();
     expect(find.text('3 Buchungen'), findsOneWidget);
     expect(find.text('von Hand'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'kiosk');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+    expect(transport.requests.last.uri.queryParameters['q'], 'kiosk');
+    await tester.tap(find.text('Ausgaben'));
+    await tester.pumpAndSettle();
+    expect(transport.requests.last.uri.queryParameters['kind'], 'out');
+    expect(transport.requests.last.uri.queryParameters['q'], 'kiosk');
+    await tester.tap(find.byTooltip('Suche leeren'));
+    await tester.pumpAndSettle();
+    expect(
+      transport.requests.last.uri.queryParameters.containsKey('q'),
+      isFalse,
+    );
 
     await tester.tap(find.text('Planung').last);
     await tester.pumpAndSettle();
@@ -160,6 +199,12 @@ void main() {
     expect(Theme.of(context).brightness, Brightness.dark);
     expect(KlarColors.of(context).surface, KlarColors.dark.surface);
     expect(Theme.of(context).scaffoldBackgroundColor, KlarColors.dark.surface);
+
+    await tester.tap(find.text('Auswertung'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nach Kategorie'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     for (final tab in ['Umsätze', 'Planung', 'Konten']) {
       await tester.tap(find.text(tab).last);

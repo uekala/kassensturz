@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/design/app_theme.dart';
 import '../core/networking/mobile_connection_controller.dart';
 import '../features/accounts/server_finance_pages.dart';
+import '../features/analysis/analysis_page.dart';
 import '../features/budget/planning_page.dart';
 import '../features/dashboard/live_dashboard_page.dart';
 import '../features/more/connect_required_page.dart';
@@ -59,6 +60,14 @@ class _KassensturzShellState extends State<KassensturzShell>
 
   void _openBudget() {
     setState(() => _selectedIndex = 2);
+  }
+
+  void _openAnalysis() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => AnalysisPage(controller: _mobileConnectionController),
+      ),
+    );
   }
 
   void _openSettings() {
@@ -170,6 +179,7 @@ class _KassensturzShellState extends State<KassensturzShell>
           controller: controller,
           onOpenTransactions: _openTransactions,
           onOpenBudget: _openBudget,
+          onOpenAnalysis: _openAnalysis,
         ),
       ),
       _serverData(TransactionsPage(controller: controller)),

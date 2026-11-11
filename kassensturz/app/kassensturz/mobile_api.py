@@ -36,6 +36,8 @@ CAPABILITIES = (
     "categories",
     "contracts",
     "transactions.write",
+    "transactions.search",
+    "stats",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -325,6 +327,8 @@ def transactions(
     month: str | None = Query(default=None),
     account_id: str | None = Query(default=None),
     category_id: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+    kind: str | None = Query(default=None),
 ):
     """Return a paginated and allowlisted transaction list."""
     device = _authenticated_device(request)
@@ -338,6 +342,8 @@ def transactions(
             month=month,
             account_id=account_id,
             category_id=category_id,
+            q=q,
+            kind=kind,
         )
     except mobile_read.MobileQueryError:
         return _error(400, "invalid_query", "Ungültige Filter- oder Seitenparameter.")
@@ -351,6 +357,18 @@ def _transaction_id(value: str) -> int | None:
     if not value.isascii() or not value.isdigit() or len(value) > 18:
         return None
     return int(value)
+
+
+@router.get("/api/v1/stats")
+def stats(request: Request, month: str | None = Query(default=None)):
+    """Return category spending, monthly totals and the balance curve."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    try:
+        return mobile_read.get_stats(get_db(), month=month)
+    except mobile_read.MobileQueryError:
+        return _error(400, "invalid_query", "Ungültiger Monat.")
 
 
 @router.get("/api/v1/accounts")

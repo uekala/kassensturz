@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/design/app_theme.dart';
@@ -17,6 +19,37 @@ class TransactionsPage extends StatefulWidget {
 }
 
 class _TransactionsPageState extends State<TransactionsPage> {
+  final _search = TextEditingController();
+  Timer? _searchDelay;
+
+  @override
+  void dispose() {
+    _searchDelay?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  /// Waits for a pause in typing so not every letter asks the server.
+  void _onSearchChanged(String value) {
+    setState(() {});
+    _searchDelay?.cancel();
+    _searchDelay = Timer(
+      const Duration(milliseconds: 400),
+      () => widget.controller.setTransactionSearch(value),
+    );
+  }
+
+  void _applySearch(String value) {
+    _searchDelay?.cancel();
+    widget.controller.setTransactionSearch(value);
+  }
+
+  void _clearSearch() {
+    _search.clear();
+    setState(() {});
+    _applySearch('');
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -163,6 +196,43 @@ class _TransactionsPageState extends State<TransactionsPage> {
             '$total ${total == 1 ? 'Buchung' : 'Buchungen'}',
             style: textTheme.bodyMedium,
           ),
+          if (controller.canSearchTransactions) ...[
+            const SizedBox(height: 14),
+            TextField(
+              controller: _search,
+              textInputAction: TextInputAction.search,
+              onChanged: _onSearchChanged,
+              onSubmitted: _applySearch,
+              decoration: InputDecoration(
+                hintText: 'Empfänger, Zweck oder Notiz suchen',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Suche leeren',
+                        onPressed: _clearSearch,
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: '', label: Text('Alle')),
+                  ButtonSegment(value: 'in', label: Text('Einnahmen')),
+                  ButtonSegment(value: 'out', label: Text('Ausgaben')),
+                ],
+                selected: {controller.filterKind ?? ''},
+                onSelectionChanged: (selection) =>
+                    controller.setTransactionKind(
+                      selection.first.isEmpty ? null : selection.first,
+                    ),
+              ),
+            ),
+          ],
           if (canWrite) ...[
             const SizedBox(height: 14),
             Row(
@@ -207,7 +277,11 @@ class _TransactionsPageState extends State<TransactionsPage> {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (items.isEmpty)
-            const _EmptyState('Noch keine Buchungen vorhanden.')
+            _EmptyState(
+              controller.hasTransactionFilter
+                  ? 'Keine Buchungen für diese Auswahl.'
+                  : 'Noch keine Buchungen vorhanden.',
+            )
           else
             for (var index = 0; index < items.length; index++) ...[
               if (_startsDay(items, index))

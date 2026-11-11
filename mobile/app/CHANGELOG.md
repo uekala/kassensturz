@@ -1,5 +1,15 @@
 # Änderungen der Mobile-App
 
+## 0.3.4
+
+- Neue Auswertung, erreichbar von „Heute“ (ab Server 0.3.3): Ausgaben eines Monats nach Kategorie mit Anteilen,
+  Einnahmen und Ausgaben der letzten zwölf Monate, Verlauf des Kontostands mit Prognose und tiefstem erwarteten Stand.
+
+## 0.3.3
+
+- Umsätze durchsuchen: Empfänger, Verwendungszweck und Notiz (ab Server 0.3.2).
+- Umsätze nach Einnahmen oder Ausgaben einschränken; Umbuchungen zwischen eigenen Konten zählen dabei nicht mit.
+
 ## 0.3.2
 
 - Dunkelmodus: Die App folgt der Einstellung des Handys.

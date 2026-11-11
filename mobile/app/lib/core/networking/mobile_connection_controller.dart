@@ -25,6 +25,8 @@ class MobileConnectionController extends ChangeNotifier {
   }
 
   static const writeCapability = 'transactions.write';
+  static const searchCapability = 'transactions.search';
+  static const statsCapability = 'stats';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -50,6 +52,11 @@ class MobileConnectionController extends ChangeNotifier {
   String? _contractsError;
   int? _filterAccountId;
   int? _filterCategoryId;
+  String _filterSearch = '';
+  String? _filterKind;
+  Map<String, dynamic>? _stats;
+  bool _statsLoading = false;
+  String? _statsError;
   bool _disposed = false;
 
   void _notifyIfMounted() {
@@ -98,10 +105,29 @@ class MobileConnectionController extends ChangeNotifier {
   List<ServerContract> get contracts => _contracts;
   bool get contractsLoading => _contractsLoading;
   String? get contractsError => _contractsError;
+
+  /// True once the server offers the figures for the analysis page.
+  bool get canShowStats => _capabilities.contains(statsCapability);
+
+  /// The analysis last loaded with [loadStats], as the server sent it.
+  Map<String, dynamic>? get stats => _stats;
+  bool get statsLoading => _statsLoading;
+  String? get statsError => _statsError;
+
+  /// True once the server can search transactions and split them by kind.
+  bool get canSearchTransactions => _capabilities.contains(searchCapability);
+
   int? get filterAccountId => _filterAccountId;
   int? get filterCategoryId => _filterCategoryId;
+  String get filterSearch => _filterSearch;
+
+  /// 'in' for income, 'out' for expenses, null for both.
+  String? get filterKind => _filterKind;
   bool get hasTransactionFilter =>
-      _filterAccountId != null || _filterCategoryId != null;
+      _filterAccountId != null ||
+      _filterCategoryId != null ||
+      _filterSearch.isNotEmpty ||
+      _filterKind != null;
 
   Future<void> restore() async {
     _isLoading = true;
@@ -298,8 +324,17 @@ class MobileConnectionController extends ChangeNotifier {
         : const {};
   }
 
-  Future<Map<String, dynamic>> _loadTransactionPage() => _apiClient
-      .transactions(accountId: _filterAccountId, categoryId: _filterCategoryId);
+  /// An older server ignores unknown parameters and would answer with the
+  /// unfiltered list, so search and kind are only sent when it knows them.
+  Future<Map<String, dynamic>> _loadTransactionPage({int offset = 0}) {
+    return _apiClient.transactions(
+      offset: offset,
+      accountId: _filterAccountId,
+      categoryId: _filterCategoryId,
+      search: canSearchTransactions ? _filterSearch : null,
+      kind: canSearchTransactions ? _filterKind : null,
+    );
+  }
 
   /// Read calls change nothing on the server, so one automatic repetition
   /// after a transport failure is safe.
@@ -328,13 +363,7 @@ class MobileConnectionController extends ChangeNotifier {
     _financeError = null;
     _notifyIfMounted();
     try {
-      final next = await _read(
-        () => _apiClient.transactions(
-          offset: offset,
-          accountId: _filterAccountId,
-          categoryId: _filterCategoryId,
-        ),
-      );
+      final next = await _read(() => _loadTransactionPage(offset: offset));
       final combined = <Map<String, dynamic>>[
         ...transactionItems,
         if (next['items'] is List)
@@ -384,6 +413,41 @@ class MobileConnectionController extends ChangeNotifier {
     _filterAccountId = accountId;
     _filterCategoryId = categoryId;
     await refreshTransactions();
+  }
+
+  /// Searches counterparty, purpose and note. Empty text ends the search.
+  Future<void> setTransactionSearch(String text) async {
+    final search = text.trim();
+    if (search == _filterSearch) return;
+    _filterSearch = search;
+    await refreshTransactions();
+  }
+
+  /// 'in' shows income only, 'out' expenses only, null both.
+  Future<void> setTransactionKind(String? kind) async {
+    if (kind == _filterKind) return;
+    _filterKind = kind;
+    await refreshTransactions();
+  }
+
+  /// Loads the analysis for [month] ('YYYY-MM'); null is the current month.
+  /// The previous analysis stays visible until the new one has arrived.
+  Future<void> loadStats({String? month}) async {
+    if (_session == null || _statsLoading || !canShowStats) return;
+    _statsLoading = true;
+    _statsError = null;
+    _notifyIfMounted();
+    try {
+      _stats = await _read(() => _apiClient.stats(month: month));
+      _unreachable = false;
+    } catch (error) {
+      _unreachable = isConnectivityFailure(error);
+      _statsError = describeMobileError(error);
+      await _clearLocalSessionIfExpired(error);
+    } finally {
+      _statsLoading = false;
+      _notifyIfMounted();
+    }
   }
 
   Future<void> loadContracts() async {
@@ -467,6 +531,10 @@ class MobileConnectionController extends ChangeNotifier {
     _contractsError = null;
     _filterAccountId = null;
     _filterCategoryId = null;
+    _filterSearch = '';
+    _filterKind = null;
+    _stats = null;
+    _statsError = null;
   }
 
   @override

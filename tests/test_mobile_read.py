@@ -188,3 +188,129 @@ def test_transaction_pagination_limits_and_query_validation(db):
     ):
         with pytest.raises(MobileQueryError):
             list_transactions(db, **kwargs)
+
+
+def _search_fixture(db):
+    account_id = db.insert("accounts", {"name": "Girokonto"})
+    rows = (
+        ("2026-11-01", -4217, "Supermarkt Nord", "Wocheneinkauf", None, 0),
+        ("2026-11-02", -1190, "Bäckerei", "Brötchen", "100% lecker", 0),
+        ("2026-11-03", 12000, "Erstattung", "Rückzahlung Supermarkt", None, 0),
+        ("2026-11-04", -50000, "Tagesgeld", "Umbuchung", None, 1),
+        ("2026-11-05", 50000, "Girokonto", "Umbuchung", None, 1),
+        ("2026-11-06", -900, "Kiosk_7", "Zeitung", None, 0),
+    )
+    for day, cents, counterparty, purpose, note, transfer in rows:
+        db.insert("transactions", {
+            "account_id": account_id, "booking_date": day, "amount_cents": cents,
+            "counterparty": counterparty, "purpose": purpose, "note": note,
+            "is_transfer": transfer,
+        })
+
+
+def _names(result):
+    return [item["counterparty"] for item in result["items"]]
+
+
+def test_transaction_search_matches_counterparty_purpose_and_note(db):
+    _search_fixture(db)
+
+    assert _names(list_transactions(db, q="supermarkt")) == ["Erstattung", "Supermarkt Nord"]
+    assert _names(list_transactions(db, q="  Brötchen ")) == ["Bäckerei"]
+    assert _names(list_transactions(db, q="lecker")) == ["Bäckerei"]
+    assert list_transactions(db, q="gibt es nicht")["total"] == 0
+    # Leere Suche ist keine Suche.
+    assert list_transactions(db, q="   ")["total"] == 6
+
+
+def test_transaction_search_takes_wildcards_literally(db):
+    _search_fixture(db)
+
+    assert _names(list_transactions(db, q="100%")) == ["Bäckerei"]
+    assert _names(list_transactions(db, q="_7")) == ["Kiosk_7"]
+    assert list_transactions(db, q="%")["total"] == 1
+    assert list_transactions(db, q="_")["total"] == 1
+
+
+def test_transaction_kind_splits_income_and_expenses_without_transfers(db):
+    _search_fixture(db)
+
+    assert _names(list_transactions(db, kind="in")) == ["Erstattung"]
+    assert _names(list_transactions(db, kind="out")) == ["Kiosk_7", "Bäckerei", "Supermarkt Nord"]
+    assert _names(list_transactions(db, kind="out", q="supermarkt")) == ["Supermarkt Nord"]
+    assert list_transactions(db, kind="")["total"] == 6
+
+
+def test_transaction_search_rejects_invalid_parameters(db):
+    import pytest
+
+    from kassensturz.mobile_read import MAX_SEARCH_LENGTH, MobileQueryError
+
+    for arguments in ({"kind": "transfer"}, {"kind": "IN"}, {"q": "x" * (MAX_SEARCH_LENGTH + 1)}, {"q": 5}):
+        with pytest.raises(MobileQueryError):
+            list_transactions(db, **arguments)
+    assert list_transactions(db, q="x" * MAX_SEARCH_LENGTH)["total"] == 0
+
+
+def _stats_fixture(db):
+    from datetime import date as _date
+
+    month = _date.today().strftime("%Y-%m")
+    account_id = db.insert("accounts", {"name": "Girokonto", "in_forecast": 1})
+    food = db.insert("categories", {"name": "Lebensmittel", "kind": "expense"})
+    bakery = db.insert("categories", {"name": "Bäcker", "kind": "expense", "parent_id": food})
+    leisure = db.insert("categories", {"name": "Freizeit", "kind": "expense"})
+    rows = (
+        (-6000, "Supermarkt", food, 0),
+        (-1500, "Bäckerei", bakery, 0),
+        (-2500, "Kino", leisure, 0),
+        (-40000, "Tagesgeld", None, 1),
+        (200000, "Gehalt", None, 0),
+    )
+    for cents, name, category, transfer in rows:
+        db.insert("transactions", {
+            "account_id": account_id, "booking_date": f"{month}-01", "amount_cents": cents,
+            "counterparty": name, "category_id": category, "is_transfer": transfer,
+        })
+    return month
+
+
+def test_stats_group_spending_by_top_category_without_transfers(db):
+    from kassensturz.mobile_read import CURVE_PAST_DAYS, get_stats
+
+    month = _stats_fixture(db)
+    stats = get_stats(db)
+
+    assert stats["month"] == {
+        "month": month, "income_cents": 200000, "expense_cents": 10000, "balance_cents": 190000,
+    }
+    assert [(item["name"], item["cents"], item["share"]) for item in stats["categories"]] == [
+        ("Lebensmittel", 7500, 0.75),
+        ("Freizeit", 2500, 0.25),
+    ]
+    assert len(stats["history"]) == 12
+    assert stats["history"][-1] == {"month": month, "income_cents": 200000, "expense_cents": 10000}
+
+    curve = stats["balance_curve"]
+    booked = [point for point in curve["points"] if not point["forecast"]]
+    planned = [point for point in curve["points"] if point["forecast"]]
+    assert len(booked) == CURVE_PAST_DAYS and booked[-1]["date"] == curve["today"]
+    assert planned and planned[0]["date"] > curve["today"]
+    assert set(curve["low_point"]) == {"date", "cents"}
+
+    serialized = repr(stats)
+    for forbidden in ("iban", "hash", "Supermarkt", "Gehalt"):
+        assert forbidden not in serialized
+
+
+def test_stats_for_another_month_and_invalid_month(db):
+    import pytest
+
+    from kassensturz.mobile_read import MobileQueryError, get_stats
+
+    _stats_fixture(db)
+    empty = get_stats(db, month="2020-01")
+    assert empty["month"] == {"month": "2020-01", "income_cents": 0, "expense_cents": 0, "balance_cents": 0}
+    assert empty["categories"] == []
+    with pytest.raises(MobileQueryError):
+        get_stats(db, month="2026-13")

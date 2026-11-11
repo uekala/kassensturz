@@ -252,6 +252,89 @@ void main() {
     controller.dispose();
   });
 
+  test('search and kind are sent to the server and can be cleared', () async {
+    final transport = ScriptedTransport(serverAnswer);
+    final controller = _controller(await pairedStore(), transport);
+    await controller.restore();
+    expect(controller.canSearchTransactions, isTrue);
+
+    await controller.setTransactionSearch('  Bäckerei ');
+    await controller.setTransactionKind('out');
+
+    final filtered = transport.requests.last.uri.queryParameters;
+    expect(filtered['q'], 'Bäckerei');
+    expect(filtered['kind'], 'out');
+    expect(controller.hasTransactionFilter, isTrue);
+
+    final before = transport.count('GET', _transactionsPath);
+    await controller.setTransactionSearch('Bäckerei');
+    expect(transport.count('GET', _transactionsPath), before);
+
+    await controller.setTransactionSearch('');
+    await controller.setTransactionKind(null);
+
+    final cleared = transport.requests.last.uri.queryParameters;
+    expect(cleared.containsKey('q'), isFalse);
+    expect(cleared.containsKey('kind'), isFalse);
+    expect(controller.hasTransactionFilter, isFalse);
+    controller.dispose();
+  });
+
+  test('a server without search is never sent search parameters', () async {
+    final transport = ScriptedTransport(
+      (request) => serverAnswer(
+        request,
+        capabilities: const ['overview', 'transactions', 'transactions.write'],
+      ),
+    );
+    final controller = _controller(await pairedStore(), transport);
+    await controller.restore();
+    expect(controller.canSearchTransactions, isFalse);
+
+    await controller.setTransactionSearch('Bäckerei');
+    await controller.setTransactionKind('in');
+
+    final sent = transport.requests.last.uri.queryParameters;
+    expect(sent.containsKey('q'), isFalse);
+    expect(sent.containsKey('kind'), isFalse);
+    controller.dispose();
+  });
+
+  test('the analysis is loaded on demand, also for another month', () async {
+    final transport = ScriptedTransport(serverAnswer);
+    final controller = _controller(await pairedStore(), transport);
+    await controller.restore();
+    expect(controller.canShowStats, isTrue);
+    expect(transport.count('GET', '/api/v1/stats'), 0);
+
+    await controller.loadStats();
+    expect(controller.stats?['categories'], hasLength(2));
+    expect(transport.requests.last.uri.queryParameters, isEmpty);
+
+    await controller.loadStats(month: '2026-10');
+    expect(controller.stats?['month']?['month'], '2026-10');
+    expect(transport.requests.last.uri.queryParameters['month'], '2026-10');
+    expect(controller.statsError, isNull);
+    controller.dispose();
+  });
+
+  test('a server without analysis is not asked for it', () async {
+    final transport = ScriptedTransport(
+      (request) => serverAnswer(
+        request,
+        capabilities: const ['overview', 'transactions', 'transactions.write'],
+      ),
+    );
+    final controller = _controller(await pairedStore(), transport);
+    await controller.restore();
+
+    await controller.loadStats();
+
+    expect(controller.canShowStats, isFalse);
+    expect(transport.count('GET', '/api/v1/stats'), 0);
+    controller.dispose();
+  });
+
   test('contracts are loaded on demand', () async {
     final transport = ScriptedTransport(serverAnswer);
     final controller = _controller(await pairedStore(), transport);
