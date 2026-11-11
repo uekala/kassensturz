@@ -188,3 +188,65 @@ def test_transaction_pagination_limits_and_query_validation(db):
     ):
         with pytest.raises(MobileQueryError):
             list_transactions(db, **kwargs)
+
+
+def _search_fixture(db):
+    account_id = db.insert("accounts", {"name": "Girokonto"})
+    rows = (
+        ("2026-11-01", -4217, "Supermarkt Nord", "Wocheneinkauf", None, 0),
+        ("2026-11-02", -1190, "Bäckerei", "Brötchen", "100% lecker", 0),
+        ("2026-11-03", 12000, "Erstattung", "Rückzahlung Supermarkt", None, 0),
+        ("2026-11-04", -50000, "Tagesgeld", "Umbuchung", None, 1),
+        ("2026-11-05", 50000, "Girokonto", "Umbuchung", None, 1),
+        ("2026-11-06", -900, "Kiosk_7", "Zeitung", None, 0),
+    )
+    for day, cents, counterparty, purpose, note, transfer in rows:
+        db.insert("transactions", {
+            "account_id": account_id, "booking_date": day, "amount_cents": cents,
+            "counterparty": counterparty, "purpose": purpose, "note": note,
+            "is_transfer": transfer,
+        })
+
+
+def _names(result):
+    return [item["counterparty"] for item in result["items"]]
+
+
+def test_transaction_search_matches_counterparty_purpose_and_note(db):
+    _search_fixture(db)
+
+    assert _names(list_transactions(db, q="supermarkt")) == ["Erstattung", "Supermarkt Nord"]
+    assert _names(list_transactions(db, q="  Brötchen ")) == ["Bäckerei"]
+    assert _names(list_transactions(db, q="lecker")) == ["Bäckerei"]
+    assert list_transactions(db, q="gibt es nicht")["total"] == 0
+    # Leere Suche ist keine Suche.
+    assert list_transactions(db, q="   ")["total"] == 6
+
+
+def test_transaction_search_takes_wildcards_literally(db):
+    _search_fixture(db)
+
+    assert _names(list_transactions(db, q="100%")) == ["Bäckerei"]
+    assert _names(list_transactions(db, q="_7")) == ["Kiosk_7"]
+    assert list_transactions(db, q="%")["total"] == 1
+    assert list_transactions(db, q="_")["total"] == 1
+
+
+def test_transaction_kind_splits_income_and_expenses_without_transfers(db):
+    _search_fixture(db)
+
+    assert _names(list_transactions(db, kind="in")) == ["Erstattung"]
+    assert _names(list_transactions(db, kind="out")) == ["Kiosk_7", "Bäckerei", "Supermarkt Nord"]
+    assert _names(list_transactions(db, kind="out", q="supermarkt")) == ["Supermarkt Nord"]
+    assert list_transactions(db, kind="")["total"] == 6
+
+
+def test_transaction_search_rejects_invalid_parameters(db):
+    import pytest
+
+    from kassensturz.mobile_read import MAX_SEARCH_LENGTH, MobileQueryError
+
+    for arguments in ({"kind": "transfer"}, {"kind": "IN"}, {"q": "x" * (MAX_SEARCH_LENGTH + 1)}, {"q": 5}):
+        with pytest.raises(MobileQueryError):
+            list_transactions(db, **arguments)
+    assert list_transactions(db, q="x" * MAX_SEARCH_LENGTH)["total"] == 0

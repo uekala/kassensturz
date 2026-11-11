@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.3
+
+- Umsätze durchsuchen: Empfänger, Verwendungszweck und Notiz (ab Server 0.3.2).
+- Umsätze nach Einnahmen oder Ausgaben einschränken; Umbuchungen zwischen eigenen Konten zählen dabei nicht mit.
+
 ## 0.3.2
 
 - Dunkelmodus: Die App folgt der Einstellung des Handys.

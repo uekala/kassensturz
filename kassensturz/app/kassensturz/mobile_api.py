@@ -36,6 +36,7 @@ CAPABILITIES = (
     "categories",
     "contracts",
     "transactions.write",
+    "transactions.search",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -325,6 +326,8 @@ def transactions(
     month: str | None = Query(default=None),
     account_id: str | None = Query(default=None),
     category_id: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+    kind: str | None = Query(default=None),
 ):
     """Return a paginated and allowlisted transaction list."""
     device = _authenticated_device(request)
@@ -338,6 +341,8 @@ def transactions(
             month=month,
             account_id=account_id,
             category_id=category_id,
+            q=q,
+            kind=kind,
         )
     except mobile_read.MobileQueryError:
         return _error(400, "invalid_query", "Ungültige Filter- oder Seitenparameter.")

@@ -93,16 +93,17 @@ MobileHttpResponse _answer(RecordedRequest request) {
   return serverAnswer(request, transactions: _transactions);
 }
 
-Future<void> _pumpConnectedApp(WidgetTester tester) async {
+Future<ScriptedTransport> _pumpConnectedApp(WidgetTester tester) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
+  final transport = ScriptedTransport(_answer);
   final controller = MobileConnectionController(
     apiClient: MobileApiClient(
       sessionStore: await pairedStore(),
-      transport: ScriptedTransport(_answer),
+      transport: transport,
       refreshRetryDelay: Duration.zero,
     ),
     readRetryDelay: Duration.zero,
@@ -111,11 +112,12 @@ Future<void> _pumpConnectedApp(WidgetTester tester) async {
     KassensturzApp(mobileConnectionController: controller),
   );
   await tester.pumpAndSettle();
+  return transport;
 }
 
 void main() {
   testWidgets('connected app shows server data on every tab', (tester) async {
-    await _pumpConnectedApp(tester);
+    final transport = await _pumpConnectedApp(tester);
 
     expect(find.text('NICHT VERBUNDEN'), findsNothing);
     expect(find.text('Frei verfügbar'), findsOneWidget);
@@ -126,6 +128,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('3 Buchungen'), findsOneWidget);
     expect(find.text('von Hand'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'kiosk');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+    expect(transport.requests.last.uri.queryParameters['q'], 'kiosk');
+    await tester.tap(find.text('Ausgaben'));
+    await tester.pumpAndSettle();
+    expect(transport.requests.last.uri.queryParameters['kind'], 'out');
+    expect(transport.requests.last.uri.queryParameters['q'], 'kiosk');
+    await tester.tap(find.byTooltip('Suche leeren'));
+    await tester.pumpAndSettle();
+    expect(
+      transport.requests.last.uri.queryParameters.containsKey('q'),
+      isFalse,
+    );
 
     await tester.tap(find.text('Planung').last);
     await tester.pumpAndSettle();

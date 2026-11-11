@@ -70,6 +70,38 @@ def _validate_month(month: str | None) -> str | None:
     return month
 
 
+MAX_SEARCH_LENGTH = 80
+TRANSACTION_KINDS = ("in", "out")
+
+
+def _validate_search(value: Any) -> str | None:
+    """Return the trimmed search text, or None when nothing is searched."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise MobileQueryError("q must be text.")
+    text = value.strip()
+    if not text:
+        return None
+    if len(text) > MAX_SEARCH_LENGTH:
+        raise MobileQueryError("q is too long.")
+    return text
+
+
+def _validate_kind(value: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    if value not in TRANSACTION_KINDS:
+        raise MobileQueryError("kind must be 'in' or 'out'.")
+    return value
+
+
+def _like_pattern(text: str) -> str:
+    """Search for the text as typed: % and _ are ordinary characters."""
+    escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
 def _forecast_dto(source: dict) -> dict:
     low = source.get("low_point") or {}
     return {
@@ -198,8 +230,15 @@ def list_transactions(
     month: str | None = None,
     account_id: int | None = None,
     category_id: int | None = None,
+    q: str | None = None,
+    kind: str | None = None,
 ) -> dict:
-    """Return paginated transaction DTOs without internal or banking metadata."""
+    """Return paginated transaction DTOs without internal or banking metadata.
+
+    ``q`` searches counterparty, purpose and note; ``kind`` limits the list to
+    income ("in") or expenses ("out"), both without transfers between own
+    accounts, as in the web interface.
+    """
     page_size = _integer(
         limit,
         default=DEFAULT_PAGE_SIZE,
@@ -217,6 +256,8 @@ def list_transactions(
     selected_month = _validate_month(month)
     selected_account = _optional_positive_id(account_id, "account_id")
     selected_category = _optional_positive_id(category_id, "category_id")
+    search = _validate_search(q)
+    selected_kind = _validate_kind(kind)
 
     where = ["a.archived = 0"]
     params: list[Any] = []
@@ -229,6 +270,16 @@ def list_transactions(
     if selected_category is not None:
         where.append("t.category_id = ?")
         params.append(selected_category)
+    if search is not None:
+        where.append(
+            "(t.counterparty LIKE ? ESCAPE '\\' OR t.purpose LIKE ? ESCAPE '\\' "
+            "OR t.note LIKE ? ESCAPE '\\')"
+        )
+        params.extend([_like_pattern(search)] * 3)
+    if selected_kind == "in":
+        where.append("t.amount_cents > 0 AND t.is_transfer = 0")
+    elif selected_kind == "out":
+        where.append("t.amount_cents < 0 AND t.is_transfer = 0")
 
     predicate = " AND ".join(where)
     total = db.scalar(

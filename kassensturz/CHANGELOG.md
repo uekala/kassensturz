@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.2
+
+- Mobile App: Umsätze lassen sich durchsuchen (Empfänger, Verwendungszweck, Notiz) und auf Einnahmen oder Ausgaben
+  einschränken. Umbuchungen zwischen eigenen Konten zählen dabei wie in der Web-Oberfläche nicht mit.
+
 ## 0.3.1
 
 - **Überwachung:** Antwortet die App nicht mehr oder steht der Zeitplan für Abruf und Eingangsordner länger als

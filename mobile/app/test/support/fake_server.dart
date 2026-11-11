@@ -88,6 +88,7 @@ const fullCapabilities = [
   'categories',
   'contracts',
   'transactions.write',
+  'transactions.search',
 ];
 
 /// Answers like a Kassensturz server 0.3.0 with one cash account and one
