@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.5
+
+- Web-Oberfläche im selben Stil wie die Mobile-App („Klar“): Weiß, Tinte, ein Blau, keine grauen Flächen und keine
+  Schatten. Schriften Inter und Space Grotesk statt Archivo. Hell und dunkel. Aufbau und Verhalten sind unverändert.
+- Reiterleiste am Handy als flache Leiste am unteren Rand.
+
 ## 0.3.4
 
 - Beim Beenden meldet die App jetzt den Rückgabewert 0. Bisher schloss sie zwar sauber, endete aber mit 143, und

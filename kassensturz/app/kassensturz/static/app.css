@@ -1,10 +1,16 @@
-@font-face {
-  font-family: "Archivo";
-  src: url("fonts/archivo.woff2") format("woff2");
-  font-weight: 100 900;
-  font-stretch: 62% 125%;
-  font-display: swap;
-}
+/* Schriften wie in der Mobile-App: Inter für Text, Space Grotesk für Titel und Beträge (beide OFL). */
+@font-face { font-family: "Inter"; src: url("fonts/inter-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Inter"; src: url("fonts/interext-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Inter"; src: url("fonts/inter-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Inter"; src: url("fonts/interext-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Inter"; src: url("fonts/inter-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Inter"; src: url("fonts/interext-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Inter"; src: url("fonts/inter-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Inter"; src: url("fonts/interext-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Space Grotesk"; src: url("fonts/spacegrotesk-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Space Grotesk"; src: url("fonts/spacegroteskext-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Space Grotesk"; src: url("fonts/spacegrotesk-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Space Grotesk"; src: url("fonts/spacegroteskext-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 
 :root {
   color-scheme: light;
@@ -29,7 +35,7 @@
   --btn: #2b4acb;
   --shadow: 0 10px 40px rgba(21, 32, 43, .18);
   --tabbar: 64px;
-  --font: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1010,3 +1016,136 @@ select, .input, textarea {
     font-weight: 620 !important;
   }
 }
+
+
+/* ==========================================================================
+   Stil „Klar“ – dieselbe Optik wie die Mobile-App: Weiß, Tinte, ein Blau.
+   Keine grauen Flächen, keine Schatten, Trennung über feine Linien.
+   Nur Farben, Schrift und Flächen; Aufbau und Verhalten bleiben gleich.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+  --paper: #ffffff;
+  --surface: #ffffff;
+  --ink: #101418;
+  --muted: #4a5560;
+  --faint: #6b7682;
+  --rule: #d5dbe3;
+  --accent: #1f4fe0;
+  --accent-text: #1f4fe0;
+  --accent-soft: #e4eafd;
+  --pos: #0b7a3b;
+  --neg-chart: #b4470a;
+  --warn: #b4470a;
+  --warn-fill: #d9731f;
+  --warn-soft: #fbeadf;
+  --crit: #b3261e;
+  --crit-fill: #d03b3b;
+  --crit-soft: #fde8e6;
+  --chart-line: #1f4fe0;
+  --btn: #1f4fe0;
+  --on-btn: #ffffff;
+  --shadow: none;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #0f1216;
+    --surface: #0f1216;
+    --ink: #f2f4f7;
+    --muted: #a9b2bd;
+    --faint: #8a94a0;
+    --rule: #2a313a;
+    --accent: #8fb0ff;
+    --accent-text: #8fb0ff;
+    --accent-soft: #1a274d;
+    --pos: #6fd39b;
+    --neg-chart: #ff9e63;
+    --warn: #ff9e63;
+    --warn-fill: #e0853f;
+    --warn-soft: #3a2212;
+    --crit: #ff8a80;
+    --crit-fill: #e0605a;
+    --crit-soft: #3d1c1a;
+    --chart-line: #8fb0ff;
+    --btn: #8fb0ff;
+    --on-btn: #0b1220;
+    --shadow: none;
+  }
+}
+
+body { font-family: var(--font); font-stretch: normal; }
+h1, h2, h3, .brand, .hero-number, .big-amount, .acc-tile .bal, .sheet-head h2, .empty h1 {
+  font-family: var(--font-display);
+  font-stretch: normal;
+  letter-spacing: -.02em;
+}
+h1 { font-weight: 700; }
+h2 { font-weight: 600; }
+h3 { font-weight: 600; }
+
+.brand { font-weight: 700; letter-spacing: -.02em; }
+.brand::before { background: var(--accent); color: var(--on-btn); box-shadow: none; }
+
+.top { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+/* Flächen: Linie statt Schatten */
+.section, .acc-tile, .start-option, .sheet, .toast, .tabs { box-shadow: none; }
+.section { border-radius: 14px; }
+.acc-tile { background: var(--surface); border-radius: 14px; }
+.acc-tile:hover, .start-option:hover { box-shadow: none; transform: none; }
+.row:hover { background: transparent; }
+a.row:hover .title, button.row:hover .title { color: var(--accent-text); }
+.meter { background: var(--accent-soft); }
+
+/* Hauptkarte: weiß mit Linie, Betrag in Tinte */
+.tally {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  box-shadow: none;
+}
+.tally::after { content: none; }
+.tally-lines { color: var(--muted); }
+.tally-lines .op { color: var(--faint); }
+.tally-lines .amount { color: var(--ink); }
+.tally-sum { border-top-color: var(--rule); }
+.tally-sum::before { color: var(--muted); letter-spacing: .08em; }
+.hero-number { color: var(--ink); font-weight: 700; letter-spacing: -.035em; }
+.hero-number .cur { color: var(--muted); }
+.hero-number.negative { color: var(--warn); }
+.hero-caption { color: var(--muted); }
+
+/* Hinweise */
+.alert { background: var(--surface); border-color: var(--rule); border-radius: 14px; }
+.alert.warning { background: var(--warn-soft); border-color: transparent; }
+.alert.critical { background: var(--crit-soft); border-color: transparent; }
+
+/* Knöpfe */
+.btn { box-shadow: none; }
+.btn:hover { transform: none; }
+.btn.primary { background: var(--btn); border-color: var(--btn); color: var(--on-btn); box-shadow: none; }
+.toast { color: var(--surface); }
+
+/* Reiterleiste: flach, wie die Leiste der App */
+.tabs { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.tabs a { font-weight: 500; }
+.tabs a[aria-current="page"] { background: transparent; color: var(--accent-text); font-weight: 600; }
+@media (max-width: 899px) {
+  .tabs {
+    left: 0; right: 0; bottom: 0;
+    height: calc(64px + env(safe-area-inset-bottom));
+    padding: 4px 6px env(safe-area-inset-bottom);
+    border: 0;
+    border-top: 1px solid var(--rule);
+    border-radius: 0;
+  }
+}
+.row { border-radius: 0; padding-left: 0; padding-right: 0; }
+.day-head { padding-left: 0; padding-right: 0; }
+.top { box-shadow: none; }
