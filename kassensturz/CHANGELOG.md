@@ -7,6 +7,11 @@
 - Web-Oberfläche am Handy: Kopfzeile mit Schriftzug und Einstellungen ist wieder sichtbar, die Reiterleiste sitzt
   unten. Bisher lag die Leiste oben über der Kopfzeile, die Einstellungen waren am Handy nicht erreichbar.
   Der Zugang zu den Einstellungen ist dort jetzt beschriftet.
+- Wird ein Konto gelöscht, verschwinden jetzt auch seine erkannten Verträge, selbst wenn sie bestätigt oder mit
+  einer Notiz versehen waren. Bisher blieben sie ohne Konto stehen und ließen sich nicht entfernen. Von Hand
+  angelegte Verträge bleiben erhalten.
+- Bankvorlage für 1822direkt (eigene BLZ 50050222 für FinTS).
+- Übersicht: kein doppelter Punkt mehr hinter dem Gehaltsdatum.
 
 ## 0.3.3
 

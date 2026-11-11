@@ -244,7 +244,7 @@ async function renderOverview(view, _params, seq) {
           </ul>
           <div class="tally-sum">
             <span class="hero-number ${free < 0 ? "negative" : ""}">${free < 0 ? "−" : ""}${euros}<span class="cur">,${cents} €</span></span>
-            <p class="hero-caption">${periodText}${perDay}. Für den Alltag gibst du sonst rund ${moneyRound(fc.variable_daily_cents * 30)} im Monat aus.</p>
+            <p class="hero-caption">${(periodText + perDay).replace(/\.$/, "")}. Für den Alltag gibst du sonst rund ${moneyRound(fc.variable_daily_cents * 30)} im Monat aus.</p>
           </div>
         </section>
         <section class="section">

@@ -193,11 +193,14 @@ def detect(db: Database) -> dict:
                 db.insert("contracts", data)
             ids = [t["id"] for t in group]
             db.execute(f"UPDATE transactions SET contract_key = ? WHERE id IN ({','.join('?' * len(ids))})", (key, *ids))
+        account_ids = {a["id"] for a in db.query("SELECT id FROM accounts")}
         for key, old in existing.items():
             if key in found or old["manual"]:
                 continue
             touched = old["status"] in ("confirmed", "cancelled") or old["notes"] or old["customer_no"]
-            if touched:
+            # Ist das Konto gelöscht, gibt es keine Buchungen mehr, aus denen der
+            # Vertrag stammt. Dann verschwindet er auch, wenn er bestätigt war.
+            if touched and old["account_id"] in account_ids:
                 db.update("contracts", "key", key, {"active": 0})
             else:
                 db.execute("DELETE FROM contracts WHERE key = ?", (key,))

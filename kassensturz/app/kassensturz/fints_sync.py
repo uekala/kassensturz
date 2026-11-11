@@ -350,6 +350,7 @@ BANK_PRESETS = [
     {"name": "ING", "blz": "50010517", "server": "https://fints.ing.de/fints/"},
     {"name": "DKB", "blz": "12030000", "server": "https://fints.dkb.de/fints"},
     {"name": "comdirect", "blz": "", "server": "https://fints.comdirect.de/fints"},
+    {"name": "1822direkt", "blz": "50050222", "server": "https://fints.1822direkt.com/fints/hbci"},
     {"name": "Volksbank / Raiffeisenbank (Atruvia)", "blz": "", "server": "https://fints1.atruvia.de/cgi-bin/hbciservlet"},
     {"name": "Sparkasse", "blz": "", "server": ""},
 ]
