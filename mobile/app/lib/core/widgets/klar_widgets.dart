@@ -19,6 +19,7 @@ class AmountHeadline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,7 +32,9 @@ class AmountHeadline extends StatelessWidget {
           child: Text(
             amount,
             style: TextStyle(
-              color: AppTheme.ink,
+              fontFamily: AppTheme.displayFamily,
+              fontFamilyFallback: AppTheme.displayFallback,
+              color: klar.ink,
               fontSize: size,
               height: 1.1,
               fontWeight: FontWeight.w700,
@@ -63,15 +66,14 @@ class ThickBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     return ClipRRect(
       borderRadius: BorderRadius.circular(height / 2),
       child: LinearProgressIndicator(
         value: over ? 1 : value,
         minHeight: height,
-        backgroundColor: AppTheme.softBrand,
-        valueColor: AlwaysStoppedAnimation(
-          over ? AppTheme.warn : AppTheme.brand,
-        ),
+        backgroundColor: klar.softBrand,
+        valueColor: AlwaysStoppedAnimation(over ? klar.warn : klar.brand),
       ),
     );
   }
@@ -87,6 +89,7 @@ class SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     return Row(
       children: [
         Expanded(
@@ -96,7 +99,7 @@ class SectionTitle extends StatelessWidget {
           TextButton(
             onPressed: onAction,
             style: TextButton.styleFrom(
-              foregroundColor: AppTheme.brand,
+              foregroundColor: klar.brand,
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.only(left: 8),
             ),
@@ -120,12 +123,13 @@ class OutlinedPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: klar.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.ink, width: 1.5),
+        border: Border.all(color: klar.ink, width: 1.5),
       ),
       child: child,
     );
@@ -153,6 +157,7 @@ class EntryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final textTheme = Theme.of(context).textTheme;
     final initial = title.trim().isEmpty
         ? '?'
@@ -170,13 +175,13 @@ class EntryRow extends StatelessWidget {
                 height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: positive ? AppTheme.brand : AppTheme.softBrand,
+                  color: positive ? klar.brand : klar.softBrand,
                   shape: BoxShape.circle,
                 ),
                 child: Text(
                   initial,
                   style: TextStyle(
-                    color: positive ? Colors.white : AppTheme.brand,
+                    color: positive ? klar.onBrand : klar.brand,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -209,12 +214,12 @@ class EntryRow extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppTheme.brand),
+                          border: Border.all(color: klar.brand),
                         ),
                         child: Text(
                           badge!,
-                          style: const TextStyle(
-                            color: AppTheme.brand,
+                          style: TextStyle(
+                            color: klar.brand,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -228,7 +233,7 @@ class EntryRow extends StatelessWidget {
               Text(
                 amount,
                 style: textTheme.titleMedium?.copyWith(
-                  color: positive ? AppTheme.brand : AppTheme.ink,
+                  color: positive ? klar.brand : klar.ink,
                 ),
               ),
             ],

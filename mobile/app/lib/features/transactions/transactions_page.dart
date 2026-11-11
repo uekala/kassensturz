@@ -141,6 +141,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     BuildContext context,
     MobileConnectionController controller,
   ) {
+    final klar = KlarColors.of(context);
     final items = controller.transactionItems;
     final total = controller.transactionTotal;
     final textTheme = Theme.of(context).textTheme;
@@ -196,7 +197,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
             const SizedBox(height: 10),
             Text(
               controller.financeError!,
-              style: textTheme.bodySmall?.copyWith(color: AppTheme.warn),
+              style: textTheme.bodySmall?.copyWith(color: klar.warn),
             ),
           ],
           const SizedBox(height: 6),
@@ -254,14 +255,15 @@ class _FilterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        backgroundColor: active ? AppTheme.softBrand : AppTheme.surface,
-        foregroundColor: AppTheme.ink,
+        backgroundColor: active ? klar.softBrand : klar.surface,
+        foregroundColor: klar.ink,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         side: BorderSide(
-          color: active ? AppTheme.brand : AppTheme.fieldBorder,
+          color: active ? klar.brand : klar.fieldBorder,
           width: 1.5,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

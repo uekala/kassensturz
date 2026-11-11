@@ -1,7 +1,7 @@
 name: kassensturz_mobile
 description: Local-first companion app for a user's Kassensturz server.
 publish_to: none
-version: 0.3.1+1
+version: 0.3.2+1
 
 environment:
   sdk: ">=3.11.0 <4.0.0"
@@ -19,3 +19,39 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/OFL-Inter.txt
+    - assets/fonts/OFL-SpaceGrotesk.txt
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-400.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-500.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-600.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-700.ttf
+          weight: 700
+    - family: Inter Ext
+      fonts:
+        - asset: assets/fonts/InterExt-400.ttf
+          weight: 400
+        - asset: assets/fonts/InterExt-500.ttf
+          weight: 500
+        - asset: assets/fonts/InterExt-600.ttf
+          weight: 600
+        - asset: assets/fonts/InterExt-700.ttf
+          weight: 700
+    - family: Space Grotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk-600.ttf
+          weight: 600
+        - asset: assets/fonts/SpaceGrotesk-700.ttf
+          weight: 700
+    - family: Space Grotesk Ext
+      fonts:
+        - asset: assets/fonts/SpaceGroteskExt-600.ttf
+          weight: 600
+        - asset: assets/fonts/SpaceGroteskExt-700.ttf
+          weight: 700

@@ -19,6 +19,7 @@ class LiveDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -149,7 +150,7 @@ class LiveDashboardPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   controller.financeError!,
-                  style: textTheme.bodySmall?.copyWith(color: AppTheme.warn),
+                  style: textTheme.bodySmall?.copyWith(color: klar.warn),
                 ),
               ],
             ],
@@ -183,6 +184,7 @@ class _DashboardUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final textTheme = Theme.of(context).textTheme;
     return Center(
       child: Padding(
@@ -193,7 +195,7 @@ class _DashboardUnavailable extends StatelessWidget {
             Icon(
               loading ? Icons.sync_rounded : Icons.cloud_off_outlined,
               size: 30,
-              color: AppTheme.ink,
+              color: klar.ink,
             ),
             const SizedBox(height: 14),
             Text(
@@ -290,6 +292,7 @@ class _BudgetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final textTheme = Theme.of(context).textTheme;
     final limit = _asInt(budget['limit_cents']);
     final spent = _asInt(budget['spent_cents']);
@@ -317,7 +320,7 @@ class _BudgetRow extends StatelessWidget {
                     ? '${formatEuro(remaining.abs() / 100)} drüber'
                     : '${formatEuro(remaining / 100)} übrig',
                 style: textTheme.bodyMedium?.copyWith(
-                  color: isOver ? AppTheme.warn : AppTheme.mutedInk,
+                  color: isOver ? klar.warn : klar.mutedInk,
                   fontWeight: isOver ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
@@ -338,6 +341,7 @@ class _AlertRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final textTheme = Theme.of(context).textTheme;
     final level = alert['level']?.toString() ?? 'info';
     final urgent = level == 'critical' || level == 'warning';
@@ -352,7 +356,7 @@ class _AlertRow extends StatelessWidget {
           children: [
             Icon(
               Icons.info_outline_rounded,
-              color: urgent ? AppTheme.warn : AppTheme.brand,
+              color: urgent ? klar.warn : klar.brand,
               size: 18,
             ),
             const SizedBox(width: 10),

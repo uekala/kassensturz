@@ -35,6 +35,7 @@ class _ContractsViewState extends State<ContractsView> {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final textTheme = Theme.of(context).textTheme;
     return AnimatedBuilder(
       animation: widget.controller,
@@ -62,7 +63,7 @@ class _ContractsViewState extends State<ContractsView> {
               if (controller.contractsError != null) ...[
                 Text(
                   controller.contractsError!,
-                  style: textTheme.bodySmall?.copyWith(color: AppTheme.warn),
+                  style: textTheme.bodySmall?.copyWith(color: klar.warn),
                 ),
                 const SizedBox(height: 10),
               ],

@@ -13,6 +13,7 @@ class ServerAccountsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final data = controller.overviewData;
     final accounts = _maps(data?['accounts']);
     final textTheme = Theme.of(context).textTheme;
@@ -50,7 +51,7 @@ class ServerAccountsPage extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               controller.financeError!,
-              style: textTheme.bodySmall?.copyWith(color: AppTheme.warn),
+              style: textTheme.bodySmall?.copyWith(color: klar.warn),
             ),
           ],
           const SizedBox(height: 10),
@@ -72,6 +73,7 @@ class _AccountPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final textTheme = Theme.of(context).textTheme;
     final balance = _integer(account['balance_cents']);
     final known = account['balance_known'] == true;
@@ -104,7 +106,7 @@ class _AccountPanel extends StatelessWidget {
             Text(
               known ? formatEuro(balance / 100) : '–',
               style: textTheme.titleMedium?.copyWith(
-                color: balance < 0 ? AppTheme.warn : AppTheme.ink,
+                color: balance < 0 ? klar.warn : klar.ink,
               ),
             ),
           ],
@@ -122,6 +124,7 @@ class ServerBudgetPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final data = controller.overviewData;
     final budgets = _maps(data?['budgets']);
     final textTheme = Theme.of(context).textTheme;
@@ -173,7 +176,7 @@ class ServerBudgetPage extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               controller.financeError!,
-              style: textTheme.bodySmall?.copyWith(color: AppTheme.warn),
+              style: textTheme.bodySmall?.copyWith(color: klar.warn),
             ),
           ],
           const SizedBox(height: 6),
@@ -194,6 +197,7 @@ class _BudgetBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     final textTheme = Theme.of(context).textTheme;
     final limit = _integer(budget['limit_cents']);
     final spent = _integer(budget['spent_cents']);
@@ -230,7 +234,7 @@ class _BudgetBlock extends StatelessWidget {
                 ? '${formatEuro(left.abs() / 100)} über dem Budget'
                 : '${formatEuro(left / 100)} übrig',
             style: textTheme.bodySmall?.copyWith(
-              color: over ? AppTheme.warn : AppTheme.mutedInk,
+              color: over ? klar.warn : klar.mutedInk,
               fontWeight: over ? FontWeight.w600 : FontWeight.w400,
             ),
           ),

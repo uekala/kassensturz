@@ -283,8 +283,24 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final klar = KlarColors.of(context);
+    final textTheme = Theme.of(context).textTheme;
     final existing = widget.existing;
+    final amountStyle = TextStyle(
+      fontFamily: AppTheme.displayFamily,
+      fontFamilyFallback: AppTheme.displayFallback,
+      color: klar.ink,
+      fontSize: 44,
+      height: 1.15,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -1.6,
+    );
+    UnderlineInputBorder amountLine(Color color) {
+      return UnderlineInputBorder(
+        borderSide: BorderSide(color: color, width: 2),
+      );
+    }
+
     final title = _isNew
         ? 'Neuer Umsatz'
         : _fullyEditable
@@ -326,15 +342,27 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
               ),
               const SizedBox(height: 16),
             ],
+            const SizedBox(height: 4),
+            Center(child: Text('Betrag in Euro', style: textTheme.bodyMedium)),
             TextFormField(
               controller: _amount,
               enabled: _fullyEditable && !_saving,
+              textAlign: TextAlign.center,
+              style: amountStyle,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Betrag in Euro',
+              decoration: InputDecoration(
                 hintText: '0,00',
+                hintStyle: amountStyle.copyWith(color: klar.fieldBorder),
+                filled: false,
+                contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                border: amountLine(klar.brand),
+                enabledBorder: amountLine(klar.brand),
+                focusedBorder: amountLine(klar.brand),
+                disabledBorder: amountLine(klar.border),
+                errorBorder: amountLine(klar.warn),
+                focusedErrorBorder: amountLine(klar.warn),
               ),
               validator: (value) {
                 if (!_fullyEditable) return null;
@@ -343,7 +371,7 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
                     : null;
               },
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 20),
             TextFormField(
               controller: _counterparty,
               enabled: _fullyEditable && !_saving,
@@ -361,6 +389,33 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
               },
             ),
             const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _PickerTile(
+                    label: 'Konto',
+                    value: _accountLabel(),
+                    onTap: _isNew && !_saving ? _pickAccount : null,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _PickerTile(
+                    label: 'Datum',
+                    value: _formatDate(_date),
+                    onTap: _fullyEditable && !_saving ? _pickDate : null,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _PickerTile(
+              label: 'Kategorie',
+              value: _categoryLabel(),
+              onTap: _saving ? null : _pickCategory,
+            ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _purpose,
               enabled: _fullyEditable && !_saving,
@@ -369,27 +424,6 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
                 labelText: 'Verwendungszweck (optional)',
                 counterText: '',
               ),
-            ),
-            const SizedBox(height: 14),
-            _PickerTile(
-              label: 'Datum',
-              value: _formatDate(_date),
-              icon: Icons.event_outlined,
-              onTap: _fullyEditable && !_saving ? _pickDate : null,
-            ),
-            const SizedBox(height: 10),
-            _PickerTile(
-              label: 'Konto',
-              value: _accountLabel(),
-              icon: Icons.account_balance_wallet_outlined,
-              onTap: _isNew && !_saving ? _pickAccount : null,
-            ),
-            const SizedBox(height: 10),
-            _PickerTile(
-              label: 'Kategorie',
-              value: _categoryLabel(),
-              icon: Icons.sell_outlined,
-              onTap: _saving ? null : _pickCategory,
             ),
             const SizedBox(height: 14),
             TextFormField(
@@ -404,13 +438,17 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 14),
-              Text(
-                _error!,
-                style: TextStyle(color: colors.error, fontSize: 13),
-              ),
+              Text(_error!, style: TextStyle(color: klar.warn, fontSize: 13)),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
             FilledButton.icon(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(54),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               onPressed: _saving ? null : _save,
               icon: _saving
                   ? const SizedBox(
@@ -438,43 +476,67 @@ class _PickerTile extends StatelessWidget {
   const _PickerTile({
     required this.label,
     required this.value,
-    required this.icon,
     required this.onTap,
   });
 
   final String label;
   final String value;
-  final IconData icon;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Material(
-      color: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outlineVariant),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Icon(icon, color: AppTheme.brand),
-        title: Text(
-          label,
-          style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
-        ),
-        subtitle: Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: colors.onSurface,
+    final klar = KlarColors.of(context);
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: textTheme.labelMedium),
+        const SizedBox(height: 6),
+        Material(
+          color: klar.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: onTap == null ? klar.border : klar.fieldBorder,
+              width: 1.5,
+            ),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 50),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: onTap == null ? klar.mutedInk : klar.ink,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (onTap != null)
+                      Icon(
+                        Icons.expand_more_rounded,
+                        size: 18,
+                        color: klar.ink,
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
-        trailing: onTap == null
-            ? null
-            : const Icon(Icons.chevron_right_rounded),
-      ),
+      ],
     );
   }
 }
@@ -486,19 +548,16 @@ class _Hint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppTheme.softBrand,
+        color: klar.softBrand,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          color: AppTheme.brand,
-          fontSize: 12,
-          height: 1.4,
-        ),
+        style: TextStyle(color: klar.brand, fontSize: 12, height: 1.4),
       ),
     );
   }

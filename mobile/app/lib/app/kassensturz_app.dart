@@ -16,6 +16,7 @@ class KassensturzApp extends StatelessWidget {
       title: 'Kassensturz',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
       home: KassensturzShell(
         mobileConnectionController: mobileConnectionController,
       ),

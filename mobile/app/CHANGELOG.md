@@ -1,5 +1,11 @@
 # Änderungen der Mobile-App
 
+## 0.3.2
+
+- Dunkelmodus: Die App folgt der Einstellung des Handys.
+- Schriften eingebunden: Inter für Text, Space Grotesk für Überschriften und große Beträge.
+- Umsatz anlegen und ändern neu aufgebaut: großer Betrag, Konto und Datum nebeneinander, breiter Speichern-Knopf.
+
 ## 0.3.1
 
 - Aufgeräumt: Beispieldaten sowie die frühere Konten- und Budgetablage auf dem Gerät sind entfernt. Die App zeigt

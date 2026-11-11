@@ -131,6 +131,7 @@ class _KassensturzShellState extends State<KassensturzShell>
 
   /// A hint below the header, shown only when something needs attention.
   Widget _notice() {
+    final klar = KlarColors.of(context);
     final controller = _mobileConnectionController;
     if (!controller.isConnected) return const SizedBox.shrink();
     final String message;
@@ -151,11 +152,11 @@ class _KassensturzShellState extends State<KassensturzShell>
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.warn, width: 1.5),
+        border: Border.all(color: klar.warn, width: 1.5),
       ),
       child: Text(
         message,
-        style: const TextStyle(color: AppTheme.warn, fontSize: 12, height: 1.4),
+        style: TextStyle(color: klar.warn, fontSize: 12, height: 1.4),
       ),
     );
   }
@@ -229,6 +230,7 @@ class _ShellHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
       child: Row(
@@ -244,8 +246,8 @@ class _ShellHeader extends StatelessWidget {
           if (status != null) ...[
             Text(
               status!,
-              style: const TextStyle(
-                color: AppTheme.mutedInk,
+              style: TextStyle(
+                color: klar.mutedInk,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.6,
@@ -260,9 +262,9 @@ class _ShellHeader extends StatelessWidget {
                 tooltip: 'Einstellungen',
                 onPressed: onOpenSettings,
                 style: IconButton.styleFrom(
-                  foregroundColor: AppTheme.ink,
+                  foregroundColor: klar.ink,
                   minimumSize: const Size(44, 44),
-                  side: const BorderSide(color: AppTheme.ink, width: 1.5),
+                  side: BorderSide(color: klar.ink, width: 1.5),
                 ),
                 icon: const Icon(Icons.tune_rounded, size: 20),
               ),
@@ -274,9 +276,9 @@ class _ShellHeader extends StatelessWidget {
                     width: 12,
                     height: 12,
                     decoration: BoxDecoration(
-                      color: online ? AppTheme.brand : AppTheme.warn,
+                      color: online ? klar.brand : klar.warn,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: klar.surface, width: 2),
                     ),
                   ),
                 ),
@@ -302,11 +304,12 @@ class _ShellNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
     return Material(
-      color: AppTheme.surface,
+      color: klar.surface,
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppTheme.border)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: klar.border)),
         ),
         child: SafeArea(
           top: false,
@@ -332,8 +335,8 @@ class _ShellNavigation extends StatelessWidget {
                       tooltip: 'Umsatz anlegen',
                       onPressed: onAdd,
                       style: IconButton.styleFrom(
-                        backgroundColor: AppTheme.brand,
-                        foregroundColor: Colors.white,
+                        backgroundColor: klar.brand,
+                        foregroundColor: klar.onBrand,
                         minimumSize: const Size(52, 52),
                       ),
                       icon: const Icon(Icons.add_rounded, size: 28),
@@ -376,7 +379,8 @@ class _NavigationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppTheme.brand : AppTheme.mutedInk;
+    final klar = KlarColors.of(context);
+    final color = selected ? klar.brand : klar.mutedInk;
     return Expanded(
       child: InkWell(
         onTap: onTap,
