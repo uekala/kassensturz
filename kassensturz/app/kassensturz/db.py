@@ -487,10 +487,11 @@ def get_db() -> Database:
     global _db
     if _db is None:
         # Spät importiert: beide Module bauen auf diesem auf.
-        from . import backup
+        from . import backup, inbox, umzug
         from .options import VERSION
 
         path = DATA_DIR / "kassensturz.sqlite"
+        umzug.adopt_if_fresh(path, inbox.folder())
         backup.before_update(path, VERSION)
         _db = Database(path)
         _db.set_setting(backup.VERSION_KEY, VERSION)
