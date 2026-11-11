@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 
-from . import mobile_read, options
+from . import mobile_read, mobile_write, options, services
 from .db import get_db
 from .mobile_auth import (
     InvalidCredential,
@@ -29,6 +29,14 @@ from .mobile_security import address_in_networks, parse_trusted_proxy_networks, 
 
 
 router = APIRouter()
+CAPABILITIES = (
+    "overview",
+    "transactions",
+    "accounts",
+    "categories",
+    "contracts",
+    "transactions.write",
+)
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
 MAX_TOKEN_LENGTH = 128
@@ -296,7 +304,7 @@ def me(request: Request):
     return {
         "device": {"id": device.id, "name": device.name},
         "server": {"name": "Kassensturz", "version": options.VERSION, "storage": "local"},
-        "capabilities": ["overview", "transactions"],
+        "capabilities": list(CAPABILITIES),
     }
 
 
@@ -333,3 +341,98 @@ def transactions(
         )
     except mobile_read.MobileQueryError:
         return _error(400, "invalid_query", "Ungültige Filter- oder Seitenparameter.")
+
+
+def _write_error(error: mobile_write.MobileWriteError) -> JSONResponse:
+    return _error(error.status, error.code, error.message)
+
+
+def _transaction_id(value: str) -> int | None:
+    if not value.isascii() or not value.isdigit() or len(value) > 18:
+        return None
+    return int(value)
+
+
+@router.get("/api/v1/accounts")
+def accounts(request: Request):
+    """Return active accounts with balances and whether manual entries are allowed."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    return mobile_write.list_accounts(get_db())
+
+
+@router.get("/api/v1/categories")
+def categories(request: Request):
+    """Return the category tree for pickers and filters."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    return mobile_write.list_categories(get_db())
+
+
+@router.get("/api/v1/contracts")
+def contracts_list(request: Request):
+    """Return allowlisted contract data without provider contact details."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    return mobile_write.list_contracts(get_db())
+
+
+@router.post("/api/v1/transactions")
+async def create_transaction(request: Request):
+    """Create one manual transaction; a repeated request id is not booked twice."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    if payload is None:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    try:
+        transaction, created = mobile_write.create_transaction(get_db(), payload)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+    if created:
+        services.schedule_refresh()
+    return JSONResponse(
+        {"transaction": transaction, "created": created},
+        status_code=201 if created else 200,
+    )
+
+
+@router.patch("/api/v1/transactions/{tx_id}")
+async def update_transaction(tx_id: str, request: Request):
+    """Change category/note of any transaction or all fields of a manual one."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(tx_id)
+    if parsed_id is None:
+        return _error(404, "not_found", "Buchung nicht gefunden.")
+    payload = await _json_object(request)
+    if payload is None:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    try:
+        transaction = mobile_write.update_transaction(get_db(), parsed_id, payload)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+    services.schedule_refresh()
+    return {"transaction": transaction}
+
+
+@router.delete("/api/v1/transactions/{tx_id}")
+def delete_transaction(tx_id: str, request: Request):
+    """Delete one manually created transaction. Bank transactions are refused."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(tx_id)
+    if parsed_id is None:
+        return _error(404, "not_found", "Buchung nicht gefunden.")
+    try:
+        mobile_write.delete_transaction(get_db(), parsed_id)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+    services.schedule_refresh()
+    return {"ok": True}

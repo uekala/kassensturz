@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
                secrets_store, services)
-from .db import get_db, now_iso
+from .db import close_db, get_db, now_iso
 from .mobile_api import router as mobile_api_router
 from .mobile_security import (
     InMemoryRateLimiter,
@@ -54,6 +54,10 @@ MOBILE_RATE_LIMITS = {
     ("GET", "/api/v1/me"): ("me", 120, 60),
     ("GET", "/api/v1/overview"): ("overview", 120, 60),
     ("GET", "/api/v1/transactions"): ("transactions", 120, 60),
+    ("POST", "/api/v1/transactions"): ("transaction-write", 60, 60),
+    ("GET", "/api/v1/accounts"): ("accounts", 120, 60),
+    ("GET", "/api/v1/categories"): ("categories", 120, 60),
+    ("GET", "/api/v1/contracts"): ("contracts", 60, 60),
     ("POST", "/api/mobile/pairings"): ("pairing-create", 5, 900),
     ("GET", "/api/mobile/devices"): ("device-list", 60, 60),
 }
@@ -66,7 +70,13 @@ async def lifespan(_app):
     if not os.environ.get("KASSENSTURZ_NO_BACKGROUND"):
         services.start_background()
         services.schedule_refresh()
-    yield
+    try:
+        yield
+    finally:
+        # Home Assistant stops the app for a cold backup (SIGTERM). Leave one
+        # complete database file behind: checkpoint the WAL and close.
+        close_db()
+        logging.getLogger("kassensturz").info("Kassensturz beendet, Datenbank geschlossen")
 
 
 app = FastAPI(title="Kassensturz", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -121,7 +131,12 @@ async def only_ingress(request: Request, call_next):
         )
     )
     if not existing_local_peer and not mobile_peer_allowed:
-        return JSONResponse({"detail": "Nur über Home Assistant oder ein freigegebenes privates Netz erreichbar."}, status_code=403)
+        message = "Nur über Home Assistant oder ein freigegebenes privates Netz erreichbar."
+        # "detail" stays for the existing web client; mobile clients read "error".
+        body: dict = {"detail": message}
+        if is_mobile_api:
+            body["error"] = {"code": "network_not_allowed", "message": message}
+        return JSONResponse(body, status_code=403, headers={"Cache-Control": "no-store"})
 
     if is_mobile_api:
         policy = MOBILE_RATE_LIMITS.get((request.method.upper(), request.url.path))
@@ -129,6 +144,10 @@ async def only_ingress(request: Request, call_next):
             "/api/mobile/devices/"
         ):
             policy = ("device-revoke", 10, 300)
+        if policy is None and request.method.upper() in ("PATCH", "DELETE") and request.url.path.startswith(
+            "/api/v1/transactions/"
+        ):
+            policy = ("transaction-write", 60, 60)
         if policy is not None:
             scope, limit, window_seconds = policy
             key = request_rate_limit_key(
@@ -155,6 +174,34 @@ async def only_ingress(request: Request, call_next):
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response
+
+
+# Ohne Zeitplan-Durchlauf seit dieser Zeit gilt die App als hängend.
+SCHEDULER_STALE_SECONDS = 900
+
+
+@app.get("/healthz")
+def healthz():
+    """Für Watchdog und Healthcheck: nur lokal erreichbar, ohne Finanzdaten."""
+    problems = []
+    try:
+        database = get_db()
+        # Eine laufende Transaktion (z. B. ein großer Import) ist kein Fehler.
+        if database.lock.acquire(timeout=2):
+            try:
+                database.conn.execute("SELECT 1").fetchone()
+            finally:
+                database.lock.release()
+    except Exception:  # noqa: BLE001
+        log.exception("Datenbank antwortet nicht")
+        problems.append("database")
+    if not os.environ.get("KASSENSTURZ_NO_BACKGROUND") and services.scheduler_age_seconds() > SCHEDULER_STALE_SECONDS:
+        problems.append("scheduler")
+    return JSONResponse(
+        {"status": "error" if problems else "ok", "version": options.VERSION, "problems": problems},
+        status_code=503 if problems else 200,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/")

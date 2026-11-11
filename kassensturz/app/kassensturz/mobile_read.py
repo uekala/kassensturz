@@ -241,6 +241,9 @@ def list_transactions(
         """
         SELECT
             t.id,
+            t.account_id,
+            t.note,
+            t.source,
             t.booking_date,
             t.value_date,
             t.amount_cents,
@@ -263,13 +266,16 @@ def list_transactions(
     items = [
         {
             "id": int(row["id"]),
+            "account_id": int(row["account_id"]),
             "booking_date": row["booking_date"],
             "value_date": row["value_date"],
             "amount_cents": int(row["amount_cents"]),
             "currency": row.get("currency") or "EUR",
             "counterparty": _text(row.get("counterparty"), MAX_COUNTERPARTY_LENGTH),
             "purpose": _text(row.get("purpose"), MAX_PURPOSE_LENGTH),
+            "note": _text(row.get("note"), 300),
             "account_name": _text(row.get("account_name"), 80),
+            "manual": row.get("source") == "manual",
             "category": (
                 {
                     "id": int(row["category_id"]),

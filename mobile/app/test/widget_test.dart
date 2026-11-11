@@ -80,9 +80,10 @@ void main() {
     },
   );
 
-  testWidgets('bottom navigation opens accounts, budget and settings', (
+  testWidgets('navigation opens accounts, planning and settings', (
     tester,
   ) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
 
     await tester.tap(find.text('Konten').last);
@@ -90,13 +91,13 @@ void main() {
     expect(find.text('Gesamtsaldo · manuell erfasst'), findsOneWidget);
     expect(find.text('Girokonto'), findsWidgets);
 
-    await tester.tap(find.text('Budget').last);
+    await tester.tap(find.text('Planung').last);
     await tester.pumpAndSettle();
     expect(find.text('1.000,00 €'), findsOneWidget);
     expect(find.text('Lebensmittel'), findsOneWidget);
     expect(find.text('113,26 €'), findsOneWidget);
 
-    await tester.tap(find.text('Mehr').last);
+    await tester.tap(find.byTooltip('Einstellungen'));
     await tester.pumpAndSettle();
     expect(find.text('Noch nicht verbunden'), findsOneWidget);
     expect(find.text('Einmaliger Pairing-Code'), findsOneWidget);
@@ -173,7 +174,7 @@ void main() {
     (tester) async {
       await tester.pumpWidget(const KassensturzApp());
 
-      await tester.tap(find.text('Budget').last);
+      await tester.tap(find.text('Planung').last);
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Oktober 2026'));
@@ -190,7 +191,7 @@ void main() {
     _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
 
-    await tester.tap(find.text('Budget').last);
+    await tester.tap(find.text('Planung').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Oktober 2026'));
@@ -211,7 +212,7 @@ void main() {
     _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
 
-    await tester.tap(find.text('Budget').last);
+    await tester.tap(find.text('Planung').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
@@ -227,7 +228,7 @@ void main() {
     _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
 
-    await tester.tap(find.text('Budget').last);
+    await tester.tap(find.text('Planung').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Budget löschen: Lebensmittel'));
@@ -248,7 +249,7 @@ void main() {
       await tester.pumpWidget(KassensturzApp(budgetRepository: repository));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Budget').last);
+      await tester.tap(find.text('Planung').last);
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Budget bearbeiten: Lebensmittel'));
       await tester.pumpAndSettle();
@@ -262,7 +263,7 @@ void main() {
       await tester.pumpWidget(KassensturzApp(budgetRepository: repository));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Budget').last);
+      await tester.tap(find.text('Planung').last);
       await tester.pumpAndSettle();
       expect(find.text('1.075,00 €'), findsOneWidget);
       expect(find.text('von 425,00 €'), findsOneWidget);
@@ -274,7 +275,7 @@ void main() {
   ) async {
     await tester.pumpWidget(const KassensturzApp());
 
-    await tester.tap(find.text('Buchungen').last);
+    await tester.tap(find.text('Umsätze').last);
     await tester.pumpAndSettle();
     expect(find.text('10 Buchungen'), findsOneWidget);
 
@@ -296,7 +297,7 @@ void main() {
   ) async {
     _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
-    await tester.tap(find.text('Mehr').last);
+    await tester.tap(find.byTooltip('Einstellungen'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Gerät sicher koppeln'));
@@ -307,6 +308,38 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Der Pairing-Code ist ungültig.'), findsOneWidget);
+    expect(find.text('OFFLINE'), findsOneWidget);
+  });
+
+  testWidgets('installed app asks to connect instead of showing examples', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(const KassensturzApp(serverOnly: true));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Noch nicht verbunden'), findsWidgets);
+    expect(find.text('NICHT VERBUNDEN'), findsOneWidget);
+    expect(find.text('DEMO'), findsNothing);
+    expect(
+      find.text('Beispieldaten – noch nicht mit deinem Server verbunden'),
+      findsNothing,
+    );
+    expect(find.text('Dein Überblick'), findsNothing);
+  });
+
+  testWidgets('connect button of the installed app opens the settings', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(const KassensturzApp(serverOnly: true));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Mit Server verbinden').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('MIT DEINEM SERVER VERBINDEN'), findsOneWidget);
+    expect(find.text('Gerät sicher koppeln'), findsOneWidget);
     expect(find.text('OFFLINE'), findsOneWidget);
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/data/demo_finance_data.dart';
+import '../../core/widgets/klar_widgets.dart';
 
 /// Switches to server-backed account data when a mobile session is active.
 /// The existing local account editor remains available in demo mode.
@@ -36,7 +37,7 @@ class _ServerAccountsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = controller.overviewData;
     final accounts = _maps(data?['accounts']);
-    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final total = accounts.fold<int>(
       0,
       (sum, item) => sum + _integer(item['balance_cents']),
@@ -46,50 +47,16 @@ class _ServerAccountsPage extends StatelessWidget {
       onRefresh: controller.loadFinancialData,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          Text(
-            'Deine Konten',
-            style: Theme.of(context).textTheme.headlineSmall,
+          AmountHeadline(
+            label: 'Gesamtsaldo',
+            amount: formatEuro(total / 100),
+            note:
+                '${accounts.length} '
+                '${accounts.length == 1 ? 'Konto' : 'Konten'}',
           ),
-          const SizedBox(height: 5),
-          Text(
-            'Konten und Salden direkt von deinem Kassensturz-Server.',
-            style: TextStyle(color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppTheme.brand,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'GESAMTSALDO',
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  formatEuro(total / 100),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${accounts.length} ${accounts.length == 1 ? 'Konto' : 'Konten'} '
-                  'vom Server',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
           if (controller.financeLoading && data == null)
             const Center(child: CircularProgressIndicator())
           else if (data == null)
@@ -98,54 +65,72 @@ class _ServerAccountsPage extends StatelessWidget {
               onRetry: controller.loadFinancialData,
             )
           else if (accounts.isEmpty)
-            const _EmptyServerState(
-              message: 'Der Server liefert noch keine Konten.',
-            )
+            const QuietMessage('Der Server liefert noch keine Konten.')
           else
-            ...accounts.map((account) {
-              final name = _string(account['name'], 'Konto');
-              final balance = _integer(account['balance_cents']);
-              final known = account['balance_known'] == true;
-              final type = _string(account['type'], 'Konto');
-              final date = _string(account['balance_date'], '');
-              return Card(
-                margin: const EdgeInsets.only(bottom: 9),
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.account_balance_outlined),
-                  ),
-                  title: Text(name),
-                  subtitle: Text(
-                    [
-                      type,
-                      if (date.isNotEmpty) 'Stand: $date',
-                      if (!known) 'Saldo nicht bestätigt',
-                    ].join(' · '),
-                  ),
-                  trailing: Text(
-                    known ? formatEuro(balance / 100) : '–',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              );
-            }),
+            for (final account in accounts) _AccountPanel(account: account),
           if (controller.financeError != null && data != null) ...[
             const SizedBox(height: 8),
             Text(
               controller.financeError!,
-              style: TextStyle(color: colors.error, fontSize: 12),
+              style: textTheme.bodySmall?.copyWith(color: AppTheme.warn),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            'Serveransicht · Änderungen an Konten erfolgen weiterhin in der '
-            'Kassensturz-Administration.',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+            'Konten legst du in Kassensturz in Home Assistant an. Umsätze '
+            'von Hand gehen nur auf Konten ohne Bankabruf.',
+            style: textTheme.bodySmall,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AccountPanel extends StatelessWidget {
+  const _AccountPanel({required this.account});
+
+  final Map<String, dynamic> account;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final balance = _integer(account['balance_cents']);
+    final known = account['balance_known'] == true;
+    final date = _string(account['balance_date'], '');
+    final detail = [
+      _string(account['type'], 'Konto'),
+      if (date.isNotEmpty) 'Stand: $date',
+      if (!known) 'Saldo nicht bestätigt',
+    ].join(' · ');
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: OutlinedPanel(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _string(account['name'], 'Konto'),
+                    style: textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(detail, style: textTheme.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              known ? formatEuro(balance / 100) : '–',
+              style: textTheme.titleMedium?.copyWith(
+                color: balance < 0 ? AppTheme.warn : AppTheme.ink,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -183,7 +168,7 @@ class _ServerBudgetPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = controller.overviewData;
     final budgets = _maps(data?['budgets']);
-    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final totalLimit = budgets.fold<int>(
       0,
       (sum, item) => sum + _integer(item['limit_cents']),
@@ -198,50 +183,25 @@ class _ServerBudgetPage extends StatelessWidget {
       onRefresh: controller.loadFinancialData,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          Text(
-            'Deine Budgets',
-            style: Theme.of(context).textTheme.headlineSmall,
+          AmountHeadline(
+            label: remaining < 0 ? 'Über dem Budget' : 'Noch verfügbar',
+            amount: formatEuro(remaining.abs() / 100),
+            note:
+                'Ausgegeben: ${formatEuro(totalSpent / 100)} '
+                'von ${formatEuro(totalLimit / 100)}',
+            size: 40,
           ),
-          const SizedBox(height: 5),
-          Text(
-            'Budgetlimits und Ausgaben aus deinem Kassensturz-Server.',
-            style: TextStyle(color: colors.onSurfaceVariant),
+          const SizedBox(height: 12),
+          ThickBar(
+            value: totalLimit <= 0
+                ? 0.0
+                : (totalSpent / totalLimit).clamp(0.0, 1.0).toDouble(),
+            over: remaining < 0,
+            height: 14,
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppTheme.brand,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'NOCH VERFÜGBAR',
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  formatEuro(remaining / 100),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'Ausgegeben: ${formatEuro(totalSpent / 100)} '
-                  'von ${formatEuro(totalLimit / 100)}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           if (controller.financeLoading && data == null)
             const Center(child: CircularProgressIndicator())
           else if (data == null)
@@ -250,102 +210,73 @@ class _ServerBudgetPage extends StatelessWidget {
               onRetry: controller.loadFinancialData,
             )
           else if (budgets.isEmpty)
-            const _EmptyServerState(
-              message: 'Der Server liefert noch keine Budgets.',
-            )
+            const QuietMessage('Der Server liefert noch keine Budgets.')
           else
-            ...budgets.map((budget) {
-              final name = _string(budget['name'], 'Budget');
-              final limit = _integer(budget['limit_cents']);
-              final spent = _integer(budget['spent_cents']);
-              final left = _integer(budget['remaining_cents']);
-              final progress = limit <= 0
-                  ? 0.0
-                  : (spent / limit).clamp(0.0, 1.0);
-              final over = spent > limit;
-              final state = _string(budget['state'], 'ok');
-              final color = over || state == 'over'
-                  ? colors.error
-                  : state == 'warn'
-                  ? colors.tertiary
-                  : AppTheme.accent;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 9),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '${formatEuro(spent / 100)} / '
-                            '${formatEuro(limit / 100)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 7,
-                          color: color,
-                          backgroundColor: colors.surfaceContainerHighest,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            over
-                                ? 'Budget überschritten'
-                                : '${(spent / (limit == 0 ? 1 : limit) * 100).round()} '
-                                      '% genutzt',
-                            style: TextStyle(color: color, fontSize: 11),
-                          ),
-                          Text(
-                            '${formatEuro(left / 100)} übrig',
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
+            for (final budget in budgets) _BudgetBlock(budget: budget),
           if (controller.financeError != null && data != null) ...[
             const SizedBox(height: 8),
             Text(
               controller.financeError!,
-              style: TextStyle(color: colors.error, fontSize: 12),
+              style: textTheme.bodySmall?.copyWith(color: AppTheme.warn),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            'Serveransicht · Budgetlimits werden aktuell in der '
-            'Kassensturz-Administration verwaltet.',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+            'Budgetlimits änderst du in Kassensturz in Home Assistant.',
+            style: textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BudgetBlock extends StatelessWidget {
+  const _BudgetBlock({required this.budget});
+
+  final Map<String, dynamic> budget;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final limit = _integer(budget['limit_cents']);
+    final spent = _integer(budget['spent_cents']);
+    final left = _integer(budget['remaining_cents']);
+    final progress = limit <= 0
+        ? 0.0
+        : (spent / limit).clamp(0.0, 1.0).toDouble();
+    final over = spent > limit || _string(budget['state'], 'ok') == 'over';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _string(budget['name'], 'Budget'),
+                  style: textTheme.titleMedium,
+                ),
+              ),
+              Text(
+                '${formatEuro(spent / 100)} von ${formatEuro(limit / 100)}',
+                style: textTheme.bodyMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          ThickBar(value: progress, over: over),
+          const SizedBox(height: 6),
+          Text(
+            over
+                ? '${formatEuro(left.abs() / 100)} über dem Budget'
+                : '${formatEuro(left / 100)} übrig',
+            style: textTheme.bodySmall?.copyWith(
+              color: over ? AppTheme.warn : AppTheme.mutedInk,
+              fontWeight: over ? FontWeight.w600 : FontWeight.w400,
+            ),
           ),
         ],
       ),
@@ -379,18 +310,6 @@ class _LoadError extends StatelessWidget {
         ],
       ),
     ),
-  );
-}
-
-class _EmptyServerState extends StatelessWidget {
-  const _EmptyServerState({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 28),
-    child: Center(child: Text(message, textAlign: TextAlign.center)),
   );
 }
 

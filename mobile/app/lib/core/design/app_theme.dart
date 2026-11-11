@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 
 /// The visual foundation of Kassensturz.
 ///
-/// The palette is deliberately restrained: warm neutral surfaces, a deep
-/// evergreen primary and a small number of semantic accents. Components should
-/// rely on these tokens instead of introducing one-off decorative colours.
+/// White surfaces, near-black ink and one strong blue. Shapes are drawn with
+/// ink outlines instead of tinted fills; orange marks what needs attention.
+/// Components should rely on these tokens instead of one-off colours.
 abstract final class AppTheme {
-  static const Color brand = Color(0xFF174A3E);
-  static const Color accent = Color(0xFF287A65);
-  static const Color canvas = Color(0xFFF5F7F5);
+  static const Color brand = Color(0xFF1F4FE0);
+  static const Color accent = Color(0xFF1F4FE0);
+  static const Color canvas = Color(0xFFFFFFFF);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color ink = Color(0xFF18231F);
-  static const Color mutedInk = Color(0xFF66736D);
-  static const Color border = Color(0xFFE3E9E5);
-  static const Color softBrand = Color(0xFFE7F0EC);
+  static const Color ink = Color(0xFF101418);
+  static const Color mutedInk = Color(0xFF4A5560);
+  static const Color border = Color(0xFFD5DBE3);
+  static const Color softBrand = Color(0xFFE4EAFD);
+  static const Color fieldBorder = Color(0xFF9AA3AE);
+  static const Color warn = Color(0xFFB4470A);
 
   static ThemeData light() {
     final colorScheme =
@@ -28,24 +30,25 @@ abstract final class AppTheme {
           onPrimaryContainer: brand,
           secondary: accent,
           onSecondary: Colors.white,
-          secondaryContainer: const Color(0xFFEAF2EE),
+          secondaryContainer: softBrand,
           onSecondaryContainer: brand,
           surface: surface,
           onSurface: ink,
           surfaceContainerLowest: Colors.white,
-          surfaceContainerLow: const Color(0xFFFAFBFA),
+          surfaceContainerLow: Colors.white,
           surfaceContainer: canvas,
-          surfaceContainerHigh: const Color(0xFFEEF2EF),
+          surfaceContainerHigh: softBrand,
+          surfaceContainerHighest: softBrand,
           onSurfaceVariant: mutedInk,
-          outline: const Color(0xFFB8C4BD),
+          outline: fieldBorder,
           outlineVariant: border,
-          error: const Color(0xFFB54745),
+          error: warn,
           onError: Colors.white,
-          errorContainer: const Color(0xFFFCEBE9),
-          onErrorContainer: const Color(0xFF7A2826),
+          errorContainer: const Color(0xFFFBEADF),
+          onErrorContainer: const Color(0xFF6E2A05),
         );
 
-    const radius = 14.0;
+    const radius = 16.0;
 
     return ThemeData(
       useMaterial3: true,
@@ -85,10 +88,10 @@ abstract final class AppTheme {
         ),
         headlineSmall: TextStyle(
           color: ink,
-          fontSize: 23,
-          height: 1.25,
+          fontSize: 28,
+          height: 1.15,
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.55,
+          letterSpacing: -0.8,
         ),
         titleLarge: TextStyle(
           color: ink,
@@ -140,7 +143,7 @@ abstract final class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radius),
-          side: const BorderSide(color: border),
+          side: const BorderSide(color: ink, width: 1.5),
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -174,19 +177,19 @@ abstract final class AppTheme {
           minimumSize: const Size(48, 48),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(24),
           ),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: brand,
+          foregroundColor: ink,
           minimumSize: const Size(48, 48),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          side: const BorderSide(color: border),
+          side: const BorderSide(color: ink, width: 1.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(24),
           ),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
@@ -202,11 +205,11 @@ abstract final class AppTheme {
         labelStyle: const TextStyle(color: mutedInk, fontSize: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: border),
+          borderSide: const BorderSide(color: fieldBorder, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: border),
+          borderSide: const BorderSide(color: fieldBorder, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -214,19 +217,33 @@ abstract final class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFB54745)),
+          borderSide: const BorderSide(color: warn, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFB54745), width: 1.5),
+          borderSide: const BorderSide(color: warn, width: 2),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected) ? ink : surface,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) =>
+                states.contains(WidgetState.selected) ? Colors.white : ink,
+          ),
+          side: const WidgetStatePropertyAll(
+            BorderSide(color: ink, width: 1.5),
+          ),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surface,
         selectedColor: softBrand,
         disabledColor: canvas,
-        side: const BorderSide(color: border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        side: const BorderSide(color: ink, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         labelStyle: const TextStyle(
           color: ink,
           fontSize: 12,

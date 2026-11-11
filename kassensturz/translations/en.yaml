@@ -20,3 +20,12 @@ configuration:
   import_folder:
     name: Import folder
     description: Statement files placed here are imported automatically. Leave empty to disable.
+  trusted_proxies:
+    name: Trusted proxies (mobile app)
+    description: Comma-separated IP addresses or networks the mobile API accepts HTTPS requests from, e.g. 172.30.32.1/32 for the Tailscale service. Leave empty if no mobile app is connected.
+  mobile_client_networks:
+    name: Allowed client networks (mobile app)
+    description: Comma-separated private networks from which devices may reach the mobile API directly over HTTPS. Leave empty when using the Tailscale service.
+  mobile_server_url:
+    name: Server address for the mobile app
+    description: HTTPS address without a path that is put into the pairing QR code, e.g. https://kassensturz-prod.example.ts.net. Leave empty to disable the QR code.

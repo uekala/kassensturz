@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/data/demo_finance_data.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
+import '../../core/widgets/klar_widgets.dart';
 
 class LiveDashboardPage extends StatelessWidget {
   const LiveDashboardPage({
@@ -38,114 +39,117 @@ class LiveDashboardPage extends StatelessWidget {
         final free = _asInt(forecast['free_cents']);
         final balance = _asInt(forecast['balance_cents']);
         final monthEnd = forecast['month_end_cents'];
+        final income = _asInt(month['income_cents']);
+        final expense = _asInt(month['expense_cents']).abs();
         final transactions = controller.transactionItems;
+        final textTheme = Theme.of(context).textTheme;
 
         return RefreshIndicator(
           onRefresh: controller.loadFinancialData,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
-              const _DashboardHeading(),
-              const SizedBox(height: 18),
-              _LiveBalanceCard(
-                free: formatEuro(free / 100),
-                balance: formatEuro(balance / 100),
-                monthEnd: monthEnd is int
-                    ? formatEuro(monthEnd / 100)
-                    : 'Nicht verfügbar',
+              AmountHeadline(
+                label: 'Frei verfügbar',
+                amount: formatEuro(free / 100),
+                size: 48,
               ),
-              const SizedBox(height: 26),
-              const _SectionHeading('Einnahmen & Ausgaben'),
-              const SizedBox(height: 11),
+              const SizedBox(height: 14),
+              ThickBar(
+                value: income <= 0
+                    ? 0.0
+                    : (expense / income).clamp(0.0, 1.0).toDouble(),
+                over: income > 0 && expense > income,
+                height: 14,
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
-                    child: _CashFlowMetric(
-                      label: 'Einnahmen',
-                      value: formatEuro(_asInt(month['income_cents']) / 100),
-                      icon: Icons.south_west_rounded,
-                      positive: true,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _CashFlowMetric(
+                    child: _Figure(
                       label: 'Ausgaben',
-                      value: formatEuro(_asInt(month['expense_cents']) / 100),
-                      icon: Icons.north_east_rounded,
-                      positive: false,
+                      value: formatEuro(expense / 100),
+                    ),
+                  ),
+                  Expanded(
+                    child: _Figure(
+                      label: 'Einnahmen',
+                      value: formatEuro(income / 100),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 26),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  const Expanded(child: _SectionHeading('Deine Konten')),
-                  Text(
-                    accounts.length.toString(),
-                    style: Theme.of(context).textTheme.labelMedium,
+                  Expanded(
+                    child: _Figure(
+                      label: 'Kontostand',
+                      value: formatEuro(balance / 100),
+                    ),
+                  ),
+                  Expanded(
+                    child: _Figure(
+                      label: 'Prognose Monatsende',
+                      value: monthEnd is int
+                          ? formatEuro(monthEnd / 100)
+                          : 'Nicht verfügbar',
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 9),
+              if (alerts.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                for (final alert in alerts) _AlertRow(alert: alert),
+              ],
+              const SizedBox(height: 24),
               if (accounts.isEmpty)
-                const _EmptyState(
+                const QuietMessage(
                   'Auf dem Server sind noch keine Konten angelegt.',
                 )
               else
-                _AccountList(accounts: accounts),
+                SizedBox(
+                  height: 76,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: accounts.length,
+                    separatorBuilder: (context, _) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) =>
+                        _AccountTile(account: accounts[index]),
+                  ),
+                ),
               const SizedBox(height: 26),
-              _SectionHeading(
-                'Dein Budget',
-                action: 'Details',
-                onAction: onOpenBudget,
-              ),
-              const SizedBox(height: 10),
+              SectionTitle('Budgets', action: 'Alle', onAction: onOpenBudget),
+              const SizedBox(height: 8),
               if (budgets.isEmpty)
-                const _EmptyState('Noch keine Budgets eingerichtet.')
+                const QuietMessage('Noch keine Budgets eingerichtet.')
               else
-                _BudgetList(budgets: budgets),
-              if (alerts.isNotEmpty) ...[
-                const SizedBox(height: 26),
-                const _SectionHeading('Hinweise'),
-                const SizedBox(height: 9),
-                ...alerts.map((alert) => _AlertRow(alert: alert)),
-              ],
-              const SizedBox(height: 26),
-              _SectionHeading(
-                'Letzte Buchungen',
-                action: 'Alle anzeigen',
+                for (final budget in budgets) _BudgetRow(budget: budget),
+              const SizedBox(height: 18),
+              SectionTitle(
+                'Letzte Umsätze',
+                action: 'Alle',
                 onAction: onOpenTransactions,
               ),
-              const SizedBox(height: 5),
               if (transactions.isEmpty && controller.financeLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (transactions.isEmpty)
-                const _EmptyState('Noch keine Buchungen vorhanden.')
+                const QuietMessage('Noch keine Buchungen vorhanden.')
               else
-                ...transactions
-                    .take(4)
-                    .map(
-                      (transaction) =>
-                          _TransactionRow(transaction: transaction),
-                    ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: onOpenTransactions,
-                child: const Text('Alle Buchungen anzeigen'),
-              ),
+                for (var index = 0; index < 4; index++)
+                  if (index < transactions.length) ...[
+                    if (index > 0) const Divider(height: 1),
+                    _TransactionRow(transaction: transactions[index]),
+                  ],
               if (controller.financeError != null) ...[
                 const SizedBox(height: 12),
                 Text(
                   controller.financeError!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  style: textTheme.bodySmall?.copyWith(color: AppTheme.warn),
                 ),
               ],
             ],
@@ -162,9 +166,9 @@ class LiveDashboardPage extends StatelessWidget {
     if (value is! List) return const [];
     return value.whereType<Map>().map(Map<String, dynamic>.from).toList();
   }
-
-  static int _asInt(dynamic value) => value is int ? value : 0;
 }
+
+int _asInt(dynamic value) => value is int ? value : 0;
 
 class _DashboardUnavailable extends StatelessWidget {
   const _DashboardUnavailable({
@@ -179,7 +183,7 @@ class _DashboardUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -189,7 +193,7 @@ class _DashboardUnavailable extends StatelessWidget {
             Icon(
               loading ? Icons.sync_rounded : Icons.cloud_off_outlined,
               size: 30,
-              color: colors.onSurfaceVariant,
+              color: AppTheme.ink,
             ),
             const SizedBox(height: 14),
             Text(
@@ -197,14 +201,14 @@ class _DashboardUnavailable extends StatelessWidget {
                   ? 'Finanzdaten werden geladen'
                   : 'Finanzdaten sind gerade nicht verfügbar',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: textTheme.titleMedium,
             ),
             if (error != null) ...[
               const SizedBox(height: 7),
               Text(
                 error!,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: textTheme.bodySmall,
               ),
             ],
             const SizedBox(height: 14),
@@ -220,354 +224,60 @@ class _DashboardUnavailable extends StatelessWidget {
   }
 }
 
-class _DashboardHeading extends StatelessWidget {
-  const _DashboardHeading();
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    const months = [
-      'Januar',
-      'Februar',
-      'März',
-      'April',
-      'Mai',
-      'Juni',
-      'Juli',
-      'August',
-      'September',
-      'Oktober',
-      'November',
-      'Dezember',
-    ];
-    final month = '${months[now.month - 1]} ${now.year}';
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'DEIN FINANZÜBERBLICK',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.1,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text('Dein Überblick', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 3),
-        Text(month, style: theme.textTheme.bodyMedium),
-      ],
-    );
-  }
-}
-
-class _LiveBalanceCard extends StatelessWidget {
-  const _LiveBalanceCard({
-    required this.free,
-    required this.balance,
-    required this.monthEnd,
-  });
-
-  final String free;
-  final String balance;
-  final String monthEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(
-        color: AppTheme.brand,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'FREI VERFÜGBAR',
-                  style: TextStyle(
-                    color: Color(0xFFD5E4DE),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
-              Text(
-                'SERVERDATEN',
-                style: TextStyle(
-                  color: Color(0xFFD5E4DE),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.7,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 11),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              free,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                height: 1.15,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.9,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Container(height: 1, color: Colors.white.withValues(alpha: 0.18)),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _HeroMetric(label: 'Kontostand', value: balance),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _HeroMetric(
-                  label: 'Prognose Monatsende',
-                  value: monthEnd,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({required this.label, required this.value});
+class _Figure extends StatelessWidget {
+  const _Figure({required this.label, required this.value});
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: Color(0xFFD5E4DE), fontSize: 11),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(label, style: textTheme.bodySmall),
+        const SizedBox(height: 2),
+        Text(value, style: textTheme.titleMedium),
       ],
     );
   }
 }
 
-class _CashFlowMetric extends StatelessWidget {
-  const _CashFlowMetric({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.positive,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool positive;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Container(
-      constraints: const BoxConstraints(minHeight: 106),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 17,
-                color: positive ? AppTheme.accent : colors.onSurfaceVariant,
-              ),
-              const SizedBox(width: 7),
-              Text(label, style: Theme.of(context).textTheme.labelMedium),
-            ],
-          ),
-          const SizedBox(height: 13),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading(this.title, {this.action, this.onAction});
-
-  final String title;
-  final String? action;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        if (action != null)
-          TextButton(
-            onPressed: onAction,
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.only(left: 8),
-            ),
-            child: Text(action!),
-          ),
-      ],
-    );
-  }
-}
-
-class _AccountList extends StatelessWidget {
-  const _AccountList({required this.accounts});
-
-  final List<Map<String, dynamic>> accounts;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          for (var index = 0; index < accounts.length; index++) ...[
-            if (index > 0) const Divider(height: 1),
-            _AccountRow(account: accounts[index]),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _AccountRow extends StatelessWidget {
-  const _AccountRow({required this.account});
+class _AccountTile extends StatelessWidget {
+  const _AccountTile({required this.account});
 
   final Map<String, dynamic> account;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final known = account['balance_known'] == true;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: colors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(10),
+    return SizedBox(
+      width: 160,
+      child: OutlinedPanel(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              account['name']?.toString() ?? 'Konto',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: textTheme.bodySmall,
             ),
-            child: Icon(
-              Icons.account_balance_outlined,
-              size: 18,
-              color: colors.onSurfaceVariant,
+            const SizedBox(height: 4),
+            Text(
+              known
+                  ? formatEuro(_asInt(account['balance_cents']) / 100)
+                  : 'Nicht verfügbar',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: textTheme.titleMedium,
             ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  account['name']?.toString() ?? 'Konto',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  account['type']?.toString() ?? 'Konto',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            known
-                ? formatEuro(_asInt(account['balance_cents']) / 100)
-                : 'Nicht verfügbar',
-            style: Theme.of(context).textTheme.labelLarge,
-            textAlign: TextAlign.end,
-          ),
-        ],
-      ),
-    );
-  }
-
-  static int _asInt(dynamic value) => value is int ? value : 0;
-}
-
-class _BudgetList extends StatelessWidget {
-  const _BudgetList({required this.budgets});
-
-  final List<Map<String, dynamic>> budgets;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(15, 4, 15, 4),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          for (var index = 0; index < budgets.length; index++) ...[
-            if (index > 0) const Divider(height: 1),
-            _BudgetRow(budget: budgets[index]),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -580,7 +290,7 @@ class _BudgetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final limit = _asInt(budget['limit_cents']);
     final spent = _asInt(budget['spent_cents']);
     final remaining = _asInt(budget['remaining_cents']);
@@ -590,7 +300,7 @@ class _BudgetRow extends StatelessWidget {
     final isOver = budget['state'] == 'over';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -599,44 +309,26 @@ class _BudgetRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   budget['name']?.toString() ?? 'Kategorie',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
+                  style: textTheme.bodyLarge,
                 ),
               ),
               Text(
-                '${formatEuro(spent / 100)} / ${formatEuro(limit / 100)}',
-                style: Theme.of(context).textTheme.labelMedium,
+                isOver
+                    ? '${formatEuro(remaining.abs() / 100)} drüber'
+                    : '${formatEuro(remaining / 100)} übrig',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: isOver ? AppTheme.warn : AppTheme.mutedInk,
+                  fontWeight: isOver ? FontWeight.w600 : FontWeight.w400,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: colors.surfaceContainerHigh,
-              valueColor: AlwaysStoppedAnimation(
-                isOver ? colors.error : AppTheme.accent,
-              ),
-            ),
-          ),
           const SizedBox(height: 6),
-          Text(
-            isOver
-                ? '${formatEuro(remaining.abs() / 100)} über dem Budget'
-                : '${formatEuro(remaining / 100)} noch verfügbar',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: isOver ? colors.error : colors.onSurfaceVariant,
-            ),
-          ),
+          ThickBar(value: progress, over: isOver),
         ],
       ),
     );
   }
-
-  static int _asInt(dynamic value) => value is int ? value : 0;
 }
 
 class _AlertRow extends StatelessWidget {
@@ -646,48 +338,41 @@ class _AlertRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final level = alert['level']?.toString() ?? 'info';
-    final color = level == 'critical'
-        ? colors.error
-        : level == 'warning'
-        ? const Color(0xFF95651C)
-        : colors.primary;
+    final urgent = level == 'critical' || level == 'warning';
+    final message = alert['message']?.toString() ?? '';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline_rounded, color: color, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  alert['title']?.toString() ?? 'Hinweis',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
-                ),
-                if ((alert['message']?.toString() ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    alert['message'].toString(),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: OutlinedPanel(
+        padding: const EdgeInsets.all(13),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.info_outline_rounded,
+              color: urgent ? AppTheme.warn : AppTheme.brand,
+              size: 18,
             ),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    alert['title']?.toString() ?? 'Hinweis',
+                    style: textTheme.titleMedium,
+                  ),
+                  if (message.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(message, style: textTheme.bodySmall),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -700,7 +385,6 @@ class _TransactionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final amount = _asInt(transaction['amount_cents']);
     final category = transaction['category'];
     final categoryName = category is Map ? category['name']?.toString() : null;
@@ -711,66 +395,17 @@ class _TransactionRow extends StatelessWidget {
         : purpose.isNotEmpty
         ? purpose
         : 'Buchung';
-    final subtitle = <String>[
+    final detail = <String>[
       if (categoryName != null && categoryName.isNotEmpty) categoryName,
       if (transaction['booking_date'] is String)
-        _formatDate(transaction['booking_date'] as String),
+        formatShortDate(transaction['booking_date'] as String),
     ].join(' · ');
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 2),
-      minLeadingWidth: 38,
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: Icon(
-          amount < 0 ? Icons.north_east_rounded : Icons.south_west_rounded,
-          color: colors.onSurfaceVariant,
-          size: 18,
-        ),
-      ),
-      title: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 14),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        subtitle.isEmpty ? 'Buchung' : subtitle,
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      trailing: Text(
-        formatSignedEuro(amount / 100),
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: amount < 0 ? colors.onSurface : AppTheme.accent,
-        ),
-      ),
-    );
-  }
-
-  static int _asInt(dynamic value) => value is int ? value : 0;
-
-  static String _formatDate(String value) {
-    final date = DateTime.tryParse(value);
-    if (date == null) return value;
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState(this.message);
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+    return EntryRow(
+      title: title,
+      detail: detail.isEmpty ? 'Buchung' : detail,
+      amount: formatSignedEuro(amount / 100),
+      positive: amount > 0,
     );
   }
 }

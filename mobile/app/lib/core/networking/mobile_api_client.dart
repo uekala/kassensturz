@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -21,6 +22,21 @@ abstract interface class MobileTransport {
   });
 
   void close();
+}
+
+/// Why a request did not produce an HTTP response.
+enum MobileNetworkFailure { unreachable, timeout, certificate, interrupted }
+
+/// A transport failure. [requestSent] is false only when the connection was
+/// never established, so the server cannot have processed the request.
+class MobileNetworkException implements Exception {
+  const MobileNetworkException(this.failure, {required this.requestSent});
+
+  final MobileNetworkFailure failure;
+  final bool requestSent;
+
+  @override
+  String toString() => 'MobileNetworkException(${failure.name})';
 }
 
 /// Uses Dart's default TLS validation. No certificate override or redirect
@@ -49,7 +65,12 @@ class IoMobileTransport implements MobileTransport {
       throw const FormatException('Mobile-Verbindungen benötigen HTTPS.');
     }
 
-    final request = await _client.openUrl(method, uri).timeout(_timeout);
+    late final HttpClientRequest request;
+    try {
+      request = await _client.openUrl(method, uri).timeout(_timeout);
+    } on Object catch (error) {
+      throw _networkFailure(error, requestSent: false);
+    }
     request
       ..followRedirects = false
       ..maxRedirects = 0
@@ -60,20 +81,44 @@ class IoMobileTransport implements MobileTransport {
       request.write(body);
     }
 
-    final response = await request.close().timeout(_timeout);
-    final bytes = BytesBuilder(copy: false);
-    await for (final chunk in response.timeout(_timeout)) {
-      if (bytes.length + chunk.length > _maximumResponseBytes) {
-        request.abort();
-        throw const FormatException('Die Serverantwort ist zu groß.');
+    try {
+      final response = await request.close().timeout(_timeout);
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in response.timeout(_timeout)) {
+        if (bytes.length + chunk.length > _maximumResponseBytes) {
+          request.abort();
+          throw const FormatException('Die Serverantwort ist zu groß.');
+        }
+        bytes.add(chunk);
       }
-      bytes.add(chunk);
-    }
 
-    return MobileHttpResponse(
-      statusCode: response.statusCode,
-      body: utf8.decode(bytes.takeBytes(), allowMalformed: false),
-    );
+      return MobileHttpResponse(
+        statusCode: response.statusCode,
+        body: utf8.decode(bytes.takeBytes(), allowMalformed: false),
+      );
+    } on FormatException {
+      rethrow;
+    } on Object catch (error) {
+      throw _networkFailure(error, requestSent: true);
+    }
+  }
+
+  static MobileNetworkException _networkFailure(
+    Object error, {
+    required bool requestSent,
+  }) {
+    if (error is MobileNetworkException) return error;
+    final MobileNetworkFailure failure;
+    if (error is TimeoutException) {
+      failure = MobileNetworkFailure.timeout;
+    } else if (error is HandshakeException || error is TlsException) {
+      failure = MobileNetworkFailure.certificate;
+    } else if (requestSent) {
+      failure = MobileNetworkFailure.interrupted;
+    } else {
+      failure = MobileNetworkFailure.unreachable;
+    }
+    return MobileNetworkException(failure, requestSent: requestSent);
   }
 
   @override
@@ -108,14 +153,20 @@ class MobileApiClient {
   MobileApiClient({
     required MobileSessionStore sessionStore,
     MobileTransport? transport,
+    Duration refreshRetryDelay = const Duration(seconds: 2),
   }) : _sessionStore = sessionStore,
-       _transport = transport ?? IoMobileTransport();
+       _transport = transport ?? IoMobileTransport(),
+       _refreshRetryDelay = refreshRetryDelay;
 
   final MobileSessionStore _sessionStore;
   final MobileTransport _transport;
+  final Duration _refreshRetryDelay;
   Future<MobileSession>? _refreshInFlight;
 
   Future<MobileSession?> loadSession() => _sessionStore.read();
+
+  /// Removes a stored session that can no longer be read or used.
+  Future<void> discardSession() => _sessionStore.clear();
 
   Future<MobileSession> pair({
     required String serverUrl,
@@ -186,6 +237,51 @@ class MobileApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> accounts() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/accounts');
+
+  Future<Map<String, dynamic>> categories() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/categories');
+
+  Future<Map<String, dynamic>> contracts() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/contracts');
+
+  /// Creates a manual transaction. [fields] must contain a
+  /// `client_request_id`; sending the same id again never books twice.
+  Future<Map<String, dynamic>> createTransaction(Map<String, dynamic> fields) {
+    final requestId = fields['client_request_id'];
+    if (requestId is! String || requestId.length < 16) {
+      throw const FormatException('Die Anfragekennung fehlt.');
+    }
+    return _authenticatedJson(
+      method: 'POST',
+      path: '/api/v1/transactions',
+      body: fields,
+    );
+  }
+
+  Future<Map<String, dynamic>> updateTransaction(
+    int id,
+    Map<String, dynamic> changes,
+  ) {
+    if (id <= 0 || changes.isEmpty) {
+      throw const FormatException('Die Änderung ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'PATCH',
+      path: '/api/v1/transactions/$id',
+      body: changes,
+    );
+  }
+
+  Future<void> deleteTransaction(int id) async {
+    if (id <= 0) throw const FormatException('Die Buchung ist ungültig.');
+    await _authenticatedJson(
+      method: 'DELETE',
+      path: '/api/v1/transactions/$id',
+    );
+  }
+
   /// Attempts server-side logout and always removes the local credential set.
   /// If the server cannot be reached, the device can still be locally signed out.
   Future<void> logout() async {
@@ -202,6 +298,7 @@ class MobileApiClient {
     required String method,
     required String path,
     Map<String, String>? query,
+    Map<String, dynamic>? body,
   }) async {
     final session = await _sessionStore.read();
     if (session == null) {
@@ -213,6 +310,7 @@ class MobileApiClient {
         method: method,
         uri: _endpoint(session.serverUrl, path, query: query),
         headers: {'Authorization': 'Bearer ${session.accessToken}'},
+        body: body,
       );
     } on MobileApiException catch (error) {
       if (error.statusCode != 401) rethrow;
@@ -224,6 +322,7 @@ class MobileApiClient {
         method: method,
         uri: _endpoint(refreshed.serverUrl, path, query: query),
         headers: {'Authorization': 'Bearer ${refreshed.accessToken}'},
+        body: body,
       );
     } on MobileApiException catch (error) {
       if (error.statusCode == 401) {
@@ -262,11 +361,7 @@ class MobileApiClient {
 
     late final Map<String, dynamic> response;
     try {
-      response = await _requestJson(
-        method: 'POST',
-        uri: _endpoint(current.serverUrl, '/api/v1/auth/refresh'),
-        body: {'refresh_token': current.refreshToken},
-      );
+      response = await _sendRefresh(current);
     } on MobileApiException catch (error) {
       if (error.statusCode == 401) {
         await _sessionStore.clear();
@@ -295,6 +390,29 @@ class MobileApiClient {
     );
     await _sessionStore.write(updated);
     return updated;
+  }
+
+  /// Sends the refresh token. The server accepts a replaced refresh token
+  /// exactly once more, and only within ten minutes of the first attempt.
+  /// If the connection breaks after the request left the device, the answer
+  /// may be lost although the server already rotated the token, so the one
+  /// permitted repetition is sent right away instead of minutes later.
+  /// A connection that was never established is not repeated here: nothing
+  /// reached the server and the next call simply starts over.
+  Future<Map<String, dynamic>> _sendRefresh(MobileSession current) async {
+    Future<Map<String, dynamic>> send() => _requestJson(
+      method: 'POST',
+      uri: _endpoint(current.serverUrl, '/api/v1/auth/refresh'),
+      body: {'refresh_token': current.refreshToken},
+    );
+
+    try {
+      return await send();
+    } on MobileNetworkException catch (error) {
+      if (!error.requestSent) rethrow;
+    }
+    await Future<void>.delayed(_refreshRetryDelay);
+    return send();
   }
 
   Future<Map<String, dynamic>> _requestJson({

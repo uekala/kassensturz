@@ -10,8 +10,11 @@ import '../core/networking/mobile_connection_controller.dart';
 import '../features/accounts/accounts_page.dart';
 import '../features/accounts/server_finance_pages.dart';
 import '../features/budget/budget_page.dart';
+import '../features/budget/planning_page.dart';
 import '../features/dashboard/dashboard_page.dart';
+import '../features/more/connect_required_page.dart';
 import '../features/more/more_page.dart';
+import '../features/transactions/transaction_editor_page.dart';
 import '../features/transactions/transactions_page.dart';
 
 class KassensturzShell extends StatefulWidget {
@@ -20,17 +23,23 @@ class KassensturzShell extends StatefulWidget {
     this.budgetRepository,
     this.accountRepository,
     this.mobileConnectionController,
+    this.serverOnly = false,
   });
 
   final BudgetRepository? budgetRepository;
   final AccountRepository? accountRepository;
   final MobileConnectionController? mobileConnectionController;
 
+  /// The installed app shows server data only. Without a connection it asks
+  /// the user to connect instead of showing example or device-local data.
+  final bool serverOnly;
+
   @override
   State<KassensturzShell> createState() => _KassensturzShellState();
 }
 
-class _KassensturzShellState extends State<KassensturzShell> {
+class _KassensturzShellState extends State<KassensturzShell>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   late final BudgetController _budgetController;
   late final AccountController _accountController;
@@ -39,6 +48,7 @@ class _KassensturzShellState extends State<KassensturzShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _budgetController = BudgetController(
       repository: widget.budgetRepository ?? InMemoryBudgetRepository(),
     );
@@ -54,200 +64,381 @@ class _KassensturzShellState extends State<KassensturzShell> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Returning to the app is the moment to reconnect and show fresh data.
+    if (state == AppLifecycleState.resumed) {
+      _mobileConnectionController.refreshIfStale();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _budgetController.dispose();
     _accountController.dispose();
     _mobileConnectionController.dispose();
     super.dispose();
   }
 
-  static const _destinations = [
-    NavigationDestination(
-      icon: Icon(Icons.space_dashboard_outlined),
-      selectedIcon: Icon(Icons.space_dashboard_rounded),
-      label: 'Übersicht',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.account_balance_wallet_outlined),
-      selectedIcon: Icon(Icons.account_balance_wallet_rounded),
-      label: 'Konten',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.pie_chart_outline_rounded),
-      selectedIcon: Icon(Icons.pie_chart_rounded),
-      label: 'Budget',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.receipt_long_outlined),
-      selectedIcon: Icon(Icons.receipt_long_rounded),
-      label: 'Buchungen',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.tune_rounded),
-      selectedIcon: Icon(Icons.tune_rounded),
-      label: 'Mehr',
-    ),
-  ];
-
-  static const _titles = [
-    'Kassensturz',
-    'Deine Konten',
-    'Budgets & Auswertung',
-    'Buchungen',
-    'Einstellungen',
-  ];
+  static const _titles = ['Heute', 'Umsätze', 'Planung', 'Konten'];
 
   void _openTransactions() {
-    setState(() => _selectedIndex = 3);
+    setState(() => _selectedIndex = 1);
   }
 
   void _openBudget() {
     setState(() => _selectedIndex = 2);
   }
 
+  void _openSettings() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Einstellungen')),
+          body: MorePage(controller: _mobileConnectionController),
+        ),
+      ),
+    );
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// The plus button works from every tab; it explains what is missing
+  /// instead of being hidden.
+  Future<void> _addTransaction() async {
+    final controller = _mobileConnectionController;
+    if (!controller.isConnected) {
+      _showMessage('Verbinde die App zuerst mit deinem Kassensturz-Server.');
+      return;
+    }
+    if (!controller.canWriteTransactions) {
+      _showMessage(
+        'Bitte aktualisiere Kassensturz in Home Assistant, um Umsätze '
+        'anzulegen.',
+      );
+      return;
+    }
+    if (controller.manualAccounts.isEmpty) {
+      _showMessage(
+        'Umsätze lassen sich nur auf Konten ohne Bankabruf anlegen. '
+        'Lege dafür in Kassensturz ein Konto an, zum Beispiel Bargeld.',
+      );
+      return;
+    }
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => TransactionEditorPage(controller: controller),
+      ),
+    );
+    if (saved == true) _showMessage('Auf dem Server gespeichert.');
+  }
+
+  /// In the installed app the four data tabs need a server connection.
+  Widget _serverData(Widget page) {
+    if (!widget.serverOnly) return page;
+    return AnimatedBuilder(
+      animation: _mobileConnectionController,
+      builder: (context, _) => _mobileConnectionController.isConnected
+          ? page
+          : ConnectRequiredPage(onOpenSettings: _openSettings),
+    );
+  }
+
+  /// Null while everything is fine; the header then shows only a blue dot.
+  String? _statusLabel() {
+    final controller = _mobileConnectionController;
+    if (controller.linkState == ServerLinkState.unreachable) {
+      return 'KEINE VERBINDUNG';
+    }
+    if (controller.isConnected) return null;
+    return widget.serverOnly ? 'NICHT VERBUNDEN' : 'DEMO';
+  }
+
+  /// A hint below the header, shown only when something needs attention.
+  Widget _notice() {
+    final controller = _mobileConnectionController;
+    if (!controller.isConnected) {
+      return widget.serverOnly ? const SizedBox.shrink() : const DemoNotice();
+    }
+    final String message;
+    if (controller.linkState == ServerLinkState.unreachable) {
+      message =
+          'Server nicht erreichbar. Angezeigt wird der zuletzt geladene '
+          'Stand; Änderungen brauchen eine Verbindung.';
+    } else if (controller.serverNeedsUpdate) {
+      message =
+          'Zum Anlegen von Umsätzen bitte Kassensturz in Home Assistant '
+          'aktualisieren.';
+    } else {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.warn, width: 1.5),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(color: AppTheme.warn, fontSize: 12, height: 1.4),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     final pages = [
-      DashboardPage(
-        onOpenTransactions: _openTransactions,
-        onOpenBudget: _openBudget,
-        budgetController: _budgetController,
-        mobileController: _mobileConnectionController,
+      _serverData(
+        DashboardPage(
+          onOpenTransactions: _openTransactions,
+          onOpenBudget: _openBudget,
+          budgetController: _budgetController,
+          mobileController: _mobileConnectionController,
+        ),
       ),
-      ServerAwareAccountsPage(
-        controller: _mobileConnectionController,
-        fallback: AccountsPage(controller: _accountController),
+      _serverData(TransactionsPage(controller: _mobileConnectionController)),
+      _serverData(
+        PlanningPage(
+          controller: _mobileConnectionController,
+          budgets: ServerAwareBudgetPage(
+            controller: _mobileConnectionController,
+            fallback: BudgetPage(controller: _budgetController),
+          ),
+        ),
       ),
-      ServerAwareBudgetPage(
-        controller: _mobileConnectionController,
-        fallback: BudgetPage(controller: _budgetController),
+      _serverData(
+        ServerAwareAccountsPage(
+          controller: _mobileConnectionController,
+          fallback: AccountsPage(controller: _accountController),
+        ),
       ),
-      TransactionsPage(controller: _mobileConnectionController),
-      MorePage(controller: _mobileConnectionController),
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: Row(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
           children: [
-            Container(
-              width: 29,
-              height: 29,
-              decoration: BoxDecoration(
-                color: AppTheme.brand,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.account_balance_wallet_rounded,
-                color: Colors.white,
-                size: 18,
+            AnimatedBuilder(
+              animation: _mobileConnectionController,
+              builder: (context, _) {
+                final controller = _mobileConnectionController;
+                final demo = !widget.serverOnly && !controller.isConnected;
+                return _ShellHeader(
+                  title: demo ? 'Kassensturz' : _titles[_selectedIndex],
+                  status: _statusLabel(),
+                  online: controller.linkState == ServerLinkState.connected,
+                  onOpenSettings: _openSettings,
+                );
+              },
+            ),
+            AnimatedBuilder(
+              animation: _mobileConnectionController,
+              builder: (context, _) => _notice(),
+            ),
+            Expanded(
+              child: IndexedStack(index: _selectedIndex, children: pages),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _ShellNavigation(
+        selectedIndex: _selectedIndex,
+        onSelected: (index) => setState(() => _selectedIndex = index),
+        onAdd: _addTransaction,
+      ),
+    );
+  }
+}
+
+class _ShellHeader extends StatelessWidget {
+  const _ShellHeader({
+    required this.title,
+    required this.status,
+    required this.online,
+    required this.onOpenSettings,
+  });
+
+  final String title;
+  final String? status;
+  final bool online;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+          ),
+          if (status != null) ...[
+            Text(
+              status!,
+              style: const TextStyle(
+                color: AppTheme.mutedInk,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
               ),
             ),
             const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                _titles[_selectedIndex],
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.ink,
-                  letterSpacing: -0.35,
+          ],
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton.outlined(
+                tooltip: 'Einstellungen',
+                onPressed: onOpenSettings,
+                style: IconButton.styleFrom(
+                  foregroundColor: AppTheme.ink,
+                  minimumSize: const Size(44, 44),
+                  side: const BorderSide(color: AppTheme.ink, width: 1.5),
                 ),
+                icon: const Icon(Icons.tune_rounded, size: 20),
+              ),
+              Positioned(
+                right: 0,
+                top: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: online ? AppTheme.brand : AppTheme.warn,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShellNavigation extends StatelessWidget {
+  const _ShellNavigation({
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.onAdd,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.surface,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppTheme.border)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 72,
+            child: Row(
+              children: [
+                _NavigationItem(
+                  label: 'Heute',
+                  icon: Icons.home_outlined,
+                  selected: selectedIndex == 0,
+                  onTap: () => onSelected(0),
+                ),
+                _NavigationItem(
+                  label: 'Umsätze',
+                  icon: Icons.receipt_long_outlined,
+                  selected: selectedIndex == 1,
+                  onTap: () => onSelected(1),
+                ),
+                Expanded(
+                  child: Center(
+                    child: IconButton.filled(
+                      tooltip: 'Umsatz anlegen',
+                      onPressed: onAdd,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppTheme.brand,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(52, 52),
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 28),
+                    ),
+                  ),
+                ),
+                _NavigationItem(
+                  label: 'Planung',
+                  icon: Icons.bar_chart_rounded,
+                  selected: selectedIndex == 2,
+                  onTap: () => onSelected(2),
+                ),
+                _NavigationItem(
+                  label: 'Konten',
+                  icon: Icons.account_balance_wallet_outlined,
+                  selected: selectedIndex == 3,
+                  onTap: () => onSelected(3),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavigationItem extends StatelessWidget {
+  const _NavigationItem({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppTheme.brand : AppTheme.mutedInk;
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 24, color: color),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ],
         ),
-        actions: [
-          AnimatedBuilder(
-            animation: _mobileConnectionController,
-            builder: (context, _) {
-              final connected = _mobileConnectionController.isConnected;
-              final color = connected ? AppTheme.brand : AppTheme.mutedInk;
-              return Padding(
-                padding: const EdgeInsets.only(right: 20),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: connected
-                          ? AppTheme.softBrand
-                          : const Color(0xFFEFF1EF),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          connected
-                              ? Icons.cloud_done_outlined
-                              : Icons.science_outlined,
-                          size: 13,
-                          color: color,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          connected ? 'SERVER' : 'DEMO',
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.6,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          AnimatedBuilder(
-            animation: _mobileConnectionController,
-            builder: (context, _) {
-              if (!_mobileConnectionController.isConnected) {
-                return const DemoNotice();
-              }
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 9,
-                ),
-                color: AppTheme.softBrand,
-                child: const Text(
-                  'Server verbunden: Übersicht, Konten, Budgets und Buchungen zeigen Serverdaten. Konten und Budgetlimits werden hier derzeit nur angezeigt.',
-                  style: TextStyle(
-                    color: AppTheme.brand,
-                    fontSize: 11,
-                    height: 1.35,
-                  ),
-                ),
-              );
-            },
-          ),
-          Expanded(
-            child: IndexedStack(index: _selectedIndex, children: pages),
-          ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: _destinations,
-        onDestinationSelected: (index) {
-          setState(() => _selectedIndex = index);
-        },
       ),
     );
   }
