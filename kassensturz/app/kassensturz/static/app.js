@@ -71,7 +71,9 @@ function relDay(iso) {
   if (days > 1 && days < 7) return `in ${days} Tagen`;
   return dShort(iso);
 }
-const KIND_LABEL = { giro: "Girokonto", tagesgeld: "Tagesgeld", kreditkarte: "Kreditkarte", paypal: "PayPal", sonstiges: "Sonstiges" };
+const KIND_LABEL = { giro: "Girokonto", tagesgeld: "Tagesgeld", kreditkarte: "Kreditkarte", paypal: "PayPal", depot: "Depot", sonstiges: "Sonstiges" };
+// Konten, deren Wert man einträgt statt Buchungen abzurufen.
+const VALUE_KINDS = new Set(["depot"]);
 
 const ICON = {
   warn: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4m0 3v.01"/></svg>',
@@ -1024,6 +1026,11 @@ async function renderAccounts(view, _params, seq) {
   if (seq !== renderSeq) return;
   const accounts = store.accounts;
   const source = (a) => {
+    if (VALUE_KINDS.has(a.kind)) {
+      if (!a.balance_known) return "Depot, Wert noch nicht eingetragen";
+      const change = a.value_prev_cents !== null ? a.balance_now - a.value_prev_cents : null;
+      return "Depot" + (change !== null ? `, ${money(change, { plus: true })} seit ${dShort(a.value_prev_date)}` : "");
+    }
     const range = a.last_date ? `Umsätze bis ${dShort(a.last_date)}` : "noch keine Umsätze";
     const sess = eb.sessions.find((s) => s.id === a.eb_session_id);
     if (sess) return `${sess.aspsp_name} per Open Banking, ${range}`;
@@ -1042,6 +1049,13 @@ async function renderAccounts(view, _params, seq) {
         ${expired || soon ? html`<button class="btn small primary" data-eb-renew="${s.id}">Erneuern</button>` : html`<button class="btn small primary" data-eb-sync="${s.id}">${raw(ICON.sync)}Abrufen</button>`}
         <button class="btn small" data-eb-edit="${s.id}" aria-label="Verbindung ${s.aspsp_name} bearbeiten">Mehr</button></span></li>`;
   };
+  // Vermögen: alle aktiven Konten mit bekanntem Stand, aufgeteilt in Alltag, Rücklagen und Depots.
+  const live = accounts.filter((a) => !a.archived && a.balance_known);
+  const sum = (list) => list.reduce((t, a) => t + a.balance_now, 0);
+  const daily = live.filter((a) => a.in_forecast);
+  const depots = live.filter((a) => VALUE_KINDS.has(a.kind) && !a.in_forecast);
+  const reserves = live.filter((a) => !a.in_forecast && !VALUE_KINDS.has(a.kind));
+  const worth = { count: live.length, total: sum(live), parts: [["Alltag", sum(daily)], ["Rücklagen", sum(reserves)], ["Depots", sum(depots)]].filter(([, c], i) => i === 0 || c) };
   const sambaPath = box.path && box.path.startsWith("/share/") ? "\\\\homeassistant.local\\share\\" + box.path.slice(7).replace(/\//g, "\\") : null;
   view.innerHTML = html`
     <div class="page-head"><h1>Konten</h1>
@@ -1049,10 +1063,12 @@ async function renderAccounts(view, _params, seq) {
       <button class="btn small" id="a-bank">${raw(ICON.bank)}Bank verbinden</button></div></div>
     <div class="cols"><div>
       <section class="section" style="border-top:0">
+        ${worth.count ? html`<div class="worth"><span class="label">Vermögen</span><div class="big-amount">${money(worth.total)}</div>
+          <p class="small muted">${worth.parts.map(([l, c]) => `${l} ${money(c)}`).join(" · ")}</p></div>` : ""}
         ${accounts.length ? html`<ul class="list">${accounts.map((a) => html`<li><button class="row" data-acc="${a.id}" style="${a.archived ? "opacity:.55" : ""}">
-          <span class="title">${a.name}${a.archived ? " (archiviert)" : ""}${!a.in_forecast && !a.archived ? html` <span class="chip neutral">nicht in Prognose</span>` : ""}</span>
-          <span class="sub">${KIND_LABEL[a.kind] || a.kind}, ${source(a)}</span>
-          <span class="amount">${a.balance_known ? money(a.balance_now) : html`<span class="chip warn">Stand fehlt</span>`}<small>${a.tx_count} Buchungen</small></span></button></li>`)}</ul>`
+          <span class="title">${a.name}${a.archived ? " (archiviert)" : ""}${!a.in_forecast && !a.archived && !VALUE_KINDS.has(a.kind) ? html` <span class="chip neutral">nicht in Prognose</span>` : ""}</span>
+          <span class="sub">${VALUE_KINDS.has(a.kind) ? source(a) : `${KIND_LABEL[a.kind] || a.kind}, ${source(a)}`}</span>
+          <span class="amount">${a.balance_known ? money(a.balance_now) : html`<span class="chip warn">${VALUE_KINDS.has(a.kind) ? "Wert fehlt" : "Stand fehlt"}</span>`}<small>${VALUE_KINDS.has(a.kind) ? (a.balance_known ? `Stand ${dShort(a.balance_date)}` : "") : `${a.tx_count} Buchungen`}</small></span></button></li>`)}</ul>`
           : html`<p class="muted">Noch keine Konten. Verbinde eine Bank oder importiere eine Datei.</p>`}
         <div class="actions"><button class="btn small" id="a-new">Konto ohne Import anlegen</button></div>
       </section>
@@ -1262,7 +1278,7 @@ function accountSheet(a) {
   a = a || { name: "", kind: "giro", iban: "", settlement_pattern: "", in_forecast: 1, archived: 0 };
   const sh = openSheet(html`${sheetHead(isNew ? "Konto anlegen" : a.name)}
     ${!isNew ? html`<div class="big-amount">${a.balance_known ? money(a.balance_now) : "Kontostand fehlt"}</div>
-      <div class="actions" style="margin-top:0"><button class="btn small" id="ac-bal">Kontostand eintragen</button>
+      <div class="actions" style="margin-top:0"><button class="btn small" id="ac-bal">${VALUE_KINDS.has(a.kind) ? "Wert eintragen" : "Kontostand eintragen"}</button>
       <a class="btn small" href="#/umsaetze?account=${a.id}" data-close>Buchungen ansehen</a></div>` : ""}
     <label class="field"><span>Name</span><input class="input" id="ac-name" value="${a.name}" ${isNew ? raw("autofocus") : ""}></label>
     <div class="field-row">
@@ -1285,6 +1301,7 @@ function accountSheet(a) {
       sh.close(); toast("Konto gespeichert"); rerender();
     } catch (e) { toast(e.message); }
   };
+  if (isNew) $("#ac-kind", sh.el).onchange = (e) => { $("#ac-fc", sh.el).checked = !["tagesgeld", ...VALUE_KINDS].includes(e.target.value); };
   if ($("#ac-bal", sh.el)) $("#ac-bal", sh.el).onclick = () => { sh.close(); balanceSheet(a); };
   if ($("#ac-del", sh.el)) confirmButton($("#ac-del", sh.el), `Wirklich ${a.tx_count} Buchungen löschen?`, async () => {
     await api(`accounts/${a.id}`, { method: "DELETE" }); sh.close(); toast("Konto gelöscht"); rerender();
@@ -1292,10 +1309,12 @@ function accountSheet(a) {
 }
 
 function balanceSheet(a) {
-  const sh = openSheet(html`${sheetHead("Kontostand " + a.name)}
-    <p class="small muted">Trag den Stand ein, den deine Bank für heute anzeigt. Für Kreditkarten den offenen Betrag als Minus. Spätere Buchungen werden dazugerechnet.</p>
+  const value = VALUE_KINDS.has(a.kind);
+  const sh = openSheet(html`${sheetHead((value ? "Wert " : "Kontostand ") + a.name)}
+    <p class="small muted">${value ? "Trag den Gesamtwert ein, den dein Depot heute anzeigt. Jeder Eintrag bleibt erhalten, so siehst du die Entwicklung."
+      : "Trag den Stand ein, den deine Bank für heute anzeigt. Für Kreditkarten den offenen Betrag als Minus. Spätere Buchungen werden dazugerechnet."}</p>
     <div class="field-row">
-      <label class="field"><span>Kontostand</span><input class="input" id="bal-amt" inputmode="decimal" value="${a.balance_known ? toInput(a.balance_now) : ""}" autofocus></label>
+      <label class="field"><span>${value ? "Wert" : "Kontostand"}</span><input class="input" id="bal-amt" inputmode="decimal" value="${a.balance_known ? toInput(a.balance_now) : ""}" autofocus></label>
       <label class="field"><span>Stand vom</span><input class="input" type="date" id="bal-date" value="${todayIso()}"></label>
     </div>
     <div class="actions"><button class="btn primary" id="bal-save">Speichern</button></div>`.s);
@@ -1303,7 +1322,7 @@ function balanceSheet(a) {
     const cents = parseMoney($("#bal-amt", sh.el).value);
     if (cents === null) { toast("Bitte einen Betrag eintragen"); return; }
     await api(`accounts/${a.id}/balance`, { method: "POST", body: { balance_cents: cents, date: $("#bal-date", sh.el).value } });
-    sh.close(); toast("Kontostand gespeichert"); rerender();
+    sh.close(); toast(value ? "Wert gespeichert" : "Kontostand gespeichert"); rerender();
   };
 }
 

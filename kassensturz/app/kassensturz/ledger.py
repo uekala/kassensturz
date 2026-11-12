@@ -73,6 +73,20 @@ def set_balance_anchor(db: Database, account_id: int, cents: int, on: str, only_
     db.update("accounts", "id", account_id, {"balance_cents": int(cents), "balance_date": on})
 
 
+VALUE_KINDS = ("depot",)
+
+
+def record_valuation(db: Database, account_id: int, cents: int, on: str) -> None:
+    """Hält den Wert eines Depots fest; ein Eintrag je Tag, der letzte gilt."""
+    db.execute("INSERT INTO valuations(account_id, on_date, value_cents, created) VALUES(?, ?, ?, ?) "
+               "ON CONFLICT(account_id, on_date) DO UPDATE SET value_cents = excluded.value_cents, created = excluded.created",
+               (account_id, on, int(cents), now_iso()))
+
+
+def valuations(db: Database, account_id: int) -> list[dict]:
+    return db.query("SELECT on_date, value_cents FROM valuations WHERE account_id = ? ORDER BY on_date", (account_id,))
+
+
 def current_balance(db: Database, account: dict) -> int:
     if account.get("balance_date") is not None and account.get("balance_cents") is not None:
         after = db.scalar("SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE account_id = ? AND booking_date > ?",
@@ -91,6 +105,12 @@ def accounts_with_balance(db: Database, include_archived: bool = False) -> list[
                        (a["id"],))
         a.update({"tx_count": stats["n"], "first_date": stats["first"], "last_date": stats["last"]})
         a.pop("fints_ref", None)
+        a["value_prev_cents"] = a["value_prev_date"] = None
+        if a["kind"] in VALUE_KINDS and a["balance_date"]:
+            prev = db.one("SELECT on_date, value_cents FROM valuations WHERE account_id = ? AND on_date < ? "
+                          "ORDER BY on_date DESC LIMIT 1", (a["id"], a["balance_date"]))
+            if prev:
+                a["value_prev_cents"], a["value_prev_date"] = prev["value_cents"], prev["on_date"]
         out.append(a)
     return out
 
@@ -180,4 +200,5 @@ def delete_account(db: Database, account_id: int) -> None:
         db.execute("DELETE FROM splits WHERE tx_id IN (SELECT id FROM transactions WHERE account_id = ?)", (account_id,))
         db.execute("DELETE FROM transactions WHERE account_id = ?", (account_id,))
         db.execute("DELETE FROM imports WHERE account_id = ?", (account_id,))
+        db.execute("DELETE FROM valuations WHERE account_id = ?", (account_id,))
         db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))

@@ -195,6 +195,16 @@ CREATE TABLE IF NOT EXISTS csv_profiles(
   updated TEXT
 );
 
+-- Werte von Depots und anderen Konten ohne Buchungen, einer je Tag.
+CREATE TABLE IF NOT EXISTS valuations(
+  id INTEGER PRIMARY KEY,
+  account_id INTEGER NOT NULL,
+  on_date TEXT NOT NULL,
+  value_cents INTEGER NOT NULL,
+  created TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS valuations_day ON valuations(account_id, on_date);
+
 CREATE TABLE IF NOT EXISTS notices(
   key TEXT PRIMARY KEY,
   created TEXT

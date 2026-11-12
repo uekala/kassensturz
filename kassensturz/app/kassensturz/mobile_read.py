@@ -162,6 +162,11 @@ def serialize_overview(
                 "balance_known": bool(account.get("balance_known", False)),
                 "balance_date": account.get("balance_date"),
                 "transaction_count": int(account.get("tx_count") or 0),
+                "in_forecast": bool(account.get("in_forecast", True)),
+                "previous_value_cents": None
+                if account.get("value_prev_cents") is None
+                else int(account["value_prev_cents"]),
+                "previous_value_date": account.get("value_prev_date"),
             }
         )
 

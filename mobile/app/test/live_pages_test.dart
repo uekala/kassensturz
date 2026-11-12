@@ -58,6 +58,16 @@ MobileHttpResponse _answer(RecordedRequest request) {
           'balance_cents': -6732,
           'balance_known': false,
         },
+        {
+          'name': 'Testdepot',
+          'type': 'depot',
+          'balance_cents': 1234567,
+          'balance_known': true,
+          'balance_date': '2026-11-10',
+          'in_forecast': false,
+          'previous_value_cents': 1200000,
+          'previous_value_date': '2026-10-01',
+        },
       ],
       'budgets': [
         {
@@ -176,8 +186,10 @@ void main() {
 
     await tester.tap(find.text('Konten').last);
     await tester.pumpAndSettle();
-    expect(find.text('Gesamtsaldo'), findsOneWidget);
+    expect(find.text('Vermögen'), findsOneWidget);
+    expect(find.textContaining('Depots 12.345,67'), findsOneWidget);
     expect(find.textContaining('Saldo nicht bestätigt'), findsOneWidget);
+    expect(find.textContaining('Depot · Stand 10.11.2026'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Einstellungen'));
     await tester.pumpAndSettle();

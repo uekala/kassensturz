@@ -112,6 +112,13 @@ Das Konto erkennt Kassensturz an der IBAN in der Datei, an einer früheren Zuord
 (PayPal, Amex, N26 …), wenn es genau ein passendes Konto gibt. Kann es nicht zuordnen, bleibt die Datei liegen und erscheint
 unter *Konten → Eingangsordner* mit dem Knopf *Zuordnen*. Ab dann geht dasselbe Format ohne Rückfrage.
 
+## Depots
+
+Ein Depot legst du unter *Konten → Konto ohne Import anlegen* mit der Art „Depot“ an. Statt Buchungen trägst du über
+*Wert eintragen* den Gesamtwert ein, den deine Bank anzeigt. Jeder Eintrag bleibt erhalten, die Kontenseite zeigt die
+Veränderung seit dem vorherigen Wert. Depots zählen zum Vermögen, aber nicht zu „frei verfügbar“ und zur Prognose.
+Einzelne Wertpapiere und Kurse kennt Kassensturz nicht.
+
 ## Umbuchungen und doppelte Ausgaben
 
 Ein Einkauf über PayPal taucht zweimal auf: als Abbuchung „PayPal Europe“ auf dem Girokonto und als Zahlung an den Händler im

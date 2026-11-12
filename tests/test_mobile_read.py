@@ -74,6 +74,7 @@ def test_overview_dto_allowlists_fields_and_uses_integer_cents():
         "id": 7, "name": "Girokonto", "type": "giro",
         "balance_cents": 123456, "balance_known": True,
         "balance_date": "2026-11-01", "transaction_count": 42,
+        "in_forecast": True, "previous_value_cents": None, "previous_value_date": None,
     }]
     assert dto["forecast"]["upcoming"] == [{
         "date": "2026-11-05", "name": "Miete",
