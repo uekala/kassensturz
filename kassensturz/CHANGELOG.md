@@ -6,6 +6,7 @@
   meldet Kassensturz über Home Assistant, eine Meldung je Abruf mit bis zu fünf Buchungen. Selbst importierte oder
   angelegte Buchungen werden nicht gemeldet, ebenso wenig der Bestand beim ersten Start. Abschaltbar mit
   `notify_new_transactions`.
+- Beispieldaten: Die Netflix-Preiserhöhung wird jetzt an jedem Tag des Monats erkannt, bisher nur bis zum 11.
 
 ## 0.3.6
 
