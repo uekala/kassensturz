@@ -1149,3 +1149,9 @@ a.row:hover .title, button.row:hover .title { color: var(--accent-text); }
 .row { border-radius: 0; padding-left: 0; padding-right: 0; }
 .day-head { padding-left: 0; padding-right: 0; }
 .top { box-shadow: none; }
+
+/* Vermögen über der Kontenliste */
+.worth { padding: 4px 0 14px; border-bottom: 1px solid var(--rule); margin-bottom: 4px; }
+.worth .label { font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.worth .big-amount { margin: 2px 0 2px; }
+.worth p { margin: 0; }

@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.3.8
+
+- Depot als Kontoart: Du trägst den Gesamtwert ein, jeder Eintrag bleibt erhalten (einer je Tag). Die Kontenseite zeigt
+  Wert, Stand und Veränderung seit dem letzten Eintrag. Depots zählen nicht zu „frei verfügbar“ und zur Prognose.
+- Kontenseite mit „Vermögen“: alle Konten mit bekanntem Stand, aufgeteilt in Alltag, Rücklagen und Depots.
+- Neue Konten werden hinten einsortiert; Tagesgeld und Depot starten außerhalb der Prognose.
+- Mobile-Schnittstelle: Konten melden zusätzlich `in_forecast` und beim Depot den vorherigen Wert.
+
 ## 0.3.7
 
 - Mitteilung bei neuen Buchungen: Was der tägliche Abruf (FinTS, Open Banking) oder der Eingangsordner neu bringt,

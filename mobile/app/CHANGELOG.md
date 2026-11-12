@@ -1,5 +1,11 @@
 # Änderungen der Mobile-App
 
+## 0.3.5
+
+- Konten zeigen das Vermögen statt eines Gesamtsaldos, aufgeteilt in Alltag, Rücklagen und Depots.
+- Depots mit Stand und Veränderung seit dem letzten eingetragenen Wert (ab Server 0.3.8).
+- Kontoarten auf Deutsch („Girokonto“ statt „giro“).
+
 ## 0.3.4
 
 - Neue Auswertung, erreichbar von „Heute“ (ab Server 0.3.3): Ausgaben eines Monats nach Kategorie mit Anteilen,

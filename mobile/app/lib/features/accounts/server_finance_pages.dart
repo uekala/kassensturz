@@ -17,10 +17,25 @@ class ServerAccountsPage extends StatelessWidget {
     final data = controller.overviewData;
     final accounts = _maps(data?['accounts']);
     final textTheme = Theme.of(context).textTheme;
-    final total = accounts.fold<int>(
+    final known = accounts
+        .where((item) => item['balance_known'] == true)
+        .toList();
+    final total = known.fold<int>(
       0,
       (sum, item) => sum + _integer(item['balance_cents']),
     );
+    final daily = known
+        .where((item) => item['in_forecast'] != false)
+        .fold<int>(0, (sum, item) => sum + _integer(item['balance_cents']));
+    final depots = known
+        .where((item) => item['type'] == 'depot')
+        .fold<int>(0, (sum, item) => sum + _integer(item['balance_cents']));
+    final reserves = total - daily - depots;
+    final note = [
+      'Alltag ${formatEuro(daily / 100)}',
+      if (reserves != 0) 'Rücklagen ${formatEuro(reserves / 100)}',
+      if (depots != 0) 'Depots ${formatEuro(depots / 100)}',
+    ].join(' · ');
 
     return RefreshIndicator(
       onRefresh: controller.loadFinancialData,
@@ -29,11 +44,9 @@ class ServerAccountsPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
           AmountHeadline(
-            label: 'Gesamtsaldo',
+            label: 'Vermögen',
             amount: formatEuro(total / 100),
-            note:
-                '${accounts.length} '
-                '${accounts.length == 1 ? 'Konto' : 'Konten'}',
+            note: note,
           ),
           const SizedBox(height: 22),
           if (controller.financeLoading && data == null)
@@ -56,8 +69,9 @@ class ServerAccountsPage extends StatelessWidget {
           ],
           const SizedBox(height: 10),
           Text(
-            'Konten legst du in Kassensturz in Home Assistant an. Umsätze '
-            'von Hand gehen nur auf Konten ohne Bankabruf.',
+            'Konten legst du in Kassensturz in Home Assistant an, dort trägst '
+            'du auch den Wert eines Depots ein. Umsätze von Hand gehen nur auf '
+            'Konten ohne Bankabruf.',
             style: textTheme.bodySmall,
           ),
         ],
@@ -78,10 +92,16 @@ class _AccountPanel extends StatelessWidget {
     final balance = _integer(account['balance_cents']);
     final known = account['balance_known'] == true;
     final date = _string(account['balance_date'], '');
+    final type = _string(account['type'], '');
+    final previous = account['previous_value_cents'];
+    final previousDate = _string(account['previous_value_date'], '');
     final detail = [
-      _string(account['type'], 'Konto'),
-      if (date.isNotEmpty) 'Stand: $date',
-      if (!known) 'Saldo nicht bestätigt',
+      _typeLabels[type] ?? 'Konto',
+      if (date.isNotEmpty) 'Stand ${formatShortDate(date)}',
+      if (previous is int && previousDate.isNotEmpty)
+        '${formatSignedEuro((balance - previous) / 100)} seit '
+            '${formatShortDate(previousDate)}',
+      if (!known) type == 'depot' ? 'Wert fehlt' : 'Saldo nicht bestätigt',
     ].join(' · ');
 
     return Padding(
@@ -272,6 +292,15 @@ class _LoadError extends StatelessWidget {
     ),
   );
 }
+
+const _typeLabels = {
+  'giro': 'Girokonto',
+  'tagesgeld': 'Tagesgeld',
+  'kreditkarte': 'Kreditkarte',
+  'paypal': 'PayPal',
+  'depot': 'Depot',
+  'sonstiges': 'Sonstiges',
+};
 
 List<Map<String, dynamic>> _maps(dynamic value) {
   if (value is! List) return const [];
