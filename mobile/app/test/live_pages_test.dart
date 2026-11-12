@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kassensturz_mobile/app/kassensturz_app.dart';
 import 'package:kassensturz_mobile/core/design/app_theme.dart';
 import 'package:kassensturz_mobile/core/networking/mobile_api_client.dart';
 import 'package:kassensturz_mobile/core/networking/mobile_connection_controller.dart';
+import 'package:kassensturz_mobile/features/accounts/server_finance_pages.dart';
 
 import 'support/fake_server.dart';
 
@@ -71,6 +74,7 @@ MobileHttpResponse _answer(RecordedRequest request) {
       ],
       'budgets': [
         {
+          'category_id': 6,
           'name': 'Lebensmittel',
           'limit_cents': 45000,
           'spent_cents': 31200,
@@ -226,4 +230,53 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Betrag in Euro'), findsOneWidget);
   });
+
+  testWidgets('budgets can be changed, removed and created in the app', (
+    tester,
+  ) async {
+    final transport = await _pumpConnectedApp(tester);
+    await tester.tap(find.text('Planung').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(_inBudgets('Lebensmittel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Budget Lebensmittel'), findsOneWidget);
+    expect(find.text('450'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField), '500,50');
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    var put = transport.requests.lastWhere((r) => r.method == 'PUT');
+    expect(put.uri.path, '/api/v1/budgets/6');
+    expect(jsonDecode(put.body!), {'limit_cents': 50050});
+    expect(find.text('Budget gespeichert'), findsOneWidget);
+
+    await tester.tap(_inBudgets('Lebensmittel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Budget entfernen'));
+    await tester.pumpAndSettle();
+    put = transport.requests.lastWhere((r) => r.method == 'PUT');
+    expect(jsonDecode(put.body!), {'limit_cents': null});
+
+    await tester.tap(find.text('Budget anlegen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bitte eine Kategorie wählen.'), findsOneWidget);
+    expect(find.text('Gehalt'), findsNothing);
+    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wohnen').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).last, '900');
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    put = transport.requests.lastWhere((r) => r.method == 'PUT');
+    expect(put.uri.path, '/api/v1/budgets/5');
+    expect(jsonDecode(put.body!), {'limit_cents': 90000});
+  });
 }
+
+Finder _inBudgets(String text) => find.descendant(
+  of: find.byType(ServerBudgetPage),
+  matching: find.text(text),
+);

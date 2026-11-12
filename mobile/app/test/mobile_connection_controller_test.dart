@@ -69,7 +69,7 @@ void main() {
     expect(controller.serverNeedsUpdate, isFalse);
     expect(controller.accounts, hasLength(2));
     expect(controller.manualAccounts.single.name, 'Bargeld');
-    expect(controller.categories, hasLength(2));
+    expect(controller.categories, hasLength(3));
     expect(controller.overviewData, isNotNull);
     expect(controller.financeError, isNull);
     controller.dispose();

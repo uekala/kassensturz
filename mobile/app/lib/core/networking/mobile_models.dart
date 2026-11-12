@@ -78,6 +78,7 @@ class ServerCategory {
     required this.name,
     required this.kind,
     this.parentId,
+    this.budgetCents,
   });
 
   factory ServerCategory.fromJson(Map<String, dynamic> json) => ServerCategory(
@@ -85,6 +86,9 @@ class ServerCategory {
     name: _requiredString(json, 'name'),
     kind: _optionalString(json, 'kind') ?? 'expense',
     parentId: json['parent_id'] is int ? json['parent_id'] as int : null,
+    budgetCents: json['budget_cents'] is int
+        ? json['budget_cents'] as int
+        : null,
   );
 
   static List<ServerCategory> listFrom(Map<String, dynamic> response) =>
@@ -94,6 +98,9 @@ class ServerCategory {
   final String name;
   final String kind;
   final int? parentId;
+
+  /// Monthly budget in cents, null when the category has none.
+  final int? budgetCents;
 }
 
 class ServerContract {

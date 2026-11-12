@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.9
+
+- Budgets aus der Mobile-App setzen, ändern und entfernen: `PUT /api/v1/budgets/{kategorie}` mit `limit_cents`
+  (0,01 € bis 100.000 €, `null` entfernt). Nur für Ausgabenkategorien, nur mit gekoppeltem Gerät, höchstens 60
+  Änderungen pro Minute. Neue Fähigkeit `budgets.write`.
+- Kategorienliste der Mobile-Schnittstelle enthält das Budget je Kategorie.
+
 ## 0.3.8
 
 - Depot als Kontoart: Du trägst den Gesamtwert ein, jeder Eintrag bleibt erhalten (einer je Tag). Die Kontenseite zeigt

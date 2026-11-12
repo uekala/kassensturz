@@ -344,9 +344,30 @@ def list_accounts(db: Database) -> dict:
     return {"items": items}
 
 
+MAX_BUDGET_CENTS = 10_000_000  # 100.000 € im Monat
+
+
+def set_budget(db: Database, category_id: int, payload: dict) -> dict:
+    """Setzt oder entfernt das Monatsbudget einer Ausgabenkategorie."""
+    if set(payload) != {"limit_cents"}:
+        raise _invalid("Erwartet wird genau das Feld limit_cents.")
+    value = payload["limit_cents"]
+    if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
+        raise _invalid("limit_cents muss eine ganze Zahl oder null sein.")
+    if value is not None and not 0 < value <= MAX_BUDGET_CENTS:
+        raise _invalid("Das Budget muss zwischen 0,01 € und 100.000 € liegen.")
+    category = db.one("SELECT id, name, kind FROM categories WHERE id = ?", (category_id,))
+    if not category:
+        raise MobileWriteError(404, "not_found", "Kategorie nicht gefunden.")
+    if category["kind"] != "expense":
+        raise _invalid("Budgets gibt es nur für Ausgabenkategorien.")
+    db.update("categories", "id", category_id, {"budget_cents": value})
+    return {"category_id": category_id, "name": category["name"], "limit_cents": value}
+
+
 def list_categories(db: Database) -> dict:
     rows = db.query(
-        "SELECT id, name, parent_id, kind, color FROM categories ORDER BY sort, name"
+        "SELECT id, name, parent_id, kind, color, budget_cents FROM categories ORDER BY sort, name"
     )
     return {
         "items": [
@@ -356,6 +377,7 @@ def list_categories(db: Database) -> dict:
                 "parent_id": row.get("parent_id"),
                 "kind": row.get("kind"),
                 "color": row.get("color"),
+                "budget_cents": row.get("budget_cents"),
             }
             for row in rows
         ]
