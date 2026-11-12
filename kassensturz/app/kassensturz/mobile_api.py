@@ -39,6 +39,7 @@ CAPABILITIES = (
     "transactions.search",
     "stats",
     "budgets.write",
+    "contracts.write",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -475,3 +476,35 @@ async def set_budget(category_id: str, request: Request):
         return _write_error(error)
     services.schedule_refresh()
     return {"budget": budget}
+
+
+@router.patch("/api/v1/contracts/{key:path}")
+async def update_contract(key: str, request: Request):
+    """Confirm, ignore or cancel a contract, or acknowledge a price change."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    if payload is None:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    try:
+        contract = mobile_write.update_contract(get_db(), key, payload)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+    services.schedule_refresh()
+    return {"contract": contract}
+
+
+@router.post("/api/v1/contracts/{key:path}/letter")
+async def contract_letter(key: str, request: Request):
+    """Build the cancellation letter; nothing is stored or sent."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    if payload is None:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    try:
+        return mobile_write.contract_letter(get_db(), key, payload)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)

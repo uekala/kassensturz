@@ -286,6 +286,36 @@ class MobileApiClient {
     );
   }
 
+  /// Changes the status of a contract or acknowledges its price change.
+  Future<Map<String, dynamic>> updateContract(
+    String key,
+    Map<String, dynamic> changes,
+  ) {
+    if (key.isEmpty || changes.isEmpty) {
+      throw const FormatException('Die Änderung ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'PATCH',
+      path: '/api/v1/contracts/${Uri.encodeComponent(key)}',
+      body: changes,
+    );
+  }
+
+  /// Builds the cancellation letter for a contract. [mode] is 'ordentlich',
+  /// 'sonder' or 'termin'; [date] (YYYY-MM-DD) is only sent with 'termin'.
+  Future<Map<String, dynamic>> contractLetter(
+    String key, {
+    String mode = 'ordentlich',
+    String? date,
+  }) {
+    if (key.isEmpty) throw const FormatException('Der Vertrag fehlt.');
+    return _authenticatedJson(
+      method: 'POST',
+      path: '/api/v1/contracts/${Uri.encodeComponent(key)}/letter',
+      body: {'mode': mode, 'date': ?date},
+    );
+  }
+
   /// Sets the monthly budget of an expense category; null removes it.
   Future<Map<String, dynamic>> setBudget(int categoryId, int? limitCents) {
     if (categoryId <= 0 || (limitCents != null && limitCents <= 0)) {
