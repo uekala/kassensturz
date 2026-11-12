@@ -11,6 +11,9 @@ configuration:
   notify_service:
     name: Notification service
     description: "Optional, e.g. notify.mobile_app_pixel. Leave empty for persistent notifications."
+  notify_new_transactions:
+    name: Notify about new transactions
+    description: Reports transactions from the automatic sync and the import folder. Transactions you import or add yourself are not reported.
   warn_threshold:
     name: Warning threshold in euros
     description: Warn when the forecast balance drops below this amount.

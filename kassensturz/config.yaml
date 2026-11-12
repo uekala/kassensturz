@@ -1,5 +1,5 @@
 name: Kassensturz
-version: "0.3.6"
+version: "0.3.7"
 slug: kassensturz
 description: Haushaltsbuch mit Bankabruf per FinTS und Open Banking, Eingangsordner, Vertragserkennung, Budgets und Prognose
 url: https://github.com/uekala/kassensturz
@@ -36,6 +36,7 @@ options:
   sync_time: "06:30"
   sensors: true
   notify_service: ""
+  notify_new_transactions: true
   warn_threshold: 200
   cancellation_reminder_days: "45,21,7"
   import_folder: /share/kassensturz
@@ -47,6 +48,7 @@ schema:
   sync_time: match(^([01]\d|2[0-3]):[0-5]\d$)
   sensors: bool
   notify_service: str?
+  notify_new_transactions: bool
   warn_threshold: int
   cancellation_reminder_days: str
   import_folder: str?

@@ -81,7 +81,10 @@ def load_demo(db: Database) -> dict:
                 add(amex, d, -rnd.randint(1500, 12000), "AMAZON EU S.A R.L.", "Amazon.de Bestellung")
             d += timedelta(days=1)
         # Abos
-        netflix = -1399 if m < add_months(date(today.year, today.month, 1), -1) else -1599
+        # Nur die jüngste Abbuchung kostet mehr, damit die Preiserhöhung an jedem Tag des Monats
+        # erkannt wird. Bis zum 11. ist das die vom Vormonat, ab dem 12. die des laufenden Monats.
+        newest_netflix = date(today.year, today.month, 1) if today.day >= 12 else add_months(date(today.year, today.month, 1), -1)
+        netflix = -1599 if m >= newest_netflix else -1399
         add(amex, day(12), netflix, "NETFLIX.COM", "Netflix Abo")
         add(paypal, day(20), 1099, None, "", "Bankgutschrift auf PayPal-Konto")
         add(paypal, day(20), -1099, "Spotify AB", "Spotify Premium", "Abo-Zahlung")

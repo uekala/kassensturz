@@ -153,7 +153,8 @@ Mit `sensors: true` legt Kassensturz diese Sensoren an und aktualisiert sie alle
 | `sensor.kassensturz_budget_*` | Restbudget je Kategorie mit Budget |
 
 Benachrichtigungen gibt es, wenn die Prognose unter `warn_threshold` fällt, ein Vertrag teurer wird, eine Kündigungsfrist naht,
-ein Budget überschritten ist oder der tägliche Abruf eine TAN braucht. Ohne `notify_service` landen sie als persistente
+ein Budget überschritten ist, der tägliche Abruf eine TAN braucht oder neue Buchungen eingegangen sind
+(abschaltbar mit `notify_new_transactions`). Ohne `notify_service` landen sie als persistente
 Benachrichtigung in Home Assistant, mit zum Beispiel `notify.mobile_app_pixel` direkt auf dem Handy.
 
 Beispiel für eine Dashboard-Karte:
@@ -183,6 +184,7 @@ Oberfläche nicht ändern. Nach einem Neustart von Home Assistant sind sie spät
 | `sync_time` | Uhrzeit des täglichen Abrufs (HH:MM) |
 | `sensors` | Sensoren in Home Assistant anlegen |
 | `notify_service` | z. B. `notify.mobile_app_pixel`, leer für persistente Benachrichtigungen |
+| `notify_new_transactions` | Meldung bei neuen Buchungen aus dem automatischen Abruf und dem Eingangsordner (Standard: an) |
 | `warn_threshold` | Warnung, wenn die Prognose unter diesen Betrag in Euro fällt |
 | `import_folder` | Eingangsordner, Standard `/share/kassensturz`; leer lässt ihn aus |
 

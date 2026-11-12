@@ -124,6 +124,60 @@ def alerts(db: Database, summary: dict) -> list[dict]:
     return out
 
 
+# Quellen, die ohne dein Zutun Buchungen liefern. Was du selbst importierst oder anlegst,
+# kennst du schon und wird nicht gemeldet.
+AUTO_SOURCES = ("fints", "openbanking", "ordner")
+TX_NOTICE_KEY = "notified_tx_id"
+TX_NOTICE_LIST = 5
+TX_NOTICE_MAX_LISTED = 20
+
+
+def _tx_label(row: dict) -> str:
+    text = (row.get("counterparty") or row.get("booking_text") or row.get("purpose") or "Buchung").strip()
+    text = " ".join(text.split())
+    return text if len(text) <= 40 else text[:39] + "…"
+
+
+def new_transactions_notice(db: Database) -> dict | None:
+    """Neue Buchungen aus dem automatischen Abruf seit der letzten Meldung.
+
+    Merkt sich die höchste gemeldete Buchungs-ID. Beim ersten Lauf wird nur der Stand
+    festgehalten, damit ein Update keine Meldung über den ganzen Bestand auslöst."""
+    max_id = int(db.scalar("SELECT COALESCE(MAX(id), 0) FROM transactions") or 0)
+    seen = db.get_setting(TX_NOTICE_KEY)
+    if seen is None:
+        db.set_setting(TX_NOTICE_KEY, max_id)
+        return None
+    seen = int(seen)
+    if max_id <= seen:
+        if max_id < seen:  # Buchungen gelöscht: Stand zurücksetzen
+            db.set_setting(TX_NOTICE_KEY, max_id)
+        return None
+    marks = ",".join("?" for _ in AUTO_SOURCES)
+    rows = db.query(
+        f"""SELECT t.id, t.booking_date, t.amount_cents, t.counterparty, t.booking_text, t.purpose, a.name AS account
+            FROM transactions t JOIN accounts a ON a.id = t.account_id
+            WHERE t.id > ? AND t.source IN ({marks})
+            ORDER BY t.booking_date DESC, t.id DESC""",
+        (seen, *AUTO_SOURCES),
+    )
+    db.set_setting(TX_NOTICE_KEY, max_id)
+    if not rows:
+        return None
+    count = len(rows)
+    title = "Kassensturz: neue Buchung" if count == 1 else f"Kassensturz: {count} neue Buchungen"
+    if count > TX_NOTICE_MAX_LISTED:
+        accounts = sorted({r["account"] for r in rows})
+        message = f"{count} Buchungen auf {', '.join(accounts)} abgerufen."
+    else:
+        lines = [f"{'+' if r['amount_cents'] > 0 else ''}{euro(r['amount_cents'])} {_tx_label(r)} ({r['account']})" for r in rows[:TX_NOTICE_LIST]]
+        if count > TX_NOTICE_LIST:
+            rest = count - TX_NOTICE_LIST
+            lines.append(f"und {rest} {'weitere' if rest > 1 else 'weitere Buchung'}")
+        message = "\n".join(lines)
+    return {"key": f"tx:{max_id}", "title": title, "message": message, "count": count}
+
+
 def refresh(db: Database | None = None, notify: bool = True) -> dict:
     db = db or get_db()
     contracts.detect(db)
@@ -135,6 +189,9 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
         for a in alerts(db, summary):
             if a["level"] in ("critical", "warning"):
                 ha.notify(db, a["key"], f"Kassensturz: {a['title']}", a["text"], opts.get("notify_service"))
+        notice = new_transactions_notice(db)
+        if notice and opts.get("notify_new_transactions", True):
+            ha.notify(db, notice["key"], notice["title"], notice["message"], opts.get("notify_service"))
     return summary
 
 
