@@ -28,6 +28,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const searchCapability = 'transactions.search';
   static const statsCapability = 'stats';
   static const budgetCapability = 'budgets.write';
+  static const contractCapability = 'contracts.write';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -106,6 +107,9 @@ class MobileConnectionController extends ChangeNotifier {
   List<ServerContract> get contracts => _contracts;
   bool get contractsLoading => _contractsLoading;
   String? get contractsError => _contractsError;
+
+  /// True once the server accepts contract changes and builds letters.
+  bool get canEditContracts => _capabilities.contains(contractCapability);
 
   /// True once the server accepts budget changes from the app.
   bool get canEditBudgets => _capabilities.contains(budgetCapability);
@@ -483,6 +487,56 @@ class MobileConnectionController extends ChangeNotifier {
 
   Future<String?> deleteTransaction(int id) =>
       _write(() => _apiClient.deleteTransaction(id));
+
+  /// Changes a contract and reloads the contract list. Returns null on
+  /// success, otherwise the message to show.
+  Future<String?> updateContract(
+    String key,
+    Map<String, dynamic> changes,
+  ) async {
+    final error = await _write(
+      () => _apiClient.updateContract(key, changes),
+      capability: contractCapability,
+    );
+    if (error == null) await loadContracts();
+    return error;
+  }
+
+  /// Fetches the cancellation letter. Either the letter or the message to
+  /// show is set. Nothing is stored on the server.
+  Future<({Map<String, dynamic>? letter, String? error})> contractLetter(
+    String key, {
+    String mode = 'ordentlich',
+    String? date,
+  }) async {
+    if (_session == null) {
+      return (
+        letter: null,
+        error: describeMobileError(const MobileSessionExpiredException()),
+      );
+    }
+    if (!canEditContracts) {
+      return (
+        letter: null,
+        error:
+            'Der Server kann noch keine Kündigungsschreiben liefern. '
+            'Bitte aktualisiere Kassensturz in Home Assistant.',
+      );
+    }
+    try {
+      final letter = await _apiClient.contractLetter(
+        key,
+        mode: mode,
+        date: date,
+      );
+      return (letter: letter, error: null);
+    } catch (error) {
+      _unreachable = isConnectivityFailure(error);
+      await _clearLocalSessionIfExpired(error);
+      _notifyIfMounted();
+      return (letter: null, error: describeMobileError(error));
+    }
+  }
 
   /// Sets or, with null, removes the monthly budget of a category. Returns
   /// null on success, otherwise the message to show.

@@ -91,6 +91,7 @@ const fullCapabilities = [
   'transactions.search',
   'stats',
   'budgets.write',
+  'contracts.write',
 ];
 
 /// Answers like a Kassensturz server 0.3.0 with one cash account and one
@@ -223,8 +224,25 @@ MobileHttpResponse serverAnswer(
           'category_name': 'Wohnen',
           'account_name': 'Girokonto',
           'cancellation_deadline': null,
+          'price_change_cents': -300,
+          'manual': false,
         },
       ],
+    });
+  }
+  if (path.startsWith('/api/v1/contracts/') && request.method == 'PATCH') {
+    return jsonResponse(200, {'contract': <String, Object>{}});
+  }
+  if (path.startsWith('/api/v1/contracts/') && path.endsWith('/letter')) {
+    final body = jsonDecode(request.body ?? '{}') as Map<String, dynamic>;
+    return jsonResponse(200, {
+      'subject': 'Kündigung – Erika Muster',
+      'body': 'Sehr geehrte Damen und Herren,',
+      'letter':
+          'Erika Muster\nTestweg 1\n\nKündigung (${body['mode']})\n'
+          'Sehr geehrte Damen und Herren,',
+      'email': 'kuendigung@example.org',
+      'profile_complete': true,
     });
   }
   if (path == '/api/v1/transactions' && request.method == 'GET') {

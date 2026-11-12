@@ -117,6 +117,8 @@ class ServerContract {
     this.categoryName,
     this.accountName,
     this.cancellationDeadline,
+    this.priceChangeCents,
+    this.manual = false,
   });
 
   factory ServerContract.fromJson(Map<String, dynamic> json) => ServerContract(
@@ -132,6 +134,10 @@ class ServerContract {
     categoryName: _optionalString(json, 'category_name'),
     accountName: _optionalString(json, 'account_name'),
     cancellationDeadline: _optionalString(json, 'cancellation_deadline'),
+    priceChangeCents: json['price_change_cents'] is int
+        ? json['price_change_cents'] as int
+        : null,
+    manual: json['manual'] == true,
   );
 
   static List<ServerContract> listFrom(Map<String, dynamic> response) =>
@@ -149,6 +155,11 @@ class ServerContract {
   final String? categoryName;
   final String? accountName;
   final String? cancellationDeadline;
+
+  /// Change of the last payment against the usual price; negative means the
+  /// contract became more expensive. Null when there is nothing to show.
+  final int? priceChangeCents;
+  final bool manual;
 }
 
 class ServerTransaction {

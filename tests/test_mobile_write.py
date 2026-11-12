@@ -369,7 +369,7 @@ def test_categories_and_contracts_are_allowlisted(db, monkeypatch):
     strom = next(item for item in contracts["items"] if item["name"] == "Strom")
     assert set(strom) == {
         "key", "name", "kind", "interval", "amount_cents", "monthly_cents", "next_due", "status",
-        "running", "category_name", "account_name", "cancellation_deadline",
+        "running", "category_name", "account_name", "cancellation_deadline", "price_change_cents", "manual",
     }
     serialized = repr(contracts)
     for forbidden in ("KD-4711", "example.invalid", "Musterweg", "privat", "DE8937"):

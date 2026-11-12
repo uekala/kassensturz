@@ -1,5 +1,13 @@
 # Änderungen der Mobile-App
 
+## 0.3.7
+
+- Verträge antippen (ab Server 0.3.10): Details, „Als Vertrag bestätigen“, „Neuen Preis übernehmen“, „Als gekündigt
+  markieren“ und „Ist kein Vertrag – ausblenden“.
+- Kündigungsschreiben in der App: fristgerecht, zum Termin oder als Sonderkündigung nach einer Preiserhöhung. Text,
+  Betreff und E-Mail-Adresse des Anbieters lassen sich kopieren.
+- Verträge mit Preiserhöhung tragen die Marke „teurer“, neu erkannte die Marke „neu“.
+
 ## 0.3.6
 
 - Budgets in der App bearbeiten (ab Server 0.3.9): unter Planung auf ein Budget tippen, um den Betrag zu ändern oder

@@ -1,5 +1,16 @@
 # Änderungen
 
+## 0.3.10
+
+- Verträge aus der Mobile-App ändern: `PATCH /api/v1/contracts/{schlüssel}` mit `status` (erkannt, bestätigt,
+  gekündigt, ausgeblendet) oder `price_change_ack: true`. Beim Status „gekündigt“ wird das Datum gesetzt.
+- Kündigungsschreiben für die App: `POST /api/v1/contracts/{schlüssel}/letter` mit `mode` (`ordentlich`, `sonder`,
+  `termin` mit Datum). Es ist dasselbe Schreiben wie in der Web-Oberfläche, mit Name und Anschrift aus den
+  Einstellungen; gespeichert oder verschickt wird nichts.
+- Die Vertragsliste der Mobile-Schnittstelle enthält die Preisänderung und ob der Vertrag von Hand angelegt ist,
+  weiterhin ohne Kundennummer, Anschrift und Notizen. Neue Fähigkeit `contracts.write`, höchstens 30 Änderungen pro
+  Minute.
+
 ## 0.3.9
 
 - Budgets aus der Mobile-App setzen, ändern und entfernen: `PUT /api/v1/budgets/{kategorie}` mit `limit_cents`

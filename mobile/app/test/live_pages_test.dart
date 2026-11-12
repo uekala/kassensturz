@@ -130,6 +130,7 @@ Future<ScriptedTransport> _pumpConnectedApp(WidgetTester tester) async {
 }
 
 void main() {
+  _contractTests();
   testWidgets('connected app shows server data on every tab', (tester) async {
     final transport = await _pumpConnectedApp(tester);
 
@@ -280,3 +281,48 @@ Finder _inBudgets(String text) => find.descendant(
   of: find.byType(ServerBudgetPage),
   matching: find.text(text),
 );
+
+void _contractTests() {
+  testWidgets('contracts can be changed and give a cancellation letter', (
+    tester,
+  ) async {
+    final transport = await _pumpConnectedApp(tester);
+    await tester.tap(find.text('Planung').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Verträge'));
+    await tester.pumpAndSettle();
+    expect(find.text('teurer'), findsOneWidget);
+
+    await tester.tap(find.text('Strom'));
+    await tester.pumpAndSettle();
+    expect(find.text('Zuletzt 3,00 € teurer als sonst.'), findsOneWidget);
+    await tester.tap(find.text('Neuen Preis übernehmen'));
+    await tester.pumpAndSettle();
+    final patch = transport.requests.lastWhere((r) => r.method == 'PATCH');
+    expect(patch.uri.path, '/api/v1/contracts/manual%3Astrom');
+    expect(jsonDecode(patch.body!), {'price_change_ack': true});
+    expect(find.text('Preisänderung übernommen'), findsOneWidget);
+
+    await tester.tap(find.text('Strom'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kündigungsschreiben'));
+    await tester.pumpAndSettle();
+    final letter = transport.requests.lastWhere(
+      (r) => r.uri.path.endsWith('/letter'),
+    );
+    expect(jsonDecode(letter.body!), {'mode': 'ordentlich'});
+    expect(find.textContaining('Kündigung (ordentlich)'), findsOneWidget);
+    expect(find.text('Schreiben kopieren'), findsOneWidget);
+    expect(
+      find.text('E-Mail-Adresse kopieren (kuendigung@example.org)'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Sonder'));
+    await tester.pumpAndSettle();
+    final special = transport.requests.lastWhere(
+      (r) => r.uri.path.endsWith('/letter'),
+    );
+    expect(jsonDecode(special.body!), {'mode': 'sonder'});
+  });
+}

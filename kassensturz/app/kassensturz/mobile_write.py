@@ -18,7 +18,7 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Any
 
-from . import categorize, contracts, ledger
+from . import categorize, contracts, ledger, letters
 from .db import Database, now_iso
 from .util import tx_hash
 
@@ -384,28 +384,100 @@ def list_categories(db: Database) -> dict:
     }
 
 
+def _contract_item(contract: dict, reference: date) -> dict:
+    return {
+        "key": contract["key"],
+        "name": contract.get("name"),
+        "kind": contract.get("kind"),
+        "interval": contract.get("interval"),
+        "amount_cents": int(contract.get("amount_cents") or 0),
+        "monthly_cents": int(contract.get("monthly_cents") or 0),
+        "next_due": contract.get("next_due"),
+        "status": contract.get("status"),
+        "running": bool(contracts.is_running(contract, reference)),
+        "category_name": contract.get("category_name"),
+        "account_name": contract.get("account_name"),
+        "cancellation_deadline": contract.get("deadline"),
+        "price_change_cents": contract.get("price_change_cents"),
+        "manual": bool(contract.get("manual")),
+    }
+
+
 def list_contracts(db: Database, *, today: date | None = None) -> dict:
     """Detected and manual contracts without provider contact or customer data."""
     reference = today or date.today()
     contracts.detect(db)
-    items = []
-    for contract in contracts.list_contracts(db):
-        if contract.get("status") == "ignored":
-            continue
-        items.append(
-            {
-                "key": contract["key"],
-                "name": contract.get("name"),
-                "kind": contract.get("kind"),
-                "interval": contract.get("interval"),
-                "amount_cents": int(contract.get("amount_cents") or 0),
-                "monthly_cents": int(contract.get("monthly_cents") or 0),
-                "next_due": contract.get("next_due"),
-                "status": contract.get("status"),
-                "running": bool(contracts.is_running(contract, reference)),
-                "category_name": contract.get("category_name"),
-                "account_name": contract.get("account_name"),
-                "cancellation_deadline": contract.get("deadline"),
-            }
-        )
+    items = [
+        _contract_item(contract, reference)
+        for contract in contracts.list_contracts(db)
+        if contract.get("status") != "ignored"
+    ]
     return {"items": items}
+
+
+CONTRACT_STATUSES = ("detected", "confirmed", "ignored", "cancelled")
+LETTER_MODES = ("ordentlich", "sonder", "termin")
+MAX_CONTRACT_KEY = 200
+
+
+def _contract(db: Database, key: str) -> dict:
+    if not key or len(key) > MAX_CONTRACT_KEY:
+        raise MobileWriteError(404, "not_found", "Vertrag nicht gefunden.")
+    row = db.one("SELECT * FROM contracts WHERE key = ?", (key,))
+    if not row:
+        raise MobileWriteError(404, "not_found", "Vertrag nicht gefunden.")
+    return row
+
+
+def update_contract(db: Database, key: str, payload: dict, *, today: date | None = None) -> dict:
+    """Status ändern oder eine Preiserhöhung als gesehen markieren."""
+    contract = _contract(db, key)
+    allowed = {"status", "price_change_ack"}
+    if not payload or set(payload) - allowed:
+        raise _invalid("Erlaubt sind nur status und price_change_ack.")
+    data: dict = {}
+    if "status" in payload:
+        status = payload["status"]
+        if status not in CONTRACT_STATUSES:
+            raise _invalid("Unbekannter Status.")
+        data["status"] = status
+        if status == "cancelled" and not contract["cancelled_on"]:
+            data["cancelled_on"] = (today or date.today()).isoformat()
+    if "price_change_ack" in payload:
+        if payload["price_change_ack"] is not True:
+            raise _invalid("price_change_ack muss true sein.")
+        data["price_change_ack"] = contract["amount_cents"]
+    data["updated"] = now_iso()
+    db.update("contracts", "key", key, data)
+    row = next((c for c in contracts.list_contracts(db) if c["key"] == key), None)
+    return _contract_item(row, today or date.today())
+
+
+def contract_letter(db: Database, key: str, payload: dict, *, today: date | None = None) -> dict:
+    """Kündigungsschreiben wie in der Web-Oberfläche, für das eigene Gerät."""
+    contract = _contract(db, key)
+    if set(payload) - {"mode", "date"}:
+        raise _invalid("Erlaubt sind nur mode und date.")
+    mode = payload.get("mode", "ordentlich")
+    if mode not in LETTER_MODES:
+        raise _invalid("Unbekannte Kündigungsart.")
+    on_date = payload.get("date")
+    if mode == "termin":
+        if not isinstance(on_date, str):
+            raise _invalid("Für eine Kündigung zum Termin fehlt das Datum.")
+        try:
+            parsed = date.fromisoformat(on_date)
+        except ValueError as error:
+            raise _invalid("Das Datum ist ungültig.") from error
+        if parsed < (today or date.today()):
+            raise _invalid("Das Datum liegt in der Vergangenheit.")
+    elif on_date is not None:
+        raise _invalid("Ein Datum gibt es nur bei der Kündigung zum Termin.")
+    letter = letters.build_letter(db, contract, mode, on_date)
+    return {
+        "subject": letter["subject"],
+        "body": letter["body"],
+        "letter": letter["letter"],
+        "email": contract.get("provider_email") or None,
+        "profile_complete": bool(letter["profile_complete"]),
+    }

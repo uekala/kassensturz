@@ -5,8 +5,10 @@ import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
+import 'contract_sheet.dart';
 
-/// Read-only list of the contracts the server detected or the user entered.
+/// List of the contracts the server detected or the user entered. With a
+/// current server a tap opens details, actions and the cancellation letter.
 /// Loads them when it is first shown.
 class ContractsView extends StatefulWidget {
   const ContractsView({required this.controller, super.key});
@@ -81,6 +83,13 @@ class _ContractsViewState extends State<ContractsView> {
                     contract: contracts[index],
                     nextDue: _date(contracts[index].nextDue),
                     deadline: _date(contracts[index].cancellationDeadline),
+                    onTap: controller.canEditContracts
+                        ? () => showContractSheet(
+                            context,
+                            controller: controller,
+                            contract: contracts[index],
+                          )
+                        : null,
                   ),
                 ],
             ],
@@ -96,11 +105,13 @@ class _ContractRow extends StatelessWidget {
     required this.contract,
     required this.nextDue,
     required this.deadline,
+    this.onTap,
   });
 
   final ServerContract contract;
   final String nextDue;
   final String deadline;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +127,12 @@ class _ContractRow extends StatelessWidget {
       detail: details.isEmpty ? 'Vertrag' : details,
       amount: formatSignedEuro(contract.amountCents / 100),
       positive: contract.amountCents > 0,
+      badge: (contract.priceChangeCents ?? 0) < 0
+          ? 'teurer'
+          : contract.status == 'detected'
+          ? 'neu'
+          : null,
+      onTap: onTap,
     );
   }
 }
