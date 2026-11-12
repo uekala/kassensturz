@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.7
+
+- Mitteilung bei neuen Buchungen: Was der tägliche Abruf (FinTS, Open Banking) oder der Eingangsordner neu bringt,
+  meldet Kassensturz über Home Assistant, eine Meldung je Abruf mit bis zu fünf Buchungen. Selbst importierte oder
+  angelegte Buchungen werden nicht gemeldet, ebenso wenig der Bestand beim ersten Start. Abschaltbar mit
+  `notify_new_transactions`.
+
 ## 0.3.6
 
 - Umzug in eine andere Installation, etwa von der lokalen App zur Installation über GitHub: *Einstellungen → Daten →

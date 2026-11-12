@@ -11,6 +11,7 @@ DEFAULTS = {
     "sync_time": "06:30",
     "sensors": True,
     "notify_service": "",
+    "notify_new_transactions": True,
     "warn_threshold": 200,
     "cancellation_reminder_days": "45,21,7",
     "import_folder": "/share/kassensturz",
@@ -19,7 +20,7 @@ DEFAULTS = {
     "mobile_server_url": "",
 }
 
-VERSION = "0.3.6"
+VERSION = "0.3.7"
 
 
 def load() -> dict:
