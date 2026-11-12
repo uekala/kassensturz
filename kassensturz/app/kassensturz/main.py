@@ -152,6 +152,8 @@ async def only_ingress(request: Request, call_next):
             "/api/v1/transactions/"
         ):
             policy = ("transaction-write", 60, 60)
+        if policy is None and request.method.upper() == "PUT" and request.url.path.startswith("/api/v1/budgets/"):
+            policy = ("budget-write", 60, 60)
         if policy is not None:
             scope, limit, window_seconds = policy
             key = request_rate_limit_key(

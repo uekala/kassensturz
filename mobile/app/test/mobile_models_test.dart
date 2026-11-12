@@ -33,7 +33,7 @@ void main() {
     final categories = ServerCategory.listFrom(_body('/api/v1/categories'));
     final contracts = ServerContract.listFrom(_body('/api/v1/contracts'));
 
-    expect(categories.map((category) => category.id), [5, 6]);
+    expect(categories.map((category) => category.id), [5, 6, 7]);
     expect(categories[1].parentId, 5);
     expect(contracts.single.name, 'Strom');
     expect(contracts.single.monthlyCents, -6500);

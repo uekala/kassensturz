@@ -38,6 +38,7 @@ CAPABILITIES = (
     "transactions.write",
     "transactions.search",
     "stats",
+    "budgets.write",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -454,3 +455,23 @@ def delete_transaction(tx_id: str, request: Request):
         return _write_error(error)
     services.schedule_refresh()
     return {"ok": True}
+
+
+@router.put("/api/v1/budgets/{category_id}")
+async def set_budget(category_id: str, request: Request):
+    """Set the monthly budget of an expense category; null removes it."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(category_id)
+    if parsed_id is None:
+        return _error(404, "not_found", "Kategorie nicht gefunden.")
+    payload = await _json_object(request)
+    if payload is None:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    try:
+        budget = mobile_write.set_budget(get_db(), parsed_id, payload)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+    services.schedule_refresh()
+    return {"budget": budget}

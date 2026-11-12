@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.6
+
+- Budgets in der App bearbeiten (ab Server 0.3.9): unter Planung auf ein Budget tippen, um den Betrag zu ändern oder
+  es zu entfernen; „Budget anlegen“ für eine Ausgabenkategorie ohne Budget.
+
 ## 0.3.5
 
 - Konten zeigen das Vermögen statt eines Gesamtsaldos, aufgeteilt in Alltag, Rücklagen und Depots.

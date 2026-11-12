@@ -4,6 +4,7 @@ import '../../core/design/app_theme.dart';
 import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
+import '../budget/budget_editor_sheet.dart';
 
 /// Accounts as the server reports them; they are managed in Home Assistant.
 class ServerAccountsPage extends StatelessWidget {
@@ -189,9 +190,30 @@ class ServerBudgetPage extends StatelessWidget {
               onRetry: controller.loadFinancialData,
             )
           else if (budgets.isEmpty)
-            const QuietMessage('Der Server liefert noch keine Budgets.')
+            const QuietMessage('Noch keine Budgets.')
           else
-            for (final budget in budgets) _BudgetBlock(budget: budget),
+            for (final budget in budgets)
+              _BudgetBlock(
+                budget: budget,
+                onTap: controller.canEditBudgets
+                    ? () => showBudgetEditor(
+                        context,
+                        controller: controller,
+                        categoryId: _integer(budget['category_id']),
+                        categoryName: _string(budget['name'], ''),
+                        limitCents: _integer(budget['limit_cents']),
+                      )
+                    : null,
+              ),
+          if (controller.canEditBudgets && data != null) ...[
+            const SizedBox(height: 4),
+            OutlinedButton.icon(
+              onPressed: () =>
+                  showBudgetEditor(context, controller: controller),
+              icon: const Icon(Icons.add),
+              label: const Text('Budget anlegen'),
+            ),
+          ],
           if (controller.financeError != null && data != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -201,7 +223,10 @@ class ServerBudgetPage extends StatelessWidget {
           ],
           const SizedBox(height: 6),
           Text(
-            'Budgetlimits änderst du in Kassensturz in Home Assistant.',
+            controller.canEditBudgets
+                ? 'Tippe auf ein Budget, um es zu ändern oder zu entfernen.'
+                : 'Budgets änderst du in Kassensturz in Home Assistant. Ab '
+                      'Server 0.3.9 geht das auch hier.',
             style: textTheme.bodySmall,
           ),
         ],
@@ -211,9 +236,10 @@ class ServerBudgetPage extends StatelessWidget {
 }
 
 class _BudgetBlock extends StatelessWidget {
-  const _BudgetBlock({required this.budget});
+  const _BudgetBlock({required this.budget, this.onTap});
 
   final Map<String, dynamic> budget;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -227,38 +253,42 @@ class _BudgetBlock extends StatelessWidget {
         : (spent / limit).clamp(0.0, 1.0).toDouble();
     final over = spent > limit || _string(budget['state'], 'ok') == 'over';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _string(budget['name'], 'Budget'),
-                  style: textTheme.titleMedium,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _string(budget['name'], 'Budget'),
+                    style: textTheme.titleMedium,
+                  ),
                 ),
-              ),
-              Text(
-                '${formatEuro(spent / 100)} von ${formatEuro(limit / 100)}',
-                style: textTheme.bodyMedium,
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          ThickBar(value: progress, over: over),
-          const SizedBox(height: 6),
-          Text(
-            over
-                ? '${formatEuro(left.abs() / 100)} über dem Budget'
-                : '${formatEuro(left / 100)} übrig',
-            style: textTheme.bodySmall?.copyWith(
-              color: over ? klar.warn : klar.mutedInk,
-              fontWeight: over ? FontWeight.w600 : FontWeight.w400,
+                Text(
+                  '${formatEuro(spent / 100)} von ${formatEuro(limit / 100)}',
+                  style: textTheme.bodyMedium,
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 7),
+            ThickBar(value: progress, over: over),
+            const SizedBox(height: 6),
+            Text(
+              over
+                  ? '${formatEuro(left.abs() / 100)} über dem Budget'
+                  : '${formatEuro(left / 100)} übrig',
+              style: textTheme.bodySmall?.copyWith(
+                color: over ? klar.warn : klar.mutedInk,
+                fontWeight: over ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

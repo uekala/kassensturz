@@ -286,6 +286,18 @@ class MobileApiClient {
     );
   }
 
+  /// Sets the monthly budget of an expense category; null removes it.
+  Future<Map<String, dynamic>> setBudget(int categoryId, int? limitCents) {
+    if (categoryId <= 0 || (limitCents != null && limitCents <= 0)) {
+      throw const FormatException('Das Budget ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'PUT',
+      path: '/api/v1/budgets/$categoryId',
+      body: {'limit_cents': limitCents},
+    );
+  }
+
   Future<void> deleteTransaction(int id) async {
     if (id <= 0) throw const FormatException('Die Buchung ist ungültig.');
     await _authenticatedJson(

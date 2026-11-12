@@ -90,6 +90,7 @@ const fullCapabilities = [
   'transactions.write',
   'transactions.search',
   'stats',
+  'budgets.write',
 ];
 
 /// Answers like a Kassensturz server 0.3.0 with one cash account and one
@@ -139,11 +140,21 @@ MobileHttpResponse serverAnswer(
       ],
     });
   }
+  if (request.method == 'PUT' && path.startsWith('/api/v1/budgets/')) {
+    return jsonResponse(200, {'budget': jsonDecode(request.body ?? '{}')});
+  }
   if (path == '/api/v1/categories') {
     return jsonResponse(200, {
       'items': [
         {'id': 5, 'name': 'Wohnen', 'kind': 'expense', 'parent_id': null},
-        {'id': 6, 'name': 'Lebensmittel', 'kind': 'expense', 'parent_id': 5},
+        {
+          'id': 6,
+          'name': 'Lebensmittel',
+          'kind': 'expense',
+          'parent_id': 5,
+          'budget_cents': 45000,
+        },
+        {'id': 7, 'name': 'Gehalt', 'kind': 'income', 'parent_id': null},
       ],
     });
   }

@@ -27,6 +27,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const writeCapability = 'transactions.write';
   static const searchCapability = 'transactions.search';
   static const statsCapability = 'stats';
+  static const budgetCapability = 'budgets.write';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -105,6 +106,9 @@ class MobileConnectionController extends ChangeNotifier {
   List<ServerContract> get contracts => _contracts;
   bool get contractsLoading => _contractsLoading;
   String? get contractsError => _contractsError;
+
+  /// True once the server accepts budget changes from the app.
+  bool get canEditBudgets => _capabilities.contains(budgetCapability);
 
   /// True once the server offers the figures for the analysis page.
   bool get canShowStats => _capabilities.contains(statsCapability);
@@ -480,13 +484,23 @@ class MobileConnectionController extends ChangeNotifier {
   Future<String?> deleteTransaction(int id) =>
       _write(() => _apiClient.deleteTransaction(id));
 
+  /// Sets or, with null, removes the monthly budget of a category. Returns
+  /// null on success, otherwise the message to show.
+  Future<String?> setBudget(int categoryId, int? limitCents) => _write(
+    () => _apiClient.setBudget(categoryId, limitCents),
+    capability: budgetCapability,
+  );
+
   /// Write calls are never repeated automatically. After success all views
   /// are reloaded so balances and lists show what the server stored.
-  Future<String?> _write(Future<Object?> Function() call) async {
+  Future<String?> _write(
+    Future<Object?> Function() call, {
+    String capability = writeCapability,
+  }) async {
     if (_session == null) {
       return describeMobileError(const MobileSessionExpiredException());
     }
-    if (!canWriteTransactions) {
+    if (!_capabilities.contains(capability)) {
       return 'Der Server unterstützt das Speichern noch nicht. '
           'Bitte aktualisiere Kassensturz in Home Assistant.';
     }

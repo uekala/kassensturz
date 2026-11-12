@@ -363,7 +363,7 @@ def test_categories_and_contracts_are_allowlisted(db, monkeypatch):
         headers = paired_headers(client)
         categories = client.get("/api/v1/categories", headers=headers).json()["items"]
         contracts = client.get("/api/v1/contracts", headers=headers).json()
-    assert categories and set(categories[0]) == {"id", "name", "parent_id", "kind", "color"}
+    assert categories and set(categories[0]) == {"id", "name", "parent_id", "kind", "color", "budget_cents"}
     names = [item["name"] for item in contracts["items"]]
     assert "Strom" in names and "Alt" not in names
     strom = next(item for item in contracts["items"] if item["name"] == "Strom")
