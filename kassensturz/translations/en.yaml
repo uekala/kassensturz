@@ -17,6 +17,12 @@ configuration:
   notify_month_review:
     name: Send the monthly review
     description: Sends a summary of the previous month with income, expenses and savings rate during the first week of the month.
+  events:
+    name: Send events for automations
+    description: Fires kassensturz_* events in Home Assistant, for example when the salary arrives, on a large debit or when a budget is nearly used up.
+  large_transaction:
+    name: Large debit from (euros)
+    description: A single debit of at least this amount fires the event kassensturz_grosse_abbuchung. 0 turns it off.
   warn_threshold:
     name: Warning threshold in euros
     description: Warn when the forecast balance drops below this amount.

@@ -13,6 +13,8 @@ DEFAULTS = {
     "notify_service": "",
     "notify_new_transactions": True,
     "notify_month_review": True,
+    "events": True,
+    "large_transaction": 500,
     "warn_threshold": 200,
     "cancellation_reminder_days": "45,21,7",
     "import_folder": "/share/kassensturz",
@@ -21,7 +23,7 @@ DEFAULTS = {
     "mobile_server_url": "",
 }
 
-VERSION = "0.3.15"
+VERSION = "0.3.16"
 
 
 def load() -> dict:
