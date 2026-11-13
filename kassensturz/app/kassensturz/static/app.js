@@ -71,7 +71,7 @@ function relDay(iso) {
   if (days > 1 && days < 7) return `in ${days} Tagen`;
   return dShort(iso);
 }
-const KIND_LABEL = { giro: "Girokonto", tagesgeld: "Tagesgeld", sparkonto: "Sparkonto", festgeld: "Festgeld", vl: "VL / Bausparen", depot: "Depot", immobilie: "Immobilie", kredit: "Kredit", kreditkarte: "Kreditkarte", paypal: "PayPal", sonstiges: "Sonstiges" };
+const KIND_LABEL = { giro: "Girokonto", tagesgeld: "Tagesgeld", sparkonto: "Sparkonto", festgeld: "Festgeld", vl: "VL / Bausparen", depot: "Depot", immobilie: "Immobilie", kredit: "Kredit", kreditkarte: "Kreditkarte", paypal: "PayPal", bargeld: "Bargeld", sonstiges: "Sonstiges" };
 // Konten, deren Wert man einträgt statt Buchungen abzurufen.
 const VALUE_KINDS = new Set(["depot", "festgeld", "vl", "immobilie", "kredit"]);
 const SAVINGS_KINDS = new Set(["tagesgeld", "sparkonto", ...VALUE_KINDS]);

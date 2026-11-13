@@ -350,6 +350,42 @@ def delete_transaction(db: Database, tx_id: int) -> None:
         )
 
 
+CASH_KIND = "bargeld"
+MAX_MANUAL_ACCOUNTS = 20
+
+
+def create_cash_account(db: Database, payload: dict, *, today: date | None = None) -> dict:
+    """Create an account without bank feed so the app can book cash entries.
+
+    Only this one kind can be created from the app. Bank accounts, deposits
+    and loans stay in the Home Assistant interface.
+    """
+    if set(payload) - {"name", "balance_cents"}:
+        raise _invalid("Die Anfrage enthält unbekannte Felder.")
+    name = payload.get("name")
+    if not isinstance(name, str) or not name.strip():
+        raise _invalid("Bitte gib dem Konto einen Namen.")
+    name = " ".join(name.split())[:60]
+    balance = payload.get("balance_cents")
+    if balance is not None and (isinstance(balance, bool) or not isinstance(balance, int) or not 0 <= balance <= 100_000_000):
+        raise _invalid("Der Bestand ist ungültig.")
+    with db.tx(immediate=True):
+        if db.one("SELECT id FROM accounts WHERE lower(name) = lower(?) AND archived = 0", (name,)):
+            raise MobileWriteError(409, "duplicate", "Ein Konto mit diesem Namen gibt es schon.")
+        manual = db.scalar(
+            "SELECT COUNT(*) FROM accounts WHERE archived = 0 AND connection_id IS NULL AND eb_session_id IS NULL")
+        if int(manual or 0) >= MAX_MANUAL_ACCOUNTS:
+            raise MobileWriteError(409, "limit", "Mehr Konten lassen sich aus der App nicht anlegen.")
+        data = {"name": name, "kind": CASH_KIND, "in_forecast": 1, "created": now_iso(),
+                "sort": int(db.scalar("SELECT COALESCE(MAX(sort), 0) FROM accounts") or 0) + 1}
+        if balance is not None:
+            # Der Bestand gilt bis gestern, damit Umsätze von heute schon mitzählen.
+            data["balance_cents"] = balance
+            data["balance_date"] = ((today or date.today()) - timedelta(days=1)).isoformat()
+        account_id = db.insert("accounts", data)
+    return next(a for a in list_accounts(db)["items"] if a["id"] == account_id)
+
+
 def list_accounts(db: Database) -> dict:
     """Active accounts with current balance; no IBAN or bank reference."""
     items = []

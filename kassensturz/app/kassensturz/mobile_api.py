@@ -47,6 +47,7 @@ CAPABILITIES = (
     "tax",
     "receipts",
     "warranty",
+    "accounts.write",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -399,6 +400,23 @@ def accounts(request: Request):
     if isinstance(device, Response):
         return device
     return mobile_write.list_accounts(get_db())
+
+
+@router.post("/api/v1/accounts")
+async def create_account(request: Request):
+    """Create a cash account, the only kind the app may add."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    if payload is None:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    try:
+        account = mobile_write.create_cash_account(get_db(), payload)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+    services.schedule_refresh()
+    return JSONResponse({"account": account}, status_code=201)
 
 
 @router.get("/api/v1/categories")

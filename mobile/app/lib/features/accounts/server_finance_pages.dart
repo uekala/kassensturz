@@ -78,8 +78,9 @@ class ServerAccountsPage extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'Konten legst du in Kassensturz in Home Assistant an, dort trägst '
-            'du auch Werte für Depot, Festgeld, Immobilie und Kredit ein. Umsätze von Hand gehen nur auf '
-            'Konten ohne Bankabruf.',
+            'du auch Werte für Depot, Festgeld, Immobilie und Kredit ein. '
+            'Umsätze von Hand gehen nur auf Konten ohne Bankabruf; ein '
+            'Konto für Bargeld legt die App über das Plus selbst an.',
             style: textTheme.bodySmall,
           ),
         ],

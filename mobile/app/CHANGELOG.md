@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.16
+
+- Das Plus führt nicht mehr in eine Sackgasse: Gibt es noch kein Konto ohne Bankabruf, bietet die App an, eines für
+  Bargeld anzulegen, und öffnet danach gleich den neuen Umsatz (ab Server 0.3.21).
+
 ## 0.3.15
 
 - Garantie an Käufen: In jeder Ausgabe gibt es „Garantie bis“, mit 2, 3 oder 5 Jahren ab Kauf oder einem eigenen

@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.21
+
+- Die Mobile-App kann ein Konto für Bargeld anlegen (ab App 0.3.16). Andere Kontoarten bleiben der Oberfläche in
+  Home Assistant vorbehalten.
+- Neue Kontoart „Bargeld“.
+
 ## 0.3.20
 
 - Garantie an Käufen: In jeder Ausgabe lässt sich „Garantie bis“ setzen, mit 2, 3 oder 5 Jahren ab Kauf oder einem
