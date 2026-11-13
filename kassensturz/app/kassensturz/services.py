@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import analytics, backup, contracts, fints_sync, ha, inbox, ledger, openbanking, options, secrets_store
+from . import analytics, backup, contracts, fints_sync, ha, inbox, ledger, openbanking, options, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -19,9 +19,12 @@ def build_summary(db: Database) -> dict:
     today = date.today()
     month = analytics.month_stats(db, today.strftime("%Y-%m"))
     running = [c for c in cons if c["status"] != "ignored" and contracts.is_running(c, today)]
+    accounts = ledger.accounts_with_balance(db)
     return {
         "forecast": fc,
-        "accounts": ledger.accounts_with_balance(db),
+        "accounts": accounts,
+        "worth": net_worth(accounts),
+        "goals": savings.list_goals(db, today),
         "budgets": analytics.budgets(db),
         "month": month,
         "fixed_monthly_cents": analytics.fixed_costs_monthly(running),
@@ -29,6 +32,18 @@ def build_summary(db: Database) -> dict:
         "next_payment": next((u for u in fc["upcoming"] if u["amount_cents"] < 0), None),
         "contracts": cons,
     }
+
+
+def net_worth(accounts: list[dict]) -> dict:
+    """Vermögen aus den Konten mit bekanntem Stand, aufgeteilt wie auf der Kontenseite."""
+    groups = {g: 0 for g in ledger.WORTH_GROUPS}
+    loans = 0
+    for a in accounts:
+        if not a["balance_known"]:
+            continue
+        groups[a["group"]] += a["balance_now"]
+        loans += a["group"] == "kredite"
+    return {"total_cents": sum(groups.values()), "groups": groups, "loan_count": loans}
 
 
 def alerts(db: Database, summary: dict) -> list[dict]:
@@ -160,30 +175,37 @@ def _tx_label(row: dict) -> str:
     return text if len(text) <= 40 else text[:39] + "…"
 
 
-def new_transactions_notice(db: Database) -> dict | None:
-    """Neue Buchungen aus dem automatischen Abruf seit der letzten Meldung.
+def new_auto_transactions(db: Database) -> list[dict]:
+    """Neue Buchungen aus dem automatischen Abruf seit dem letzten Aufruf, neueste zuerst.
 
-    Merkt sich die höchste gemeldete Buchungs-ID. Beim ersten Lauf wird nur der Stand
-    festgehalten, damit ein Update keine Meldung über den ganzen Bestand auslöst."""
+    Merkt sich die höchste gesehene Buchungs-ID. Beim ersten Lauf wird nur der Stand
+    festgehalten, damit ein Update nicht den ganzen Bestand als neu meldet."""
     max_id = int(db.scalar("SELECT COALESCE(MAX(id), 0) FROM transactions") or 0)
     seen = db.get_setting(TX_NOTICE_KEY)
     if seen is None:
         db.set_setting(TX_NOTICE_KEY, max_id)
-        return None
+        return []
     seen = int(seen)
     if max_id <= seen:
         if max_id < seen:  # Buchungen gelöscht: Stand zurücksetzen
             db.set_setting(TX_NOTICE_KEY, max_id)
-        return None
+        return []
     marks = ",".join("?" for _ in AUTO_SOURCES)
     rows = db.query(
-        f"""SELECT t.id, t.booking_date, t.amount_cents, t.counterparty, t.booking_text, t.purpose, a.name AS account
+        f"""SELECT t.id, t.booking_date, t.amount_cents, t.counterparty, t.booking_text, t.purpose, t.is_transfer,
+                   a.name AS account, c.builtin_key AS category_key
             FROM transactions t JOIN accounts a ON a.id = t.account_id
+            LEFT JOIN categories c ON c.id = t.category_id
             WHERE t.id > ? AND t.source IN ({marks})
             ORDER BY t.booking_date DESC, t.id DESC""",
         (seen, *AUTO_SOURCES),
     )
     db.set_setting(TX_NOTICE_KEY, max_id)
+    return rows
+
+
+def transactions_notice(rows: list[dict]) -> dict | None:
+    """Text der Mitteilung zu neuen Buchungen."""
     if not rows:
         return None
     count = len(rows)
@@ -197,7 +219,56 @@ def new_transactions_notice(db: Database) -> dict | None:
             rest = count - TX_NOTICE_LIST
             lines.append(f"und {rest} {'weitere' if rest > 1 else 'weitere Buchung'}")
         message = "\n".join(lines)
-    return {"key": f"tx:{max_id}", "title": title, "message": message, "count": count}
+    return {"key": f"tx:{max(r['id'] for r in rows)}", "title": title, "message": message, "count": count}
+
+
+def new_transactions_notice(db: Database) -> dict | None:
+    return transactions_notice(new_auto_transactions(db))
+
+
+SALARY_MIN_CENTS = 20000
+BUDGET_LEVELS = (100, 80)
+EVENT_MAX_PER_KIND = 10
+
+
+def transaction_events(rows: list[dict], large_cents: int) -> list[tuple[str, dict]]:
+    """Ereignisse aus neuen Buchungen: Sammelmeldung, Gehalt, große Abbuchungen."""
+    if not rows:
+        return []
+    out = [("neue_buchungen", {"anzahl": len(rows), "konten": sorted({r["account"] for r in rows}),
+                               "summe": round(sum(r["amount_cents"] for r in rows) / 100, 2)})]
+    salaries = [r for r in rows if r["category_key"] == "gehalt" and r["amount_cents"] >= SALARY_MIN_CENTS]
+    for r in salaries[:EVENT_MAX_PER_KIND]:
+        out.append(("gehalt_eingegangen", {"betrag": round(r["amount_cents"] / 100, 2), "konto": r["account"],
+                                           "von": _tx_label(r), "datum": r["booking_date"]}))
+    if large_cents > 0:
+        large = [r for r in rows if r["amount_cents"] <= -large_cents and not r["is_transfer"]]
+        for r in large[:EVENT_MAX_PER_KIND]:
+            out.append(("grosse_abbuchung", {"betrag": round(-r["amount_cents"] / 100, 2), "konto": r["account"],
+                                             "an": _tx_label(r), "datum": r["booking_date"]}))
+    return out
+
+
+def budget_events(summary: dict, today: date | None = None) -> list[tuple[str, str, dict]]:
+    """Je Budget und Monat höchstens zwei Ereignisse: bei 80 % und bei 100 %."""
+    month = (today or date.today()).strftime("%Y-%m")
+    out = []
+    for b in summary["budgets"]:
+        percent = round(b["ratio"] * 100)
+        for level in BUDGET_LEVELS:
+            if percent >= level:
+                out.append((f"ev-budget:{month}:{b['category_id']}:{level}", "budget_schwelle",
+                            {"kategorie": b["name"], "schwelle": level, "prozent": percent,
+                             "budget": round(b["budget_cents"] / 100, 2), "ausgegeben": round(b["spent_cents"] / 100, 2),
+                             "rest": round(b["left_cents"] / 100, 2), "monat": month}))
+    return out
+
+
+def large_transaction_cents(opts: dict) -> int:
+    try:
+        return max(0, int(opts.get("large_transaction", 500))) * 100
+    except (TypeError, ValueError):
+        return 50000
 
 
 REVIEW_DAYS = 7
@@ -232,9 +303,16 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
         review = month_review_notice(db)
         if review and opts.get("notify_month_review", True):
             ha.notify(db, review["key"], review["title"], review["message"], opts.get("notify_service"))
-        notice = new_transactions_notice(db)
+        rows = new_auto_transactions(db)
+        notice = transactions_notice(rows)
         if notice and opts.get("notify_new_transactions", True):
             ha.notify(db, notice["key"], notice["title"], notice["message"], opts.get("notify_service"))
+        if opts.get("events", True):
+            for event, data in transaction_events(rows, large_transaction_cents(opts)):
+                ha.fire(event, data)
+            # Erst die höhere Schwelle: Wer in einem Schritt über 100 % springt, bekommt beide Ereignisse.
+            for key, event, data in budget_events(summary):
+                ha.fire_once(db, key, event, data)
     return summary
 
 

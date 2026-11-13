@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.16
+
+- Neue Sensoren für Home Assistant: Vermögen mit seinen Teilen, Ersparnisse, Schulden, Rücklage für Jahreskosten
+  und ein Sensor je Sparziel.
+- Kontostand, Konten, Vermögen, Ersparnisse und Schulden führen eine Langzeitstatistik in Home Assistant.
+- Ereignisse für Automationen: `kassensturz_neue_buchungen`, `kassensturz_gehalt_eingegangen`,
+  `kassensturz_grosse_abbuchung` und `kassensturz_budget_schwelle` (80 % und 100 %, je einmal im Monat).
+  Beispiele stehen in der Dokumentation.
+- Neue Optionen `events` (Standard: an) und `large_transaction` (Standard: 500 €).
+
 ## 0.3.15
 
 - Sparziele: Name, Zielbetrag, optional Datum und Konto. Mit Konto zählt dessen Stand als gespart, mehrere Ziele am

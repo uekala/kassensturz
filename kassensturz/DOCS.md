@@ -213,6 +213,14 @@ Mit `sensors: true` legt Kassensturz diese Sensoren an und aktualisiert sie alle
 | `sensor.kassensturz_naechste_zahlung` | nächste feste Abbuchung, Attribute `empfaenger` und `datum` |
 | `sensor.kassensturz_konto_*` | ein Sensor je Konto |
 | `sensor.kassensturz_budget_*` | Restbudget je Kategorie mit Budget |
+| `sensor.kassensturz_vermoegen` | alles zusammen, Kredite abgezogen; Attribute `alltag`, `ruecklagen`, `depots`, `immobilien`, `kredite` |
+| `sensor.kassensturz_ersparnisse` | Rücklagen und Depots |
+| `sensor.kassensturz_schulden` | Restschuld aller Kredite |
+| `sensor.kassensturz_ruecklage_jahreskosten` | was für Jahreskosten zurückgelegt sein sollte, Attribut `pro_monat` |
+| `sensor.kassensturz_sparziel_*` | gesparter Betrag je Sparziel, Attribute `ziel`, `rest`, `prozent`, `bis`, `pro_monat` |
+
+Kontostand, Konten, Vermögen, Ersparnisse und Schulden führen eine Langzeitstatistik. Damit zeigt die
+Statistik-Karte ihren Verlauf über Monate und Jahre.
 
 Benachrichtigungen gibt es, wenn die Prognose unter `warn_threshold` fällt, ein Vertrag teurer wird, eine Kündigungsfrist naht,
 ein Budget überschritten ist, der tägliche Abruf eine TAN braucht oder neue Buchungen eingegangen sind
@@ -238,6 +246,47 @@ entities:
 Die Sensoren werden über die API gesetzt und haben deshalb keine eindeutige ID; Name und Symbol lassen sich in der
 Oberfläche nicht ändern. Nach einem Neustart von Home Assistant sind sie spätestens nach 15 Minuten wieder da.
 
+### Ereignisse für Automationen
+
+Mit `events: true` feuert Kassensturz Ereignisse, auf die Automationen reagieren können:
+
+| Ereignis | Wann | Daten |
+|---|---|---|
+| `kassensturz_neue_buchungen` | der automatische Abruf oder der Eingangsordner hat Buchungen geliefert | `anzahl`, `konten`, `summe` |
+| `kassensturz_gehalt_eingegangen` | eine neue Buchung der Kategorie Gehalt ab 200 € | `betrag`, `konto`, `von`, `datum` |
+| `kassensturz_grosse_abbuchung` | eine neue Abbuchung ab `large_transaction` Euro, Umbuchungen ausgenommen | `betrag`, `konto`, `an`, `datum` |
+| `kassensturz_budget_schwelle` | ein Budget erreicht 80 % oder 100 %, je Schwelle einmal im Monat | `kategorie`, `schwelle`, `prozent`, `budget`, `ausgegeben`, `rest`, `monat` |
+
+Wie bei den Mitteilungen zählen nur Buchungen, die ohne dein Zutun ankommen. Je Abruf gibt es höchstens zehn
+Gehalts- und zehn Abbuchungs-Ereignisse.
+
+Beispiel: Ansage, wenn das Gehalt da ist.
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: kassensturz_gehalt_eingegangen
+actions:
+  - action: notify.mobile_app_pixel
+    data:
+      title: Gehalt ist da
+      message: "{{ trigger.event.data.betrag }} € auf {{ trigger.event.data.konto }}"
+```
+
+Beispiel: Hinweis, sobald ein Budget zu 80 % verbraucht ist.
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: kassensturz_budget_schwelle
+    event_data:
+      schwelle: 80
+actions:
+  - action: notify.mobile_app_pixel
+    data:
+      message: "{{ trigger.event.data.kategorie }}: noch {{ trigger.event.data.rest }} € übrig"
+```
+
 ## Optionen
 
 | Option | Bedeutung |
@@ -248,6 +297,8 @@ Oberfläche nicht ändern. Nach einem Neustart von Home Assistant sind sie spät
 | `notify_service` | z. B. `notify.mobile_app_pixel`, leer für persistente Benachrichtigungen |
 | `notify_new_transactions` | Meldung bei neuen Buchungen aus dem automatischen Abruf und dem Eingangsordner (Standard: an) |
 | `notify_month_review` | Monatsabschluss des Vormonats in der ersten Woche des Monats (Standard: an) |
+| `events` | Ereignisse für Automationen senden (Standard: an) |
+| `large_transaction` | Betrag in Euro, ab dem eine Abbuchung als groß gilt (Standard: 500, 0 schaltet ab) |
 | `warn_threshold` | Warnung, wenn die Prognose unter diesen Betrag in Euro fällt |
 | `import_folder` | Eingangsordner, Standard `/share/kassensturz`; leer lässt ihn aus |
 
