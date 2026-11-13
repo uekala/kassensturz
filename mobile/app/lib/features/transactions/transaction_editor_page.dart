@@ -232,6 +232,18 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
     }
     if (!mounted) return;
     if (failure == null) {
+      final also = existing == null ? 0 : widget.controller.lastAlsoChanged;
+      if (also > 0) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text(
+              also == 1
+                  ? 'Gemerkt: 1 weitere Buchung genauso zugeordnet.'
+                  : 'Gemerkt: $also weitere Buchungen genauso zugeordnet.',
+            ),
+          ),
+        );
+      }
       Navigator.of(context).pop(true);
       return;
     }

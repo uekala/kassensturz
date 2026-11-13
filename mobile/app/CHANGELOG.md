@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.9
+
+- Nach einer Kategorieänderung zeigt die App, wie viele weitere Buchungen der Server genauso zugeordnet hat
+  (ab Server 0.3.11).
+
 ## 0.3.8
 
 - Update-Hinweis: Die App fragt beim Start bei GitHub nach einer neueren Version und bietet sie mit „Update laden“

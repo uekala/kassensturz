@@ -119,6 +119,13 @@ Ein Depot legst du unter *Konten → Konto ohne Import anlegen* mit der Art „D
 Veränderung seit dem vorherigen Wert. Depots zählen zum Vermögen, aber nicht zu „frei verfügbar“ und zur Prognose.
 Einzelne Wertpapiere und Kurse kennt Kassensturz nicht.
 
+## Lernen aus Korrekturen
+
+Änderst du bei einer Buchung die Kategorie, merkt sich Kassensturz den Empfänger. Alle anderen Buchungen dieses Empfängers,
+alte wie künftige, bekommen dieselbe Kategorie; von Hand gesetzte bleiben. Das Gelernte steht unter *Einstellungen →
+Gelernt* und lässt sich dort einzeln vergessen. Eigene Regeln haben Vorrang vor Gelerntem, Gelerntes vor der eingebauten
+Erkennung. Gelernt wird nur aus deinen eigenen Daten auf deinem Gerät.
+
 ## Umbuchungen und doppelte Ausgaben
 
 Ein Einkauf über PayPal taucht zweimal auf: als Abbuchung „PayPal Europe“ auf dem Girokonto und als Zahlung an den Händler im

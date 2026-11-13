@@ -178,6 +178,19 @@ void main() {
     controller.dispose();
   });
 
+  test('a category change reports how many transactions followed', () async {
+    final transport = ScriptedTransport(serverAnswer);
+    final controller = _controller(await pairedStore(), transport);
+    await controller.restore();
+
+    expect(controller.lastAlsoChanged, 0);
+    expect(await controller.updateTransaction(9, {'category_id': 6}), isNull);
+    expect(controller.lastAlsoChanged, 4);
+    final patch = transport.requests.lastWhere((r) => r.method == 'PATCH');
+    expect(patch.uri.path, '/api/v1/transactions/9');
+    controller.dispose();
+  });
+
   test('a repeated save reuses the same request id', () async {
     var breakConnection = true;
     final transport = ScriptedTransport((request) {

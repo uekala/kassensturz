@@ -40,6 +40,7 @@ CAPABILITIES = (
     "stats",
     "budgets.write",
     "contracts.write",
+    "categories.learn",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -438,7 +439,11 @@ async def update_transaction(tx_id: str, request: Request):
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
     services.schedule_refresh()
-    return {"transaction": transaction}
+    return {
+        "learned": transaction.pop("learned", False),
+        "also_changed": transaction.pop("also_changed", 0),
+        "transaction": transaction,
+    }
 
 
 @router.delete("/api/v1/transactions/{tx_id}")

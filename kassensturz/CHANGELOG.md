@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.11
+
+- Kassensturz lernt aus Korrekturen: Änderst du bei einer Buchung die Kategorie, merkt es sich den Empfänger und ordnet
+  alle ähnlichen Buchungen genauso zu, alte wie künftige. Eine neuere Korrektur ersetzt die ältere, Einnahmen und
+  Ausgaben werden getrennt gelernt. Eigene Regeln haben Vorrang. Zahlungsdienste wie PayPal oder Klarna als Empfänger
+  werden nicht gelernt, weil dahinter viele Händler stehen.
+- Einstellungen → „Gelernt“ zeigt die gemerkten Empfänger; „Vergessen“ nimmt einen Eintrag zurück.
+- Gilt auch für Änderungen aus der Mobile-App (Fähigkeit `categories.learn`); mit `learn: false` bleibt es bei der
+  einen Buchung.
+
 ## 0.3.10
 
 - Verträge aus der Mobile-App ändern: `PATCH /api/v1/contracts/{schlüssel}` mit `status` (erkannt, bestätigt,

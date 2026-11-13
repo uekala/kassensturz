@@ -44,7 +44,7 @@ CREATE_FIELDS = frozenset(
     }
 )
 UPDATE_FIELDS = frozenset(
-    {"booking_date", "amount_cents", "counterparty", "purpose", "category_id", "note"}
+    {"booking_date", "amount_cents", "counterparty", "purpose", "category_id", "note", "learn"}
 )
 MANUAL_ONLY_FIELDS = frozenset({"booking_date", "amount_cents", "counterparty", "purpose"})
 
@@ -303,8 +303,20 @@ def update_transaction(db: Database, tx_id: int, payload: dict, *, today: date |
                     merged.get("counterparty"),
                     merged.get("purpose"),
                 )
+        learn = payload.get("learn", True)
+        if not isinstance(learn, bool):
+            raise _invalid("learn muss true oder false sein.")
+        if "learn" in payload and len(payload) == 1:
+            raise _invalid("Die Anfrage enthält keine Änderungen.")
         db.update("transactions", "id", tx_id, data)
-    return serialize_transaction(_require_transaction(db, tx_id))
+        learned = None
+        if "category_id" in data and learn:
+            learned = categorize.learn(db, {**row, **data}, data["category_id"])
+    result = serialize_transaction(_require_transaction(db, tx_id))
+    # Ähnliche Buchungen folgen der Korrektur; die Zahl zeigt die App an.
+    result["also_changed"] = categorize.recategorize(db) if learned else 0
+    result["learned"] = bool(learned)
+    return result
 
 
 def delete_transaction(db: Database, tx_id: int) -> None:

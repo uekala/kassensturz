@@ -343,11 +343,14 @@ def update_transaction(tx_id: int, body: dict = Body(...)):
             db.insert("rules", {"pattern": rule["pattern"].strip(), "field": rule.get("field") or "any", "sign": rule.get("sign") or "any",
                                 "category_id": cat["id"], "mark_transfer": 1 if cat["kind"] == "transfer" else 0, "priority": 100,
                                 "enabled": 1, "created": now_iso()})
+    learned = None
+    if "category_id" in data and not body.get("rule") and body.get("learn", True):
+        learned = categorize.learn(db, tx, data["category_id"])
     db.update("transactions", "id", tx_id, data)
-    if body.get("rule"):
+    if body.get("rule") or learned:
         changed = categorize.recategorize(db)
     _changed()
-    return {"ok": True, "recategorized": changed}
+    return {"ok": True, "recategorized": changed, "learned": bool(learned)}
 
 
 @app.post("/api/transactions/{tx_id}/reset")
@@ -445,6 +448,7 @@ def delete_category(cid: int):
         db.execute("UPDATE transactions SET category_id = ? WHERE category_id = ?", (fallback, cid))
         db.execute("UPDATE splits SET category_id = ? WHERE category_id = ?", (fallback, cid))
         db.execute("UPDATE rules SET category_id = ? WHERE category_id = ?", (fallback, cid))
+        db.execute("DELETE FROM learned_categories WHERE category_id = ?", (cid,))
         db.execute("UPDATE categories SET parent_id = ? WHERE parent_id = ?", (cat["parent_id"], cid))
         db.execute("DELETE FROM categories WHERE id = ?", (cid,))
     _changed()
@@ -467,6 +471,22 @@ def get_budgets(month: str = ""):
 def rules():
     db = get_db()
     return db.query("SELECT r.*, c.name AS category_name FROM rules r LEFT JOIN categories c ON c.id = r.category_id ORDER BY r.priority, r.id")
+
+
+@app.get("/api/learned")
+def learned_categories():
+    return get_db().query(
+        "SELECT l.id, l.label, l.sign, l.category_id, c.name AS category_name FROM learned_categories l "
+        "LEFT JOIN categories c ON c.id = l.category_id ORDER BY l.label COLLATE NOCASE")
+
+
+@app.delete("/api/learned/{lid}")
+def forget_learned(lid: int):
+    db = get_db()
+    db.execute("DELETE FROM learned_categories WHERE id = ?", (lid,))
+    changed = categorize.recategorize(db)
+    _changed()
+    return {"ok": True, "recategorized": changed}
 
 
 @app.post("/api/rules")
