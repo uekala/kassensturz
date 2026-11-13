@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.13
+
+- Neues App-Icon: ein K mit Pfeil nach oben auf Blau statt des grünen Kassenzettels. Ab Android 13 passt es sich
+  auf Wunsch den thematischen Symbolen an.
+
 ## 0.3.12
 
 - Planung zeigt Sparziele mit Fortschritt und nötiger Monatsrate sowie die Jahreskosten mit der Rücklage, die dafür
