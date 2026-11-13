@@ -29,6 +29,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const statsCapability = 'stats';
   static const budgetCapability = 'budgets.write';
   static const contractCapability = 'contracts.write';
+  static const affordCapability = 'afford';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -107,6 +108,30 @@ class MobileConnectionController extends ChangeNotifier {
   List<ServerContract> get contracts => _contracts;
   bool get contractsLoading => _contractsLoading;
   String? get contractsError => _contractsError;
+
+  /// True once the server answers "can I afford this?".
+  bool get canAfford => _capabilities.contains(affordCapability);
+
+  /// Asks the server what a purchase would mean. Either the answer or the
+  /// message to show is set. Nothing is stored.
+  Future<({Map<String, dynamic>? answer, String? error})> afford(
+    int amountCents,
+  ) async {
+    if (_session == null) {
+      return (
+        answer: null,
+        error: describeMobileError(const MobileSessionExpiredException()),
+      );
+    }
+    try {
+      return (answer: await _apiClient.afford(amountCents), error: null);
+    } catch (error) {
+      _unreachable = isConnectivityFailure(error);
+      await _clearLocalSessionIfExpired(error);
+      _notifyIfMounted();
+      return (answer: null, error: describeMobileError(error));
+    }
+  }
 
   /// True once the server accepts contract changes and builds letters.
   bool get canEditContracts => _capabilities.contains(contractCapability);

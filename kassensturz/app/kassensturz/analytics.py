@@ -7,9 +7,9 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from . import contracts as contracts_mod
-from . import ledger
+from . import ledger, savings
 from .db import Database
-from .util import add_months, month_end, month_start
+from .util import add_months, euro, month_end, month_start
 
 HORIZON_DAYS = 45
 
@@ -72,7 +72,11 @@ def forecast(db: Database, horizon_days: int = HORIZON_DAYS) -> dict:
     fixed_in = sum(u["amount_cents"] for u in in_period if u["amount_cents"] > 0)
     buffer = int(db.get_setting("buffer_cents", 0) or 0)
     days_left = (period_end - today).days + 1
-    free = balance_now + fixed_in + fixed_out - buffer
+    # Rücklage für seltene Kosten: immer ausgewiesen, abgezogen nur auf Wunsch. Wer sie auf
+    # einem Tagesgeldkonto hält, hat sie schon aus dem Alltag herausgenommen.
+    rsv = savings.reserve(cons, today, period_end)
+    deduct = bool(db.get_setting("deduct_reserve", False))
+    free = balance_now + fixed_in + fixed_out - buffer - (rsv["reserved_cents"] if deduct else 0)
 
     # Tagesverlauf: Vergangenheit + Prognose
     past = ledger.balance_series(db, ids, today - timedelta(days=60), today)
@@ -102,6 +106,10 @@ def forecast(db: Database, horizon_days: int = HORIZON_DAYS) -> dict:
         "variable_daily_cents": rate,
         "variable_expected_cents": rate * days_left,
         "buffer_cents": buffer,
+        "reserve_cents": rsv["reserved_cents"],
+        "reserve_monthly_cents": rsv["monthly_cents"],
+        "reserve_deducted": deduct,
+        "reserve_items": rsv["items"],
         "month_end_cents": month_end_value,
         "low_point": {"date": low[0], "cents": low[1]},
         "past": past,
@@ -204,3 +212,106 @@ def fixed_costs_monthly(cons: list[dict]) -> int:
             continue
         total += -c["monthly_cents"]
     return total
+
+
+MONTH_NAMES = ("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober",
+               "November", "Dezember")
+MAX_AFFORD_CENTS = 100_000_000
+
+
+def afford(fc: dict, amount_cents: int, threshold_cents: int = 0) -> dict:
+    """Was eine Ausgabe von heute für den Rest des Zeitraums bedeutet.
+
+    „Nein“, wenn sie mehr kostet, als nach den festen Abbuchungen frei ist. „Knapp“, wenn danach
+    weniger für den Alltag bleibt, als du sonst ausgibst, oder die Prognose unter die Warnschwelle
+    fällt. Sonst „ja“."""
+    amount = abs(int(amount_cents))
+    days = max(1, int(fc["days_left"]))
+    free_after = fc["free_cents"] - amount
+    everyday = int(fc["variable_expected_cents"])
+    low_after = fc["low_point"]["cents"] - amount
+    if free_after < 0:
+        verdict = "no"
+    elif free_after < everyday or low_after < threshold_cents:
+        verdict = "tight"
+    else:
+        verdict = "yes"
+    return {
+        "amount_cents": amount,
+        "verdict": verdict,
+        "free_before_cents": int(fc["free_cents"]),
+        "free_after_cents": int(free_after),
+        "per_day_before_cents": int(fc["free_cents"] / days),
+        "per_day_after_cents": int(free_after / days),
+        "usual_per_day_cents": int(fc["variable_daily_cents"]),
+        "days_left": days,
+        "period_end": fc["period_end"],
+        "period_label": fc["period_label"],
+        "low_point_after": {"date": fc["low_point"]["date"], "cents": int(low_after)},
+        "below_threshold": low_after < threshold_cents,
+    }
+
+
+def month_review(db: Database, month: str) -> dict:
+    """Monatsabschluss: Einnahmen, Ausgaben, Sparquote und was vom Üblichen abweicht.
+
+    Verglichen wird mit dem Schnitt der drei Monate davor, soweit es dafür Buchungen gibt."""
+    y, m = (int(x) for x in month.split("-"))
+    start = date(y, m, 1)
+    stats = month_stats(db, month)
+    earlier = [month_stats(db, add_months(start, -i).strftime("%Y-%m")) for i in (1, 2, 3)]
+    earlier = [s for s in earlier if s["income_cents"] or s["expense_cents"]]
+    usual_expense = int(sum(s["expense_cents"] for s in earlier) / len(earlier)) if earlier else None
+    usual_by_cat: dict = defaultdict(int)
+    for s in earlier:
+        for item in s["breakdown"]:
+            usual_by_cat[item["category_id"]] += item["cents"]
+    categories = []
+    for item in stats["breakdown"][:5]:
+        usual = int(usual_by_cat[item["category_id"]] / len(earlier)) if earlier else None
+        categories.append({"category_id": item["category_id"], "name": item["name"], "cents": item["cents"],
+                           "usual_cents": usual, "change_cents": None if usual is None else item["cents"] - usual})
+    # Auffällig: mindestens 30 € und ein Viertel über dem Üblichen, die größte Abweichung zuerst.
+    notable = sorted((c for c in categories if c["change_cents"] is not None and c["change_cents"] >= 3000
+                      and c["change_cents"] * 4 >= (c["usual_cents"] or 0)), key=lambda c: -c["change_cents"])
+    biggest = None
+    for e in ledger.entries(db, start.isoformat(), month_end(start).isoformat()):
+        if e["is_transfer"] or e["amount_cents"] >= 0 or e["contract_key"]:
+            continue
+        if biggest is None or e["amount_cents"] < biggest["amount_cents"]:
+            biggest = {"name": (e.get("counterparty") or "Ohne Empfänger")[:60], "amount_cents": e["amount_cents"],
+                       "date": e["booking_date"]}
+    income, expense = stats["income_cents"], stats["expense_cents"]
+    return {
+        "month": month,
+        "label": f"{MONTH_NAMES[m - 1]} {y}",
+        "has_data": bool(income or expense),
+        # Ein laufender Monat lässt sich noch nicht mit ganzen Monaten vergleichen.
+        "complete": month < date.today().strftime("%Y-%m"),
+        "income_cents": income,
+        "expense_cents": expense,
+        "saved_cents": income - expense,
+        "savings_rate": round((income - expense) / income, 4) if income > 0 else None,
+        "usual_expense_cents": usual_expense,
+        "expense_change_cents": None if usual_expense is None else expense - usual_expense,
+        "compared_months": len(earlier),
+        "categories": categories,
+        "notable": [c["name"] for c in notable[:3]],
+        "biggest_expense": biggest,
+    }
+
+
+def review_message(review: dict) -> str:
+    """Der Monatsabschluss in zwei, drei Sätzen für die Benachrichtigung."""
+    saved = review["saved_cents"]
+    parts = [f"Einnahmen {euro(review['income_cents'])}, Ausgaben {euro(review['expense_cents'])}."]
+    if review["savings_rate"] is not None and saved > 0:
+        parts.append(f"Gespart {euro(saved)}, Sparquote {round(review['savings_rate'] * 100)} %.")
+    elif saved < 0:
+        parts.append(f"{euro(-saved)} mehr ausgegeben als eingenommen.")
+    change = review["expense_change_cents"]
+    if change is not None and abs(change) >= 5000:
+        parts.append(f"{euro(abs(change))} {'mehr' if change > 0 else 'weniger'} als sonst.")
+    if review["notable"]:
+        parts.append("Auffällig: " + ", ".join(review["notable"]) + ".")
+    return " ".join(parts)

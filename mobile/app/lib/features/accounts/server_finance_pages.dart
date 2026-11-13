@@ -245,6 +245,7 @@ class ServerBudgetPage extends StatelessWidget {
                       'Server 0.3.9 geht das auch hier.',
             style: textTheme.bodySmall,
           ),
+          ..._savingsSections(context, data),
         ],
       ),
     );
@@ -373,3 +374,103 @@ int _integer(dynamic value) => value is int ? value : 0;
 
 String _string(dynamic value, String fallback) =>
     value is String && value.isNotEmpty ? value : fallback;
+
+/// Savings goals and the reserve for rare costs, as far as the server sends
+/// them. Both are maintained in Kassensturz in Home Assistant.
+List<Widget> _savingsSections(
+  BuildContext context,
+  Map<String, dynamic>? data,
+) {
+  final textTheme = Theme.of(context).textTheme;
+  final goals = _maps(data?['goals']);
+  final forecast = data?['forecast'];
+  final reserve = forecast is Map ? forecast['reserve'] : null;
+  final items = reserve is Map
+      ? _maps(reserve['items'])
+      : const <Map<String, dynamic>>[];
+
+  return [
+    if (goals.isNotEmpty) ...[
+      const SizedBox(height: 28),
+      const SectionTitle('Sparziele'),
+      const SizedBox(height: 10),
+      for (final goal in goals) _GoalBlock(goal: goal),
+    ],
+    if (reserve is Map && items.isNotEmpty) ...[
+      const SizedBox(height: 22),
+      const SectionTitle('Jahreskosten'),
+      const SizedBox(height: 6),
+      Text(
+        'Dafür solltest du heute '
+        '${formatEuro(_integer(reserve['reserved_cents']) / 100)} '
+        'zurückgelegt haben, das sind '
+        '${formatEuro(_integer(reserve['monthly_cents']) / 100)} im Monat.'
+        '${reserve['deducted'] == true ? ' Der Betrag ist von „frei verfügbar“ abgezogen.' : ''}',
+        style: textTheme.bodySmall,
+      ),
+      const SizedBox(height: 4),
+      for (final item in items)
+        EntryRow(
+          title: _string(item['name'], 'Vertrag'),
+          detail:
+              '${_string(item['interval'], '')} · nächste Zahlung '
+              '${formatShortDate(_string(item['next_due'], ''))}',
+          amount: formatEuro(_integer(item['amount_cents']) / 100),
+        ),
+    ],
+  ];
+}
+
+class _GoalBlock extends StatelessWidget {
+  const _GoalBlock({required this.goal});
+
+  final Map<String, dynamic> goal;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final saved = _integer(goal['saved_cents']);
+    final target = _integer(goal['target_cents']);
+    final rest = _integer(goal['rest_cents']);
+    final monthly = goal['monthly_cents'];
+    final due = _string(goal['due_date'], '');
+    final status = goal['status'];
+    final progress = goal['progress'];
+    final detail = status == 'done'
+        ? 'Erreicht'
+        : status == 'late'
+        ? 'Ziel war ${formatShortDate(due)}, es fehlen '
+              '${formatEuro(rest / 100)}'
+        : monthly is int && due.isNotEmpty
+        ? '${formatEuro(monthly / 100)} im Monat bis ${formatShortDate(due)}'
+        : 'Es fehlen ${formatEuro(rest / 100)}';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _string(goal['name'], 'Sparziel'),
+                  style: textTheme.titleSmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '${formatEuro(saved / 100)} von ${formatEuro(target / 100)}',
+                style: textTheme.bodySmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ThickBar(value: progress is num ? progress.toDouble() : 0),
+          const SizedBox(height: 6),
+          Text(detail, style: textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+}

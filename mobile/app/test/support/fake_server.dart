@@ -92,6 +92,9 @@ const fullCapabilities = [
   'stats',
   'budgets.write',
   'contracts.write',
+  'categories.learn',
+  'afford',
+  'review',
 ];
 
 /// Answers like a Kassensturz server 0.3.0 with one cash account and one
@@ -144,6 +147,23 @@ MobileHttpResponse serverAnswer(
   if (request.method == 'PUT' && path.startsWith('/api/v1/budgets/')) {
     return jsonResponse(200, {'budget': jsonDecode(request.body ?? '{}')});
   }
+  if (path == '/api/v1/afford') {
+    final amount = int.parse(request.uri.queryParameters['amount_cents']!);
+    return jsonResponse(200, {
+      'amount_cents': amount,
+      'verdict': amount > 50000 ? 'no' : 'tight',
+      'free_before_cents': 50000,
+      'free_after_cents': 50000 - amount,
+      'per_day_before_cents': 5000,
+      'per_day_after_cents': (50000 - amount) ~/ 10,
+      'usual_per_day_cents': 3000,
+      'days_left': 10,
+      'period_end': '2026-11-27',
+      'period_label': 'bis zum nächsten Gehalt',
+      'low_point_after': {'date': '2026-11-27', 'cents': 12000},
+      'below_threshold': true,
+    });
+  }
   if (path == '/api/v1/categories') {
     return jsonResponse(200, {
       'items': [
@@ -165,6 +185,15 @@ MobileHttpResponse serverAnswer(
         request.uri.queryParameters['month'] ??
         '${now.year}-${now.month.toString().padLeft(2, '0')}';
     return jsonResponse(200, {
+      'review': {
+        'label': 'Testmonat',
+        'has_data': true,
+        'saved_cents': 116200,
+        'savings_rate': 0.3586,
+        'expense_change_cents': 21000,
+        'compared_months': 3,
+        'notable': ['Lebensmittel'],
+      },
       'month': {
         'month': month,
         'income_cents': 324000,

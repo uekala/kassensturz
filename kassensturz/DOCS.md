@@ -134,6 +134,37 @@ alte wie künftige, bekommen dieselbe Kategorie; von Hand gesetzte bleiben. Das 
 Gelernt* und lässt sich dort einzeln vergessen. Eigene Regeln haben Vorrang vor Gelerntem, Gelerntes vor der eingebauten
 Erkennung. Gelernt wird nur aus deinen eigenen Daten auf deinem Gerät.
 
+## Kann ich mir das leisten?
+
+Auf der Übersicht trägst du einen Betrag ein. Kassensturz rechnet, als würdest du ihn heute ausgeben:
+
+- **Ja:** Danach bleibt bis zum nächsten Gehalt mindestens so viel, wie du sonst im Alltag ausgibst.
+- **Knapp:** Es reicht für die festen Abbuchungen, aber für den Alltag bleibt weniger als üblich, oder die Prognose fällt
+  unter deine Warnschwelle.
+- **Nein:** Der Betrag ist höher als das, was nach den festen Abbuchungen frei ist.
+
+Die Antwort ist eine Rechnung aus deinen bisherigen Zahlen, keine Beratung.
+
+## Monatsabschluss
+
+Die Budgetseite fasst jeden Monat in Worten zusammen: wie viel du gespart hast, die Sparquote, ob die Ausgaben über oder
+unter dem Schnitt der letzten drei Monate lagen, welche Kategorien auffallen und was die größte Einzelausgabe war. In der
+ersten Woche des neuen Monats kommt der Abschluss des Vormonats als Benachrichtigung.
+
+## Sparziele und Jahreskosten
+
+**Sparziele** legst du auf der Budgetseite an: wofür, wie viel, optional bis wann und auf welchem Konto das Geld liegt. Mit
+Konto zählt dessen Stand als gespart; hängen mehrere Ziele am selben Konto, wird er in der Reihenfolge verteilt, in der du
+die Ziele angelegt hast. Ohne Konto trägst du den gesparten Betrag selbst ein. Mit Datum zeigt Kassensturz, wie viel du im
+Monat zurücklegen musst.
+
+**Jahreskosten** sind Verträge, die viertel-, halb- oder jährlich abgebucht werden. Kassensturz verteilt jede Zahlung über
+ihren Abstand: Eine Versicherung über 600 € im Jahr braucht 50 € im Monat, sechs Monate nach der letzten Abbuchung sollten
+also 300 € da sein. Die Budgetseite zeigt die Summe und jeden Vertrag einzeln.
+
+Unter *Einstellungen* kannst du diese Rücklage von „frei verfügbar“ abziehen lassen. Lass das aus, wenn du dafür schon Geld
+auf einem Tagesgeld- oder Sparkonto zurücklegst, sonst zählt es doppelt.
+
 ## Selbsttest des Kontostands
 
 Nach jedem Abruf per FinTS oder Open Banking vergleicht Kassensturz, ob sich der Kontostand der Bank genau um die neu
@@ -216,6 +247,7 @@ Oberfläche nicht ändern. Nach einem Neustart von Home Assistant sind sie spät
 | `sensors` | Sensoren in Home Assistant anlegen |
 | `notify_service` | z. B. `notify.mobile_app_pixel`, leer für persistente Benachrichtigungen |
 | `notify_new_transactions` | Meldung bei neuen Buchungen aus dem automatischen Abruf und dem Eingangsordner (Standard: an) |
+| `notify_month_review` | Monatsabschluss des Vormonats in der ersten Woche des Monats (Standard: an) |
 | `warn_threshold` | Warnung, wenn die Prognose unter diesen Betrag in Euro fällt |
 | `import_folder` | Eingangsordner, Standard `/share/kassensturz`; leer lässt ihn aus |
 

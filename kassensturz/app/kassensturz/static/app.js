@@ -246,11 +246,18 @@ async function renderOverview(view, _params, seq) {
             ${fc.fixed_in_cents ? html`<li><span class="op">+</span><span>feste Eingänge bis ${dShort(fc.period_end)}</span><span class="amount">${money(fc.fixed_in_cents)}</span></li>` : ""}
             <li><span class="op">−</span><span>feste Abbuchungen bis ${dShort(fc.period_end)}</span><span class="amount">${money(Math.abs(fc.fixed_out_cents))}</span></li>
             ${fc.buffer_cents ? html`<li><span class="op">−</span><span>Sicherheitspuffer</span><span class="amount">${money(fc.buffer_cents)}</span></li>` : ""}
+            ${fc.reserve_deducted && fc.reserve_cents ? html`<li><span class="op">−</span><span>Rücklage für Jahreskosten</span><span class="amount">${money(fc.reserve_cents)}</span></li>` : ""}
           </ul>
           <div class="tally-sum">
             <span class="hero-number ${free < 0 ? "negative" : ""}">${free < 0 ? "−" : ""}${euros}<span class="cur">,${cents} €</span></span>
             <p class="hero-caption">${(periodText + perDay).replace(/\.$/, "")}. Für den Alltag gibst du sonst rund ${moneyRound(fc.variable_daily_cents * 30)} im Monat aus.</p>
           </div>
+        </section>
+        <section class="section">
+          <div class="section-head"><h2>Kann ich mir das leisten?</h2></div>
+          <form class="afford" id="afford-form"><input class="input" id="afford-amt" inputmode="decimal" placeholder="Betrag in Euro" aria-label="Betrag in Euro">
+            <button class="btn primary" type="submit">Prüfen</button></form>
+          <div id="afford-out" aria-live="polite"></div>
         </section>
         <section class="section">
           <div class="section-head"><h2>Kontostand und Prognose</h2></div>
@@ -277,6 +284,12 @@ async function renderOverview(view, _params, seq) {
       </div>
     </div>`.s;
   forecastChart($("#fc-chart"), fc);
+  $("#afford-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const cents = parseMoney($("#afford-amt").value);
+    if (cents === null || cents === 0) { toast("Bitte einen Betrag eintragen"); return; }
+    try { $("#afford-out").innerHTML = affordHtml(await api("afford?amount_cents=" + Math.abs(cents))); } catch (err) { toast(err.message); }
+  };
   on(view, "[data-acc]", "click", (_e, el) => go("umsaetze", { account: el.dataset.acc }));
   on(view, "[data-alert]", "click", async (_e, el) => {
     const d = JSON.parse(el.dataset.alert);
@@ -932,9 +945,34 @@ function manualContractSheet(intervals) {
 }
 
 /* ------------------------------------------------------------------ Budgets & Auswertung */
+function affordHtml(r) {
+  const head = { yes: "Ja, das passt.", tight: "Knapp.", no: "Nein, das reißt ein Loch." }[r.verdict];
+  const until = r.period_label === "bis Monatsende" ? "bis Monatsende" : `bis zum Gehalt am ${dShort(new Date(new Date(r.period_end).getTime() + 86400000).toISOString().slice(0, 10))}`;
+  const lines = [];
+  if (r.verdict === "no") lines.push(`Nach den festen Abbuchungen sind nur ${money(r.free_before_cents)} frei. Es fehlen ${money(-r.free_after_cents)}.`);
+  else {
+    lines.push(`Danach bleiben ${money(r.free_after_cents)} ${until}, das sind ${money(r.per_day_after_cents)} pro Tag statt ${money(r.per_day_before_cents)}.`);
+    if (r.per_day_after_cents < r.usual_per_day_cents) lines.push(`Für den Alltag gibst du sonst ${money(r.usual_per_day_cents)} pro Tag aus.`);
+  }
+  if (r.below_threshold) lines.push(`Die Prognose fällt am ${dShort(r.low_point_after.date)} auf ${money(r.low_point_after.cents)}.`);
+  return html`<div class="alert ${r.verdict === "yes" ? "" : r.verdict === "tight" ? "warning" : "critical"}" style="margin-top:10px"><div><strong>${money(r.amount_cents)}: ${head}</strong>
+    <p class="small">${lines.join(" ")}</p></div></div>`.s;
+}
+
+function reviewHtml(r) {
+  if (!r || !r.has_data || !r.complete) return "";
+  const lines = [];
+  if (r.saved_cents > 0 && r.savings_rate !== null) lines.push(`Gespart ${money(r.saved_cents)}, Sparquote ${Math.round(r.savings_rate * 100)} %.`);
+  else if (r.saved_cents < 0) lines.push(`${money(-r.saved_cents)} mehr ausgegeben als eingenommen.`);
+  if (r.expense_change_cents !== null && Math.abs(r.expense_change_cents) >= 5000) lines.push(`Ausgaben ${money(Math.abs(r.expense_change_cents))} ${r.expense_change_cents > 0 ? "höher" : "niedriger"} als ${r.compared_months === 1 ? "im Vormonat" : `im Schnitt der letzten ${r.compared_months} Monate`}.`);
+  if (r.notable.length) lines.push(`Auffällig: ${r.notable.join(", ")}.`);
+  if (r.biggest_expense) lines.push(`Größte Einzelausgabe: ${r.biggest_expense.name}, ${money(-r.biggest_expense.amount_cents)}.`);
+  return lines.length ? html`<p class="review">${lines.join(" ")}</p>`.s : "";
+}
+
 async function renderBudgets(view, params, seq) {
   const month = params.month || todayIso().slice(0, 7);
-  const [data, stats] = await Promise.all([api("budgets?month=" + month), api("stats?month=" + month)]);
+  const [data, stats, plan] = await Promise.all([api("budgets?month=" + month), api("stats?month=" + month), api("goals")]);
   if (seq !== renderSeq) return;
   const [y, m] = month.split("-").map(Number);
   const prev = new Date(y, m - 2, 1), next = new Date(y, m, 1);
@@ -952,9 +990,25 @@ async function renderBudgets(view, params, seq) {
       <li><span class="op">−</span><span>Ausgaben</span><span class="amount">${money(st.expense_cents)}</span></li>
       <li class="tally-sum" style="font-weight:650"><span class="op">=</span><span>${st.saldo_cents >= 0 ? "Überschuss" : "Fehlbetrag"}</span><span class="amount">${money(st.saldo_cents)}</span></li>
     </ul>
+    ${raw(reviewHtml(stats.review))}
     <div class="cols"><div>
       <section class="section"><div class="section-head"><h2>Budgets</h2><span class="small muted">Strich: so viel wäre bis heute im Plan</span></div>
         ${data.budgets.length ? html`<div>${data.budgets.map(budgetRow)}</div>` : html`<p class="muted">Tipp auf eine Kategorie rechts oder unten, um ein Monatsbudget festzulegen.</p>`}
+      </section>
+      <section class="section"><div class="section-head"><h2>Sparziele</h2><button class="link-btn" id="g-add">Ziel hinzufügen</button></div>
+        ${plan.goals.length ? html`<div>${plan.goals.map((g) => html`<button class="goal" data-goal="${g.id}">
+          <span class="goal-head"><strong>${g.name}</strong><span class="num">${money(g.saved_cents)} von ${money(g.target_cents)}</span></span>
+          <span class="meter"><i style="width:${Math.round(g.progress * 100)}%"></i></span>
+          <span class="small muted">${g.status === "done" ? "Erreicht" : g.status === "late" ? `Ziel war ${dFull(g.due_date)}, es fehlen ${money(g.rest_cents)}`
+            : g.monthly_cents ? `${money(g.monthly_cents)} im Monat bis ${dFull(g.due_date)}` : `Es fehlen ${money(g.rest_cents)}`}${g.account_name ? ` · ${g.account_name}` : ""}</span></button>`)}</div>`
+          : html`<p class="small muted">Noch keine Ziele. Lege fest, wofür du sparst, etwa einen Notgroschen oder einen Urlaub, und bis wann.</p>`}
+      </section>
+      <section class="section"><div class="section-head"><h2>Jahreskosten</h2>${plan.reserve.items.length ? html`<span class="small muted">${money(plan.reserve.monthly_cents)} im Monat</span>` : ""}</div>
+        ${plan.reserve.items.length ? html`<p class="small muted">Dafür solltest du heute ${money(plan.reserve.reserved_cents)} zurückgelegt haben.${plan.reserve.deducted ? " Der Betrag ist von „frei verfügbar“ abgezogen." : ""}</p>
+          <ul class="list">${plan.reserve.items.map((r) => html`<li class="row static"><span class="title">${r.name}</span>
+            <span class="sub">${r.interval}, nächste Zahlung ${dFull(r.next_due)}, ${money(r.monthly_cents)} im Monat</span>
+            <span class="amount">${money(r.amount_cents)}<small>${money(r.reserved_cents)} bis heute</small></span></li>`)}</ul>`
+          : html`<p class="small muted">Keine viertel-, halb- oder jährlichen Verträge erkannt.</p>`}
       </section>
       <section class="section"><div class="section-head"><h2>Überschuss je Monat</h2></div><div class="chart" id="hist-chart"></div></section>
     </div><div>
@@ -968,6 +1022,8 @@ async function renderBudgets(view, params, seq) {
       </section>
     </div></div>`.s;
   $("#b-prev").onclick = () => go("budgets", { month: key(prev) });
+  $("#g-add").onclick = () => goalSheet(null);
+  on(view, "[data-goal]", "click", (_e, el) => goalSheet(plan.goals.find((g) => String(g.id) === el.dataset.goal)));
   if ($("#b-next")) $("#b-next").onclick = () => go("budgets", { month: key(next) });
   bindBudgetRows(view);
   on(view, "[data-setbudget]", "click", (e, el) => { e.stopPropagation(); budgetSheet(Number(el.dataset.setbudget)); });
@@ -1008,6 +1064,38 @@ function historyChart(el, hist) {
     };
     gEl.addEventListener("pointerenter", show); gEl.addEventListener("pointerdown", show);
     gEl.addEventListener("pointerleave", () => tip.classList.remove("show"));
+  });
+}
+
+function goalSheet(g) {
+  const isNew = !g;
+  g = g || { name: "", target_cents: null, saved_cents: 0, due_date: "", account_id: null, linked: false };
+  const accounts = store.accounts.filter((a) => !a.archived);
+  const sh = openSheet(html`${sheetHead(isNew ? "Sparziel anlegen" : g.name)}
+    <label class="field"><span>Wofür</span><input class="input" id="g-name" value="${g.name}" placeholder="z. B. Notgroschen" ${isNew ? raw("autofocus") : ""}></label>
+    <div class="field-row">
+      <label class="field"><span>Zielbetrag</span><input class="input" id="g-target" inputmode="decimal" value="${g.target_cents ? toInput(g.target_cents) : ""}" placeholder="0,00"></label>
+      <label class="field"><span>Bis wann (optional)</span><input class="input" type="date" id="g-due" value="${g.due_date || ""}"></label>
+    </div>
+    <label class="field"><span>Wo liegt das Geld</span><select id="g-acc"><option value="">Kein Konto, ich trage den Stand selbst ein</option>
+      ${accounts.map((a) => html`<option value="${a.id}" ${a.id === g.account_id ? raw("selected") : ""}>${a.name}</option>`)}</select></label>
+    <label class="field" id="g-saved-field" ${g.linked ? raw("hidden") : ""}><span>Schon gespart</span><input class="input" id="g-saved" inputmode="decimal" value="${toInput(isNew ? 0 : g.linked ? 0 : g.saved_cents)}"></label>
+    <p class="small muted">Mit Konto zählt dessen Stand als gespart. Hängen mehrere Ziele am selben Konto, wird er der Reihe nach verteilt.</p>
+    <div class="actions"><button class="btn primary" id="g-save">${isNew ? "Anlegen" : "Speichern"}</button>
+      ${!isNew ? html`<button class="btn danger" id="g-del">Ziel löschen</button>` : ""}</div>`.s);
+  $("#g-acc", sh.el).onchange = (e) => { $("#g-saved-field", sh.el).hidden = !!e.target.value; };
+  $("#g-save", sh.el).onclick = async () => {
+    const target = parseMoney($("#g-target", sh.el).value);
+    const account = $("#g-acc", sh.el).value;
+    const body = { name: $("#g-name", sh.el).value.trim(), target_cents: target === null ? 0 : Math.abs(target), due_date: $("#g-due", sh.el).value,
+      account_id: account ? Number(account) : null, saved_cents: Math.abs(parseMoney($("#g-saved", sh.el).value) || 0) };
+    try {
+      if (isNew) await api("goals", { method: "POST", body }); else await api(`goals/${g.id}`, { method: "PATCH", body });
+      sh.close(); toast("Sparziel gespeichert"); rerender();
+    } catch (e) { toast(e.message); }
+  };
+  if ($("#g-del", sh.el)) confirmButton($("#g-del", sh.el), "Wirklich löschen?", async () => {
+    await api(`goals/${g.id}`, { method: "DELETE" }); sh.close(); toast("Sparziel gelöscht"); rerender();
   });
 }
 
@@ -1592,6 +1680,8 @@ async function renderSettings(view, _params, seq) {
         <label class="field"><span>E-Mail</span><input class="input" id="s-email" type="email" value="${p.email || ""}" autocomplete="email"></label>
         <div class="section-head" style="margin-top:22px"><h2>Sicherheitspuffer</h2></div>
         <label class="field"><span>So viel soll bei „frei verfügbar“ immer übrig bleiben</span><input class="input" id="s-buffer" inputmode="decimal" value="${toInput(s.buffer_cents)}" placeholder="0,00"></label>
+        <label class="check"><input type="checkbox" id="s-reserve" ${s.deduct_reserve ? raw("checked") : ""}><span>Rücklage für viertel-, halb- und jährliche Kosten von „frei verfügbar“ abziehen
+          <span class="muted small">Lass das aus, wenn du dafür schon Geld auf einem Tagesgeld- oder Sparkonto zurücklegst.</span></span></label>
         <div class="actions"><button class="btn primary" id="s-save">Speichern</button></div>
       </section>
       <section class="section">
@@ -1708,7 +1798,7 @@ async function renderSettings(view, _params, seq) {
   }));
   $("#s-save").onclick = async () => {
     await api("settings", { method: "PUT", body: { profile: { name: $("#s-name").value, street: $("#s-street").value, city: $("#s-city").value, email: $("#s-email").value },
-      buffer_cents: Math.abs(parseMoney($("#s-buffer").value) || 0) } });
+      buffer_cents: Math.abs(parseMoney($("#s-buffer").value) || 0), deduct_reserve: $("#s-reserve").checked } });
     toast("Gespeichert");
   };
   on(view, "[data-rdel]", "click", async (_e, el) => { const r = await api(`rules/${el.dataset.rdel}`, { method: "DELETE" }); toast(`Regel entfernt, ${r.recategorized} Buchungen neu zugeordnet`); rerender(); });

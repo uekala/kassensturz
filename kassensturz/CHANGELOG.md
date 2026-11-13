@@ -1,5 +1,30 @@
 # Änderungen
 
+## 0.3.15
+
+- Sparziele: Name, Zielbetrag, optional Datum und Konto. Mit Konto zählt dessen Stand als gespart, mehrere Ziele am
+  selben Konto teilen ihn der Reihe nach; ohne Konto pflegst du den Betrag selbst. Mit Datum zeigt Kassensturz die
+  nötige Monatsrate. Anlegen und ändern auf der Budgetseite.
+- Jahreskosten: Viertel-, halb- und jährliche Verträge werden über ihren Abstand verteilt. Die Budgetseite zeigt, was
+  dafür heute zurückgelegt sein sollte und was das im Monat ausmacht.
+- Neue Einstellung „Rücklage … von frei verfügbar abziehen“ (Standard aus): zieht diesen Betrag von „frei verfügbar“ ab
+  und wirkt damit auch auf „Kann ich mir das leisten?“.
+- Der Monatsabschluss in Worten erscheint nur noch für abgeschlossene Monate.
+- Mobile-Schnittstelle: Die Übersicht enthält `goals` und `forecast.reserve`; Fähigkeit `goals`.
+
+## 0.3.14
+
+- „Kann ich mir das leisten?“ auf der Übersicht: Betrag eingeben, Kassensturz sagt „Ja“, „Knapp“ oder „Nein“ und
+  zeigt, was bis zum Gehalt pro Tag bleibt. Gerechnet wird mit Kontostand, festen Abbuchungen, dem üblichen
+  Alltagsverbrauch und der Warnschwelle.
+- Monatsabschluss in Worten auf der Budgetseite: gespart, Sparquote, Abweichung vom Schnitt der letzten drei Monate,
+  auffällige Kategorien, größte Einzelausgabe.
+- In der ersten Woche des Monats kommt der Abschluss des Vormonats als Benachrichtigung (abschaltbar mit
+  `notify_month_review`).
+- Mobile-Schnittstelle: `GET /api/v1/afford`, die Auswertung enthält den Monatsabschluss; Fähigkeiten `afford` und
+  `review`.
+- Budgetseite: Die Summenzeile „Überschuss“ steht wieder sauber in einer Zeile; dort erschien fälschlich „FREI VERFÜGBAR“.
+
 ## 0.3.13
 
 - Selbsttest des Kontostands: Nach jedem Bankabruf prüft Kassensturz, ob sich der Stand der Bank genau um die neu

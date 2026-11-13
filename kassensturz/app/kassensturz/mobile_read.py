@@ -9,7 +9,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from . import analytics, contracts, services
+from . import analytics, contracts, options, savings, services
 from .db import Database
 
 
@@ -117,6 +117,22 @@ def _forecast_dto(source: dict) -> dict:
         "variable_daily_cents": int(source.get("variable_daily_cents") or 0),
         "variable_expected_cents": int(source.get("variable_expected_cents") or 0),
         "buffer_cents": int(source.get("buffer_cents") or 0),
+        "reserve": {
+            "reserved_cents": int(source.get("reserve_cents") or 0),
+            "monthly_cents": int(source.get("reserve_monthly_cents") or 0),
+            "deducted": bool(source.get("reserve_deducted", False)),
+            "items": [
+                {
+                    "name": _text(item.get("name"), MAX_COUNTERPARTY_LENGTH),
+                    "amount_cents": int(item.get("amount_cents") or 0),
+                    "next_due": item.get("next_due"),
+                    "interval": _text(item.get("interval"), 32),
+                    "monthly_cents": int(item.get("monthly_cents") or 0),
+                    "reserved_cents": int(item.get("reserved_cents") or 0),
+                }
+                for item in source.get("reserve_items", [])
+            ],
+        },
         "month_end_cents": (
             int(source["month_end_cents"])
             if source.get("month_end_cents") is not None
@@ -226,7 +242,22 @@ def get_overview(db: Database, *, as_of: datetime | None = None) -> dict:
     contracts.detect(db)
     summary = services.build_summary(db)
     alert_items = services.alerts(db, summary)
-    return serialize_overview(summary, alert_items, as_of=as_of)
+    overview = serialize_overview(summary, alert_items, as_of=as_of)
+    overview["goals"] = [
+        {
+            "id": int(goal["id"]),
+            "name": _text(goal["name"], 60),
+            "target_cents": int(goal["target_cents"]),
+            "saved_cents": int(goal["saved_cents"]),
+            "rest_cents": int(goal["rest_cents"]),
+            "due_date": goal["due_date"],
+            "monthly_cents": goal["monthly_cents"],
+            "status": goal["status"],
+            "progress": goal["progress"],
+        }
+        for goal in savings.list_goals(db)
+    ]
+    return overview
 
 
 MAX_STATS_CATEGORIES = 40
@@ -269,7 +300,18 @@ def get_stats(db: Database, *, month: str | None = None) -> dict:
         {"date": day, "cents": int(cents), "forecast": True}
         for day, cents in forecast["future"]
     ]
+    review = analytics.month_review(db, selected)
     return {
+        "review": {
+            "label": str(review["label"]),
+            "has_data": bool(review["has_data"]),
+            "complete": bool(review["complete"]),
+            "saved_cents": int(review["saved_cents"]),
+            "savings_rate": review["savings_rate"],
+            "expense_change_cents": review["expense_change_cents"],
+            "compared_months": int(review["compared_months"]),
+            "notable": [str(name) for name in review["notable"]],
+        },
         "month": {
             "month": selected,
             "income_cents": int(stats["income_cents"]),
@@ -287,6 +329,16 @@ def get_stats(db: Database, *, month: str | None = None) -> dict:
             "points": points,
         },
     }
+
+
+def get_afford(db: Database, amount_cents: Any) -> dict:
+    """What a purchase of this amount today means for the rest of the period."""
+    if isinstance(amount_cents, bool) or not isinstance(amount_cents, int):
+        raise MobileQueryError("amount_cents")
+    if not 0 < amount_cents <= analytics.MAX_AFFORD_CENTS:
+        raise MobileQueryError("amount_cents")
+    threshold = int(options.load().get("warn_threshold") or 0) * 100
+    return analytics.afford(analytics.forecast(db), amount_cents, threshold)
 
 
 def list_transactions(

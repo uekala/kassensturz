@@ -129,6 +129,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
                       'Saldo ${formatSignedEuro((income - expense) / 100)}',
                   size: 40,
                 ),
+                if (_reviewText(stats?['review']) case final review?) ...[
+                  const SizedBox(height: 12),
+                  Text(review, style: textTheme.bodyMedium),
+                ],
                 const SizedBox(height: 24),
                 const SectionTitle('Nach Kategorie'),
                 const SizedBox(height: 10),
@@ -484,4 +488,31 @@ class _CurvePainter extends CustomPainter {
         oldDelegate.guide != guide ||
         oldDelegate.surface != surface;
   }
+}
+
+/// The month in two or three sentences, or null when the server sent no
+/// review or there is nothing to say.
+String? _reviewText(dynamic review) {
+  if (review is! Map || review['has_data'] != true) return null;
+  // A running month cannot be compared with whole months yet.
+  if (review['complete'] == false) return null;
+  final saved = review['saved_cents'];
+  final rate = review['savings_rate'];
+  final change = review['expense_change_cents'];
+  final months = review['compared_months'];
+  final notable = review['notable'];
+  final lines = <String>[
+    if (saved is int && saved > 0 && rate is num)
+      'Gespart ${formatEuro(saved / 100)}, Sparquote '
+          '${(rate * 100).round()} %.'
+    else if (saved is int && saved < 0)
+      '${formatEuro(-saved / 100)} mehr ausgegeben als eingenommen.',
+    if (change is int && change.abs() >= 5000)
+      'Ausgaben ${formatEuro(change.abs() / 100)} '
+          '${change > 0 ? 'höher' : 'niedriger'} als '
+          '${months == 1 ? 'im Vormonat' : 'im Schnitt der letzten $months Monate'}.',
+    if (notable is List && notable.isNotEmpty)
+      'Auffällig: ${notable.whereType<String>().join(', ')}.',
+  ];
+  return lines.isEmpty ? null : lines.join(' ');
 }

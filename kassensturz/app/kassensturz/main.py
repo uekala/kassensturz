@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options,
+from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options, savings,
                secrets_store, services, umzug)
 from .db import close_db, get_db, now_iso
 from .mobile_api import router as mobile_api_router
@@ -59,6 +59,7 @@ MOBILE_RATE_LIMITS = {
     ("GET", "/api/v1/transactions"): ("transactions", 120, 60),
     ("POST", "/api/v1/transactions"): ("transaction-write", 60, 60),
     ("GET", "/api/v1/stats"): ("stats", 60, 60),
+    ("GET", "/api/v1/afford"): ("afford", 60, 60),
     ("GET", "/api/v1/accounts"): ("accounts", 120, 60),
     ("GET", "/api/v1/categories"): ("categories", 120, 60),
     ("GET", "/api/v1/contracts"): ("contracts", 60, 60),
@@ -1209,7 +1210,52 @@ def letter(body: dict = Body(...)):
 def stats(month: str = ""):
     db = get_db()
     month = month or date.today().strftime("%Y-%m")
-    return {"month": analytics.month_stats(db, month), "history": analytics.monthly_totals(db, 12)}
+    return {"month": analytics.month_stats(db, month), "history": analytics.monthly_totals(db, 12),
+            "review": analytics.month_review(db, month)}
+
+
+@app.get("/api/afford")
+def afford(amount_cents: int = 0):
+    if not 0 < amount_cents <= analytics.MAX_AFFORD_CENTS:
+        _err(400, "Bitte einen Betrag größer als 0 eingeben.")
+    db = get_db()
+    threshold = int(options.load().get("warn_threshold") or 0) * 100
+    return analytics.afford(analytics.forecast(db), amount_cents, threshold)
+
+
+@app.get("/api/goals")
+def goals():
+    db = get_db()
+    fc = analytics.forecast(db)
+    return {"goals": savings.list_goals(db),
+            "reserve": {"items": fc["reserve_items"], "reserved_cents": fc["reserve_cents"],
+                        "monthly_cents": fc["reserve_monthly_cents"], "deducted": fc["reserve_deducted"]}}
+
+
+@app.post("/api/goals")
+def create_goal(body: dict = Body(...)):
+    try:
+        gid = savings.create_goal(get_db(), body)
+    except savings.GoalError as error:
+        _err(400, str(error))
+    return {"ok": True, "id": gid}
+
+
+@app.patch("/api/goals/{gid}")
+def update_goal(gid: int, body: dict = Body(...)):
+    try:
+        found = savings.update_goal(get_db(), gid, body)
+    except savings.GoalError as error:
+        _err(400, str(error))
+    if not found:
+        _err(404, "Sparziel nicht gefunden.")
+    return {"ok": True}
+
+
+@app.delete("/api/goals/{gid}")
+def delete_goal(gid: int):
+    get_db().execute("DELETE FROM goals WHERE id = ?", (gid,))
+    return {"ok": True}
 
 
 @app.get("/api/settings")
@@ -1217,6 +1263,7 @@ def get_settings():
     db = get_db()
     opts = options.load()
     return {"profile": db.get_setting("profile", {}) or {}, "buffer_cents": db.get_setting("buffer_cents", 0) or 0,
+            "deduct_reserve": bool(db.get_setting("deduct_reserve", False)),
             "options": {k: opts.get(k) for k in ("sync_time", "sensors", "notify_service", "warn_threshold", "mobile_server_url")},
             "product_id": bool((opts.get("fints_product_id") or "").strip()), "ha": ha.available()}
 
@@ -1229,6 +1276,8 @@ def put_settings(body: dict = Body(...)):
         db.set_setting("profile", {k: (p.get(k) or "").strip() for k in ("name", "street", "city", "email")})
     if "buffer_cents" in body:
         db.set_setting("buffer_cents", int(body["buffer_cents"] or 0))
+    if "deduct_reserve" in body:
+        db.set_setting("deduct_reserve", bool(body["deduct_reserve"]))
     _changed()
     return get_settings()
 

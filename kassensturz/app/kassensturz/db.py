@@ -227,6 +227,16 @@ CREATE TABLE IF NOT EXISTS balance_checks(
 );
 CREATE INDEX IF NOT EXISTS balance_checks_account ON balance_checks(account_id, id);
 
+CREATE TABLE IF NOT EXISTS goals(
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  target_cents INTEGER NOT NULL,
+  saved_cents INTEGER DEFAULT 0,
+  due_date TEXT,
+  account_id INTEGER,
+  created TEXT
+);
+
 CREATE TABLE IF NOT EXISTS notices(
   key TEXT PRIMARY KEY,
   created TEXT
