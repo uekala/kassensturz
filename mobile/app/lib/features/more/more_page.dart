@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_pairing_payload.dart';
+import '../../core/update/update_check.dart';
 import 'pairing_scanner_page.dart';
 
 class MorePage extends StatefulWidget {
-  const MorePage({required this.controller, super.key});
+  const MorePage({required this.controller, this.updates, super.key});
 
   final MobileConnectionController controller;
+
+  /// Present in release builds on Android; shows the update switch.
+  final UpdateChecker? updates;
 
   @override
   State<MorePage> createState() => _MorePageState();
@@ -19,10 +23,17 @@ class _MorePageState extends State<MorePage> {
   late final TextEditingController _server;
   late final TextEditingController _secret;
   late final TextEditingController _device;
+  bool _updateCheck = true;
 
   @override
   void initState() {
     super.initState();
+    final updates = widget.updates;
+    if (updates != null && updates.supported) {
+      updates.enabled.then((value) {
+        if (mounted) setState(() => _updateCheck = value);
+      }, onError: (_) {});
+    }
     _server = TextEditingController();
     _secret = TextEditingController();
     _device = TextEditingController(text: 'Dieses Gerät');
@@ -286,6 +297,24 @@ class _MorePageState extends State<MorePage> {
                 icon: Icons.privacy_tip_outlined,
                 title: 'Datenschutz',
                 subtitle: 'Deine Finanzdaten bleiben auf deinem Server',
+              ),
+            ],
+            if (widget.updates?.supported ?? false) ...[
+              const SizedBox(height: 18),
+              _sectionTitle(context, 'APP'),
+              const SizedBox(height: 4),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Nach App-Updates suchen'),
+                subtitle: Text(
+                  'Fragt beim Start bei GitHub nach einer neueren Version. '
+                  'Installiert: ${widget.updates!.currentVersion}',
+                ),
+                value: _updateCheck,
+                onChanged: (value) {
+                  setState(() => _updateCheck = value);
+                  widget.updates!.setEnabled(value);
+                },
               ),
             ],
             const SizedBox(height: 22),

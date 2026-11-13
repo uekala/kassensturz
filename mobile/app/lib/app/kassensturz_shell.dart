@@ -5,6 +5,9 @@ import '../core/networking/mobile_connection_controller.dart';
 import '../features/accounts/server_finance_pages.dart';
 import '../features/analysis/analysis_page.dart';
 import '../features/budget/planning_page.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../core/update/update_check.dart';
 import '../features/dashboard/live_dashboard_page.dart';
 import '../features/more/connect_required_page.dart';
 import '../features/more/more_page.dart';
@@ -12,7 +15,13 @@ import '../features/transactions/transaction_editor_page.dart';
 import '../features/transactions/transactions_page.dart';
 
 class KassensturzShell extends StatefulWidget {
-  const KassensturzShell({super.key, this.mobileConnectionController});
+  const KassensturzShell({
+    super.key,
+    this.mobileConnectionController,
+    this.updateChecker,
+  });
+
+  final UpdateChecker? updateChecker;
 
   /// The app shows server data only. Without a connection it asks the user
   /// to connect; there is no example or device-local data.
@@ -26,6 +35,7 @@ class _KassensturzShellState extends State<KassensturzShell>
     with WidgetsBindingObserver {
   int _selectedIndex = 0;
   late final MobileConnectionController _mobileConnectionController;
+  late final UpdateChecker _updates = widget.updateChecker ?? UpdateChecker();
 
   @override
   void initState() {
@@ -35,6 +45,44 @@ class _KassensturzShellState extends State<KassensturzShell>
         widget.mobileConnectionController ??
         MobileConnectionController.preview();
     _mobileConnectionController.restore();
+    _checkForUpdate();
+  }
+
+  Future<void> _checkForUpdate() async {
+    final update = await _updates.check();
+    if (update == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showMaterialBanner(
+      MaterialBanner(
+        leading: const Icon(Icons.system_update_outlined),
+        content: Text(
+          'Kassensturz ${update.version} ist verfügbar '
+          '(installiert: ${_updates.currentVersion}).',
+        ),
+        actions: [
+          TextButton(
+            onPressed: messenger.hideCurrentMaterialBanner,
+            child: const Text('Später'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              messenger.hideCurrentMaterialBanner();
+              var opened = false;
+              try {
+                opened = await launchUrl(
+                  Uri.parse(update.downloadUrl),
+                  mode: LaunchMode.externalApplication,
+                );
+              } on Object {
+                opened = false;
+              }
+              if (!opened) _showMessage('Download-Seite: ${update.pageUrl}');
+            },
+            child: const Text('Update laden'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -75,7 +123,10 @@ class _KassensturzShellState extends State<KassensturzShell>
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(title: const Text('Einstellungen')),
-          body: MorePage(controller: _mobileConnectionController),
+          body: MorePage(
+            controller: _mobileConnectionController,
+            updates: _updates,
+          ),
         ),
       ),
     );
