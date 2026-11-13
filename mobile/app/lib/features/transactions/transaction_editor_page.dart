@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
+import 'receipts_section.dart';
 
 /// Creates a manual transaction or edits an existing one. Everything is
 /// stored on the server; the page keeps no copy on the device.
@@ -10,6 +11,7 @@ class TransactionEditorPage extends StatefulWidget {
   const TransactionEditorPage({
     required this.controller,
     this.existing,
+    this.receiptPicker = pickReceiptPhoto,
     super.key,
   });
 
@@ -17,6 +19,9 @@ class TransactionEditorPage extends StatefulWidget {
 
   /// Null creates a new manual transaction.
   final ServerTransaction? existing;
+
+  /// Where a new receipt photo comes from; replaced in tests.
+  final ReceiptPicker receiptPicker;
 
   @override
   State<TransactionEditorPage> createState() => _TransactionEditorPageState();
@@ -37,6 +42,7 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
   late DateTime _date;
   int? _accountId;
   int? _categoryId;
+  String? _taxKind;
   bool _saving = false;
   String? _error;
 
@@ -52,6 +58,7 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
     _date = DateTime.tryParse(existing?.bookingDate ?? '') ?? DateTime.now();
     _accountId = existing?.accountId;
     _categoryId = existing?.categoryId;
+    _taxKind = existing?.taxKind;
     _amount = TextEditingController(
       text: existing == null ? '' : _formatAmount(cents.abs()),
     );
@@ -122,6 +129,16 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
     if (picked != null && mounted) setState(() => _categoryId = picked);
   }
 
+  Future<void> _pickTaxKind() async {
+    final picked = await _pick<String>(
+      title: 'Für die Steuererklärung',
+      options: {'': 'Nicht relevant', ...taxKindLabels},
+    );
+    if (picked != null && mounted) {
+      setState(() => _taxKind = picked.isEmpty ? null : picked);
+    }
+  }
+
   Future<T?> _pick<T>({
     required String title,
     required Map<T, String> options,
@@ -182,6 +199,7 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
     if (_categoryId != null && _categoryId != existing.categoryId) {
       changes['category_id'] = _categoryId;
     }
+    if (_taxKind != existing.taxKind) changes['tax_kind'] = _taxKind;
     if (!existing.manual) return changes;
 
     final cents = parseAmountToCents(_amount.text);
@@ -337,9 +355,8 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
           children: [
             if (!_fullyEditable) ...[
               const _Hint(
-                'Dieser Umsatz stammt von der Bank. Du kannst Kategorie '
-                'und Notiz ändern; Betrag, Datum und Text bleiben wie '
-                'geliefert.',
+                'Dieser Umsatz stammt von der Bank. Betrag, Datum und Text '
+                'bleiben wie geliefert; alles andere kannst du ändern.',
               ),
               const SizedBox(height: 16),
             ],
@@ -448,6 +465,22 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
                 counterText: '',
               ),
             ),
+            if (existing != null && widget.controller.canTagTax) ...[
+              const SizedBox(height: 14),
+              _PickerTile(
+                label: 'Für die Steuererklärung',
+                value: taxKindLabels[_taxKind] ?? 'Nicht relevant',
+                onTap: _saving ? null : _pickTaxKind,
+              ),
+            ],
+            if (existing != null && widget.controller.canUseReceipts) ...[
+              const SizedBox(height: 16),
+              ReceiptsSection(
+                controller: widget.controller,
+                transactionId: existing.id,
+                picker: widget.receiptPicker,
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 14),
               Text(_error!, style: TextStyle(color: klar.warn, fontSize: 13)),

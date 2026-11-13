@@ -24,6 +24,25 @@ abstract interface class MobileTransport {
   void close();
 }
 
+class MobileBinaryResponse {
+  const MobileBinaryResponse({required this.statusCode, required this.bytes});
+
+  final int statusCode;
+  final Uint8List bytes;
+}
+
+/// Optional second channel for files. Requests carry raw bytes instead of
+/// JSON and answers are returned undecoded.
+abstract interface class MobileBinaryTransport {
+  Future<MobileBinaryResponse> sendBinary({
+    required String method,
+    required Uri uri,
+    required Map<String, String> headers,
+    required int maximumResponseBytes,
+    Uint8List? body,
+  });
+}
+
 /// Why a request did not produce an HTTP response.
 enum MobileNetworkFailure { unreachable, timeout, certificate, interrupted }
 
@@ -41,17 +60,20 @@ class MobileNetworkException implements Exception {
 
 /// Uses Dart's default TLS validation. No certificate override or redirect
 /// following is permitted for requests carrying mobile credentials.
-class IoMobileTransport implements MobileTransport {
+class IoMobileTransport implements MobileTransport, MobileBinaryTransport {
   IoMobileTransport({
     Duration timeout = const Duration(seconds: 15),
+    Duration fileTimeout = const Duration(seconds: 60),
     int maximumResponseBytes = 1024 * 1024,
   }) : _timeout = timeout,
+       _fileTimeout = fileTimeout,
        _maximumResponseBytes = maximumResponseBytes {
     _client.connectionTimeout = timeout;
   }
 
   final HttpClient _client = HttpClient();
   final Duration _timeout;
+  final Duration _fileTimeout;
   final int _maximumResponseBytes;
 
   @override
@@ -60,6 +82,55 @@ class IoMobileTransport implements MobileTransport {
     required Uri uri,
     required Map<String, String> headers,
     String? body,
+  }) async {
+    final response = await _exchange(
+      method: method,
+      uri: uri,
+      headers: headers,
+      timeout: _timeout,
+      maximumResponseBytes: _maximumResponseBytes,
+      write: (request) {
+        if (body == null) return;
+        request.headers.contentType = ContentType.json;
+        request.write(body);
+      },
+    );
+    return MobileHttpResponse(
+      statusCode: response.statusCode,
+      body: utf8.decode(response.bytes, allowMalformed: false),
+    );
+  }
+
+  @override
+  Future<MobileBinaryResponse> sendBinary({
+    required String method,
+    required Uri uri,
+    required Map<String, String> headers,
+    required int maximumResponseBytes,
+    Uint8List? body,
+  }) {
+    return _exchange(
+      method: method,
+      uri: uri,
+      headers: headers,
+      timeout: _fileTimeout,
+      maximumResponseBytes: maximumResponseBytes,
+      write: (request) {
+        if (body == null) return;
+        request.headers.contentType = ContentType.binary;
+        request.contentLength = body.length;
+        request.add(body);
+      },
+    );
+  }
+
+  Future<MobileBinaryResponse> _exchange({
+    required String method,
+    required Uri uri,
+    required Map<String, String> headers,
+    required Duration timeout,
+    required int maximumResponseBytes,
+    required void Function(HttpClientRequest request) write,
   }) async {
     if (uri.scheme != 'https') {
       throw const FormatException('Mobile-Verbindungen benötigen HTTPS.');
@@ -76,25 +147,22 @@ class IoMobileTransport implements MobileTransport {
       ..maxRedirects = 0
       ..headers.set(HttpHeaders.acceptHeader, 'application/json');
     headers.forEach((name, value) => request.headers.set(name, value));
-    if (body != null) {
-      request.headers.contentType = ContentType.json;
-      request.write(body);
-    }
+    write(request);
 
     try {
-      final response = await request.close().timeout(_timeout);
+      final response = await request.close().timeout(timeout);
       final bytes = BytesBuilder(copy: false);
-      await for (final chunk in response.timeout(_timeout)) {
-        if (bytes.length + chunk.length > _maximumResponseBytes) {
+      await for (final chunk in response.timeout(timeout)) {
+        if (bytes.length + chunk.length > maximumResponseBytes) {
           request.abort();
           throw const FormatException('Die Serverantwort ist zu groß.');
         }
         bytes.add(chunk);
       }
 
-      return MobileHttpResponse(
+      return MobileBinaryResponse(
         statusCode: response.statusCode,
-        body: utf8.decode(bytes.takeBytes(), allowMalformed: false),
+        bytes: bytes.takeBytes(),
       );
     } on FormatException {
       rethrow;
@@ -348,6 +416,135 @@ class MobileApiClient {
     );
   }
 
+  /// Largest receipt the app sends or shows; the server enforces the same.
+  static const maximumReceiptBytes = 10 * 1024 * 1024;
+
+  Future<Map<String, dynamic>> receipts(int transactionId) {
+    if (transactionId <= 0) {
+      throw const FormatException('Die Buchung ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'GET',
+      path: '/api/v1/transactions/$transactionId/receipts',
+    );
+  }
+
+  /// Attaches a photo or PDF to a transaction. Never repeated automatically.
+  Future<Map<String, dynamic>> uploadReceipt(
+    int transactionId,
+    String filename,
+    Uint8List bytes,
+  ) async {
+    if (transactionId <= 0 || bytes.isEmpty) {
+      throw const FormatException('Der Beleg ist leer.');
+    }
+    if (bytes.length > maximumReceiptBytes) {
+      throw const FormatException('Die Datei ist größer als 10 MB.');
+    }
+    final answer = await _authenticatedBinary(
+      method: 'POST',
+      path: '/api/v1/transactions/$transactionId/receipts',
+      query: {'filename': filename},
+      body: bytes,
+      maximumResponseBytes: 64 * 1024,
+    );
+    final decoded = _decodeJson(answer);
+    if (decoded is! Map) {
+      throw const FormatException(
+        'Der Server hat keine gültige JSON-Antwort geliefert.',
+      );
+    }
+    return Map<String, dynamic>.from(decoded);
+  }
+
+  /// The stored file of one receipt.
+  Future<Uint8List> receiptBytes(int receiptId) {
+    if (receiptId <= 0) throw const FormatException('Der Beleg ist ungültig.');
+    return _authenticatedBinary(
+      method: 'GET',
+      path: '/api/v1/receipts/$receiptId',
+      maximumResponseBytes: maximumReceiptBytes,
+    );
+  }
+
+  Future<void> deleteReceipt(int receiptId) async {
+    if (receiptId <= 0) throw const FormatException('Der Beleg ist ungültig.');
+    await _authenticatedJson(
+      method: 'DELETE',
+      path: '/api/v1/receipts/$receiptId',
+    );
+  }
+
+  Future<Uint8List> _authenticatedBinary({
+    required String method,
+    required String path,
+    required int maximumResponseBytes,
+    Map<String, String>? query,
+    Uint8List? body,
+  }) async {
+    final Object transport = _transport;
+    if (transport is! MobileBinaryTransport) {
+      throw const FormatException('Diese Verbindung überträgt keine Dateien.');
+    }
+    final session = await _sessionStore.read();
+    if (session == null) {
+      throw const MobileSessionExpiredException();
+    }
+
+    Future<Uint8List> attempt(MobileSession current) async {
+      final response = await transport.sendBinary(
+        method: method,
+        uri: _endpoint(current.serverUrl, path, query: query),
+        headers: {'Authorization': 'Bearer ${current.accessToken}'},
+        maximumResponseBytes: maximumResponseBytes,
+        body: body,
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.bytes;
+      }
+      throw _apiError(response.statusCode, _decodeJson(response.bytes));
+    }
+
+    try {
+      return await attempt(session);
+    } on MobileApiException catch (error) {
+      if (error.statusCode != 401) rethrow;
+    }
+
+    final refreshed = await _refreshSession(session);
+    try {
+      return await attempt(refreshed);
+    } on MobileApiException catch (error) {
+      if (error.statusCode == 401) {
+        await _sessionStore.clear();
+        throw const MobileSessionExpiredException();
+      }
+      rethrow;
+    }
+  }
+
+  static dynamic _decodeJson(Uint8List bytes) {
+    try {
+      return jsonDecode(utf8.decode(bytes));
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static MobileApiException _apiError(int statusCode, dynamic decoded) {
+    final error = decoded is Map ? decoded['error'] : null;
+    final errorMap = error is Map ? error : const <String, dynamic>{};
+    final code = errorMap['code'];
+    final message = errorMap['message'];
+    return MobileApiException(
+      statusCode: statusCode,
+      code: code is String ? code : 'http_error',
+      message: message is String
+          ? message
+          : 'Der Kassensturz-Server antwortet mit HTTP $statusCode.',
+    );
+  }
+
   /// Attempts server-side logout and always removes the local credential set.
   /// If the server cannot be reached, the device can still be locally signed out.
   Future<void> logout() async {
@@ -502,17 +699,7 @@ class MobileApiClient {
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      final error = decoded is Map ? decoded['error'] : null;
-      final errorMap = error is Map ? error : const <String, dynamic>{};
-      final code = errorMap['code'];
-      final message = errorMap['message'];
-      throw MobileApiException(
-        statusCode: response.statusCode,
-        code: code is String ? code : 'http_error',
-        message: message is String
-            ? message
-            : 'Der Kassensturz-Server antwortet mit HTTP ${response.statusCode}.',
-      );
+      throw _apiError(response.statusCode, decoded);
     }
 
     if (decoded is! Map) {

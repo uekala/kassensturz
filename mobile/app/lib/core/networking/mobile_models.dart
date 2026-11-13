@@ -175,6 +175,8 @@ class ServerTransaction {
     this.accountName,
     this.categoryId,
     this.categoryName,
+    this.taxKind,
+    this.receiptCount = 0,
   });
 
   factory ServerTransaction.fromJson(Map<String, dynamic> json) {
@@ -194,6 +196,10 @@ class ServerTransaction {
       accountName: _optionalString(json, 'account_name'),
       categoryId: categoryMap['id'] is int ? categoryMap['id'] as int : null,
       categoryName: _optionalString(categoryMap, 'name'),
+      taxKind: _optionalString(json, 'tax_kind'),
+      receiptCount: json['receipt_count'] is int
+          ? json['receipt_count'] as int
+          : 0,
     );
   }
 
@@ -211,6 +217,53 @@ class ServerTransaction {
   final String? accountName;
   final int? categoryId;
   final String? categoryName;
+
+  /// Key from [taxKindLabels] when the entry is marked for the tax return.
+  final String? taxKind;
+  final int receiptCount;
+}
+
+/// Kinds a transaction can be marked with for the tax return. The keys are
+/// the ones the server stores.
+const taxKindLabels = <String, String>{
+  'handwerker': 'Handwerkerleistung',
+  'haushaltsnah': 'Haushaltsnahe Dienstleistung',
+  'arbeitsmittel': 'Arbeitsmittel und Werbungskosten',
+  'spende': 'Spende',
+  'versicherung': 'Versicherung und Vorsorge',
+  'gesundheit': 'Krankheitskosten',
+  'kinder': 'Kinderbetreuung',
+  'sonstiges': 'Sonstiges',
+};
+
+class ServerReceipt {
+  const ServerReceipt({
+    required this.id,
+    required this.filename,
+    required this.mime,
+    required this.size,
+  });
+
+  factory ServerReceipt.fromJson(Map<String, dynamic> json) => ServerReceipt(
+    id: _requiredInt(json, 'id'),
+    filename: _requiredString(json, 'filename'),
+    mime: _optionalString(json, 'mime') ?? '',
+    size: json['size'] is int ? json['size'] as int : 0,
+  );
+
+  static List<ServerReceipt> listFrom(Map<String, dynamic> response) =>
+      _items(response, ServerReceipt.fromJson);
+
+  final int id;
+  final String filename;
+  final String mime;
+  final int size;
+
+  bool get isImage => mime.startsWith('image/');
+
+  String get sizeLabel => size >= 1024 * 1024
+      ? '${(size / (1024 * 1024)).toStringAsFixed(1).replaceAll('.', ',')} MB'
+      : '${(size / 1024).ceil()} KB';
 }
 
 /// Parses a German or plain amount such as `12,50`, `1.234,56` or `12.5`

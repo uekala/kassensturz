@@ -211,7 +211,8 @@ Kassensturz markiert nichts von selbst und rechnet keine Steuer aus; die Liste i
 **Belege** hängst du als Foto (JPEG, PNG, WebP) oder PDF an, bis 10 MB je Datei und zehn je Buchung. Am Handy
 bietet die Dateiauswahl je nach Browser auch die Kamera an. Die Dateien liegen im Datenordner der App unter `belege/` und sind damit
 in der Sicherung von Home Assistant enthalten. Wird eine Buchung oder ihr Konto gelöscht, verschwinden auch ihre
-Belege. Die Umzugsdatei enthält nur die Datenbank: Beim Umzug in eine andere Installation kommen die Belege nicht mit.
+Belege. In der Mobile-App geht dasselbe in der Buchung: Steuerart wählen, Rechnung fotografieren oder ein Foto aus
+der Galerie nehmen. Die Umzugsdatei enthält nur die Datenbank: Beim Umzug in eine andere Installation kommen die Belege nicht mit.
 
 ## Home Assistant
 

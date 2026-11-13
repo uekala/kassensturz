@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.19
+
+- Die Mobile-App kann Buchungen für die Steuererklärung markieren und Belege anhängen, ansehen und entfernen
+  (ab App 0.3.14).
+
 ## 0.3.18
 
 - Neues Zeichen: ein K mit Pfeil nach oben, in App-Icon, Logo, Kopfzeile und als Symbol im Browser-Tab.
