@@ -32,6 +32,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const affordCapability = 'afford';
   static const taxCapability = 'tax';
   static const receiptsCapability = 'receipts';
+  static const warrantyCapability = 'warranty';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -98,6 +99,9 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when the server stores a tax kind per transaction.
   bool get canTagTax => _capabilities.contains(taxCapability);
+
+  /// True when the server stores the end of a warranty per transaction.
+  bool get canSetWarranty => _capabilities.contains(warrantyCapability);
 
   /// True when the server keeps receipts for transactions.
   bool get canUseReceipts => _capabilities.contains(receiptsCapability);

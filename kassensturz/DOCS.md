@@ -214,6 +214,12 @@ in der Sicherung von Home Assistant enthalten. Wird eine Buchung oder ihr Konto 
 Belege. In der Mobile-App geht dasselbe in der Buchung: Steuerart wählen, Rechnung fotografieren oder ein Foto aus
 der Galerie nehmen. Die Umzugsdatei enthält nur die Datenbank: Beim Umzug in eine andere Installation kommen die Belege nicht mit.
 
+**Garantie bis** gibt es bei jeder Ausgabe: zwei, drei oder fünf Jahre ab Kaufdatum oder ein eigenes Datum. Unter
+*Einstellungen → Garantien* stehen die laufenden Garantien, die nächste zuerst. 30 Tage vor dem Ende erinnert
+Kassensturz in der Übersicht und per Mitteilung und sagt dazu, wenn noch kein Beleg hinterlegt ist. Als Name erscheint
+die Notiz der Buchung, sonst der Händler; eine Notiz wie „Waschmaschine“ macht die Erinnerung also verständlicher.
+Kündigungsfristen von Verträgen meldet Kassensturz schon länger, siehe Verträge.
+
 ## Home Assistant
 
 Mit `sensors: true` legt Kassensturz diese Sensoren an und aktualisiert sie alle 15 Minuten sowie nach jedem Import:

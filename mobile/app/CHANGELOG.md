@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.15
+
+- Garantie an Käufen: In jeder Ausgabe gibt es „Garantie bis“, mit 2, 3 oder 5 Jahren ab Kauf oder einem eigenen
+  Datum (ab Server 0.3.20). Der Server erinnert 30 Tage vor dem Ende.
+
 ## 0.3.14
 
 - Buchungen für die Steuererklärung markieren: In jeder Buchung gibt es „Für die Steuererklärung“ mit acht Arten

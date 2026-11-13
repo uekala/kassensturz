@@ -41,6 +41,47 @@ def clean_tax_kind(value) -> str | None:
     return value
 
 
+def clean_warranty(value) -> str | None:
+    """Garantieende als ISO-Datum; leer entfernt es."""
+    if value in (None, ""):
+        return None
+    try:
+        day = date.fromisoformat(value) if isinstance(value, str) and len(value) == 10 else None
+    except ValueError:
+        day = None
+    if day is None or not 2000 <= day.year <= 2100:
+        raise PaperError("Das Garantieende ist kein gültiges Datum.")
+    return day.isoformat()
+
+
+WARRANTY_NOTICE_DAYS = 30
+WARRANTY_KEEP_DAYS = 90
+
+
+def warranties(db: Database, today: date | None = None) -> dict:
+    """Käufe mit Garantie: laufende zuerst nach Ablauf, dazu die zuletzt abgelaufenen."""
+    today = today or date.today()
+    rows = db.query(
+        """SELECT t.id, t.booking_date, t.amount_cents, t.counterparty, t.purpose, t.note, t.warranty_until,
+                  (SELECT COUNT(*) FROM receipts r WHERE r.tx_id = t.id) AS receipt_count
+           FROM transactions t JOIN accounts a ON a.id = t.account_id
+           WHERE t.warranty_until IS NOT NULL AND a.archived = 0
+           ORDER BY t.warranty_until, t.id""")
+    running, expired = [], []
+    for r in rows:
+        try:
+            left = (date.fromisoformat(r["warranty_until"]) - today).days
+        except ValueError:
+            continue
+        r["days_left"] = left
+        r["label"] = r["note"] or r["counterparty"] or r["purpose"] or "Kauf"
+        if left >= 0:
+            running.append(r)
+        elif left >= -WARRANTY_KEEP_DAYS:
+            expired.append(r)
+    return {"running": running, "expired": expired[::-1], "soon": sum(1 for r in running if r["days_left"] <= WARRANTY_NOTICE_DAYS)}
+
+
 # --- Belege --------------------------------------------------------------------------
 
 def _sniff(data: bytes) -> tuple[str, str] | None:
