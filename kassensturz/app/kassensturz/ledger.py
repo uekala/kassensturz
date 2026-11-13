@@ -73,7 +73,73 @@ def set_balance_anchor(db: Database, account_id: int, cents: int, on: str, only_
     db.update("accounts", "id", account_id, {"balance_cents": int(cents), "balance_date": on})
 
 
-VALUE_KINDS = ("depot",)
+# Konten, bei denen man einen Wert einträgt, statt Buchungen abzurufen.
+VALUE_KINDS = ("depot", "festgeld", "vl", "immobilie", "kredit")
+# Rücklagen und Anlagen: nicht für den Alltag, also nicht in „frei verfügbar“ und Prognose.
+SAVINGS_KINDS = ("tagesgeld", "sparkonto", *VALUE_KINDS)
+MATURING_KINDS = ("festgeld", "kredit")
+WORTH_GROUPS = ("alltag", "ruecklagen", "depots", "immobilien", "kredite")
+
+
+def worth_group(account: dict) -> str:
+    """In welchem Teil des Vermögens ein Konto zählt."""
+    kind = account.get("kind")
+    if kind == "kredit":
+        return "kredite"
+    if kind == "immobilie":
+        return "immobilien"
+    if kind == "depot":
+        return "depots"
+    return "alltag" if account.get("in_forecast") else "ruecklagen"
+
+
+def signed_value(kind: str | None, cents: int) -> int:
+    """Kredite sind Schulden: Die Restschuld zählt immer negativ."""
+    return -abs(int(cents)) if kind == "kredit" else int(cents)
+
+
+def net_worth_history(db: Database, months: int = 12, today: date | None = None) -> list[dict]:
+    """Vermögen zum Ende der letzten Monate und heute.
+
+    Konten mit Buchungen: heutiger Stand minus spätere Buchungen. Konten mit eingetragenem
+    Wert: der letzte Wert bis zu diesem Tag."""
+    today = today or date.today()
+    days = []
+    year, month = today.year, today.month
+    for _ in range(months):
+        days.append(date(year, month, 1) - timedelta(days=1))
+        month -= 1
+        if month == 0:
+            year, month = year - 1, 12
+    days = sorted(days) + [today]
+    accounts = [a for a in accounts_with_balance(db) if a["balance_known"]]
+    # Der Verlauf beginnt erst, wenn für alle Konten Daten vorliegen. Sonst sähe ein neu
+    # angelegtes Depot oder ein neu erfasster Kredit wie ein Sprung im Vermögen aus.
+    starts = []
+    for a in accounts:
+        if a["kind"] in VALUE_KINDS:
+            starts.append(db.scalar("SELECT MIN(on_date) FROM valuations WHERE account_id = ?", (a["id"],)) or a["balance_date"])
+        else:
+            starts.append(min(a["first_date"] or a["balance_date"], a["balance_date"]))
+    if not starts:
+        return []
+    start = max(starts)
+    out = []
+    for day in days:
+        iso = day.isoformat()
+        if iso < start:
+            continue
+        total = 0
+        for a in accounts:
+            if a["kind"] in VALUE_KINDS:
+                total += db.scalar("SELECT value_cents FROM valuations WHERE account_id = ? AND on_date <= ? "
+                                   "ORDER BY on_date DESC LIMIT 1", (a["id"], iso)) or 0
+            else:
+                later = db.scalar("SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE account_id = ? "
+                                  "AND booking_date > ?", (a["id"], iso))
+                total += a["balance_now"] - later
+        out.append({"date": iso, "cents": total})
+    return out
 
 
 def record_valuation(db: Database, account_id: int, cents: int, on: str) -> None:
@@ -105,6 +171,7 @@ def accounts_with_balance(db: Database, include_archived: bool = False) -> list[
                        (a["id"],))
         a.update({"tx_count": stats["n"], "first_date": stats["first"], "last_date": stats["last"]})
         a.pop("fints_ref", None)
+        a["group"] = worth_group(a)
         a["value_prev_cents"] = a["value_prev_date"] = None
         if a["kind"] in VALUE_KINDS and a["balance_date"]:
             prev = db.one("SELECT on_date, value_cents FROM valuations WHERE account_id = ? AND on_date < ? "

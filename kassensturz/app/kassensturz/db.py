@@ -278,7 +278,9 @@ CREATE INDEX IF NOT EXISTS mobile_tokens_expiry ON mobile_tokens(expires_at);
 
 # Spalten, die nach Version 0.1.0 dazugekommen sind
 MIGRATIONS = {
-    "accounts": [("eb_session_id", "INTEGER"), ("eb_uid", "TEXT"), ("eb_ident", "TEXT")],
+    "accounts": [("eb_session_id", "INTEGER"), ("eb_uid", "TEXT"), ("eb_ident", "TEXT"),
+                 # Fälligkeit eines Festgelds oder Laufzeitende eines Kredits
+                 ("matures_on", "TEXT")],
     "cancellation_events": [("provider_confirmed_at", "TEXT"), ("aborted_at", "TEXT")],
     # Kennung, mit der ein Mobilgerät eine von Hand angelegte Buchung genau einmal anlegt
     "transactions": [("client_request_id", "TEXT")],

@@ -71,6 +71,16 @@ MobileHttpResponse _answer(RecordedRequest request) {
           'previous_value_cents': 1200000,
           'previous_value_date': '2026-10-01',
         },
+        {
+          'name': 'Testkredit',
+          'type': 'kredit',
+          'group': 'kredite',
+          'balance_cents': -500000,
+          'balance_known': true,
+          'balance_date': '2026-11-10',
+          'in_forecast': false,
+          'matures_on': '2029-06-30',
+        },
       ],
       'budgets': [
         {
@@ -193,6 +203,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Vermögen'), findsOneWidget);
     expect(find.textContaining('Depots 12.345,67'), findsOneWidget);
+    expect(find.textContaining('Kredite −5.000,00'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('läuft bis 30.06.2029'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.textContaining('Saldo nicht bestätigt'), findsOneWidget);
     expect(find.textContaining('Depot · Stand 10.11.2026'), findsOneWidget);
 

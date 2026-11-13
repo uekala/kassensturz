@@ -112,12 +112,20 @@ Das Konto erkennt Kassensturz an der IBAN in der Datei, an einer früheren Zuord
 (PayPal, Amex, N26 …), wenn es genau ein passendes Konto gibt. Kann es nicht zuordnen, bleibt die Datei liegen und erscheint
 unter *Konten → Eingangsordner* mit dem Knopf *Zuordnen*. Ab dann geht dasselbe Format ohne Rückfrage.
 
-## Depots
+## Vermögen: Depot, Festgeld, VL, Immobilie, Kredit
 
-Ein Depot legst du unter *Konten → Konto ohne Import anlegen* mit der Art „Depot“ an. Statt Buchungen trägst du über
-*Wert eintragen* den Gesamtwert ein, den deine Bank anzeigt. Jeder Eintrag bleibt erhalten, die Kontenseite zeigt die
-Veränderung seit dem vorherigen Wert. Depots zählen zum Vermögen, aber nicht zu „frei verfügbar“ und zur Prognose.
-Einzelne Wertpapiere und Kurse kennt Kassensturz nicht.
+Was Vermögen ist, aber keine abrufbaren Umsätze hat, legst du unter *Konten → Konto ohne Import anlegen* mit der passenden
+Art an: Depot, Festgeld, VL / Bausparen, Immobilie oder Kredit. Statt Buchungen trägst du über *Wert eintragen* den aktuellen
+Wert ein. Jeder Eintrag bleibt erhalten, die Kontenseite zeigt die Veränderung seit dem vorherigen Wert.
+
+- **Kredit:** Du trägst die Restschuld ein, zum Beispiel vom Jahreskontoauszug. Sie zählt im Vermögen als Minus. Die
+  monatliche Rate erkennt Kassensturz weiterhin als Vertrag auf dem Girokonto.
+- **Festgeld und Kredit** haben ein Datum für Fälligkeit bzw. Laufzeitende. 30 Tage vorher erscheint ein Hinweis.
+- **Sparkonto** verhält sich wie Tagesgeld und kann Umsätze haben.
+
+Alle diese Konten zählen zum Vermögen, aber nicht zu „frei verfügbar“ und zur Prognose. Die Kontenseite teilt das Vermögen
+in Alltag, Rücklagen, Depots, Immobilien und Kredite und zeigt den Verlauf der letzten Monate. Einzelne Wertpapiere, Kurse,
+Zinsen und Tilgungspläne kennt Kassensturz nicht.
 
 ## Lernen aus Korrekturen
 

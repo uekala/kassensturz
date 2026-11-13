@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.10
+
+- Vermögen mit allen Teilen: Alltag, Rücklagen, Depots, Immobilien und Kredite (ab Server 0.3.12).
+- Sparkonto, Festgeld, VL / Bausparen, Immobilie und Kredit mit Stand, Veränderung und Fälligkeit bzw. Laufzeitende.
+
 ## 0.3.9
 
 - Nach einer Kategorieänderung zeigt die App, wie viele weitere Buchungen der Server genauso zugeordnet hat
