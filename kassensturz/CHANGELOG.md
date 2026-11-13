@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.3.18
+
+- Neues Zeichen: ein K mit Pfeil nach oben, in App-Icon, Logo, Kopfzeile und als Symbol im Browser-Tab.
+
 ## 0.3.17
 
 - Buchungen lassen sich für die Steuererklärung markieren (Handwerkerleistung, haushaltsnahe Dienstleistung,

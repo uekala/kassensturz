@@ -471,19 +471,12 @@ svg { stroke-width: 1.75; }
   letter-spacing: -.045em;
 }
 .brand::before {
-  content: "K";
-  display: inline-grid;
-  place-items: center;
+  content: "";
   width: 34px;
   height: 34px;
   flex: 0 0 34px;
   border-radius: 11px;
-  background: var(--btn);
-  color: #fff;
-  font-size: 1.05rem;
-  font-weight: 800;
-  font-stretch: 100%;
-  letter-spacing: 0;
+  background: url("mark.svg") center / cover no-repeat;
 }
 .icon-btn {
   width: 42px;
@@ -1089,7 +1082,7 @@ h2 { font-weight: 600; }
 h3 { font-weight: 600; }
 
 .brand { font-weight: 700; letter-spacing: -.02em; }
-.brand::before { background: var(--accent); color: var(--on-btn); box-shadow: none; }
+.brand::before { background: url("mark.svg") center / cover no-repeat; box-shadow: none; }
 
 .top { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
 
