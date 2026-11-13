@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .db import Database
-from .util import norm
+from .db import Database, now_iso
+from .util import counterparty_key, norm
 
 # (key, Name, Eltern-key, Art)
 DEFAULT_CATEGORIES = [
@@ -124,6 +124,7 @@ class Context:
     settlements: list
     account_kind: dict
     user_rules: list
+    learned: dict
 
 
 def build_context(db: Database) -> Context:
@@ -152,6 +153,7 @@ def build_context(db: Database) -> Context:
         settlements=settlements,
         account_kind={a["id"]: a["kind"] for a in accounts},
         user_rules=rules,
+        learned={(r["key"], r["sign"]): r["category_id"] for r in db.query("SELECT key, sign, category_id FROM learned_categories")},
     )
 
 
@@ -173,6 +175,12 @@ def classify(tx: dict, ctx: Context) -> tuple[int | None, int, str | None]:
         if rx.search(hay):
             is_tr = 1 if (r["mark_transfer"] or ctx.cat_kind.get(r["category_id"]) == "transfer") else 0
             return (r["category_id"] or (transfer_id if is_tr else None), is_tr, f"user:{r['id']}")
+
+    key = learn_key(tx)
+    if key:
+        learned = ctx.learned.get((key, _sign_of(amount)))
+        if learned in ctx.cat_kind:
+            return (learned, 1 if ctx.cat_kind[learned] == "transfer" else 0, "learned")
 
     iban = (tx.get("counterparty_iban") or "").replace(" ", "").upper()
     if iban and iban in ctx.own_ibans and ctx.own_ibans[iban] != tx["account_id"]:
@@ -197,6 +205,39 @@ def classify(tx: dict, ctx: Context) -> tuple[int | None, int, str | None]:
 
     fallback = "sonstige_einnahmen" if amount > 0 else "sonstiges"
     return (ctx.cat_by_key.get(fallback), 0, None)
+
+
+# Zahlungsdienste stehen bei vielen verschiedenen Händlern als Empfänger. Von ihnen
+# lässt sich nicht auf eine Kategorie schließen.
+GENERIC_PAYEES = ("paypal", "klarna", "sumup", "zettle", "izettle", "stripe", "adyen", "mollie", "unzer", "payone",
+                  "amazon payments", "google pay", "apple pay")
+
+
+def _sign_of(amount: int) -> str:
+    return "in" if amount > 0 else "out"
+
+
+def learn_key(tx: dict) -> str | None:
+    """Woran Kassensturz einen Empfänger wiedererkennt; None, wenn er sich nicht eignet."""
+    key = counterparty_key(tx.get("counterparty"))
+    if len(key) < 3 or any(key == g or key.startswith(g + " ") for g in GENERIC_PAYEES):
+        return None
+    return key
+
+
+def learn(db: Database, tx: dict, category_id: int) -> str | None:
+    """Merkt sich die Kategorie für diesen Empfänger. Eine neue Korrektur ersetzt die alte."""
+    key = learn_key(tx)
+    if not key:
+        return None
+    label = " ".join((tx.get("counterparty") or "").split())[:60]
+    db.execute(
+        "INSERT INTO learned_categories(key, sign, label, category_id, updated) VALUES(?, ?, ?, ?, ?) "
+        "ON CONFLICT(key, sign) DO UPDATE SET category_id = excluded.category_id, label = excluded.label, "
+        "updated = excluded.updated",
+        (key, _sign_of(tx["amount_cents"]), label, category_id, now_iso()),
+    )
+    return key
 
 
 def recategorize(db: Database, tx_ids: list[int] | None = None) -> int:

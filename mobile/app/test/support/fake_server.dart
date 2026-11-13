@@ -262,6 +262,8 @@ MobileHttpResponse serverAnswer(
   if (path.startsWith('/api/v1/transactions/')) {
     if (request.method == 'DELETE') return jsonResponse(200, {'ok': true});
     return jsonResponse(200, {
+      'learned': true,
+      'also_changed': 4,
       'transaction': {'id': 9},
     });
   }

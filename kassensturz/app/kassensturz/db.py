@@ -110,6 +110,17 @@ CREATE TABLE IF NOT EXISTS rules(
   created TEXT
 );
 
+-- Was Kassensturz aus deinen Korrekturen gelernt hat: Empfänger → Kategorie.
+CREATE TABLE IF NOT EXISTS learned_categories(
+  id INTEGER PRIMARY KEY,
+  key TEXT NOT NULL,
+  sign TEXT NOT NULL,
+  label TEXT,
+  category_id INTEGER NOT NULL,
+  updated TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS learned_categories_key ON learned_categories(key, sign);
+
 CREATE TABLE IF NOT EXISTS contracts(
   key TEXT PRIMARY KEY,
   name TEXT,

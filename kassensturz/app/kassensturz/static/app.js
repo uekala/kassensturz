@@ -465,7 +465,7 @@ function bindCategoryPicker(root, onPick) {
 async function txSheet(t) {
   const name = t.counterparty || t.purpose || "Buchung";
   const rule = t.rule_ref || "";
-  const how = t.category_locked ? "von dir gesetzt" : rule.startsWith("user:") ? "durch deine Regel" : rule.startsWith("builtin") ? "automatisch erkannt"
+  const how = t.category_locked ? "von dir gesetzt" : rule.startsWith("user:") ? "durch deine Regel" : rule === "learned" ? "aus deiner Korrektur gelernt" : rule.startsWith("builtin") ? "automatisch erkannt"
     : rule === "own-iban" ? "Überweisung zwischen eigenen Konten" : rule.startsWith("settlement") ? "Ausgleich eines anderen Kontos"
     : rule === "paypal-funding" ? "Aufladung des PayPal-Kontos" : rule === "card-payment" ? "Ausgleich der Kartenabrechnung" : "keine Regel gefunden";
   const sh = openSheet(html`
@@ -510,6 +510,8 @@ async function txSheet(t) {
       body.category_id = picked;
       if ($("#rule-on", sh.el)?.checked && $("#rule-pattern", sh.el).value.trim()) {
         body.rule = { pattern: $("#rule-pattern", sh.el).value.trim(), sign: t.amount_cents > 0 ? "in" : "out" };
+      } else if ($("#rule-on", sh.el)) {
+        body.learn = false; // Haken entfernt: nur diese eine Buchung
       }
     }
     const r = await api(`transactions/${t.id}`, { method: "PATCH", body });
@@ -1543,9 +1545,10 @@ function syncSheet(conn) {
 
 /* ------------------------------------------------------------------ Einstellungen */
 async function renderSettings(view, _params, seq) {
-  const [s, rules, devices] = await Promise.all([
+  const [s, rules, learned, devices] = await Promise.all([
     api("settings"),
     api("rules"),
+    api("learned"),
     api("mobile/devices").catch(() => ({ items: [] })),
   ]);
   if (seq !== renderSeq) return;
@@ -1593,6 +1596,13 @@ async function renderSettings(view, _params, seq) {
           <span class="sub">${r.mark_transfer ? "Umbuchung" : r.category_name || "–"}${r.sign === "in" ? ", nur Eingänge" : r.sign === "out" ? ", nur Ausgänge" : ""}</span>
           <span class="amount"><button class="btn small" data-rdel="${r.id}">Entfernen</button></span></li>`)}</ul>`
           : html`<p class="small muted">Noch keine eigenen Regeln. Ändere bei einer Buchung die Kategorie, dann bietet Kassensturz an, das für ähnliche Buchungen zu merken.</p>`}
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>Gelernt</h2></div>
+        ${learned.length ? html`<ul class="list">${learned.map((l) => html`<li class="row static"><span class="title">${l.label}</span>
+          <span class="sub">${l.category_name || "–"}${l.sign === "in" ? ", Eingänge" : ""}</span>
+          <span class="amount"><button class="btn small" data-ldel="${l.id}">Vergessen</button></span></li>`)}</ul>`
+          : html`<p class="small muted">Noch nichts gelernt. Ändere bei einer Buchung die Kategorie, dann merkt sich Kassensturz den Empfänger und ordnet ähnliche Buchungen genauso zu.</p>`}
       </section>
       <section class="section">
         <div class="section-head"><h2>Kategorien</h2><button class="link-btn" id="k-add">Unterkategorie hinzufügen</button></div>
@@ -1674,6 +1684,7 @@ async function renderSettings(view, _params, seq) {
     toast("Gespeichert");
   };
   on(view, "[data-rdel]", "click", async (_e, el) => { const r = await api(`rules/${el.dataset.rdel}`, { method: "DELETE" }); toast(`Regel entfernt, ${r.recategorized} Buchungen neu zugeordnet`); rerender(); });
+  on(view, "[data-ldel]", "click", async (_e, el) => { const r = await api(`learned/${el.dataset.ldel}`, { method: "DELETE" }); toast(`Vergessen, ${r.recategorized} Buchungen neu zugeordnet`); rerender(); });
   $("#r-add").onclick = () => ruleSheet();
   $("#k-add").onclick = () => categorySheet();
   $("#d-recat").onclick = async () => { const r = await api("recategorize", { method: "POST" }); toast(`${r.recategorized} Buchungen neu zugeordnet`); };

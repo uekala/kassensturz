@@ -482,8 +482,20 @@ class MobileConnectionController extends ChangeNotifier {
   Future<String?> createTransaction(Map<String, dynamic> fields) =>
       _write(() => _apiClient.createTransaction(fields));
 
-  Future<String?> updateTransaction(int id, Map<String, dynamic> changes) =>
-      _write(() => _apiClient.updateTransaction(id, changes));
+  /// After a category change the server applies it to similar transactions;
+  /// [lastAlsoChanged] says how many followed the last update.
+  Future<String?> updateTransaction(int id, Map<String, dynamic> changes) {
+    _lastAlsoChanged = 0;
+    return _write(() async {
+      final response = await _apiClient.updateTransaction(id, changes);
+      final count = response['also_changed'];
+      _lastAlsoChanged = count is int ? count : 0;
+      return response;
+    });
+  }
+
+  int get lastAlsoChanged => _lastAlsoChanged;
+  int _lastAlsoChanged = 0;
 
   Future<String?> deleteTransaction(int id) =>
       _write(() => _apiClient.deleteTransaction(id));
