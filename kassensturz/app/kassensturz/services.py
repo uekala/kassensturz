@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import analytics, backup, contracts, fints_sync, ha, inbox, ledger, openbanking, options, savings, secrets_store
+from . import analytics, backup, contracts, fints_sync, ha, inbox, ledger, openbanking, options, papers, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -292,6 +292,7 @@ def month_review_notice(db: Database, today: date | None = None) -> dict | None:
 def refresh(db: Database | None = None, notify: bool = True) -> dict:
     db = db or get_db()
     contracts.detect(db)
+    papers.prune(db)  # Belege gelöschter Buchungen und Konten
     summary = build_summary(db)
     opts = options.load()
     if opts.get("sensors", True):
