@@ -449,7 +449,7 @@ def test_stats_endpoint_needs_a_device_and_validates_the_month(db, monkeypatch):
         capabilities = client.get("/api/v1/me", headers=headers).json()["capabilities"]
 
     assert ok.status_code == 200
-    assert set(ok.json()) == {"month", "categories", "history", "balance_curve"}
+    assert set(ok.json()) == {"month", "categories", "history", "balance_curve", "review"}
     assert invalid.status_code == 400 and invalid.json()["error"]["code"] == "invalid_query"
     assert unauthenticated.status_code == 401
     assert "stats" in capabilities

@@ -255,6 +255,18 @@ class MobileApiClient {
     query: {if (month != null && month.isNotEmpty) 'month': month},
   );
 
+  /// What a purchase of [amountCents] today means until the next salary.
+  Future<Map<String, dynamic>> afford(int amountCents) {
+    if (amountCents <= 0) {
+      throw const FormatException('Der Betrag ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'GET',
+      path: '/api/v1/afford',
+      query: {'amount_cents': '$amountCents'},
+    );
+  }
+
   Future<Map<String, dynamic>> contracts() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/contracts');
 

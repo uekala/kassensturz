@@ -253,6 +253,12 @@ async function renderOverview(view, _params, seq) {
           </div>
         </section>
         <section class="section">
+          <div class="section-head"><h2>Kann ich mir das leisten?</h2></div>
+          <form class="afford" id="afford-form"><input class="input" id="afford-amt" inputmode="decimal" placeholder="Betrag in Euro" aria-label="Betrag in Euro">
+            <button class="btn primary" type="submit">Prüfen</button></form>
+          <div id="afford-out" aria-live="polite"></div>
+        </section>
+        <section class="section">
           <div class="section-head"><h2>Kontostand und Prognose</h2></div>
           <div class="chart" id="fc-chart"></div>
           <div class="legend"><span><i></i>bisher</span><span><i class="dashed"></i>erwartet</span>
@@ -277,6 +283,12 @@ async function renderOverview(view, _params, seq) {
       </div>
     </div>`.s;
   forecastChart($("#fc-chart"), fc);
+  $("#afford-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const cents = parseMoney($("#afford-amt").value);
+    if (cents === null || cents === 0) { toast("Bitte einen Betrag eintragen"); return; }
+    try { $("#afford-out").innerHTML = affordHtml(await api("afford?amount_cents=" + Math.abs(cents))); } catch (err) { toast(err.message); }
+  };
   on(view, "[data-acc]", "click", (_e, el) => go("umsaetze", { account: el.dataset.acc }));
   on(view, "[data-alert]", "click", async (_e, el) => {
     const d = JSON.parse(el.dataset.alert);
@@ -932,6 +944,31 @@ function manualContractSheet(intervals) {
 }
 
 /* ------------------------------------------------------------------ Budgets & Auswertung */
+function affordHtml(r) {
+  const head = { yes: "Ja, das passt.", tight: "Knapp.", no: "Nein, das reißt ein Loch." }[r.verdict];
+  const until = r.period_label === "bis Monatsende" ? "bis Monatsende" : `bis zum Gehalt am ${dShort(new Date(new Date(r.period_end).getTime() + 86400000).toISOString().slice(0, 10))}`;
+  const lines = [];
+  if (r.verdict === "no") lines.push(`Nach den festen Abbuchungen sind nur ${money(r.free_before_cents)} frei. Es fehlen ${money(-r.free_after_cents)}.`);
+  else {
+    lines.push(`Danach bleiben ${money(r.free_after_cents)} ${until}, das sind ${money(r.per_day_after_cents)} pro Tag statt ${money(r.per_day_before_cents)}.`);
+    if (r.per_day_after_cents < r.usual_per_day_cents) lines.push(`Für den Alltag gibst du sonst ${money(r.usual_per_day_cents)} pro Tag aus.`);
+  }
+  if (r.below_threshold) lines.push(`Die Prognose fällt am ${dShort(r.low_point_after.date)} auf ${money(r.low_point_after.cents)}.`);
+  return html`<div class="alert ${r.verdict === "yes" ? "" : r.verdict === "tight" ? "warning" : "critical"}" style="margin-top:10px"><div><strong>${money(r.amount_cents)}: ${head}</strong>
+    <p class="small">${lines.join(" ")}</p></div></div>`.s;
+}
+
+function reviewHtml(r) {
+  if (!r || !r.has_data) return "";
+  const lines = [];
+  if (r.saved_cents > 0 && r.savings_rate !== null) lines.push(`Gespart ${money(r.saved_cents)}, Sparquote ${Math.round(r.savings_rate * 100)} %.`);
+  else if (r.saved_cents < 0) lines.push(`${money(-r.saved_cents)} mehr ausgegeben als eingenommen.`);
+  if (r.expense_change_cents !== null && Math.abs(r.expense_change_cents) >= 5000) lines.push(`Ausgaben ${money(Math.abs(r.expense_change_cents))} ${r.expense_change_cents > 0 ? "höher" : "niedriger"} als ${r.compared_months === 1 ? "im Vormonat" : `im Schnitt der letzten ${r.compared_months} Monate`}.`);
+  if (r.notable.length) lines.push(`Auffällig: ${r.notable.join(", ")}.`);
+  if (r.biggest_expense) lines.push(`Größte Einzelausgabe: ${r.biggest_expense.name}, ${money(-r.biggest_expense.amount_cents)}.`);
+  return lines.length ? html`<p class="review">${lines.join(" ")}</p>`.s : "";
+}
+
 async function renderBudgets(view, params, seq) {
   const month = params.month || todayIso().slice(0, 7);
   const [data, stats] = await Promise.all([api("budgets?month=" + month), api("stats?month=" + month)]);
@@ -952,6 +989,7 @@ async function renderBudgets(view, params, seq) {
       <li><span class="op">−</span><span>Ausgaben</span><span class="amount">${money(st.expense_cents)}</span></li>
       <li class="tally-sum" style="font-weight:650"><span class="op">=</span><span>${st.saldo_cents >= 0 ? "Überschuss" : "Fehlbetrag"}</span><span class="amount">${money(st.saldo_cents)}</span></li>
     </ul>
+    ${raw(reviewHtml(stats.review))}
     <div class="cols"><div>
       <section class="section"><div class="section-head"><h2>Budgets</h2><span class="small muted">Strich: so viel wäre bis heute im Plan</span></div>
         ${data.budgets.length ? html`<div>${data.budgets.map(budgetRow)}</div>` : html`<p class="muted">Tipp auf eine Kategorie rechts oder unten, um ein Monatsbudget festzulegen.</p>`}

@@ -1,5 +1,18 @@
 # Änderungen
 
+## 0.3.14
+
+- „Kann ich mir das leisten?“ auf der Übersicht: Betrag eingeben, Kassensturz sagt „Ja“, „Knapp“ oder „Nein“ und
+  zeigt, was bis zum Gehalt pro Tag bleibt. Gerechnet wird mit Kontostand, festen Abbuchungen, dem üblichen
+  Alltagsverbrauch und der Warnschwelle.
+- Monatsabschluss in Worten auf der Budgetseite: gespart, Sparquote, Abweichung vom Schnitt der letzten drei Monate,
+  auffällige Kategorien, größte Einzelausgabe.
+- In der ersten Woche des Monats kommt der Abschluss des Vormonats als Benachrichtigung (abschaltbar mit
+  `notify_month_review`).
+- Mobile-Schnittstelle: `GET /api/v1/afford`, die Auswertung enthält den Monatsabschluss; Fähigkeiten `afford` und
+  `review`.
+- Budgetseite: Die Summenzeile „Überschuss“ steht wieder sauber in einer Zeile; dort erschien fälschlich „FREI VERFÜGBAR“.
+
 ## 0.3.13
 
 - Selbsttest des Kontostands: Nach jedem Bankabruf prüft Kassensturz, ob sich der Stand der Bank genau um die neu

@@ -141,6 +141,7 @@ Future<ScriptedTransport> _pumpConnectedApp(WidgetTester tester) async {
 
 void main() {
   _contractTests();
+  _affordTests();
   testWidgets('connected app shows server data on every tab', (tester) async {
     final transport = await _pumpConnectedApp(tester);
 
@@ -297,6 +298,46 @@ Finder _inBudgets(String text) => find.descendant(
   of: find.byType(ServerBudgetPage),
   matching: find.text(text),
 );
+
+void _affordTests() {
+  testWidgets('the app answers whether a purchase fits', (tester) async {
+    final transport = await _pumpConnectedApp(tester);
+
+    await tester.tap(find.text('Kann ich mir das leisten?'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Prüfen'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bitte einen Betrag größer als 0 eingeben.'), findsOne);
+
+    await tester.enterText(find.byType(TextField), '300');
+    await tester.tap(find.text('Prüfen'));
+    await tester.pumpAndSettle();
+    final request = transport.requests.lastWhere(
+      (r) => r.uri.path == '/api/v1/afford',
+    );
+    expect(request.uri.queryParameters, {'amount_cents': '30000'});
+    expect(find.text('Knapp.'), findsOneWidget);
+    expect(find.textContaining('Danach bleiben 200,00 €'), findsOneWidget);
+    expect(find.textContaining('Die Prognose fällt am'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '600');
+    await tester.tap(find.text('Prüfen'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nein, das reißt ein Loch.'), findsOneWidget);
+    expect(find.textContaining('Es fehlen 100,00 €'), findsOneWidget);
+  });
+
+  testWidgets('the analysis shows the month in words', (tester) async {
+    await _pumpConnectedApp(tester);
+    await tester.tap(find.text('Auswertung'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Gespart 1.162,00 €, Sparquote 36 %.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Auffällig: Lebensmittel.'), findsOneWidget);
+  });
+}
 
 void _contractTests() {
   testWidgets('contracts can be changed and give a cancellation letter', (

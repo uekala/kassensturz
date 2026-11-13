@@ -1,5 +1,11 @@
 # Änderungen der Mobile-App
 
+## 0.3.11
+
+- „Kann ich mir das leisten?“ unter Heute: Betrag eingeben, Antwort mit dem, was bis zum Gehalt bleibt
+  (ab Server 0.3.14).
+- Auswertung mit Monatsabschluss in Worten: gespart, Sparquote, Abweichung vom Üblichen, Auffälliges.
+
 ## 0.3.10
 
 - Vermögen mit allen Teilen: Alltag, Rücklagen, Depots, Immobilien und Kredite (ab Server 0.3.12).

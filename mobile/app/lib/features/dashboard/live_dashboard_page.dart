@@ -4,6 +4,7 @@ import '../../core/design/app_theme.dart';
 import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
+import 'afford_sheet.dart';
 
 class LiveDashboardPage extends StatelessWidget {
   const LiveDashboardPage({
@@ -102,9 +103,23 @@ class LiveDashboardPage extends StatelessWidget {
                   ),
                 ],
               ),
-              if (controller.canShowStats) ...[
+              if (controller.canAfford) ...[
                 const SizedBox(height: 18),
-                _AnalysisLink(onTap: onOpenAnalysis),
+                _LinkTile(
+                  icon: Icons.shopping_bag_outlined,
+                  title: 'Kann ich mir das leisten?',
+                  subtitle: 'Betrag eingeben, Folgen bis zum Gehalt sehen',
+                  onTap: () => showAffordSheet(context, controller: controller),
+                ),
+              ],
+              if (controller.canShowStats) ...[
+                SizedBox(height: controller.canAfford ? 10 : 18),
+                _LinkTile(
+                  icon: Icons.insights_rounded,
+                  title: 'Auswertung',
+                  subtitle: 'Kategorien, Monatsvergleich, Verlauf',
+                  onTap: onOpenAnalysis,
+                ),
               ],
               if (alerts.isNotEmpty) ...[
                 const SizedBox(height: 20),
@@ -232,9 +247,17 @@ class _DashboardUnavailable extends StatelessWidget {
   }
 }
 
-class _AnalysisLink extends StatelessWidget {
-  const _AnalysisLink({required this.onTap});
+class _LinkTile extends StatelessWidget {
+  const _LinkTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
+  final IconData icon;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
 
   @override
@@ -254,18 +277,15 @@ class _AnalysisLink extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: Row(
             children: [
-              Icon(Icons.insights_rounded, color: klar.brand),
+              Icon(icon, color: klar.brand),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Auswertung', style: textTheme.titleMedium),
+                    Text(title, style: textTheme.titleMedium),
                     const SizedBox(height: 2),
-                    Text(
-                      'Kategorien, Monatsvergleich, Verlauf',
-                      style: textTheme.bodySmall,
-                    ),
+                    Text(subtitle, style: textTheme.bodySmall),
                   ],
                 ),
               ),

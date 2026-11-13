@@ -134,6 +134,23 @@ alte wie künftige, bekommen dieselbe Kategorie; von Hand gesetzte bleiben. Das 
 Gelernt* und lässt sich dort einzeln vergessen. Eigene Regeln haben Vorrang vor Gelerntem, Gelerntes vor der eingebauten
 Erkennung. Gelernt wird nur aus deinen eigenen Daten auf deinem Gerät.
 
+## Kann ich mir das leisten?
+
+Auf der Übersicht trägst du einen Betrag ein. Kassensturz rechnet, als würdest du ihn heute ausgeben:
+
+- **Ja:** Danach bleibt bis zum nächsten Gehalt mindestens so viel, wie du sonst im Alltag ausgibst.
+- **Knapp:** Es reicht für die festen Abbuchungen, aber für den Alltag bleibt weniger als üblich, oder die Prognose fällt
+  unter deine Warnschwelle.
+- **Nein:** Der Betrag ist höher als das, was nach den festen Abbuchungen frei ist.
+
+Die Antwort ist eine Rechnung aus deinen bisherigen Zahlen, keine Beratung.
+
+## Monatsabschluss
+
+Die Budgetseite fasst jeden Monat in Worten zusammen: wie viel du gespart hast, die Sparquote, ob die Ausgaben über oder
+unter dem Schnitt der letzten drei Monate lagen, welche Kategorien auffallen und was die größte Einzelausgabe war. In der
+ersten Woche des neuen Monats kommt der Abschluss des Vormonats als Benachrichtigung.
+
 ## Selbsttest des Kontostands
 
 Nach jedem Abruf per FinTS oder Open Banking vergleicht Kassensturz, ob sich der Kontostand der Bank genau um die neu
@@ -216,6 +233,7 @@ Oberfläche nicht ändern. Nach einem Neustart von Home Assistant sind sie spät
 | `sensors` | Sensoren in Home Assistant anlegen |
 | `notify_service` | z. B. `notify.mobile_app_pixel`, leer für persistente Benachrichtigungen |
 | `notify_new_transactions` | Meldung bei neuen Buchungen aus dem automatischen Abruf und dem Eingangsordner (Standard: an) |
+| `notify_month_review` | Monatsabschluss des Vormonats in der ersten Woche des Monats (Standard: an) |
 | `warn_threshold` | Warnung, wenn die Prognose unter diesen Betrag in Euro fällt |
 | `import_folder` | Eingangsordner, Standard `/share/kassensturz`; leer lässt ihn aus |
 

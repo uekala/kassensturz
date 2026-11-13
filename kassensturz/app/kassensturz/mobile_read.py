@@ -9,7 +9,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from . import analytics, contracts, services
+from . import analytics, contracts, options, services
 from .db import Database
 
 
@@ -269,7 +269,17 @@ def get_stats(db: Database, *, month: str | None = None) -> dict:
         {"date": day, "cents": int(cents), "forecast": True}
         for day, cents in forecast["future"]
     ]
+    review = analytics.month_review(db, selected)
     return {
+        "review": {
+            "label": str(review["label"]),
+            "has_data": bool(review["has_data"]),
+            "saved_cents": int(review["saved_cents"]),
+            "savings_rate": review["savings_rate"],
+            "expense_change_cents": review["expense_change_cents"],
+            "compared_months": int(review["compared_months"]),
+            "notable": [str(name) for name in review["notable"]],
+        },
         "month": {
             "month": selected,
             "income_cents": int(stats["income_cents"]),
@@ -287,6 +297,16 @@ def get_stats(db: Database, *, month: str | None = None) -> dict:
             "points": points,
         },
     }
+
+
+def get_afford(db: Database, amount_cents: Any) -> dict:
+    """What a purchase of this amount today means for the rest of the period."""
+    if isinstance(amount_cents, bool) or not isinstance(amount_cents, int):
+        raise MobileQueryError("amount_cents")
+    if not 0 < amount_cents <= analytics.MAX_AFFORD_CENTS:
+        raise MobileQueryError("amount_cents")
+    threshold = int(options.load().get("warn_threshold") or 0) * 100
+    return analytics.afford(analytics.forecast(db), amount_cents, threshold)
 
 
 def list_transactions(

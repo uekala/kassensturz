@@ -14,6 +14,9 @@ configuration:
   notify_new_transactions:
     name: Notify about new transactions
     description: Reports transactions from the automatic sync and the import folder. Transactions you import or add yourself are not reported.
+  notify_month_review:
+    name: Send the monthly review
+    description: Sends a summary of the previous month with income, expenses and savings rate during the first week of the month.
   warn_threshold:
     name: Warning threshold in euros
     description: Warn when the forecast balance drops below this amount.

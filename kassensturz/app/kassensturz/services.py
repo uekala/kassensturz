@@ -200,6 +200,24 @@ def new_transactions_notice(db: Database) -> dict | None:
     return {"key": f"tx:{max_id}", "title": title, "message": message, "count": count}
 
 
+REVIEW_DAYS = 7
+
+
+def month_review_notice(db: Database, today: date | None = None) -> dict | None:
+    """Monatsabschluss des Vormonats, in der ersten Woche des neuen Monats.
+
+    Jede Meldung trägt den Monat im Schlüssel und geht deshalb nur einmal raus."""
+    today = today or date.today()
+    if today.day > REVIEW_DAYS:
+        return None
+    last = date(today.year, today.month, 1) - timedelta(days=1)
+    review = analytics.month_review(db, last.strftime("%Y-%m"))
+    if not review["has_data"]:
+        return None
+    return {"key": f"review:{review['month']}", "title": f"Kassensturz: Monatsabschluss {review['label']}",
+            "message": analytics.review_message(review)}
+
+
 def refresh(db: Database | None = None, notify: bool = True) -> dict:
     db = db or get_db()
     contracts.detect(db)
@@ -211,6 +229,9 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
         for a in alerts(db, summary):
             if a["level"] in ("critical", "warning"):
                 ha.notify(db, a["key"], f"Kassensturz: {a['title']}", a["text"], opts.get("notify_service"))
+        review = month_review_notice(db)
+        if review and opts.get("notify_month_review", True):
+            ha.notify(db, review["key"], review["title"], review["message"], opts.get("notify_service"))
         notice = new_transactions_notice(db)
         if notice and opts.get("notify_new_transactions", True):
             ha.notify(db, notice["key"], notice["title"], notice["message"], opts.get("notify_service"))

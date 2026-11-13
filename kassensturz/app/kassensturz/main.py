@@ -59,6 +59,7 @@ MOBILE_RATE_LIMITS = {
     ("GET", "/api/v1/transactions"): ("transactions", 120, 60),
     ("POST", "/api/v1/transactions"): ("transaction-write", 60, 60),
     ("GET", "/api/v1/stats"): ("stats", 60, 60),
+    ("GET", "/api/v1/afford"): ("afford", 60, 60),
     ("GET", "/api/v1/accounts"): ("accounts", 120, 60),
     ("GET", "/api/v1/categories"): ("categories", 120, 60),
     ("GET", "/api/v1/contracts"): ("contracts", 60, 60),
@@ -1209,7 +1210,17 @@ def letter(body: dict = Body(...)):
 def stats(month: str = ""):
     db = get_db()
     month = month or date.today().strftime("%Y-%m")
-    return {"month": analytics.month_stats(db, month), "history": analytics.monthly_totals(db, 12)}
+    return {"month": analytics.month_stats(db, month), "history": analytics.monthly_totals(db, 12),
+            "review": analytics.month_review(db, month)}
+
+
+@app.get("/api/afford")
+def afford(amount_cents: int = 0):
+    if not 0 < amount_cents <= analytics.MAX_AFFORD_CENTS:
+        _err(400, "Bitte einen Betrag größer als 0 eingeben.")
+    db = get_db()
+    threshold = int(options.load().get("warn_threshold") or 0) * 100
+    return analytics.afford(analytics.forecast(db), amount_cents, threshold)
 
 
 @app.get("/api/settings")

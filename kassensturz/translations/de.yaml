@@ -14,6 +14,9 @@ configuration:
   notify_new_transactions:
     name: Bei neuen Buchungen benachrichtigen
     description: Meldet Buchungen aus dem automatischen Abruf und dem Eingangsordner. Selbst importierte oder angelegte Buchungen werden nicht gemeldet.
+  notify_month_review:
+    name: Monatsabschluss melden
+    description: Schickt in der ersten Woche des Monats eine Zusammenfassung des Vormonats mit Einnahmen, Ausgaben und Sparquote.
   warn_threshold:
     name: Warnschwelle in Euro
     description: Warnen, wenn der prognostizierte Kontostand unter diesen Betrag fällt.
