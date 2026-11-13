@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.8
+
+- Update-Hinweis: Die App fragt beim Start bei GitHub nach einer neueren Version und bietet sie mit „Update laden“
+  an. Abgerufen wird nur die öffentliche Release-Liste, ohne Zugangsdaten. Abschaltbar unter Einstellungen → App.
+
 ## 0.3.7
 
 - Verträge antippen (ab Server 0.3.10): Details, „Als Vertrag bestätigen“, „Neuen Preis übernehmen“, „Als gekündigt

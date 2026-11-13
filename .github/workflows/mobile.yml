@@ -158,7 +158,10 @@ jobs:
           BUILD_NUMBER=$((GITHUB_RUN_NUMBER + 1))
           echo "Build-Nummer: $BUILD_NUMBER"
           # Nur 64-Bit-ARM: Das deckt alle aktuellen Android-Handys ab und hält die APK klein.
-          flutter build apk --release --target-platform android-arm64 --build-number="$BUILD_NUMBER"
+          # Die Version aus pubspec.yaml kennt die App für die Update-Prüfung.
+          VERSION=$(sed -n 's/^version: *\([0-9.]*\).*/\1/p' pubspec.yaml)
+          flutter build apk --release --target-platform android-arm64 --build-number="$BUILD_NUMBER" \
+            --dart-define=KASSENSTURZ_VERSION="$VERSION"
 
       - name: Verify release signature
         env:
