@@ -154,7 +154,9 @@ void main() {
       find.byType(ListView).last,
       const Offset(0, -300),
     );
-    await tester.tap(find.byType(Switch));
+    await tester.tap(
+      find.widgetWithText(SwitchListTile, 'Nach App-Updates suchen'),
+    );
     await tester.pumpAndSettle();
     expect(await checker.enabled, isFalse);
   });

@@ -3,11 +3,20 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_pairing_payload.dart';
+import '../../core/security/app_lock.dart';
 import '../../core/update/update_check.dart';
 import 'pairing_scanner_page.dart';
 
 class MorePage extends StatefulWidget {
-  const MorePage({required this.controller, this.updates, super.key});
+  const MorePage({
+    required this.controller,
+    this.updates,
+    this.appLock,
+    super.key,
+  });
+
+  /// Fingerprint lock of the app; the switch is hidden without it.
+  final AppLock? appLock;
 
   final MobileConnectionController controller;
 
@@ -24,10 +33,44 @@ class _MorePageState extends State<MorePage> {
   late final TextEditingController _secret;
   late final TextEditingController _device;
   bool _updateCheck = true;
+  bool _lockEnabled = false;
+  bool _lockSupported = false;
+
+  Future<void> _loadLock() async {
+    final lock = widget.appLock;
+    if (lock == null) return;
+    final supported = await lock.supported;
+    final enabled = supported && await lock.enabled;
+    if (!mounted) return;
+    setState(() {
+      _lockSupported = supported;
+      _lockEnabled = enabled;
+    });
+  }
+
+  /// Turning the lock on or off needs the fingerprint, so nobody else can
+  /// change it on an unlocked phone.
+  Future<void> _setLock(bool value) async {
+    final lock = widget.appLock;
+    if (lock == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await lock.unlock(
+      value ? 'App-Sperre einschalten' : 'App-Sperre ausschalten',
+    );
+    if (!confirmed) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Nicht bestätigt, nichts geändert.')),
+      );
+      return;
+    }
+    await lock.setEnabled(value);
+    if (mounted) setState(() => _lockEnabled = value);
+  }
 
   @override
   void initState() {
     super.initState();
+    _loadLock();
     final updates = widget.updates;
     if (updates != null && updates.supported) {
       updates.enabled.then((value) {
@@ -299,10 +342,27 @@ class _MorePageState extends State<MorePage> {
                 subtitle: 'Deine Finanzdaten bleiben auf deinem Server',
               ),
             ],
-            if (widget.updates?.supported ?? false) ...[
+            if (widget.appLock != null ||
+                (widget.updates?.supported ?? false)) ...[
               const SizedBox(height: 18),
               _sectionTitle(context, 'APP'),
               const SizedBox(height: 4),
+            ],
+            if (widget.appLock != null)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('App-Sperre'),
+                subtitle: Text(
+                  _lockSupported
+                      ? 'Fragt beim Öffnen nach Fingerabdruck, Gesicht oder '
+                            'der Gerätesperre, auch nach einer Minute im '
+                            'Hintergrund.'
+                      : 'Richte zuerst eine Displaysperre auf dem Handy ein.',
+                ),
+                value: _lockEnabled,
+                onChanged: _lockSupported ? _setLock : null,
+              ),
+            if (widget.updates?.supported ?? false) ...[
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Nach App-Updates suchen'),

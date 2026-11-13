@@ -29,6 +29,9 @@ with info_path.open("rb") as source:
 info["NSCameraUsageDescription"] = (
     "Kassensturz verwendet die Kamera, um den einmaligen Geräte-Pairing-QR-Code zu scannen."
 )
+info["NSFaceIDUsageDescription"] = (
+    "Kassensturz verwendet Face ID, um die App zu entsperren."
+)
 with info_path.open("wb") as target:
     plistlib.dump(info, target, fmt=plistlib.FMT_XML, sort_keys=False)
 
@@ -92,6 +95,7 @@ for qualifier in ("mipmap-anydpi-v26",):
 PY
 
 python3 "$(dirname "${BASH_SOURCE[0]}")/configure-android-manifest.py"
+python3 "$(dirname "${BASH_SOURCE[0]}")/configure-android-app-lock.py"
 
 echo "Android- und iOS-Projektdateien wurden erstellt."
 echo "Das Kassensturz-App-Icon wurde im Original-Theme eingerichtet."
