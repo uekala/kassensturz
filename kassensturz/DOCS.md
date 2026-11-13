@@ -134,6 +134,15 @@ alte wie künftige, bekommen dieselbe Kategorie; von Hand gesetzte bleiben. Das 
 Gelernt* und lässt sich dort einzeln vergessen. Eigene Regeln haben Vorrang vor Gelerntem, Gelerntes vor der eingebauten
 Erkennung. Gelernt wird nur aus deinen eigenen Daten auf deinem Gerät.
 
+## Selbsttest des Kontostands
+
+Nach jedem Abruf per FinTS oder Open Banking vergleicht Kassensturz, ob sich der Kontostand der Bank genau um die neu
+abgerufenen Buchungen geändert hat. Bleibt über mindestens drei Tage ein Rest, fehlt vermutlich eine Buchung oder eine ist
+doppelt. Dann erscheint ein Hinweis mit dem Betrag. Der angezeigte Kontostand stammt immer von der Bank und stimmt;
+betroffen sind Auswertung und Budgets. Hast du die Ursache gefunden oder ist sie dir egal, blendest du den Hinweis im Konto
+über *Geprüft, Hinweis ausblenden* aus. Der erste Abruf eines Kontos legt nur den Ausgangspunkt fest. Für Konten ohne
+Bankabruf gibt es keinen Selbsttest.
+
 ## Umbuchungen und doppelte Ausgaben
 
 Ein Einkauf über PayPal taucht zweimal auf: als Abbuchung „PayPal Europe“ auf dem Girokonto und als Zahlung an den Händler im

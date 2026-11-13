@@ -142,6 +142,60 @@ def net_worth_history(db: Database, months: int = 12, today: date | None = None)
     return out
 
 
+DRIFT_DAYS = 3
+DRIFT_KEEP = 60
+
+
+def check_balance(db: Database, account_id: int, bank_cents: int, today: date | None = None) -> int:
+    """Selbsttest nach einem Bankabruf; gibt die Abweichung dieses Abrufs in Cent zurück.
+
+    Der Bankstand darf sich seit dem letzten Abruf nur um die Summe der neu dazugekommenen
+    Buchungen ändern. Was übrig bleibt, ist eine fehlende oder doppelte Buchung – oder ein
+    vorgemerkter Umsatz, der sich beim nächsten Abruf wieder ausgleicht. Der erste Abruf
+    eines Kontos legt nur den Ausgangspunkt fest."""
+    last_tx = int(db.scalar("SELECT COALESCE(MAX(id), 0) FROM transactions WHERE account_id = ?", (account_id,)) or 0)
+    prev = db.one("SELECT bank_cents, last_tx_id FROM balance_checks WHERE account_id = ? ORDER BY id DESC LIMIT 1",
+                  (account_id,))
+    diff = 0
+    if prev:
+        booked = db.scalar("SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE account_id = ? AND id > ?",
+                           (account_id, prev["last_tx_id"]))
+        diff = (int(bank_cents) - prev["bank_cents"]) - int(booked)
+    db.insert("balance_checks", {"account_id": account_id, "checked_on": (today or date.today()).isoformat(),
+                                 "bank_cents": int(bank_cents), "last_tx_id": last_tx, "diff_cents": diff})
+    db.execute("DELETE FROM balance_checks WHERE account_id = ? AND id NOT IN "
+               "(SELECT id FROM balance_checks WHERE account_id = ? ORDER BY id DESC LIMIT ?)",
+               (account_id, account_id, DRIFT_KEEP))
+    return diff
+
+
+def balance_drift(db: Database, account_id: int, today: date | None = None) -> dict | None:
+    """Anhaltende Abweichung eines Kontos, oder None.
+
+    Vorgemerkte Umsätze erzeugen erst ein Minus und beim Buchen ein gleich großes Plus. Gemeldet
+    wird deshalb nur, was in der Summe übrig bleibt und sich seit mindestens drei Tagen nicht
+    mehr verändert hat."""
+    rows = db.query("SELECT checked_on, diff_cents FROM balance_checks WHERE account_id = ? ORDER BY id", (account_id,))
+    total = sum(r["diff_cents"] for r in rows)
+    if not total:
+        return None
+    since, running = None, 0
+    for r in rows:
+        running += r["diff_cents"]
+        if running != total:
+            since = None
+        elif since is None:
+            since = r["checked_on"]
+    if since is None or ((today or date.today()) - date.fromisoformat(since)).days < DRIFT_DAYS:
+        return None
+    return {"cents": total, "since": since}
+
+
+def reset_balance_checks(db: Database, account_id: int) -> None:
+    """Verwirft die bisherigen Abweichungen; der nächste Abruf ist der neue Ausgangspunkt."""
+    db.execute("DELETE FROM balance_checks WHERE account_id = ?", (account_id,))
+
+
 def record_valuation(db: Database, account_id: int, cents: int, on: str) -> None:
     """Hält den Wert eines Depots fest; ein Eintrag je Tag, der letzte gilt."""
     db.execute("INSERT INTO valuations(account_id, on_date, value_cents, created) VALUES(?, ?, ?, ?) "
@@ -172,6 +226,8 @@ def accounts_with_balance(db: Database, include_archived: bool = False) -> list[
         a.update({"tx_count": stats["n"], "first_date": stats["first"], "last_date": stats["last"]})
         a.pop("fints_ref", None)
         a["group"] = worth_group(a)
+        drift = balance_drift(db, a["id"])
+        a["drift_cents"], a["drift_since"] = (drift["cents"], drift["since"]) if drift else (None, None)
         a["value_prev_cents"] = a["value_prev_date"] = None
         if a["kind"] in VALUE_KINDS and a["balance_date"]:
             prev = db.one("SELECT on_date, value_cents FROM valuations WHERE account_id = ? AND on_date < ? "
@@ -268,4 +324,5 @@ def delete_account(db: Database, account_id: int) -> None:
         db.execute("DELETE FROM transactions WHERE account_id = ?", (account_id,))
         db.execute("DELETE FROM imports WHERE account_id = ?", (account_id,))
         db.execute("DELETE FROM valuations WHERE account_id = ?", (account_id,))
+        db.execute("DELETE FROM balance_checks WHERE account_id = ?", (account_id,))
         db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
