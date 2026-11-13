@@ -61,6 +61,7 @@ MOBILE_RATE_LIMITS = {
     ("GET", "/api/v1/stats"): ("stats", 60, 60),
     ("GET", "/api/v1/afford"): ("afford", 60, 60),
     ("GET", "/api/v1/accounts"): ("accounts", 120, 60),
+    ("POST", "/api/v1/accounts"): ("account-write", 10, 60),
     ("GET", "/api/v1/categories"): ("categories", 120, 60),
     ("GET", "/api/v1/contracts"): ("contracts", 60, 60),
     ("POST", "/api/mobile/pairings"): ("pairing-create", 5, 900),

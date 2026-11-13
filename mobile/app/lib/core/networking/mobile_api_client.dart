@@ -340,6 +340,21 @@ class MobileApiClient {
 
   /// Creates a manual transaction. [fields] must contain a
   /// `client_request_id`; sending the same id again never books twice.
+  /// Creates an account without bank feed for entries made by hand.
+  Future<Map<String, dynamic>> createCashAccount(
+    String name, {
+    int? balanceCents,
+  }) {
+    if (name.trim().isEmpty) {
+      throw const FormatException('Bitte gib dem Konto einen Namen.');
+    }
+    return _authenticatedJson(
+      method: 'POST',
+      path: '/api/v1/accounts',
+      body: {'name': name.trim(), 'balance_cents': ?balanceCents},
+    );
+  }
+
   Future<Map<String, dynamic>> createTransaction(Map<String, dynamic> fields) {
     final requestId = fields['client_request_id'];
     if (requestId is! String || requestId.length < 16) {

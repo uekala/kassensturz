@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/design/app_theme.dart';
 import '../core/networking/mobile_connection_controller.dart';
+import '../features/accounts/cash_account_dialog.dart';
 import '../features/accounts/server_finance_pages.dart';
 import '../features/analysis/analysis_page.dart';
 import '../features/budget/planning_page.dart';
@@ -160,11 +161,15 @@ class _KassensturzShellState extends State<KassensturzShell>
       return;
     }
     if (controller.manualAccounts.isEmpty) {
-      _showMessage(
-        'Umsätze lassen sich nur auf Konten ohne Bankabruf anlegen. '
-        'Lege dafür in Kassensturz ein Konto an, zum Beispiel Bargeld.',
-      );
-      return;
+      if (!controller.canCreateAccounts) {
+        _showMessage(
+          'Umsätze lassen sich nur auf Konten ohne Bankabruf anlegen. '
+          'Lege dafür in Kassensturz ein Konto an, zum Beispiel Bargeld.',
+        );
+        return;
+      }
+      final created = await showCashAccountDialog(context, controller);
+      if (!created || !mounted || controller.manualAccounts.isEmpty) return;
     }
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(

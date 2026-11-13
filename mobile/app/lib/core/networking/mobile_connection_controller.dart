@@ -33,6 +33,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const taxCapability = 'tax';
   static const receiptsCapability = 'receipts';
   static const warrantyCapability = 'warranty';
+  static const accountsCapability = 'accounts.write';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -102,6 +103,9 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when the server stores the end of a warranty per transaction.
   bool get canSetWarranty => _capabilities.contains(warrantyCapability);
+
+  /// True when the app may add a cash account on the server.
+  bool get canCreateAccounts => _capabilities.contains(accountsCapability);
 
   /// True when the server keeps receipts for transactions.
   bool get canUseReceipts => _capabilities.contains(receiptsCapability);
@@ -516,6 +520,13 @@ class MobileConnectionController extends ChangeNotifier {
   /// Creates a manual transaction. Returns null on success, otherwise the
   /// message to show. The caller keeps [fields] unchanged for a retry so the
   /// server recognises the repetition by its `client_request_id`.
+  /// Adds an account for entries made by hand. Returns null on success,
+  /// otherwise the message to show.
+  Future<String?> createCashAccount(String name, {int? balanceCents}) => _write(
+    () => _apiClient.createCashAccount(name, balanceCents: balanceCents),
+    capability: accountsCapability,
+  );
+
   Future<String?> createTransaction(Map<String, dynamic> fields) =>
       _write(() => _apiClient.createTransaction(fields));
 
