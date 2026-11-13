@@ -61,6 +61,7 @@ void main() {
   ) async {
     _useTallViewport(tester);
     await tester.pumpWidget(const KassensturzApp());
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Einstellungen'));
     await tester.pumpAndSettle();
 

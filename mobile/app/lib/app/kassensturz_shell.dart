@@ -7,6 +7,7 @@ import '../features/analysis/analysis_page.dart';
 import '../features/budget/planning_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/security/app_lock.dart';
 import '../core/update/update_check.dart';
 import '../features/dashboard/live_dashboard_page.dart';
 import '../features/more/connect_required_page.dart';
@@ -19,7 +20,10 @@ class KassensturzShell extends StatefulWidget {
     super.key,
     this.mobileConnectionController,
     this.updateChecker,
+    this.appLock,
   });
+
+  final AppLock? appLock;
 
   final UpdateChecker? updateChecker;
 
@@ -126,6 +130,7 @@ class _KassensturzShellState extends State<KassensturzShell>
           body: MorePage(
             controller: _mobileConnectionController,
             updates: _updates,
+            appLock: widget.appLock,
           ),
         ),
       ),

@@ -4,6 +4,8 @@
 
 - Update-Hinweis: Die App fragt beim Start bei GitHub nach einer neueren Version und bietet sie mit „Update laden“
   an. Abgerufen wird nur die öffentliche Release-Liste, ohne Zugangsdaten. Abschaltbar unter Einstellungen → App.
+- App-Sperre: Auf Wunsch fragt die App beim Öffnen und nach einer Minute im Hintergrund nach Fingerabdruck, Gesicht
+  oder der Gerätesperre. Einschalten unter Einstellungen → App; Ein- und Ausschalten verlangt selbst die Bestätigung.
 
 ## 0.3.7
 
