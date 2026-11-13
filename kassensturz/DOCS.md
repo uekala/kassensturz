@@ -209,7 +209,7 @@ viele davon noch keinen Beleg haben. „Als CSV“ lädt die Liste für die Steu
 Kassensturz markiert nichts von selbst und rechnet keine Steuer aus; die Liste ist eine Sammlung, keine Steuerberatung.
 
 **Belege** hängst du als Foto (JPEG, PNG, WebP) oder PDF an, bis 10 MB je Datei und zehn je Buchung. Am Handy
-bietet die Dateiauswahl auch die Kamera an. Die Dateien liegen im Datenordner der App unter `belege/` und sind damit
+bietet die Dateiauswahl je nach Browser auch die Kamera an. Die Dateien liegen im Datenordner der App unter `belege/` und sind damit
 in der Sicherung von Home Assistant enthalten. Wird eine Buchung oder ihr Konto gelöscht, verschwinden auch ihre
 Belege. Die Umzugsdatei enthält nur die Datenbank: Beim Umzug in eine andere Installation kommen die Belege nicht mit.
 
