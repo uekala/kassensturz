@@ -533,7 +533,21 @@ def recategorize_all():
 
 # --- Konten ----------------------------------------------------------------------------
 
-ACCOUNT_FIELDS = ("name", "kind", "iban", "bank", "settlement_pattern", "in_forecast", "archived", "sort")
+ACCOUNT_FIELDS = ("name", "kind", "iban", "bank", "settlement_pattern", "in_forecast", "archived", "sort", "matures_on")
+
+
+def _clean_account(data: dict) -> dict:
+    if data.get("iban"):
+        data["iban"] = data["iban"].replace(" ", "").upper()
+    if "matures_on" in data:
+        value = (data["matures_on"] or "").strip() or None
+        if value:
+            try:
+                date.fromisoformat(value)
+            except ValueError:
+                _err(400, "Das Datum ist ungültig.")
+        data["matures_on"] = value
+    return data
 
 
 @app.get("/api/accounts")
@@ -551,22 +565,23 @@ def create_account(body: dict = Body(...)):
     data.update({"name": name[:60], "created": now_iso()})
     if "sort" not in body:
         data["sort"] = int(db.scalar("SELECT COALESCE(MAX(sort), 0) FROM accounts") or 0) + 1
-    if "in_forecast" not in body and data.get("kind") in ("tagesgeld", *ledger.VALUE_KINDS):
-        # Rücklagen und Depots sind nicht für den Alltag da.
+    if "in_forecast" not in body and data.get("kind") in ledger.SAVINGS_KINDS:
+        # Rücklagen, Anlagen und Kredite sind nicht für den Alltag da.
         data["in_forecast"] = 0
-    if data.get("iban"):
-        data["iban"] = data["iban"].replace(" ", "").upper()
-    aid = db.insert("accounts", data)
+    aid = db.insert("accounts", _clean_account(data))
     categorize.recategorize(db)
     return db.one("SELECT * FROM accounts WHERE id = ?", (aid,))
+
+
+@app.get("/api/networth")
+def net_worth():
+    return {"history": ledger.net_worth_history(get_db())}
 
 
 @app.patch("/api/accounts/{aid}")
 def update_account(aid: int, body: dict = Body(...)):
     db = get_db()
-    data = {k: body[k] for k in ACCOUNT_FIELDS if k in body}
-    if data.get("iban"):
-        data["iban"] = data["iban"].replace(" ", "").upper()
+    data = _clean_account({k: body[k] for k in ACCOUNT_FIELDS if k in body})
     db.update("accounts", "id", aid, data)
     if {"settlement_pattern", "iban", "kind", "archived"} & set(data):
         categorize.recategorize(db)
@@ -581,10 +596,13 @@ def set_balance(aid: int, body: dict = Body(...)):
     if cents is None:
         _err(400, "Betrag fehlt.")
     on = body.get("date") or date.today().isoformat()
-    ledger.set_balance_anchor(db, aid, int(cents), on)
     acc = db.one("SELECT kind FROM accounts WHERE id = ?", (aid,))
-    if acc and acc["kind"] in ledger.VALUE_KINDS:
-        ledger.record_valuation(db, aid, int(cents), on)
+    if not acc:
+        _err(404, "Konto nicht gefunden.")
+    cents = ledger.signed_value(acc["kind"], int(cents))
+    ledger.set_balance_anchor(db, aid, cents, on)
+    if acc["kind"] in ledger.VALUE_KINDS:
+        ledger.record_valuation(db, aid, cents, on)
     _changed()
     return {"ok": True}
 

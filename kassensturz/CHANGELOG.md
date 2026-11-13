@@ -1,5 +1,18 @@
 # Änderungen
 
+## 0.3.12
+
+- Neue Kontoarten: Sparkonto, Festgeld, VL / Bausparen, Immobilie und Kredit. Festgeld, VL, Immobilie und Kredit
+  führst du wie das Depot über eingetragene Werte, jeder Eintrag bleibt erhalten. Alle zählen zum Vermögen, aber nicht
+  zu „frei verfügbar“ und zur Prognose.
+- Kredite: Du trägst die Restschuld ein, sie zählt im Vermögen als Minus. Die Kontenseite zeigt, um wie viel sie seit
+  dem letzten Eintrag gesunken ist.
+- Festgeld und Kredit mit Datum („Fällig am“, „Läuft bis“); 30 Tage vorher erscheint ein Hinweis, auch als
+  Benachrichtigung.
+- Vermögen nach Alltag, Rücklagen, Depots, Immobilien und Krediten, dazu eine Verlaufslinie über bis zu zwölf Monate.
+  Der Verlauf beginnt erst, wenn für alle Konten Daten vorliegen, damit ein neu erfasstes Konto nicht wie ein Sprung
+  aussieht.
+
 ## 0.3.11
 
 - Kassensturz lernt aus Korrekturen: Änderst du bei einer Buchung die Kategorie, merkt es sich den Empfänger und ordnet

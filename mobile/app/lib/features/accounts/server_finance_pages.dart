@@ -25,17 +25,24 @@ class ServerAccountsPage extends StatelessWidget {
       0,
       (sum, item) => sum + _integer(item['balance_cents']),
     );
-    final daily = known
-        .where((item) => item['in_forecast'] != false)
-        .fold<int>(0, (sum, item) => sum + _integer(item['balance_cents']));
-    final depots = known
-        .where((item) => item['type'] == 'depot')
-        .fold<int>(0, (sum, item) => sum + _integer(item['balance_cents']));
-    final reserves = total - daily - depots;
+    // Older servers send no group; they only know everyday accounts,
+    // reserves and depots.
+    String groupOf(Map<String, dynamic> item) {
+      final group = item['group'];
+      if (group is String && _groupLabels.containsKey(group)) return group;
+      if (item['type'] == 'depot') return 'depots';
+      return item['in_forecast'] != false ? 'alltag' : 'ruecklagen';
+    }
+
+    final sums = <String, int>{};
+    for (final item in known) {
+      final group = groupOf(item);
+      sums[group] = (sums[group] ?? 0) + _integer(item['balance_cents']);
+    }
     final note = [
-      'Alltag ${formatEuro(daily / 100)}',
-      if (reserves != 0) 'Rücklagen ${formatEuro(reserves / 100)}',
-      if (depots != 0) 'Depots ${formatEuro(depots / 100)}',
+      for (final entry in _groupLabels.entries)
+        if (entry.key == 'alltag' || (sums[entry.key] ?? 0) != 0)
+          '${entry.value} ${formatEuro((sums[entry.key] ?? 0) / 100)}',
     ].join(' · ');
 
     return RefreshIndicator(
@@ -71,7 +78,7 @@ class ServerAccountsPage extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'Konten legst du in Kassensturz in Home Assistant an, dort trägst '
-            'du auch den Wert eines Depots ein. Umsätze von Hand gehen nur auf '
+            'du auch Werte für Depot, Festgeld, Immobilie und Kredit ein. Umsätze von Hand gehen nur auf '
             'Konten ohne Bankabruf.',
             style: textTheme.bodySmall,
           ),
@@ -96,13 +103,22 @@ class _AccountPanel extends StatelessWidget {
     final type = _string(account['type'], '');
     final previous = account['previous_value_cents'];
     final previousDate = _string(account['previous_value_date'], '');
+    final due = _string(account['matures_on'], '');
     final detail = [
       _typeLabels[type] ?? 'Konto',
       if (date.isNotEmpty) 'Stand ${formatShortDate(date)}',
       if (previous is int && previousDate.isNotEmpty)
         '${formatSignedEuro((balance - previous) / 100)} seit '
             '${formatShortDate(previousDate)}',
-      if (!known) type == 'depot' ? 'Wert fehlt' : 'Saldo nicht bestätigt',
+      if (due.isNotEmpty)
+        '${type == 'kredit' ? 'läuft bis' : 'fällig am'} '
+            '${formatShortDate(due)}',
+      if (!known)
+        type == 'kredit'
+            ? 'Restschuld fehlt'
+            : _valueTypes.contains(type)
+            ? 'Wert fehlt'
+            : 'Saldo nicht bestätigt',
     ].join(' · ');
 
     return Padding(
@@ -326,10 +342,26 @@ class _LoadError extends StatelessWidget {
 const _typeLabels = {
   'giro': 'Girokonto',
   'tagesgeld': 'Tagesgeld',
+  'sparkonto': 'Sparkonto',
+  'festgeld': 'Festgeld',
+  'vl': 'VL / Bausparen',
+  'depot': 'Depot',
+  'immobilie': 'Immobilie',
+  'kredit': 'Kredit',
   'kreditkarte': 'Kreditkarte',
   'paypal': 'PayPal',
-  'depot': 'Depot',
   'sonstiges': 'Sonstiges',
+};
+
+const _valueTypes = {'depot', 'festgeld', 'vl', 'immobilie', 'kredit'};
+
+/// Parts of the net worth, in the order they are shown.
+const _groupLabels = {
+  'alltag': 'Alltag',
+  'ruecklagen': 'Rücklagen',
+  'depots': 'Depots',
+  'immobilien': 'Immobilien',
+  'kredite': 'Kredite',
 };
 
 List<Map<String, dynamic>> _maps(dynamic value) {

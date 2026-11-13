@@ -43,6 +43,19 @@ def alerts(db: Database, summary: dict) -> list[dict]:
         out.append({"key": f"low:{today.isocalendar()[0]}-{today.isocalendar()[1]}", "level": "critical",
                     "title": "Kontostand wird knapp",
                     "text": f"Die Prognose fällt am {d.strftime('%d.%m.')} auf {euro(fc['low_point']['cents'])}."})
+    for a in db.query("SELECT id, name, kind, matures_on FROM accounts WHERE archived = 0 AND matures_on IS NOT NULL"):
+        if a["kind"] not in ledger.MATURING_KINDS:
+            continue
+        try:
+            due = date.fromisoformat(a["matures_on"])
+        except ValueError:
+            continue
+        left = (due - today).days
+        if 0 <= left <= 30:
+            what = "Festgeld wird fällig" if a["kind"] == "festgeld" else "Kredit läuft aus"
+            when = "heute" if left == 0 else "morgen" if left == 1 else f"in {left} Tagen"
+            out.append({"key": f"maturity:{a['id']}:{a['matures_on']}", "level": "warning",
+                        "title": f"{what}: {a['name']}", "text": f"Am {due.strftime('%d.%m.%Y')}, {when}."})
     for c in summary["contracts"]:
         if c["status"] == "ignored":
             continue
