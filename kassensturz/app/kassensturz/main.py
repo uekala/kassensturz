@@ -149,6 +149,10 @@ async def only_ingress(request: Request, call_next):
             "/api/mobile/devices/"
         ):
             policy = ("device-revoke", 10, 300)
+        if policy is None and request.url.path.startswith("/api/v1/transactions/") and request.url.path.endswith("/receipts"):
+            policy = ("receipt-write", 30, 60) if request.method.upper() == "POST" else ("receipts", 120, 60)
+        if policy is None and request.url.path.startswith("/api/v1/receipts/"):
+            policy = ("receipt-write", 30, 60) if request.method.upper() == "DELETE" else ("receipts", 120, 60)
         if policy is None and request.method.upper() in ("PATCH", "DELETE") and request.url.path.startswith(
             "/api/v1/transactions/"
         ):

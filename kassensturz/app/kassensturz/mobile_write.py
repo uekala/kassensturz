@@ -18,7 +18,7 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Any
 
-from . import categorize, contracts, ledger, letters
+from . import categorize, contracts, ledger, letters, papers
 from .db import Database, now_iso
 from .util import tx_hash
 
@@ -44,7 +44,7 @@ CREATE_FIELDS = frozenset(
     }
 )
 UPDATE_FIELDS = frozenset(
-    {"booking_date", "amount_cents", "counterparty", "purpose", "category_id", "note", "learn"}
+    {"booking_date", "amount_cents", "counterparty", "purpose", "category_id", "note", "learn", "tax_kind"}
 )
 MANUAL_ONLY_FIELDS = frozenset({"booking_date", "amount_cents", "counterparty", "purpose"})
 
@@ -149,13 +149,16 @@ def serialize_transaction(row: dict) -> dict:
             else None
         ),
         "manual": row.get("source") == MANUAL_SOURCE,
+        "tax_kind": row.get("tax_kind"),
+        "receipt_count": int(row.get("receipt_count") or 0),
     }
 
 
 def _load(db: Database, where: str, params: tuple) -> dict | None:
     return db.one(
         "SELECT t.id, t.account_id, t.booking_date, t.value_date, t.amount_cents, t.currency, "
-        "t.counterparty, t.purpose, t.note, t.source, t.category_id, "
+        "t.counterparty, t.purpose, t.note, t.source, t.category_id, t.tax_kind, "
+        "(SELECT COUNT(*) FROM receipts AS r WHERE r.tx_id = t.id) AS receipt_count, "
         "a.name AS account_name, c.name AS category_name "
         "FROM transactions AS t JOIN accounts AS a ON a.id = t.account_id "
         "LEFT JOIN categories AS c ON c.id = t.category_id "
@@ -261,12 +264,17 @@ def update_transaction(db: Database, tx_id: int, payload: dict, *, today: date |
             raise MobileWriteError(
                 409,
                 "not_editable",
-                "Bei Bankumsätzen lassen sich nur Kategorie und Notiz ändern.",
+                "Bei Bankumsätzen lassen sich nur Kategorie, Notiz und Steuerart ändern.",
             )
 
         data: dict[str, Any] = {}
         if "note" in payload:
             data["note"] = _clean_text(payload["note"], MAX_NOTE_LENGTH, "Notiz")
+        if "tax_kind" in payload:
+            try:
+                data["tax_kind"] = papers.clean_tax_kind(payload["tax_kind"])
+            except (papers.PaperError, TypeError):
+                raise _invalid("Die Steuerart ist unbekannt.") from None
         if payload.get("category_id") is not None:
             category = _category(db, payload["category_id"])
             data.update(
@@ -493,3 +501,48 @@ def contract_letter(db: Database, key: str, payload: dict, *, today: date | None
         "email": contract.get("provider_email") or None,
         "profile_complete": bool(letter["profile_complete"]),
     }
+
+
+# --- Belege --------------------------------------------------------------------------
+
+def _receipt_item(row: dict) -> dict:
+    return {"id": int(row["id"]), "filename": row["filename"], "mime": row["mime"], "size": int(row["size"])}
+
+
+def list_receipts(db: Database, tx_id: int) -> dict:
+    _require_transaction(db, tx_id)
+    return {"items": [_receipt_item(r) for r in papers.list_receipts(db, tx_id)], "max": papers.MAX_RECEIPTS_PER_TX,
+            "max_bytes": papers.MAX_RECEIPT_BYTES}
+
+
+def add_receipt(db: Database, tx_id: int, filename: str | None, data: bytes) -> dict:
+    _require_transaction(db, tx_id)
+    try:
+        return _receipt_item(papers.add_receipt(db, tx_id, filename, data))
+    except papers.PaperError as error:
+        raise _invalid(str(error)) from None
+
+
+def _require_receipt(db: Database, receipt_id: int) -> dict:
+    """Ein Beleg zählt nur, wenn seine Buchung für die App sichtbar ist."""
+    row = db.one("SELECT tx_id FROM receipts WHERE id = ?", (receipt_id,))
+    if row is None:
+        raise MobileWriteError(404, "not_found", "Beleg nicht gefunden.")
+    try:
+        _require_transaction(db, int(row["tx_id"]))
+    except MobileWriteError:
+        raise MobileWriteError(404, "not_found", "Beleg nicht gefunden.") from None
+    return row
+
+
+def receipt_file(db: Database, receipt_id: int):
+    _require_receipt(db, receipt_id)
+    found = papers.receipt_file(db, receipt_id)
+    if not found:
+        raise MobileWriteError(404, "not_found", "Beleg nicht gefunden.")
+    return found
+
+
+def delete_receipt(db: Database, receipt_id: int) -> None:
+    _require_receipt(db, receipt_id)
+    papers.delete_receipt(db, receipt_id)

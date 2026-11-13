@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:kassensturz_mobile/core/networking/mobile_api_client.dart';
 import 'package:kassensturz_mobile/core/networking/mobile_session.dart';
@@ -13,13 +14,58 @@ typedef RecordedRequest = ({
   String? body,
 });
 
+typedef RecordedBinaryRequest = ({
+  String method,
+  Uri uri,
+  Map<String, String> headers,
+  Uint8List? body,
+});
+
+MobileBinaryResponse binaryJson(int status, Map<String, dynamic> body) =>
+    MobileBinaryResponse(
+      statusCode: status,
+      bytes: utf8.encode(jsonEncode(body)),
+    );
+
 /// A transport whose answers are computed per request. The handler may
 /// throw a [MobileNetworkException] to simulate a broken connection.
-class ScriptedTransport implements MobileTransport {
-  ScriptedTransport(this.handler);
+class ScriptedTransport implements MobileTransport, MobileBinaryTransport {
+  ScriptedTransport(this.handler, {this.binaryHandler});
 
   final MobileHttpResponse Function(RecordedRequest request) handler;
+
+  /// Answers file requests; without it they get a 404.
+  final MobileBinaryResponse Function(RecordedBinaryRequest request)?
+  binaryHandler;
   final requests = <RecordedRequest>[];
+  final binaryRequests = <RecordedBinaryRequest>[];
+
+  @override
+  Future<MobileBinaryResponse> sendBinary({
+    required String method,
+    required Uri uri,
+    required Map<String, String> headers,
+    required int maximumResponseBytes,
+    Uint8List? body,
+  }) async {
+    final request = (
+      method: method,
+      uri: uri,
+      headers: Map<String, String>.from(headers),
+      body: body,
+    );
+    binaryRequests.add(request);
+    final answer = binaryHandler;
+    if (answer == null) {
+      return MobileBinaryResponse(
+        statusCode: 404,
+        bytes: utf8.encode(
+          '{"error":{"code":"not_found","message":"Unbekannt."}}',
+        ),
+      );
+    }
+    return answer(request);
+  }
 
   @override
   Future<MobileHttpResponse> send({

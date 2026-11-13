@@ -1,5 +1,13 @@
 # Änderungen der Mobile-App
 
+## 0.3.14
+
+- Buchungen für die Steuererklärung markieren: In jeder Buchung gibt es „Für die Steuererklärung“ mit acht Arten
+  (ab Server 0.3.19).
+- Belege an Buchungen: Rechnung fotografieren oder ein Foto aus der Galerie wählen, ansehen und wieder entfernen.
+  Die Fotos werden verkleinert übertragen und liegen nur auf dem Server. PDF-Belege aus Home Assistant erscheinen
+  in der Liste, lassen sich in der App aber noch nicht öffnen.
+
 ## 0.3.13
 
 - Neues App-Icon: ein K mit Pfeil nach oben auf Blau statt des grünen Kassenzettels. Ab Android 13 passt es sich

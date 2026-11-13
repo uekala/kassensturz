@@ -15,9 +15,9 @@ import qrcode
 from qrcode.image.svg import SvgPathImage
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import mobile_read, mobile_write, options, services
+from . import mobile_read, mobile_write, options, papers, services
 from .db import get_db
 from .mobile_auth import (
     InvalidCredential,
@@ -44,6 +44,8 @@ CAPABILITIES = (
     "afford",
     "review",
     "goals",
+    "tax",
+    "receipts",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -475,6 +477,76 @@ def delete_transaction(tx_id: str, request: Request):
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
     services.schedule_refresh()
+    return {"ok": True}
+
+
+@router.get("/api/v1/transactions/{tx_id}/receipts")
+def list_receipts(tx_id: str, request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(tx_id)
+    if parsed_id is None:
+        return _error(404, "not_found", "Buchung nicht gefunden.")
+    try:
+        return mobile_write.list_receipts(get_db(), parsed_id)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+
+
+@router.post("/api/v1/transactions/{tx_id}/receipts")
+async def add_receipt(tx_id: str, request: Request, filename: str = Query(default="", max_length=200)):
+    """Attach one photo or PDF. The body is the raw file."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(tx_id)
+    if parsed_id is None:
+        return _error(404, "not_found", "Buchung nicht gefunden.")
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > papers.MAX_RECEIPT_BYTES:
+        return _error(413, "too_large", "Die Datei ist größer als 10 MB.")
+    # Stop reading once the limit is exceeded instead of buffering an arbitrarily large body.
+    data = bytearray()
+    async for chunk in request.stream():
+        data.extend(chunk)
+        if len(data) > papers.MAX_RECEIPT_BYTES:
+            return _error(413, "too_large", "Die Datei ist größer als 10 MB.")
+    try:
+        receipt = mobile_write.add_receipt(get_db(), parsed_id, filename, bytes(data))
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+    return JSONResponse({"receipt": receipt}, status_code=201)
+
+
+@router.get("/api/v1/receipts/{receipt_id}")
+def receipt_file(receipt_id: str, request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(receipt_id)
+    if parsed_id is None:
+        return _error(404, "not_found", "Beleg nicht gefunden.")
+    try:
+        row, path = mobile_write.receipt_file(get_db(), parsed_id)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+    return FileResponse(path, media_type=row["mime"], filename=row["filename"], content_disposition_type="inline",
+                        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
+
+
+@router.delete("/api/v1/receipts/{receipt_id}")
+def delete_receipt(receipt_id: str, request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(receipt_id)
+    if parsed_id is None:
+        return _error(404, "not_found", "Beleg nicht gefunden.")
+    try:
+        mobile_write.delete_receipt(get_db(), parsed_id)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
     return {"ok": True}
 
 

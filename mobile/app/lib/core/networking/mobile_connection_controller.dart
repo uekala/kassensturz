@@ -30,6 +30,8 @@ class MobileConnectionController extends ChangeNotifier {
   static const budgetCapability = 'budgets.write';
   static const contractCapability = 'contracts.write';
   static const affordCapability = 'afford';
+  static const taxCapability = 'tax';
+  static const receiptsCapability = 'receipts';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -93,6 +95,12 @@ class MobileConnectionController extends ChangeNotifier {
   /// Time of the last call that returned current data from the server.
   DateTime? get lastSyncAt => _lastSyncAt;
   String? get serverVersion => _serverVersion;
+
+  /// True when the server stores a tax kind per transaction.
+  bool get canTagTax => _capabilities.contains(taxCapability);
+
+  /// True when the server keeps receipts for transactions.
+  bool get canUseReceipts => _capabilities.contains(receiptsCapability);
 
   /// True once the server announced that it accepts manual transactions.
   bool get canWriteTransactions => _capabilities.contains(writeCapability);
@@ -573,6 +581,69 @@ class MobileConnectionController extends ChangeNotifier {
       _notifyIfMounted();
       return (letter: null, error: describeMobileError(error));
     }
+  }
+
+  /// Receipts of one transaction. Either the list or the message is set.
+  Future<({List<ServerReceipt> items, int max, String? error})> loadReceipts(
+    int transactionId,
+  ) async {
+    try {
+      final response = await _apiClient.receipts(transactionId);
+      final max = response['max'];
+      return (
+        items: ServerReceipt.listFrom(response),
+        max: max is int ? max : 10,
+        error: null,
+      );
+    } catch (error) {
+      return (
+        items: const <ServerReceipt>[],
+        max: 10,
+        error: await _describeFailure(error),
+      );
+    }
+  }
+
+  /// Attaches a file to a transaction. Returns null on success, otherwise
+  /// the message to show. Nothing is kept on the device.
+  Future<String?> addReceipt(
+    int transactionId,
+    String filename,
+    Uint8List bytes,
+  ) async {
+    try {
+      await _apiClient.uploadReceipt(transactionId, filename, bytes);
+      return null;
+    } catch (error) {
+      return _describeFailure(error);
+    }
+  }
+
+  Future<String?> deleteReceipt(int receiptId) async {
+    try {
+      await _apiClient.deleteReceipt(receiptId);
+      return null;
+    } catch (error) {
+      return _describeFailure(error);
+    }
+  }
+
+  /// The file of one receipt, held in memory only while it is shown.
+  Future<({Uint8List? bytes, String? error})> receiptBytes(
+    int receiptId,
+  ) async {
+    try {
+      return (bytes: await _apiClient.receiptBytes(receiptId), error: null);
+    } catch (error) {
+      return (bytes: null, error: await _describeFailure(error));
+    }
+  }
+
+  Future<String> _describeFailure(Object error) async {
+    _unreachable = isConnectivityFailure(error);
+    await _clearLocalSessionIfExpired(error);
+    _notifyIfMounted();
+    return describeMobileError(error);
   }
 
   /// Sets or, with null, removes the monthly budget of a category. Returns
