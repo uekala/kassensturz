@@ -344,6 +344,11 @@ def update_transaction(tx_id: int, body: dict = Body(...)):
             data["tax_kind"] = papers.clean_tax_kind(body.get("tax_kind"))
         except papers.PaperError as exc:
             _err(400, str(exc))
+    if "warranty_until" in body:
+        try:
+            data["warranty_until"] = papers.clean_warranty(body.get("warranty_until"))
+        except papers.PaperError as exc:
+            _err(400, str(exc))
     changed = 0
     if body.get("category_id"):
         cat = db.one("SELECT * FROM categories WHERE id = ?", (body["category_id"],))
@@ -397,6 +402,11 @@ def delete_receipt(receipt_id: int):
     if not papers.delete_receipt(get_db(), receipt_id):
         _err(404, "Beleg nicht gefunden.")
     return {"ok": True}
+
+
+@app.get("/api/warranties")
+def warranties():
+    return papers.warranties(get_db())
 
 
 @app.get("/api/tax")

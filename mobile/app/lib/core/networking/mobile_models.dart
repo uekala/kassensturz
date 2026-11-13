@@ -177,6 +177,7 @@ class ServerTransaction {
     this.categoryName,
     this.taxKind,
     this.receiptCount = 0,
+    this.warrantyUntil,
   });
 
   factory ServerTransaction.fromJson(Map<String, dynamic> json) {
@@ -197,6 +198,7 @@ class ServerTransaction {
       categoryId: categoryMap['id'] is int ? categoryMap['id'] as int : null,
       categoryName: _optionalString(categoryMap, 'name'),
       taxKind: _optionalString(json, 'tax_kind'),
+      warrantyUntil: _optionalString(json, 'warranty_until'),
       receiptCount: json['receipt_count'] is int
           ? json['receipt_count'] as int
           : 0,
@@ -221,6 +223,17 @@ class ServerTransaction {
   /// Key from [taxKindLabels] when the entry is marked for the tax return.
   final String? taxKind;
   final int receiptCount;
+
+  /// ISO date on which the warranty of this purchase ends, if one is set.
+  final String? warrantyUntil;
+}
+
+/// The same calendar day [years] later; 29 February becomes the 28th.
+DateTime addYears(DateTime day, int years) {
+  final moved = DateTime(day.year + years, day.month, day.day);
+  return moved.month == day.month
+      ? moved
+      : DateTime(day.year + years, day.month + 1, 0);
 }
 
 /// Kinds a transaction can be marked with for the tax return. The keys are

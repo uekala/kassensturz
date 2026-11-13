@@ -46,6 +46,7 @@ CAPABILITIES = (
     "goals",
     "tax",
     "receipts",
+    "warranty",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128

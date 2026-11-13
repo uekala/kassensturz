@@ -44,7 +44,7 @@ CREATE_FIELDS = frozenset(
     }
 )
 UPDATE_FIELDS = frozenset(
-    {"booking_date", "amount_cents", "counterparty", "purpose", "category_id", "note", "learn", "tax_kind"}
+    {"booking_date", "amount_cents", "counterparty", "purpose", "category_id", "note", "learn", "tax_kind", "warranty_until"}
 )
 MANUAL_ONLY_FIELDS = frozenset({"booking_date", "amount_cents", "counterparty", "purpose"})
 
@@ -150,6 +150,7 @@ def serialize_transaction(row: dict) -> dict:
         ),
         "manual": row.get("source") == MANUAL_SOURCE,
         "tax_kind": row.get("tax_kind"),
+        "warranty_until": row.get("warranty_until"),
         "receipt_count": int(row.get("receipt_count") or 0),
     }
 
@@ -157,7 +158,7 @@ def serialize_transaction(row: dict) -> dict:
 def _load(db: Database, where: str, params: tuple) -> dict | None:
     return db.one(
         "SELECT t.id, t.account_id, t.booking_date, t.value_date, t.amount_cents, t.currency, "
-        "t.counterparty, t.purpose, t.note, t.source, t.category_id, t.tax_kind, "
+        "t.counterparty, t.purpose, t.note, t.source, t.category_id, t.tax_kind, t.warranty_until, "
         "(SELECT COUNT(*) FROM receipts AS r WHERE r.tx_id = t.id) AS receipt_count, "
         "a.name AS account_name, c.name AS category_name "
         "FROM transactions AS t JOIN accounts AS a ON a.id = t.account_id "
@@ -264,7 +265,7 @@ def update_transaction(db: Database, tx_id: int, payload: dict, *, today: date |
             raise MobileWriteError(
                 409,
                 "not_editable",
-                "Bei Bankumsätzen lassen sich nur Kategorie, Notiz und Steuerart ändern.",
+                "Bei Bankumsätzen lassen sich nur Kategorie, Notiz, Steuerart und Garantie ändern.",
             )
 
         data: dict[str, Any] = {}
@@ -275,6 +276,11 @@ def update_transaction(db: Database, tx_id: int, payload: dict, *, today: date |
                 data["tax_kind"] = papers.clean_tax_kind(payload["tax_kind"])
             except (papers.PaperError, TypeError):
                 raise _invalid("Die Steuerart ist unbekannt.") from None
+        if "warranty_until" in payload:
+            try:
+                data["warranty_until"] = papers.clean_warranty(payload["warranty_until"])
+            except papers.PaperError as error:
+                raise _invalid(str(error)) from None
         if payload.get("category_id") is not None:
             category = _category(db, payload["category_id"])
             data.update(

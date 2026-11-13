@@ -80,6 +80,14 @@ def alerts(db: Database, summary: dict) -> list[dict]:
             when = "heute" if left == 0 else "morgen" if left == 1 else f"in {left} Tagen"
             out.append({"key": f"maturity:{a['id']}:{a['matures_on']}", "level": "warning",
                         "title": f"{what}: {a['name']}", "text": f"Am {due.strftime('%d.%m.%Y')}, {when}."})
+    for w in papers.warranties(db, today)["running"]:
+        if w["days_left"] <= papers.WARRANTY_NOTICE_DAYS:
+            end = date.fromisoformat(w["warranty_until"]).strftime("%d.%m.%Y")
+            when = "heute" if w["days_left"] == 0 else "morgen" if w["days_left"] == 1 else f"in {w['days_left']} Tagen"
+            hint = "" if w["receipt_count"] else " Ein Beleg ist noch nicht hinterlegt."
+            out.append({"key": f"warranty:{w['id']}:{w['warranty_until']}", "level": "warning",
+                        "title": f"Garantie läuft ab: {w['label']}",
+                        "text": f"Am {end}, {when}. Wenn etwas nicht stimmt, jetzt noch reklamieren.{hint}"})
     for c in summary["contracts"]:
         if c["status"] == "ignored":
             continue

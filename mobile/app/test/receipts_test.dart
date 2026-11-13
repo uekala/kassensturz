@@ -12,7 +12,7 @@ import 'package:kassensturz_mobile/features/transactions/transaction_editor_page
 
 import 'support/fake_server.dart';
 
-const _capabilities = [...fullCapabilities, 'tax', 'receipts'];
+const _capabilities = [...fullCapabilities, 'tax', 'receipts', 'warranty'];
 final _photo = Uint8List.fromList([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 
 /// A server that keeps receipts of transaction 4 in memory.
@@ -112,6 +112,20 @@ void main() {
     });
     expect(older.taxKind, isNull);
     expect(older.receiptCount, 0);
+  });
+
+  test('warranty end is parsed and years are added by calendar', () {
+    final transaction = ServerTransaction.fromJson({
+      'id': 7,
+      'account_id': 1,
+      'booking_date': '2026-11-09',
+      'amount_cents': -450,
+      'warranty_until': '2028-11-09',
+    });
+    expect(transaction.warrantyUntil, '2028-11-09');
+    expect(addYears(DateTime(2026, 11, 9), 2), DateTime(2028, 11, 9));
+    expect(addYears(DateTime(2024, 2, 29), 2), DateTime(2026, 2, 28));
+    expect(addYears(DateTime(2024, 2, 29), 4), DateTime(2028, 2, 29));
   });
 
   test('receipts describe their kind and size', () {
@@ -226,6 +240,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Spende'), findsOneWidget);
 
+    await _reveal(tester, find.text('Keine Garantie'), list, 100);
+    await tester.tap(find.text('Keine Garantie'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('2 Jahre ab Kauf'));
+    await tester.pumpAndSettle();
+    expect(find.text('09.11.2028'), findsOneWidget);
+
     await _reveal(tester, find.text('Auf dem Server speichern'), list, -200);
     await tester.tap(find.text('Auf dem Server speichern'));
     await tester.pumpAndSettle();
@@ -233,7 +254,10 @@ void main() {
       (request) => request.method == 'PATCH',
     );
     expect(patch.uri.path, '/api/v1/transactions/4');
-    expect(jsonDecode(patch.body!), {'tax_kind': 'spende'});
+    expect(jsonDecode(patch.body!), {
+      'tax_kind': 'spende',
+      'warranty_until': '2028-11-09',
+    });
   });
 
   testWidgets('an older server shows neither tax kind nor receipts', (
@@ -254,6 +278,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Für die Steuererklärung'), findsNothing);
+    expect(find.text('Garantie bis'), findsNothing);
     expect(find.text('Belege'), findsNothing);
     expect(transport.binaryRequests, isEmpty);
   });

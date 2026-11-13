@@ -43,6 +43,7 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
   int? _accountId;
   int? _categoryId;
   String? _taxKind;
+  String? _warrantyUntil;
   bool _saving = false;
   String? _error;
 
@@ -59,6 +60,7 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
     _accountId = existing?.accountId;
     _categoryId = existing?.categoryId;
     _taxKind = existing?.taxKind;
+    _warrantyUntil = existing?.warrantyUntil;
     _amount = TextEditingController(
       text: existing == null ? '' : _formatAmount(cents.abs()),
     );
@@ -127,6 +129,45 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
       },
     );
     if (picked != null && mounted) setState(() => _categoryId = picked);
+  }
+
+  Future<void> _pickWarranty() async {
+    final bought = _date;
+    final picked = await _pick<String>(
+      title: 'Garantie bis',
+      options: const {
+        'none': 'Keine Garantie',
+        '2': '2 Jahre ab Kauf',
+        '3': '3 Jahre ab Kauf',
+        '5': '5 Jahre ab Kauf',
+        'date': 'Anderes Datum',
+      },
+    );
+    if (picked == null || !mounted) return;
+    if (picked == 'none') {
+      setState(() => _warrantyUntil = null);
+      return;
+    }
+    final years = int.tryParse(picked);
+    if (years != null) {
+      setState(() => _warrantyUntil = formatIsoDate(addYears(bought, years)));
+      return;
+    }
+    final current = DateTime.tryParse(_warrantyUntil ?? '');
+    final chosen = await showDatePicker(
+      context: context,
+      initialDate: current ?? addYears(bought, 2),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100, 12, 31),
+    );
+    if (chosen != null && mounted) {
+      setState(() => _warrantyUntil = formatIsoDate(chosen));
+    }
+  }
+
+  String _warrantyLabel() {
+    final end = DateTime.tryParse(_warrantyUntil ?? '');
+    return end == null ? 'Keine Garantie' : _formatDate(end);
   }
 
   Future<void> _pickTaxKind() async {
@@ -200,6 +241,9 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
       changes['category_id'] = _categoryId;
     }
     if (_taxKind != existing.taxKind) changes['tax_kind'] = _taxKind;
+    if (_warrantyUntil != existing.warrantyUntil) {
+      changes['warranty_until'] = _warrantyUntil;
+    }
     if (!existing.manual) return changes;
 
     final cents = parseAmountToCents(_amount.text);
@@ -471,6 +515,16 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
                 label: 'Für die Steuererklärung',
                 value: taxKindLabels[_taxKind] ?? 'Nicht relevant',
                 onTap: _saving ? null : _pickTaxKind,
+              ),
+            ],
+            if (existing != null &&
+                existing.amountCents < 0 &&
+                widget.controller.canSetWarranty) ...[
+              const SizedBox(height: 14),
+              _PickerTile(
+                label: 'Garantie bis',
+                value: _warrantyLabel(),
+                onTap: _saving ? null : _pickWarranty,
               ),
             ],
             if (existing != null && widget.controller.canUseReceipts) ...[

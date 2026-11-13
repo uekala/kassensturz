@@ -507,6 +507,14 @@ async function txSheet(t) {
       <option value="">Nicht relevant</option>
       ${TAX_KINDS.map(([k, label]) => html`<option value="${k}" ${t.tax_kind === k ? raw("selected") : ""}>${label}</option>`)}
     </select></label>
+    ${t.amount_cents < 0 ? html`<label class="field"><span>Garantie bis</span>
+      <input class="input" id="tx-warranty" type="date" value="${t.warranty_until || ""}"></label>
+    <div class="actions" style="margin-top:0">
+      <button class="btn small" type="button" data-warranty-years="2">2 Jahre</button>
+      <button class="btn small" type="button" data-warranty-years="3">3 Jahre</button>
+      <button class="btn small" type="button" data-warranty-years="5">5 Jahre</button>
+      <button class="btn small" type="button" data-warranty-years="0">Keine</button>
+    </div>` : ""}
     <div id="tx-receipts"></div>
     <div class="actions">
       <button class="btn primary" id="tx-save">Speichern</button>
@@ -528,6 +536,7 @@ async function txSheet(t) {
   });
   $("#tx-save", sh.el).onclick = async () => {
     const body = { note: $("#tx-note", sh.el).value, tax_kind: $("#tx-tax", sh.el).value || null };
+    if ($("#tx-warranty", sh.el)) body.warranty_until = $("#tx-warranty", sh.el).value || null;
     if (picked) {
       body.category_id = picked;
       if ($("#rule-on", sh.el)?.checked && $("#rule-pattern", sh.el).value.trim()) {
@@ -541,6 +550,13 @@ async function txSheet(t) {
     toast(r.recategorized ? `Gespeichert, ${r.recategorized} weitere Buchungen neu zugeordnet` : "Gespeichert");
     rerender();
   };
+  $$("[data-warranty-years]", sh.el).forEach((b) => b.onclick = () => {
+    const years = Number(b.dataset.warrantyYears);
+    // Vom Kaufdatum aus gerechnet; der 29.2. landet auf dem 28.2.
+    const [y, m, d] = t.booking_date.split("-").map(Number);
+    const last = new Date(Date.UTC(y + years, m, 0)).getUTCDate();
+    $("#tx-warranty", sh.el).value = years ? `${y + years}-${String(m).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}` : "";
+  });
   bindReceipts($("#tx-receipts", sh.el), t.id);
   $("#tx-split", sh.el).onclick = () => { sh.close(); splitSheet(t); };
   if ($("#tx-reset", sh.el)) $("#tx-reset", sh.el).onclick = async () => { await api(`transactions/${t.id}/reset`, { method: "POST" }); sh.close(); toast("Wieder automatisch zugeordnet"); rerender(); };
@@ -591,6 +607,22 @@ async function bindReceipts(box, txId) {
     };
   };
   await draw();
+}
+
+async function drawWarranties(box) {
+  let w;
+  try { w = await api("warranties"); } catch { return; }
+  const left = (n) => n === 0 ? "endet heute" : n === 1 ? "noch 1 Tag" : n < 60 ? `noch ${n} Tage` : `noch ${Math.round(n / 30.4)} Monate`;
+  const row = (i, sub) => html`<li class="row static">
+    <span class="title">${i.label}</span>
+    <span class="sub">${sub}${i.receipt_count ? "" : ", ohne Beleg"}</span>
+    <span class="amount">${dFull(i.warranty_until)}</span></li>`;
+  box.innerHTML = (w.running.length || w.expired.length) ? html`
+    ${w.running.length ? html`<ul class="list">${w.running.map((i) => row(i, `${money(-i.amount_cents)}, ${left(i.days_left)}`))}</ul>` : ""}
+    ${w.expired.length ? html`<p class="small muted" style="margin-top:14px">Kürzlich abgelaufen</p>
+      <ul class="list">${w.expired.map((i) => row(i, `${money(-i.amount_cents)}, abgelaufen`))}</ul>` : ""}
+    <p class="small muted">30 Tage vor dem Ende erinnert Kassensturz in der Übersicht und per Mitteilung.</p>`.s
+    : html`<p class="small muted">Noch keine Garantie eingetragen. Öffne den Kauf unter Umsätze und setze „Garantie bis“. Kassensturz erinnert 30 Tage vor dem Ende.</p>`.s;
 }
 
 async function drawTax(box, year) {
@@ -1811,6 +1843,10 @@ async function renderSettings(view, _params, seq) {
         <div id="tax-box"></div>
       </section>
       <section class="section">
+        <div class="section-head"><h2>Garantien</h2></div>
+        <div id="warranty-box"></div>
+      </section>
+      <section class="section">
         <div class="section-head"><h2>Daten</h2></div>
         <div class="actions" style="margin-top:0">
           <a class="btn small" href="api/export.csv" download>Alle Buchungen als CSV</a>
@@ -1822,6 +1858,7 @@ async function renderSettings(view, _params, seq) {
       </section>
     </div></div>`.s;
   drawTax($("#tax-box"));
+  drawWarranties($("#warranty-box"));
   $("#mobile-pair").onclick = async () => {
     const button = $("#mobile-pair");
     button.disabled = true;

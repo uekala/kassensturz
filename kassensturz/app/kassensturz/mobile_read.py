@@ -415,6 +415,7 @@ def list_transactions(
             t.note,
             t.source,
             t.tax_kind,
+            t.warranty_until,
             (SELECT COUNT(*) FROM receipts AS r WHERE r.tx_id = t.id) AS receipt_count,
             t.booking_date,
             t.value_date,
@@ -449,6 +450,7 @@ def list_transactions(
             "account_name": _text(row.get("account_name"), 80),
             "manual": row.get("source") == "manual",
             "tax_kind": row.get("tax_kind"),
+            "warranty_until": row.get("warranty_until"),
             "receipt_count": int(row.get("receipt_count") or 0),
             "category": (
                 {

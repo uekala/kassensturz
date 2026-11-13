@@ -317,7 +317,9 @@ MIGRATIONS = {
     # Kennung, mit der ein Mobilgerät eine von Hand angelegte Buchung genau einmal anlegt
     "transactions": [("client_request_id", "TEXT"),
                      # Steuerart einer von Hand markierten Buchung, siehe papers.TAX_KINDS
-                     ("tax_kind", "TEXT")],
+                     ("tax_kind", "TEXT"),
+                     # Ende der Garantie für einen Kauf, von Hand gesetzt (ISO-Datum)
+                     ("warranty_until", "TEXT")],
 }
 
 

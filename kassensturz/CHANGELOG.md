@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.3.20
+
+- Garantie an Käufen: In jeder Ausgabe lässt sich „Garantie bis“ setzen, mit 2, 3 oder 5 Jahren ab Kauf oder einem
+  eigenen Datum. Auch in der Mobile-App (ab 0.3.15).
+- Neue Übersicht unter *Einstellungen → Garantien*: laufende Garantien nach Ablauf sortiert, dazu die zuletzt
+  abgelaufenen.
+- Erinnerung 30 Tage vor dem Ende, in der Übersicht und als Mitteilung, mit Hinweis, wenn der Beleg fehlt.
+
 ## 0.3.19
 
 - Die Mobile-App kann Buchungen für die Steuererklärung markieren und Belege anhängen, ansehen und entfernen
