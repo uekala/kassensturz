@@ -1168,3 +1168,11 @@ a.row:hover .title, button.row:hover .title { color: var(--accent-text); }
 .goal-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .goal .meter { display: block; height: 8px; border-radius: 4px; overflow: hidden; }
 .goal .meter i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+
+/* Belege an einer Buchung */
+.receipts .row.has-thumb { grid-template-columns: 44px minmax(0, 1fr) auto; }
+.receipts .row.has-thumb .title, .receipts .row.has-thumb .sub { grid-column: 2; }
+.receipts .row.has-thumb .amount { grid-column: 3; }
+.receipt-thumb { grid-row: 1 / span 2; grid-column: 1; width: 44px; height: 44px; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.receipt-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.receipt-add { display: inline-flex; margin: 8px 10px 0 0; cursor: pointer; }

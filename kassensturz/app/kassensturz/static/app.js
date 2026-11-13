@@ -502,6 +502,12 @@ async function txSheet(t) {
     ${categoryPicker(t.category_id, t.amount_cents)}
     <div id="rule-box"></div></details>
     <label class="field"><span>Notiz</span><input class="input" id="tx-note" value="${t.note || ""}" maxlength="200"></label>
+    <h3>Steuer und Belege</h3>
+    <label class="field"><span>Für die Steuererklärung</span><select class="input" id="tx-tax">
+      <option value="">Nicht relevant</option>
+      ${TAX_KINDS.map(([k, label]) => html`<option value="${k}" ${t.tax_kind === k ? raw("selected") : ""}>${label}</option>`)}
+    </select></label>
+    <div id="tx-receipts"></div>
     <div class="actions">
       <button class="btn primary" id="tx-save">Speichern</button>
       <button class="btn" id="tx-split">Aufteilen</button>
@@ -521,7 +527,7 @@ async function txSheet(t) {
       <span class="muted small">(passt aktuell auf ${s.matches} Buchungen)</span></span></label>`.s;
   });
   $("#tx-save", sh.el).onclick = async () => {
-    const body = { note: $("#tx-note", sh.el).value };
+    const body = { note: $("#tx-note", sh.el).value, tax_kind: $("#tx-tax", sh.el).value || null };
     if (picked) {
       body.category_id = picked;
       if ($("#rule-on", sh.el)?.checked && $("#rule-pattern", sh.el).value.trim()) {
@@ -535,6 +541,7 @@ async function txSheet(t) {
     toast(r.recategorized ? `Gespeichert, ${r.recategorized} weitere Buchungen neu zugeordnet` : "Gespeichert");
     rerender();
   };
+  bindReceipts($("#tx-receipts", sh.el), t.id);
   $("#tx-split", sh.el).onclick = () => { sh.close(); splitSheet(t); };
   if ($("#tx-reset", sh.el)) $("#tx-reset", sh.el).onclick = async () => { await api(`transactions/${t.id}/reset`, { method: "POST" }); sh.close(); toast("Wieder automatisch zugeordnet"); rerender(); };
   if ($("#tx-contract", sh.el)) $("#tx-contract", sh.el).onclick = async () => {
@@ -543,6 +550,79 @@ async function txSheet(t) {
     sh.close();
     if (c) contractSheet(c);
   };
+}
+
+const TAX_KINDS = [["handwerker", "Handwerkerleistung"], ["haushaltsnah", "Haushaltsnahe Dienstleistung"],
+  ["arbeitsmittel", "Arbeitsmittel und Werbungskosten"], ["spende", "Spende"], ["versicherung", "Versicherung und Vorsorge"],
+  ["gesundheit", "Krankheitskosten"], ["kinder", "Kinderbetreuung"], ["sonstiges", "Sonstiges"]];
+
+function fileSize(bytes) {
+  return bytes >= 1048576 ? NF.format(bytes / 1048576).replace(/\d$/, "") + " MB" : NF0.format(Math.max(1, bytes / 1024)) + " KB";
+}
+
+// Belege einer Buchung: anzeigen, hochladen, entfernen. Wirkt sofort, ohne „Speichern“.
+async function bindReceipts(box, txId) {
+  const draw = async () => {
+    let res;
+    try { res = await api(`transactions/${txId}/receipts`); } catch { return; }
+    box.innerHTML = html`
+      ${res.items.length ? html`<ul class="list receipts">${res.items.map((r) => html`<li class="row static ${r.mime.startsWith("image/") ? "has-thumb" : ""}">
+        ${r.mime.startsWith("image/") ? html`<a class="receipt-thumb" href="api/receipts/${r.id}" target="_blank" rel="noopener"><img src="api/receipts/${r.id}" alt="" loading="lazy"></a>` : ""}
+        <span class="title"><a href="api/receipts/${r.id}" target="_blank" rel="noopener">${r.filename}</a></span>
+        <span class="sub">${fileSize(r.size)}</span>
+        <span class="amount"><button class="btn small" data-rcpt-del="${r.id}">Entfernen</button></span></li>`)}</ul>` : ""}
+      ${res.items.length < res.max ? html`<label class="btn small receipt-add">Beleg hinzufügen
+        <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden></label>
+        <span class="small muted" id="rcpt-status">${res.items.length ? "" : "Foto oder PDF, bis 10 MB."}</span>` : ""}`.s;
+    $$("[data-rcpt-del]", box).forEach((b) => b.onclick = async () => {
+      try { await api(`receipts/${b.dataset.rcptDel}`, { method: "DELETE" }); } catch (e) { toast(e.message); }
+      draw();
+    });
+    const input = $('input[type="file"]', box);
+    if (input) input.onchange = async () => {
+      const f = input.files[0];
+      if (!f) return;
+      const form = new FormData();
+      form.append("file", f);
+      $("#rcpt-status", box).textContent = "Wird hochgeladen …";
+      try { await api(`transactions/${txId}/receipts`, { method: "POST", form }); toast("Beleg gespeichert"); }
+      catch (e) { toast(e.message); }
+      draw();
+    };
+  };
+  await draw();
+}
+
+async function drawTax(box, year) {
+  let t;
+  try { t = await api("tax" + (year ? `?year=${year}` : "")); } catch { return; }
+  const years = t.years.includes(t.year) ? t.years : [t.year, ...t.years];
+  box.innerHTML = html`
+    ${t.count ? html`
+      <div class="actions" style="margin-top:0">
+        <select class="input" id="tax-year" aria-label="Jahr" style="width:auto">${years.map((y) => html`<option value="${y}" ${y === t.year ? raw("selected") : ""}>${y}</option>`)}</select>
+        <a class="btn small" href="api/tax.csv?year=${t.year}" download>Als CSV</a>
+      </div>
+      <ul class="list">${t.groups.map((g) => html`<li class="row" data-tax-kind="${g.kind}" tabindex="0" role="button">
+        <span class="title">${g.label}</span>
+        <span class="sub">${g.count} ${g.count === 1 ? "Buchung" : "Buchungen"}${g.missing_receipts ? `, ${g.missing_receipts} ohne Beleg` : ""}</span>
+        <span class="amount">${money(g.total_cents)}</span></li>`)}</ul>
+      <p class="small muted">Zusammen ${money(t.total_cents)} in ${t.year}. Die Liste ist eine Sammlung für die Steuererklärung, keine Steuerberatung.</p>`
+      : html`<p class="small muted">Noch nichts markiert. Öffne eine Buchung und wähle unter „Für die Steuererklärung“ eine Art, zum Beispiel Handwerkerleistung oder Spende. Hier sammelt Kassensturz sie dann je Jahr.</p>`}`.s;
+  if ($("#tax-year", box)) $("#tax-year", box).onchange = (e) => drawTax(box, e.target.value);
+  $$("[data-tax-kind]", box).forEach((row) => {
+    const open = () => {
+      const g = t.groups.find((x) => x.kind === row.dataset.taxKind);
+      openSheet(html`${sheetHead(`${g.label} ${t.year}`)}
+        <ul class="list">${g.items.map((i) => html`<li class="row static">
+          <span class="title">${i.counterparty || i.purpose || "Buchung"}</span>
+          <span class="sub">${dFull(i.booking_date)}, ${i.receipt_count ? (i.receipt_count === 1 ? "1 Beleg" : `${i.receipt_count} Belege`) : "ohne Beleg"}</span>
+          <span class="amount">${money(-i.amount_cents)}</span></li>`)}</ul>
+        <p class="small muted">Summe ${money(g.total_cents)}. Belege hängst du in der Buchung an, unter Umsätze.</p>`.s);
+    };
+    row.onclick = open;
+    row.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } };
+  });
 }
 
 function splitSheet(t) {
@@ -1727,6 +1807,10 @@ async function renderSettings(view, _params, seq) {
         <p class="small muted">${topCats().map((c) => c.name).join(", ")}.</p>
       </section>
       <section class="section">
+        <div class="section-head"><h2>Steuer</h2></div>
+        <div id="tax-box"></div>
+      </section>
+      <section class="section">
         <div class="section-head"><h2>Daten</h2></div>
         <div class="actions" style="margin-top:0">
           <a class="btn small" href="api/export.csv" download>Alle Buchungen als CSV</a>
@@ -1737,6 +1821,7 @@ async function renderSettings(view, _params, seq) {
         <p class="small muted" style="margin-top:14px">Kassensturz ${s.options ? store.state.version : ""}. Alle Daten liegen nur auf diesem Home-Assistant-Gerät.</p>
       </section>
     </div></div>`.s;
+  drawTax($("#tax-box"));
   $("#mobile-pair").onclick = async () => {
     const button = $("#mobile-pair");
     button.disabled = true;

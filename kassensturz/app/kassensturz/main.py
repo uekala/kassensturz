@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options, savings,
+from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options, papers, savings,
                secrets_store, services, umzug)
 from .db import close_db, get_db, now_iso
 from .mobile_api import router as mobile_api_router
@@ -317,8 +317,11 @@ def transactions(q: str = "", account: int | None = None, category: int | None =
         by = {}
         for sp in splits:
             by.setdefault(sp["tx_id"], []).append(sp)
+        counts = {r["tx_id"]: r["n"] for r in db.query(
+            f"SELECT tx_id, COUNT(*) AS n FROM receipts WHERE tx_id IN ({','.join('?' * len(ids))}) GROUP BY tx_id", tuple(ids))}
         for i in items:
             i["splits"] = by.get(i["id"], [])
+            i["receipt_count"] = counts.get(i["id"], 0)
             i.pop("hash", None)
     return {"items": items, "total": total["n"], "sum_in": total["sin"], "sum_out": total["sout"]}
 
@@ -332,6 +335,11 @@ def update_transaction(tx_id: int, body: dict = Body(...)):
     data = {}
     if "note" in body:
         data["note"] = (body.get("note") or "").strip() or None
+    if "tax_kind" in body:
+        try:
+            data["tax_kind"] = papers.clean_tax_kind(body.get("tax_kind"))
+        except papers.PaperError as exc:
+            _err(400, str(exc))
     changed = 0
     if body.get("category_id"):
         cat = db.one("SELECT * FROM categories WHERE id = ?", (body["category_id"],))
@@ -352,6 +360,55 @@ def update_transaction(tx_id: int, body: dict = Body(...)):
         changed = categorize.recategorize(db)
     _changed()
     return {"ok": True, "recategorized": changed, "learned": bool(learned)}
+
+
+@app.get("/api/transactions/{tx_id}/receipts")
+def receipts(tx_id: int):
+    return {"items": papers.list_receipts(get_db(), tx_id), "max": papers.MAX_RECEIPTS_PER_TX}
+
+
+@app.post("/api/transactions/{tx_id}/receipts")
+async def add_receipt(tx_id: int, file: UploadFile = File(...)):
+    # Nicht erst die ganze fremde Datei in den Speicher lesen und dann ablehnen.
+    data = await file.read(papers.MAX_RECEIPT_BYTES + 1)
+    try:
+        return papers.add_receipt(get_db(), tx_id, file.filename, data)
+    except papers.PaperError as exc:
+        _err(404 if "nicht gefunden" in str(exc) else 400, str(exc))
+
+
+@app.get("/api/receipts/{receipt_id}")
+def receipt(receipt_id: int):
+    found = papers.receipt_file(get_db(), receipt_id)
+    if not found:
+        _err(404, "Beleg nicht gefunden.")
+    row, path = found
+    # Der Typ stammt aus dem Inhalt; der Browser soll ihn nicht selbst raten.
+    return FileResponse(path, media_type=row["mime"], filename=row["filename"], content_disposition_type="inline",
+                        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
+
+
+@app.delete("/api/receipts/{receipt_id}")
+def delete_receipt(receipt_id: int):
+    if not papers.delete_receipt(get_db(), receipt_id):
+        _err(404, "Beleg nicht gefunden.")
+    return {"ok": True}
+
+
+@app.get("/api/tax")
+def tax(year: int | None = None):
+    db = get_db()
+    out = papers.tax_year(db, year if year and 1990 <= year <= 2200 else papers.default_year(db))
+    out["kinds"] = [{"key": k, "label": v} for k, v in papers.TAX_KINDS.items()]
+    return out
+
+
+@app.get("/api/tax.csv")
+def tax_csv(year: int):
+    if not 1990 <= year <= 2200:
+        _err(400, "Jahr ungültig.")
+    return Response(papers.tax_csv(get_db(), year), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="kassensturz-steuer-{year}.csv"', "Cache-Control": "no-store"})
 
 
 @app.post("/api/transactions/{tx_id}/reset")

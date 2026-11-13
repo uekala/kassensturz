@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.17
+
+- Buchungen lassen sich für die Steuererklärung markieren (Handwerkerleistung, haushaltsnahe Dienstleistung,
+  Arbeitsmittel, Spende, Versicherung, Krankheitskosten, Kinderbetreuung, Sonstiges).
+- Neue Übersicht unter *Einstellungen → Steuer*: Summen je Art und Jahr, Hinweis auf fehlende Belege, Export als CSV.
+- Belege an Buchungen: Fotos und PDF bis 10 MB, zehn je Buchung. Der Dateityp wird am Inhalt geprüft.
+
 ## 0.3.16
 
 - Neue Sensoren für Home Assistant: Vermögen mit seinen Teilen, Ersparnisse, Schulden, Rücklage für Jahreskosten

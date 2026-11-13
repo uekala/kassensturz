@@ -198,6 +198,21 @@ Vertragsende und Kündigungsfrist hinterlegen; Kassensturz erinnert dann rechtze
 Preiserhöhung) inklusive Widerruf des SEPA-Mandats. Es lässt sich als E-Mail öffnen, kopieren oder als PDF drucken.
 Dafür einmal unter *Einstellungen* Name und Anschrift eintragen. Die Schreiben sind Vorlagen, keine Rechtsberatung.
 
+## Steuer und Belege
+
+In jeder Buchung gibt es den Abschnitt „Steuer und Belege“.
+
+**Für die Steuererklärung** markiert die Buchung mit einer Art: Handwerkerleistung, haushaltsnahe Dienstleistung,
+Arbeitsmittel und Werbungskosten, Spende, Versicherung und Vorsorge, Krankheitskosten, Kinderbetreuung oder Sonstiges.
+Unter *Einstellungen → Steuer* sammelt Kassensturz die markierten Buchungen je Jahr, zeigt die Summe je Art und wie
+viele davon noch keinen Beleg haben. „Als CSV“ lädt die Liste für die Steuererklärung oder den Steuerberater herunter.
+Kassensturz markiert nichts von selbst und rechnet keine Steuer aus; die Liste ist eine Sammlung, keine Steuerberatung.
+
+**Belege** hängst du als Foto (JPEG, PNG, WebP) oder PDF an, bis 10 MB je Datei und zehn je Buchung. Am Handy
+bietet die Dateiauswahl je nach Browser auch die Kamera an. Die Dateien liegen im Datenordner der App unter `belege/` und sind damit
+in der Sicherung von Home Assistant enthalten. Wird eine Buchung oder ihr Konto gelöscht, verschwinden auch ihre
+Belege. Die Umzugsdatei enthält nur die Datenbank: Beim Umzug in eine andere Installation kommen die Belege nicht mit.
+
 ## Home Assistant
 
 Mit `sensors: true` legt Kassensturz diese Sensoren an und aktualisiert sie alle 15 Minuten sowie nach jedem Import:

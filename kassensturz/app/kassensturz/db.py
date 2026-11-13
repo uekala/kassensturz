@@ -237,6 +237,17 @@ CREATE TABLE IF NOT EXISTS goals(
   created TEXT
 );
 
+CREATE TABLE IF NOT EXISTS receipts(
+  id INTEGER PRIMARY KEY,
+  tx_id INTEGER NOT NULL,
+  filename TEXT NOT NULL,
+  stored TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  created TEXT
+);
+CREATE INDEX IF NOT EXISTS receipts_tx ON receipts(tx_id);
+
 CREATE TABLE IF NOT EXISTS notices(
   key TEXT PRIMARY KEY,
   created TEXT
@@ -304,7 +315,9 @@ MIGRATIONS = {
                  ("matures_on", "TEXT")],
     "cancellation_events": [("provider_confirmed_at", "TEXT"), ("aborted_at", "TEXT")],
     # Kennung, mit der ein Mobilgerät eine von Hand angelegte Buchung genau einmal anlegt
-    "transactions": [("client_request_id", "TEXT")],
+    "transactions": [("client_request_id", "TEXT"),
+                     # Steuerart einer von Hand markierten Buchung, siehe papers.TAX_KINDS
+                     ("tax_kind", "TEXT")],
 }
 
 
