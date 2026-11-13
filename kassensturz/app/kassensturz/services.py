@@ -43,6 +43,15 @@ def alerts(db: Database, summary: dict) -> list[dict]:
         out.append({"key": f"low:{today.isocalendar()[0]}-{today.isocalendar()[1]}", "level": "critical",
                     "title": "Kontostand wird knapp",
                     "text": f"Die Prognose fällt am {d.strftime('%d.%m.')} auf {euro(fc['low_point']['cents'])}."})
+    for a in db.query("SELECT id, name FROM accounts WHERE archived = 0"):
+        drift = ledger.balance_drift(db, a["id"], today)
+        if drift:
+            since = date.fromisoformat(drift["since"]).strftime("%d.%m.")
+            what = ("Die Bank zeigt {} mehr, als die abgerufenen Buchungen erklären" if drift["cents"] > 0
+                    else "Die Bank zeigt {} weniger, als die abgerufenen Buchungen erklären").format(euro(abs(drift["cents"])))
+            out.append({"key": f"drift:{a['id']}:{drift['cents']}", "level": "warning",
+                        "title": f"Kontostand {a['name']} passt nicht",
+                        "text": f"{what} (seit {since}). Vermutlich fehlt eine Buchung oder ist doppelt."})
     for a in db.query("SELECT id, name, kind, matures_on FROM accounts WHERE archived = 0 AND matures_on IS NOT NULL"):
         if a["kind"] not in ledger.MATURING_KINDS:
             continue

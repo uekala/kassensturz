@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.3.13
+
+- Selbsttest des Kontostands: Nach jedem Bankabruf prüft Kassensturz, ob sich der Stand der Bank genau um die neu
+  abgerufenen Buchungen geändert hat. Bleibt über mindestens drei Tage ein Rest, erscheint der Hinweis „Kontostand …
+  passt nicht“ mit dem Betrag, auch als Benachrichtigung. Vorgemerkte Umsätze gleichen sich beim Buchen aus und lösen
+  nichts aus.
+- Das betroffene Konto trägt die Marke „passt nicht“; im Konto lässt sich der Hinweis nach der Prüfung ausblenden.
+
 ## 0.3.12
 
 - Neue Kontoarten: Sparkonto, Festgeld, VL / Bausparen, Immobilie und Kredit. Festgeld, VL, Immobilie und Kredit

@@ -304,6 +304,7 @@ def _sync(job: Job, conn: dict, pin: str, history_days: int | None, background: 
             r = ledger.import_rows(db, acc["id"], rows, "fints", f"FinTS {conn['name']}", res_meta)
             if res_meta:
                 ledger.set_balance_anchor(db, acc["id"], res_meta["balance_cents"], res_meta["balance_date"])
+                ledger.check_balance(db, acc["id"], res_meta["balance_cents"])
             summary["accounts"].append({"id": acc["id"], "name": acc["name"], "added": r["added"]})
             summary["added"] += r["added"]
             summary["skipped"] += r["skipped"]

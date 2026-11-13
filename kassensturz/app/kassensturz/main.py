@@ -573,6 +573,13 @@ def create_account(body: dict = Body(...)):
     return db.one("SELECT * FROM accounts WHERE id = ?", (aid,))
 
 
+@app.post("/api/accounts/{aid}/balance-check/reset")
+def reset_balance_check(aid: int):
+    ledger.reset_balance_checks(get_db(), aid)
+    _changed()
+    return {"ok": True}
+
+
 @app.get("/api/networth")
 def net_worth():
     return {"history": ledger.net_worth_history(get_db())}

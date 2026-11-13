@@ -1079,7 +1079,7 @@ async function renderAccounts(view, _params, seq) {
         ${worth.count ? html`<div class="worth"><span class="label">Vermögen</span><div class="big-amount">${money(worth.total)}</div>
           <p class="small muted">${worth.parts.map(([l, c]) => `${l} ${money(c)}`).join(" · ")}</p>${spark}</div>` : ""}
         ${accounts.length ? html`<ul class="list">${accounts.map((a) => html`<li><button class="row" data-acc="${a.id}" style="${a.archived ? "opacity:.55" : ""}">
-          <span class="title">${a.name}${a.archived ? " (archiviert)" : ""}${!a.in_forecast && !a.archived && !VALUE_KINDS.has(a.kind) ? html` <span class="chip neutral">nicht in Prognose</span>` : ""}</span>
+          <span class="title">${a.name}${a.archived ? " (archiviert)" : ""}${!a.in_forecast && !a.archived && !VALUE_KINDS.has(a.kind) ? html` <span class="chip neutral">nicht in Prognose</span>` : ""}${a.drift_cents ? html` <span class="chip warn">passt nicht</span>` : ""}</span>
           <span class="sub">${VALUE_KINDS.has(a.kind) ? source(a) : `${KIND_LABEL[a.kind] || a.kind}, ${source(a)}`}</span>
           <span class="amount">${a.balance_known ? money(a.balance_now) : html`<span class="chip warn">${VALUE_KINDS.has(a.kind) ? "Wert fehlt" : "Stand fehlt"}</span>`}<small>${VALUE_KINDS.has(a.kind) ? (a.balance_known ? `Stand ${dShort(a.balance_date)}` : "") : `${a.tx_count} Buchungen`}</small></span></button></li>`)}</ul>`
           : html`<p class="muted">Noch keine Konten. Verbinde eine Bank oder importiere eine Datei.</p>`}
@@ -1292,7 +1292,10 @@ function accountSheet(a) {
   const sh = openSheet(html`${sheetHead(isNew ? "Konto anlegen" : a.name)}
     ${!isNew ? html`<div class="big-amount">${a.balance_known ? money(a.balance_now) : "Kontostand fehlt"}</div>
       <div class="actions" style="margin-top:0"><button class="btn small" id="ac-bal">${a.kind === "kredit" ? "Restschuld eintragen" : VALUE_KINDS.has(a.kind) ? "Wert eintragen" : "Kontostand eintragen"}</button>
-      <a class="btn small" href="#/umsaetze?account=${a.id}" data-close>Buchungen ansehen</a></div>` : ""}
+      <a class="btn small" href="#/umsaetze?account=${a.id}" data-close>Buchungen ansehen</a></div>
+      ${a.drift_cents ? html`<div class="alert warning" style="margin:10px 0"><div><strong>Kontostand passt nicht zu den Buchungen</strong>
+        <p class="small">Die Bank zeigt seit ${dShort(a.drift_since)} ${money(Math.abs(a.drift_cents))} ${a.drift_cents > 0 ? "mehr" : "weniger"}, als die abgerufenen Buchungen erklären. Vermutlich fehlt eine Buchung oder ist doppelt. Der angezeigte Kontostand stammt von der Bank und stimmt; betroffen sind Auswertung und Budgets.</p>
+        <button class="btn small" id="ac-drift">Geprüft, Hinweis ausblenden</button></div></div>` : ""}` : ""}
     <label class="field"><span>Name</span><input class="input" id="ac-name" value="${a.name}" ${isNew ? raw("autofocus") : ""}></label>
     <div class="field-row">
       <label class="field"><span>Art</span><select id="ac-kind">${Object.entries(KIND_LABEL).map(([k, l]) => html`<option value="${k}" ${k === a.kind ? raw("selected") : ""}>${l}</option>`)}</select></label>
@@ -1324,6 +1327,9 @@ function accountSheet(a) {
     $("#ac-due-label", sh.el).textContent = kind === "kredit" ? "Läuft bis" : "Fällig am";
   };
   if ($("#ac-bal", sh.el)) $("#ac-bal", sh.el).onclick = () => { sh.close(); balanceSheet(a); };
+  if ($("#ac-drift", sh.el)) $("#ac-drift", sh.el).onclick = async () => {
+    await api(`accounts/${a.id}/balance-check/reset`, { method: "POST" }); sh.close(); toast("Hinweis ausgeblendet"); rerender();
+  };
   if ($("#ac-del", sh.el)) confirmButton($("#ac-del", sh.el), `Wirklich ${a.tx_count} Buchungen löschen?`, async () => {
     await api(`accounts/${a.id}`, { method: "DELETE" }); sh.close(); toast("Konto gelöscht"); rerender();
   });

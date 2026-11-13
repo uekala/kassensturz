@@ -216,6 +216,17 @@ CREATE TABLE IF NOT EXISTS valuations(
 );
 CREATE UNIQUE INDEX IF NOT EXISTS valuations_day ON valuations(account_id, on_date);
 
+-- Selbsttest: Passt die Änderung des Bankstands zu den neu abgerufenen Buchungen?
+CREATE TABLE IF NOT EXISTS balance_checks(
+  id INTEGER PRIMARY KEY,
+  account_id INTEGER NOT NULL,
+  checked_on TEXT NOT NULL,
+  bank_cents INTEGER NOT NULL,
+  last_tx_id INTEGER NOT NULL,
+  diff_cents INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS balance_checks_account ON balance_checks(account_id, id);
+
 CREATE TABLE IF NOT EXISTS notices(
   key TEXT PRIMARY KEY,
   created TEXT

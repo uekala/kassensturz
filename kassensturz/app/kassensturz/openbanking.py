@@ -457,6 +457,7 @@ def _sync(job: Job, eb_id: int, psu: dict | None) -> dict:
             r = ledger.import_rows(db, acc["id"], rows, "openbanking", f"Open Banking {sess['aspsp_name']}", meta)
             if meta:
                 ledger.set_balance_anchor(db, acc["id"], meta["balance_cents"], meta["balance_date"])
+                ledger.check_balance(db, acc["id"], meta["balance_cents"])
             summary["accounts"].append({"id": acc["id"], "name": acc["name"], "added": r["added"]})
             summary["added"] += r["added"]
             summary["skipped"] += r["skipped"]
