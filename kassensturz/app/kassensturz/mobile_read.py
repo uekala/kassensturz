@@ -9,7 +9,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from . import analytics, contracts, options, services
+from . import analytics, contracts, options, savings, services
 from .db import Database
 
 
@@ -117,6 +117,22 @@ def _forecast_dto(source: dict) -> dict:
         "variable_daily_cents": int(source.get("variable_daily_cents") or 0),
         "variable_expected_cents": int(source.get("variable_expected_cents") or 0),
         "buffer_cents": int(source.get("buffer_cents") or 0),
+        "reserve": {
+            "reserved_cents": int(source.get("reserve_cents") or 0),
+            "monthly_cents": int(source.get("reserve_monthly_cents") or 0),
+            "deducted": bool(source.get("reserve_deducted", False)),
+            "items": [
+                {
+                    "name": _text(item.get("name"), MAX_COUNTERPARTY_LENGTH),
+                    "amount_cents": int(item.get("amount_cents") or 0),
+                    "next_due": item.get("next_due"),
+                    "interval": _text(item.get("interval"), 32),
+                    "monthly_cents": int(item.get("monthly_cents") or 0),
+                    "reserved_cents": int(item.get("reserved_cents") or 0),
+                }
+                for item in source.get("reserve_items", [])
+            ],
+        },
         "month_end_cents": (
             int(source["month_end_cents"])
             if source.get("month_end_cents") is not None
@@ -226,7 +242,22 @@ def get_overview(db: Database, *, as_of: datetime | None = None) -> dict:
     contracts.detect(db)
     summary = services.build_summary(db)
     alert_items = services.alerts(db, summary)
-    return serialize_overview(summary, alert_items, as_of=as_of)
+    overview = serialize_overview(summary, alert_items, as_of=as_of)
+    overview["goals"] = [
+        {
+            "id": int(goal["id"]),
+            "name": _text(goal["name"], 60),
+            "target_cents": int(goal["target_cents"]),
+            "saved_cents": int(goal["saved_cents"]),
+            "rest_cents": int(goal["rest_cents"]),
+            "due_date": goal["due_date"],
+            "monthly_cents": goal["monthly_cents"],
+            "status": goal["status"],
+            "progress": goal["progress"],
+        }
+        for goal in savings.list_goals(db)
+    ]
+    return overview
 
 
 MAX_STATS_CATEGORIES = 40
@@ -274,6 +305,7 @@ def get_stats(db: Database, *, month: str | None = None) -> dict:
         "review": {
             "label": str(review["label"]),
             "has_data": bool(review["has_data"]),
+            "complete": bool(review["complete"]),
             "saved_cents": int(review["saved_cents"]),
             "savings_rate": review["savings_rate"],
             "expense_change_cents": review["expense_change_cents"],

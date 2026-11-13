@@ -151,6 +151,20 @@ Die Budgetseite fasst jeden Monat in Worten zusammen: wie viel du gespart hast, 
 unter dem Schnitt der letzten drei Monate lagen, welche Kategorien auffallen und was die größte Einzelausgabe war. In der
 ersten Woche des neuen Monats kommt der Abschluss des Vormonats als Benachrichtigung.
 
+## Sparziele und Jahreskosten
+
+**Sparziele** legst du auf der Budgetseite an: wofür, wie viel, optional bis wann und auf welchem Konto das Geld liegt. Mit
+Konto zählt dessen Stand als gespart; hängen mehrere Ziele am selben Konto, wird er in der Reihenfolge verteilt, in der du
+die Ziele angelegt hast. Ohne Konto trägst du den gesparten Betrag selbst ein. Mit Datum zeigt Kassensturz, wie viel du im
+Monat zurücklegen musst.
+
+**Jahreskosten** sind Verträge, die viertel-, halb- oder jährlich abgebucht werden. Kassensturz verteilt jede Zahlung über
+ihren Abstand: Eine Versicherung über 600 € im Jahr braucht 50 € im Monat, sechs Monate nach der letzten Abbuchung sollten
+also 300 € da sein. Die Budgetseite zeigt die Summe und jeden Vertrag einzeln.
+
+Unter *Einstellungen* kannst du diese Rücklage von „frei verfügbar“ abziehen lassen. Lass das aus, wenn du dafür schon Geld
+auf einem Tagesgeld- oder Sparkonto zurücklegst, sonst zählt es doppelt.
+
 ## Selbsttest des Kontostands
 
 Nach jedem Abruf per FinTS oder Open Banking vergleicht Kassensturz, ob sich der Kontostand der Bank genau um die neu

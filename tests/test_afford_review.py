@@ -97,5 +97,5 @@ def test_stats_carry_the_review(client, db, monkeypatch):
     reset_mobile_guards(monkeypatch)
     with https_client() as mobile:
         review = mobile.get("/api/v1/stats?month=2026-10", headers=paired_headers(mobile)).json()["review"]
-    assert review == {"label": "Oktober 2026", "has_data": True, "saved_cents": 110000, "savings_rate": 0.3667,
+    assert review == {"label": "Oktober 2026", "has_data": True, "complete": True, "saved_cents": 110000, "savings_rate": 0.3667,
                       "expense_change_cents": 80000, "compared_months": 3, "notable": ["Testurlaub"]}

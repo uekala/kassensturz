@@ -494,6 +494,8 @@ class _CurvePainter extends CustomPainter {
 /// review or there is nothing to say.
 String? _reviewText(dynamic review) {
   if (review is! Map || review['has_data'] != true) return null;
+  // A running month cannot be compared with whole months yet.
+  if (review['complete'] == false) return null;
   final saved = review['saved_cents'];
   final rate = review['savings_rate'];
   final change = review['expense_change_cents'];

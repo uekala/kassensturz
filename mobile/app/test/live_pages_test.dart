@@ -46,6 +46,19 @@ const _transactions = <Map<String, dynamic>>[
 MobileHttpResponse _answer(RecordedRequest request) {
   if (request.uri.path == '/api/v1/overview') {
     return jsonResponse(200, {
+      'goals': [
+        {
+          'id': 1,
+          'name': 'Testurlaub',
+          'target_cents': 250000,
+          'saved_cents': 120000,
+          'rest_cents': 130000,
+          'due_date': '2027-06-21',
+          'monthly_cents': 16250,
+          'status': 'open',
+          'progress': 0.48,
+        },
+      ],
       'as_of': '2026-11-10T12:00:00+00:00',
       'accounts': [
         {
@@ -110,6 +123,21 @@ MobileHttpResponse _answer(RecordedRequest request) {
         'free_cents': 128450,
         'balance_cents': 391218,
         'month_end_cents': 243100,
+        'reserve': {
+          'reserved_cents': 30000,
+          'monthly_cents': 5000,
+          'deducted': false,
+          'items': [
+            {
+              'name': 'Testversicherung',
+              'amount_cents': 60000,
+              'next_due': '2027-05-01',
+              'interval': 'jährlich',
+              'monthly_cents': 5000,
+              'reserved_cents': 30000,
+            },
+          ],
+        },
       },
       'month': {'income_cents': 324000, 'expense_cents': -207800},
     });
@@ -142,6 +170,7 @@ Future<ScriptedTransport> _pumpConnectedApp(WidgetTester tester) async {
 void main() {
   _contractTests();
   _affordTests();
+  _savingsTests();
   testWidgets('connected app shows server data on every tab', (tester) async {
     final transport = await _pumpConnectedApp(tester);
 
@@ -336,6 +365,29 @@ void _affordTests() {
       findsOneWidget,
     );
     expect(find.textContaining('Auffällig: Lebensmittel.'), findsOneWidget);
+  });
+}
+
+void _savingsTests() {
+  testWidgets('planning shows savings goals and yearly costs', (tester) async {
+    await _pumpConnectedApp(tester);
+    await tester.tap(find.text('Planung').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Jahreskosten'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(ServerBudgetPage),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(find.text('Testurlaub'), findsOneWidget);
+    expect(find.text('1.200,00 € von 2.500,00 €'), findsOneWidget);
+    expect(find.text('162,50 € im Monat bis 21.06.2027'), findsOneWidget);
+    expect(find.text('Testversicherung'), findsOneWidget);
+    expect(find.textContaining('zurückgelegt haben'), findsOneWidget);
   });
 }
 

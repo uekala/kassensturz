@@ -43,6 +43,7 @@ CAPABILITIES = (
     "categories.learn",
     "afford",
     "review",
+    "goals",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128

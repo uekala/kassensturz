@@ -325,4 +325,5 @@ def delete_account(db: Database, account_id: int) -> None:
         db.execute("DELETE FROM imports WHERE account_id = ?", (account_id,))
         db.execute("DELETE FROM valuations WHERE account_id = ?", (account_id,))
         db.execute("DELETE FROM balance_checks WHERE account_id = ?", (account_id,))
+        db.execute("UPDATE goals SET account_id = NULL WHERE account_id = ?", (account_id,))
         db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))

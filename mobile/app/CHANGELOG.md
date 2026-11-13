@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.12
+
+- Planung zeigt Sparziele mit Fortschritt und nötiger Monatsrate sowie die Jahreskosten mit der Rücklage, die dafür
+  heute da sein sollte (ab Server 0.3.15). Angelegt und geändert wird beides in Kassensturz in Home Assistant.
+
 ## 0.3.11
 
 - „Kann ich mir das leisten?“ unter Heute: Betrag eingeben, Antwort mit dem, was bis zum Gehalt bleibt

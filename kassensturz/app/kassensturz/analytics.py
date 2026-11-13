@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from . import contracts as contracts_mod
-from . import ledger
+from . import ledger, savings
 from .db import Database
 from .util import add_months, euro, month_end, month_start
 
@@ -72,7 +72,11 @@ def forecast(db: Database, horizon_days: int = HORIZON_DAYS) -> dict:
     fixed_in = sum(u["amount_cents"] for u in in_period if u["amount_cents"] > 0)
     buffer = int(db.get_setting("buffer_cents", 0) or 0)
     days_left = (period_end - today).days + 1
-    free = balance_now + fixed_in + fixed_out - buffer
+    # Rücklage für seltene Kosten: immer ausgewiesen, abgezogen nur auf Wunsch. Wer sie auf
+    # einem Tagesgeldkonto hält, hat sie schon aus dem Alltag herausgenommen.
+    rsv = savings.reserve(cons, today, period_end)
+    deduct = bool(db.get_setting("deduct_reserve", False))
+    free = balance_now + fixed_in + fixed_out - buffer - (rsv["reserved_cents"] if deduct else 0)
 
     # Tagesverlauf: Vergangenheit + Prognose
     past = ledger.balance_series(db, ids, today - timedelta(days=60), today)
@@ -102,6 +106,10 @@ def forecast(db: Database, horizon_days: int = HORIZON_DAYS) -> dict:
         "variable_daily_cents": rate,
         "variable_expected_cents": rate * days_left,
         "buffer_cents": buffer,
+        "reserve_cents": rsv["reserved_cents"],
+        "reserve_monthly_cents": rsv["monthly_cents"],
+        "reserve_deducted": deduct,
+        "reserve_items": rsv["items"],
         "month_end_cents": month_end_value,
         "low_point": {"date": low[0], "cents": low[1]},
         "past": past,
@@ -278,6 +286,8 @@ def month_review(db: Database, month: str) -> dict:
         "month": month,
         "label": f"{MONTH_NAMES[m - 1]} {y}",
         "has_data": bool(income or expense),
+        # Ein laufender Monat lässt sich noch nicht mit ganzen Monaten vergleichen.
+        "complete": month < date.today().strftime("%Y-%m"),
         "income_cents": income,
         "expense_cents": expense,
         "saved_cents": income - expense,
