@@ -107,3 +107,39 @@ def before_update(path: Path, version: str) -> Path | None:
     except (OSError, sqlite3.Error):
         log.exception("Sicherungskopie vor dem Versionswechsel fehlgeschlagen")
         return None
+
+
+def newest() -> Path | None:
+    """Die jüngste Sicherungskopie, egal welcher Art."""
+    try:
+        files = [f for f in folder().glob("*.sqlite") if f.is_file() and not f.is_symlink()]
+    except OSError:
+        return None
+    return max(files, key=lambda f: f.stat().st_mtime, default=None)
+
+
+def verify(path: Path) -> dict:
+    """Öffnet eine Sicherungskopie nur lesend und prüft sie vollständig.
+
+    Das ist die Probe, ob sich aus der Kopie wiederherstellen ließe: Die Datei
+    muss sich öffnen lassen, in sich stimmig sein und Konten und Buchungen enthalten.
+    """
+    out = {"name": path.name, "bytes": 0, "ok": False, "integrity": "", "accounts": 0, "transactions": 0,
+           "newest_booking": None, "created": None}
+    try:
+        stat = path.stat()
+        out["bytes"] = stat.st_size
+        out["created"] = datetime.fromtimestamp(stat.st_mtime).replace(microsecond=0).isoformat()
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            row = conn.execute("PRAGMA integrity_check(1)").fetchone()
+            out["integrity"] = str(row[0]) if row else "keine Antwort"
+            out["accounts"] = int(conn.execute("SELECT COUNT(*) FROM accounts").fetchone()[0])
+            out["transactions"] = int(conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0])
+            out["newest_booking"] = conn.execute("SELECT MAX(booking_date) FROM transactions").fetchone()[0]
+        finally:
+            conn.close()
+        out["ok"] = out["integrity"] == "ok"
+    except (OSError, sqlite3.Error) as error:
+        out["integrity"] = str(error)
+    return out
