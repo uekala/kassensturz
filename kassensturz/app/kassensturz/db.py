@@ -327,6 +327,10 @@ def now_iso() -> str:
     return datetime.now().replace(microsecond=0).isoformat()
 
 
+# Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
+SCHEMA_VERSION = 1
+
+
 class Database:
     def __init__(self, path: Path):
         # Financial data lives in a private directory. Restrict the directory
@@ -346,9 +350,23 @@ class Database:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys=OFF")
+        # Stand der Datei, bevor diese Version sie anfasst.
+        self.schema_before = int(self.conn.execute("PRAGMA user_version").fetchone()[0])
+        self.newer_schema = self.schema_before > SCHEMA_VERSION
         self.conn.executescript(SCHEMA)
         self._migrate()
+        if not self.newer_schema:
+            self.conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        self.integrity = self._quick_check()
         self._depth = 0
+
+    def _quick_check(self) -> str:
+        """„ok“ oder die erste Meldung von SQLite. Läuft einmal beim Start."""
+        try:
+            row = self.conn.execute("PRAGMA quick_check(1)").fetchone()
+            return str(row[0]) if row else "keine Antwort"
+        except sqlite3.DatabaseError as error:
+            return str(error)
 
     def close(self) -> None:
         """Write the WAL into the database file and close the connection.

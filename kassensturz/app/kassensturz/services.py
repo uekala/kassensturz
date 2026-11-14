@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import analytics, backup, contracts, fints_sync, ha, inbox, ledger, openbanking, options, papers, savings, secrets_store
+from . import analytics, backup, contracts, fints_sync, ha, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -48,7 +48,7 @@ def net_worth(accounts: list[dict]) -> dict:
 
 def alerts(db: Database, summary: dict) -> list[dict]:
     """Hinweise für die Übersicht (und Grundlage der Benachrichtigungen)."""
-    out = []
+    out = health.alerts(db)
     opts = options.load()
     fc = summary["forecast"]
     threshold = int(opts.get("warn_threshold") or 0) * 100

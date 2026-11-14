@@ -212,7 +212,8 @@ Kassensturz markiert nichts von selbst und rechnet keine Steuer aus; die Liste i
 bietet die Dateiauswahl je nach Browser auch die Kamera an. Die Dateien liegen im Datenordner der App unter `belege/` und sind damit
 in der Sicherung von Home Assistant enthalten. Wird eine Buchung oder ihr Konto gelöscht, verschwinden auch ihre
 Belege. In der Mobile-App geht dasselbe in der Buchung: Steuerart wählen, Rechnung fotografieren oder ein Foto aus
-der Galerie nehmen. Die Umzugsdatei enthält nur die Datenbank: Beim Umzug in eine andere Installation kommen die Belege nicht mit.
+der Galerie nehmen. Beim Umzug kommen die Belege mit, wenn du die vollständige Sicherung nimmst; „Nur Datenbank“ enthält
+sie nicht.
 
 **Garantie bis** gibt es bei jeder Ausgabe: zwei, drei oder fünf Jahre ab Kaufdatum oder ein eigenes Datum. Unter
 *Einstellungen → Garantien* stehen die laufenden Garantien, die nächste zuerst. 30 Tage vor dem Ende erinnert
@@ -338,19 +339,45 @@ actions:
 - Antwortet die App nicht mehr, startet Home Assistant sie über den Watchdog neu.
 - *Einstellungen → Alle Buchungen als CSV* exportiert alles in einer Datei.
 
+## Wiederherstellung
+
+Unter *Einstellungen → Zustand* steht, ob die Datenbank in Ordnung ist, wie alt die jüngste Sicherungskopie ist und ob
+alle Belegdateien da sind. „Jüngste Sicherung prüfen“ öffnet die Kopie nur lesend, prüft sie vollständig und nennt,
+wie viele Buchungen sie enthält. Kassensturz prüft die Datenbank außerdem bei jedem Start und meldet einen Fehler in
+der Übersicht.
+
+Drei Wege zurück, vom einfachsten zum aufwendigsten:
+
+1. **Backup von Home Assistant einspielen.** *Einstellungen → System → Backups*, das Backup wählen, nur die App
+   „Kassensturz“ anhaken, wiederherstellen. Das bringt Datenbank und Belege auf den Stand des Backups. Gespeicherte
+   PINs und der Enable-Banking-Schlüssel sind nicht enthalten; die Bankzugänge musst du danach neu freigeben.
+2. **Vollständige Sicherung in eine leere Installation.** Die ZIP-Datei aus *Einstellungen → Daten → Vollständige
+   Sicherung* wie beim Umzug in den Eingangsordner legen, siehe unten. Geht nur, solange die Installation noch keine
+   Konten und Buchungen hat; vorhandene Daten überschreibt Kassensturz nie.
+3. **Tageskopie von Hand.** Unter `/data/backups` liegen die letzten sieben Tageskopien und drei Kopien von vor einem
+   Versionswechsel. Dafür brauchst du Zugriff auf das Dateisystem der App: App stoppen, die gewünschte Kopie als
+   `/data/kassensturz.sqlite` ablegen, die Dateien `kassensturz.sqlite-wal` und `-shm` löschen, App starten. Diese
+   Kopien enthalten keine Belege.
+
+Lade die vollständige Sicherung ab und zu herunter und heb sie außerhalb des Geräts auf. Sie enthält alle Buchungen
+und Belege unverschlüsselt.
+
 ## Umzug in eine andere Installation
 
 So ziehen alle Daten um, zum Beispiel von der lokalen App zur Installation über GitHub oder auf ein anderes Gerät:
 
 1. In der alten Installation ein Home-Assistant-Backup anlegen.
-2. *Einstellungen → Daten → Datenbank für Umzug* wählen. Der Browser lädt `kassensturz-umzug.sqlite` herunter. Die Datei
-   enthält alle Konten und Umsätze; behandle sie wie einen Kontoauszug.
+2. *Einstellungen → Daten → Vollständige Sicherung* wählen. Der Browser lädt `kassensturz-sicherung.zip` herunter. Die
+   Datei enthält alle Konten, Umsätze und Belege; behandle sie wie einen Ordner Kontoauszüge. „Nur Datenbank“ lädt
+   stattdessen `kassensturz-umzug.sqlite` ohne Belege.
 3. Die alte Installation stoppen, damit nicht zwei Instanzen dieselben Konten abrufen.
-4. Die neue Installation einrichten, aber noch nicht starten. Die Datei in den Eingangsordner unter
-   `umzug/kassensturz-umzug.sqlite` legen (Standard: `/share/kassensturz/umzug/`).
-5. Die neue Installation starten. Im Protokoll steht „Daten aus der Umzugsdatei übernommen“, die Datei wird danach
-   gelöscht. Optionen der App, PINs und den Enable-Banking-Schlüssel trägst du neu ein.
+4. Die neue Installation einrichten, aber noch nicht starten. Die Datei unverändert in den Eingangsordner unter
+   `umzug/` legen (Standard: `/share/kassensturz/umzug/`).
+5. Die neue Installation starten. Im Protokoll steht „Daten aus der vollständigen Sicherung übernommen“ mit der Zahl
+   der Belege, die Datei wird danach gelöscht. Optionen der App, PINs und den Enable-Banking-Schlüssel trägst du neu
+   ein.
 6. Stimmt alles, die alte Installation entfernen.
 
 Die Übernahme findet nur statt, solange die neue Installation keine Konten und keine Umsätze hat. Hat sie schon Daten,
-bleibt die Datei liegen und im Protokoll steht ein Hinweis.
+bleibt die Datei liegen und im Protokoll steht ein Hinweis. Passt bei der vollständigen Sicherung eine Prüfsumme nicht
+oder enthält sie fremde Dateien, wird nichts übernommen.

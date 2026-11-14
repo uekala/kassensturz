@@ -1,5 +1,16 @@
 # Änderungen
 
+## 0.3.22
+
+- Vollständige Sicherung: *Einstellungen → Daten → Vollständige Sicherung* lädt Datenbank und Belege als eine
+  ZIP-Datei, mit Prüfsumme für jede Datei. Eine leere Installation übernimmt sie beim Start aus dem Eingangsordner.
+- Neuer Abschnitt *Einstellungen → Zustand*: Datenbank, Sicherungskopien und Belege auf einen Blick. „Jüngste
+  Sicherung prüfen“ öffnet die Kopie und kontrolliert sie vollständig.
+- Die Datenbank wird bei jedem Start geprüft. Ein Fehler erscheint als Hinweis in der Übersicht und als Mitteilung.
+- Die Datenbank trägt jetzt eine Versionsnummer ihres Aufbaus. Eine ältere App warnt, wenn die Daten von einer
+  neueren stammen.
+- Hinweis, wenn zu einem Beleg die Datei fehlt.
+
 ## 0.3.21
 
 - Die Mobile-App kann ein Konto für Bargeld anlegen (ab App 0.3.16). Andere Kontoarten bleiben der Oberfläche in

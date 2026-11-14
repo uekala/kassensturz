@@ -609,6 +609,34 @@ async function bindReceipts(box, txId) {
   await draw();
 }
 
+async function drawHealth(box) {
+  let h;
+  try { h = await api("health"); } catch { return; }
+  const b = h.backups;
+  const age = b.newest == null ? "noch keine" : b.age_days === 0 ? "von heute" : b.age_days === 1 ? "von gestern" : `${b.age_days} Tage alt`;
+  const line = (title, sub, value, warn) => html`<li class="row static">
+    <span class="title">${title}</span><span class="sub">${sub}</span>
+    <span class="amount ${warn ? "neg" : ""}">${value}</span></li>`;
+  box.innerHTML = html`<ul class="list">
+    ${line("Datenbank", `${NF0.format(h.transactions)} Buchungen auf ${h.accounts} ${h.accounts === 1 ? "Konto" : "Konten"}, ${fileSize(h.database_bytes)}`, h.integrity_ok ? "in Ordnung" : "beschädigt", !h.integrity_ok)}
+    ${line("Sicherungskopien", `${b.count} auf diesem Gerät, die jüngste ${age}`, b.stale ? "veraltet" : "aktuell", b.stale)}
+    ${h.receipts.count ? line("Belege", `${h.receipts.count} ${h.receipts.count === 1 ? "Datei" : "Dateien"}, ${fileSize(h.receipts.bytes)}`, h.receipts.missing ? `${h.receipts.missing} fehlen` : "vollständig", h.receipts.missing > 0) : ""}
+    ${h.newer_schema ? line("Version der Daten", "stammen von einer neueren Version von Kassensturz", "App aktualisieren", true) : ""}
+  </ul>
+  <div class="actions"><button class="btn small" id="health-check">Jüngste Sicherung prüfen</button></div>
+  <p class="small muted" id="health-result">Die Prüfung öffnet die jüngste Kopie und kontrolliert sie vollständig, ohne etwas zu ändern.</p>`.s;
+  $("#health-check", box).onclick = async () => {
+    const out = $("#health-result", box);
+    out.textContent = "Wird geprüft …";
+    let r;
+    try { r = await api("health/backup-check", { method: "POST" }); } catch (e) { out.textContent = e.message; return; }
+    if (!r.found) { out.textContent = "Es gibt noch keine Sicherungskopie. Die erste entsteht innerhalb eines Tages von selbst."; return; }
+    out.textContent = r.ok
+      ? `${r.name} ist in Ordnung: ${NF0.format(r.transactions)} Buchungen auf ${r.accounts} ${r.accounts === 1 ? "Konto" : "Konten"}${r.newest_booking ? `, jüngste Buchung vom ${dFull(r.newest_booking)}` : ""}. Aktuell sind es ${NF0.format(r.live_transactions)} Buchungen.`
+      : `${r.name} ist nicht brauchbar: ${r.integrity}`;
+  };
+}
+
 async function drawWarranties(box) {
   let w;
   try { w = await api("warranties"); } catch { return; }
@@ -1847,10 +1875,15 @@ async function renderSettings(view, _params, seq) {
         <div id="warranty-box"></div>
       </section>
       <section class="section">
+        <div class="section-head"><h2>Zustand</h2></div>
+        <div id="health-box"></div>
+      </section>
+      <section class="section">
         <div class="section-head"><h2>Daten</h2></div>
         <div class="actions" style="margin-top:0">
           <a class="btn small" href="api/export.csv" download>Alle Buchungen als CSV</a>
-          <a class="btn small" href="api/umzug/export" download>Datenbank für Umzug</a>
+          <a class="btn small" href="api/umzug/archive" download>Vollständige Sicherung</a>
+          <a class="btn small" href="api/umzug/export" download>Nur Datenbank</a>
           <button class="btn small" id="d-recat">Alles neu kategorisieren</button>
           ${store.state.demo ? html`<button class="btn small danger" id="d-demo-off">Beispieldaten entfernen</button>` : html`<button class="btn small" id="d-demo">Beispieldaten laden</button>`}
         </div>
@@ -1859,6 +1892,7 @@ async function renderSettings(view, _params, seq) {
     </div></div>`.s;
   drawTax($("#tax-box"));
   drawWarranties($("#warranty-box"));
+  drawHealth($("#health-box"));
   $("#mobile-pair").onclick = async () => {
     const button = $("#mobile-pair");
     button.disabled = true;

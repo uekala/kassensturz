@@ -18,8 +18,9 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, letters, openbanking, options, papers, savings,
+from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, health, letters, openbanking, options, papers, savings,
                secrets_store, services, umzug)
+from . import db as dbmod
 from .db import close_db, get_db, now_iso
 from .mobile_api import router as mobile_api_router
 from .mobile_security import (
@@ -1400,6 +1401,32 @@ def umzug_export():
         headers={"Cache-Control": "no-store"},
         background=BackgroundTask(shutil.rmtree, target.parent, ignore_errors=True),
     )
+
+
+@app.get("/api/umzug/archive")
+def umzug_archive():
+    """Vollständige Sicherung: Datenbank und Belege in einer ZIP-Datei."""
+    db = get_db()
+    target = Path(tempfile.mkdtemp(prefix="kassensturz-sicherung-")) / umzug.ARCHIVE
+    with db.lock:
+        if db._depth:
+            raise HTTPException(409, "Gerade läuft eine Änderung. Bitte gleich noch einmal versuchen.")
+        umzug.write_archive(db.conn, dbmod.DATA_DIR, target, options.VERSION)
+    return FileResponse(
+        target, media_type="application/zip", filename=umzug.ARCHIVE,
+        headers={"Cache-Control": "no-store"},
+        background=BackgroundTask(shutil.rmtree, target.parent, ignore_errors=True),
+    )
+
+
+@app.get("/api/health")
+def health_status():
+    return health.status(get_db())
+
+
+@app.post("/api/health/backup-check")
+def health_backup_check():
+    return health.check_newest_backup(get_db())
 
 
 @app.get("/api/export.csv")
