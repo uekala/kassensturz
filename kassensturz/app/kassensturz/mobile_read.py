@@ -351,6 +351,7 @@ def list_transactions(
     category_id: int | None = None,
     q: str | None = None,
     kind: str | None = None,
+    triage: bool = False,
 ) -> dict:
     """Return paginated transaction DTOs without internal or banking metadata.
 
@@ -400,10 +401,18 @@ def list_transactions(
     elif selected_kind == "out":
         where.append("t.amount_cents < 0 AND t.is_transfer = 0")
 
+    if triage:
+        # Was noch niemand zugeordnet hat: ohne Kategorie oder im Auffangbecken.
+        where.append(
+            "t.is_transfer = 0 AND (t.category_id IS NULL "
+            "OR c.builtin_key IN ('sonstiges', 'sonstige_einnahmen'))"
+        )
+
     predicate = " AND ".join(where)
     total = db.scalar(
         "SELECT COUNT(*) FROM transactions AS t "
         "JOIN accounts AS a ON a.id = t.account_id "
+        "LEFT JOIN categories AS c ON c.id = t.category_id "
         f"WHERE {predicate}",
         tuple(params),
     )
@@ -432,7 +441,9 @@ def list_transactions(
         WHERE
         """
         + predicate
-        + " ORDER BY t.booking_date DESC, t.id DESC LIMIT ? OFFSET ?",
+        # Beim Zuordnen die größten Beträge zuerst: Sie verändern die Auswertung am meisten.
+        + (" ORDER BY ABS(t.amount_cents) DESC, t.id DESC LIMIT ? OFFSET ?" if triage
+           else " ORDER BY t.booking_date DESC, t.id DESC LIMIT ? OFFSET ?"),
         (*params, page_size, page_offset),
     )
 
@@ -470,3 +481,15 @@ def list_transactions(
         "limit": page_size,
         "offset": page_offset,
     }
+
+
+def triage(db: Database, limit: int | None = None) -> dict:
+    """Buchungen, die noch keiner richtigen Kategorie zugeordnet sind."""
+    page = list_transactions(db, limit=limit, triage=True)
+    spent = db.scalar(
+        "SELECT COALESCE(SUM(-t.amount_cents), 0) FROM transactions AS t "
+        "JOIN accounts AS a ON a.id = t.account_id LEFT JOIN categories AS c ON c.id = t.category_id "
+        "WHERE a.archived = 0 AND t.is_transfer = 0 AND t.amount_cents < 0 "
+        "AND (t.category_id IS NULL OR c.builtin_key = 'sonstiges')"
+    )
+    return {"items": page["items"], "total": page["total"], "expense_cents": int(spent or 0)}

@@ -83,6 +83,8 @@ def test_pairing_returns_secret_once_and_me_endpoint_authenticates_device(
             "warranty",
             "accounts.write",
             "sync",
+            "triage",
+            "budgets.suggest",
         ]
 
         replay = client.post(

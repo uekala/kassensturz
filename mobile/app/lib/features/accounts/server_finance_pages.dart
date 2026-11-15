@@ -5,6 +5,7 @@ import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 import '../budget/budget_editor_sheet.dart';
+import '../budget/triage_page.dart';
 
 /// Accounts as the server reports them; they are managed in Home Assistant.
 class ServerAccountsPage extends StatelessWidget {
@@ -199,6 +200,39 @@ class ServerBudgetPage extends StatelessWidget {
             height: 14,
           ),
           const SizedBox(height: 24),
+          if (controller.canTriage && controller.triageTotal > 0) ...[
+            LinkTile(
+              icon: Icons.rule_folder_outlined,
+              title: controller.triageTotal == 1
+                  ? 'Eine Buchung zuordnen'
+                  : '${controller.triageTotal} Buchungen zuordnen',
+              subtitle: controller.triageExpenseCents > 0
+                  ? '${formatEuro(controller.triageExpenseCents / 100)} '
+                        'Ausgaben ohne richtige Kategorie'
+                  : 'Noch ohne richtige Kategorie',
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => TriagePage(controller: controller),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (controller.canSuggestBudgets &&
+              controller.canEditBudgets &&
+              data != null) ...[
+            LinkTile(
+              icon: Icons.auto_graph_rounded,
+              title: 'Budgets vorschlagen',
+              subtitle: 'Aus deinen Ausgaben der letzten Monate',
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => BudgetSuggestionsPage(controller: controller),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+          ],
           if (controller.financeLoading && data == null)
             const Center(child: CircularProgressIndicator())
           else if (data == null)

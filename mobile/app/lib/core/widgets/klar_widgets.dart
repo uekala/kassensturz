@@ -266,3 +266,56 @@ String formatShortDate(String value) {
   final month = date.month.toString().padLeft(2, '0');
   return '$day.$month.${date.year}';
 }
+
+/// A row that leads somewhere: icon, title, one line of explanation.
+class LinkTile extends StatelessWidget {
+  const LinkTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final klar = KlarColors.of(context);
+    final textTheme = Theme.of(context).textTheme;
+    return Material(
+      color: klar.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: klar.ink, width: 1.5),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            children: [
+              Icon(icon, color: klar.brand),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: textTheme.titleMedium),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: textTheme.bodySmall),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: klar.ink),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

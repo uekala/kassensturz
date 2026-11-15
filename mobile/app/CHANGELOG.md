@@ -1,5 +1,12 @@
 # Änderungen der Mobile-App
 
+## 0.3.18
+
+- Zuordnen im Stapel: Unter Planung → Budgets steht, wie viele Buchungen noch keine richtige Kategorie haben. Die App
+  zeigt sie nacheinander, die größten zuerst; ein Tipp auf die Kategorie genügt. Ähnliche Buchungen gehen gleich
+  mit (ab Server 0.3.24).
+- Budgets vorschlagen: aus den Ausgaben der letzten vollen Monate, einzeln oder alle auf einmal zu übernehmen.
+
 ## 0.3.17
 
 - Die Startseite zeigt, von wann die Bankdaten sind und wann der nächste Abruf von selbst läuft (ab Server 0.3.23).

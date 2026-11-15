@@ -340,6 +340,16 @@ class MobileApiClient {
 
   /// Creates a manual transaction. [fields] must contain a
   /// `client_request_id`; sending the same id again never books twice.
+  /// Transactions without a real category, largest first.
+  Future<Map<String, dynamic>> triage({int limit = 30}) => _authenticatedJson(
+    method: 'GET',
+    path: '/api/v1/triage',
+    query: {'limit': '$limit'},
+  );
+
+  Future<Map<String, dynamic>> budgetSuggestions() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/budgets/suggestions');
+
   Future<Map<String, dynamic>> syncStatus() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/sync');
 

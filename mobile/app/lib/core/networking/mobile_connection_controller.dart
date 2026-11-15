@@ -37,11 +37,15 @@ class MobileConnectionController extends ChangeNotifier {
   static const warrantyCapability = 'warranty';
   static const accountsCapability = 'accounts.write';
   static const syncCapability = 'sync';
+  static const triageCapability = 'triage';
+  static const suggestCapability = 'budgets.suggest';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
   final Duration _syncPollInterval;
   ServerSyncStatus? _syncStatus;
+  int _triageTotal = 0;
+  int _triageExpenseCents = 0;
   bool _bankSyncRunning = false;
   final DateTime Function() _clock;
 
@@ -109,6 +113,66 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when the server stores the end of a warranty per transaction.
   bool get canSetWarranty => _capabilities.contains(warrantyCapability);
+
+  /// True when the server lists transactions that still need a category.
+  bool get canTriage => _capabilities.contains(triageCapability);
+
+  /// True when the server proposes budgets from past spending.
+  bool get canSuggestBudgets => _capabilities.contains(suggestCapability);
+
+  /// Transactions without a real category as of the last load.
+  int get triageTotal => _triageTotal;
+
+  /// Spending that sits in no real category, in cents.
+  int get triageExpenseCents => _triageExpenseCents;
+
+  /// The next transactions to sort. Either the list or the message is set.
+  Future<({List<ServerTransaction> items, int total, String? error})>
+  loadTriage() async {
+    try {
+      final response = await _read(_apiClient.triage);
+      _applyTriage(response);
+      _notifyIfMounted();
+      return (
+        items: ServerTransaction.listFrom(response),
+        total: _triageTotal,
+        error: null,
+      );
+    } catch (error) {
+      return (
+        items: const <ServerTransaction>[],
+        total: _triageTotal,
+        error: await _describeFailure(error),
+      );
+    }
+  }
+
+  void _applyTriage(Map<String, dynamic> response) {
+    final total = response['total'];
+    final spent = response['expense_cents'];
+    _triageTotal = total is int ? total : 0;
+    _triageExpenseCents = spent is int ? spent : 0;
+  }
+
+  /// Budgets proposed from the last full months.
+  Future<({List<BudgetSuggestion> items, int months, String? error})>
+  loadBudgetSuggestions() async {
+    try {
+      final response = await _read(_apiClient.budgetSuggestions);
+      final months = response['months'];
+      return (
+        items: BudgetSuggestion.listFrom(response),
+        months: months is int ? months : 0,
+        error: null,
+      );
+    } catch (error) {
+      return (
+        items: const <BudgetSuggestion>[],
+        months: 0,
+        error: await _describeFailure(error),
+      );
+    }
+  }
 
   /// True when the server reports and starts fetching from the banks.
   bool get canSyncBanks => _capabilities.contains(syncCapability);
@@ -398,6 +462,16 @@ class MobileConnectionController extends ChangeNotifier {
         }
       } else {
         _syncStatus = null;
+      }
+      if (canTriage) {
+        try {
+          _applyTriage(await _read(() => _apiClient.triage(limit: 1)));
+        } catch (_) {
+          // Only the hint on the budget page depends on it.
+        }
+      } else {
+        _triageTotal = 0;
+        _triageExpenseCents = 0;
       }
       if (canWriteTransactions) {
         try {
