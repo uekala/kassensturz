@@ -1,5 +1,9 @@
 # Änderungen der Mobile-App
 
+## 0.3.20
+
+- Vermögensverlauf auf der Kontenseite: Kurve der letzten Monate und die Veränderung in Euro (ab Server 0.3.26).
+
 ## 0.3.19
 
 - „Seit deinem letzten Besuch“ auf der Startseite: wie viele Buchungen neu sind, was sie zusammen ausmachen und die

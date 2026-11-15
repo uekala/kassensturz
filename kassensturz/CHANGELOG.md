@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.26
+
+- Die Erinnerung an eine ablaufende Bankfreigabe kommt früher und dreimal: 14, 7 und 2 Tage vorher, jeweils in der
+  Übersicht und als Mitteilung.
+- Für die Mobile-App (ab 0.3.20): Vermögensverlauf der letzten Monate.
+
 ## 0.3.25
 
 - Für die Mobile-App (ab 0.3.19): neue Buchungen seit dem letzten Besuch je Gerät, dazu die Steuerübersicht und die

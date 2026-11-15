@@ -340,6 +340,9 @@ class MobileApiClient {
 
   /// Creates a manual transaction. [fields] must contain a
   /// `client_request_id`; sending the same id again never books twice.
+  Future<Map<String, dynamic>> netWorthHistory() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/networth');
+
   Future<Map<String, dynamic>> news() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/news');
 

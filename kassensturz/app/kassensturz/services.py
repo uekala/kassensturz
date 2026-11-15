@@ -46,6 +46,10 @@ def net_worth(accounts: list[dict]) -> dict:
     return {"total_cents": sum(groups.values()), "groups": groups, "loan_count": loans}
 
 
+# Tage vor Ablauf einer Bankfreigabe, an denen erinnert wird.
+EB_NOTICE_DAYS = (14, 7, 2)
+
+
 def alerts(db: Database, summary: dict) -> list[dict]:
     """Hinweise für die Übersicht (und Grundlage der Benachrichtigungen)."""
     out = health.alerts(db)
@@ -153,10 +157,15 @@ def alerts(db: Database, summary: dict) -> list[dict]:
             out.append({"key": f"eb-expired:{s['id']}:{s['valid_until']}", "level": "warning", "eb": s["id"],
                         "title": f"Freigabe für {s['aspsp_name']} abgelaufen",
                         "text": "Neue Umsätze kommen erst wieder, wenn du die Freigabe erneuerst."})
-        elif s["days_left"] is not None and s["days_left"] <= 7:
-            out.append({"key": f"eb-expiring:{s['id']}:{s['valid_until']}", "level": "warning", "eb": s["id"],
+        elif s["days_left"] is not None and s["days_left"] <= EB_NOTICE_DAYS[0]:
+            # Drei Stufen, damit die Mitteilung nicht nur einmal zwei Wochen vorher kommt.
+            stage = min(d for d in EB_NOTICE_DAYS if s["days_left"] <= d)
+            days = max(0, s["days_left"])
+            left = "Heute ist der letzte Tag." if days == 0 else "Noch 1 Tag." if days == 1 else f"Noch {days} Tage."
+            out.append({"key": f"eb-expiring:{s['id']}:{s['valid_until']}:{stage}", "level": "warning", "eb": s["id"],
                         "title": f"Freigabe für {s['aspsp_name']} läuft ab",
-                        "text": f"Noch {max(0, s['days_left'])} Tage. Erneuern dauert eine Minute in der Banking-App."})
+                        "text": f"{left} Danach kommen keine neuen Umsätze mehr. Erneuern dauert eine Minute "
+                                "in Kassensturz in Home Assistant unter Konten."})
     pending = db.scalar("SELECT COUNT(*) FROM inbox")
     if pending:
         out.append({"key": f"inbox:{pending}", "level": "info", "inbox": True,
