@@ -13,9 +13,11 @@ class MobileConnectionController extends ChangeNotifier {
   MobileConnectionController({
     required MobileApiClient apiClient,
     Duration readRetryDelay = const Duration(seconds: 1),
+    Duration syncPollInterval = const Duration(seconds: 3),
     DateTime Function()? clock,
   }) : _apiClient = apiClient,
        _readRetryDelay = readRetryDelay,
+       _syncPollInterval = syncPollInterval,
        _clock = clock ?? DateTime.now;
 
   factory MobileConnectionController.preview() {
@@ -34,9 +36,13 @@ class MobileConnectionController extends ChangeNotifier {
   static const receiptsCapability = 'receipts';
   static const warrantyCapability = 'warranty';
   static const accountsCapability = 'accounts.write';
+  static const syncCapability = 'sync';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
+  final Duration _syncPollInterval;
+  ServerSyncStatus? _syncStatus;
+  bool _bankSyncRunning = false;
   final DateTime Function() _clock;
 
   MobileSession? _session;
@@ -103,6 +109,51 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when the server stores the end of a warranty per transaction.
   bool get canSetWarranty => _capabilities.contains(warrantyCapability);
+
+  /// True when the server reports and starts fetching from the banks.
+  bool get canSyncBanks => _capabilities.contains(syncCapability);
+
+  /// State of the bank fetch as of the last load; null on older servers.
+  ServerSyncStatus? get syncStatus => _syncStatus;
+
+  /// True while a fetch started from this app is running.
+  bool get bankSyncRunning => _bankSyncRunning;
+
+  DateTime get now => _clock();
+
+  /// Fetches from the banks and reloads everything afterwards. Returns the
+  /// sentence to show: what arrived, or why nothing happened.
+  Future<String> startBankSync() async {
+    if (_bankSyncRunning) return 'Der Abruf läuft schon.';
+    _bankSyncRunning = true;
+    _notifyIfMounted();
+    try {
+      var state = ServerSyncStatus.fromJson(await _apiClient.startSync());
+      // Up to two minutes; a bank that takes longer finishes on the server.
+      for (var round = 0; state.running && round < 40; round += 1) {
+        await Future<void>.delayed(_syncPollInterval);
+        if (_disposed) return '';
+        state = ServerSyncStatus.fromJson(await _read(_apiClient.syncStatus));
+      }
+      _syncStatus = state;
+      await _synchronize();
+      if (state.running) {
+        return 'Der Abruf läuft noch. Zieh die Seite gleich noch einmal '
+            'herunter.';
+      }
+      if (state.errors.isNotEmpty) return state.errors.join('\n');
+      return switch (state.added) {
+        0 => 'Abgerufen. Es gibt keine neuen Buchungen.',
+        1 => 'Abgerufen: eine neue Buchung.',
+        _ => 'Abgerufen: ${state.added} neue Buchungen.',
+      };
+    } catch (error) {
+      return _describeFailure(error);
+    } finally {
+      _bankSyncRunning = false;
+      _notifyIfMounted();
+    }
+  }
 
   /// True when the app may add a cash account on the server.
   bool get canCreateAccounts => _capabilities.contains(accountsCapability);
@@ -336,6 +387,17 @@ class MobileConnectionController extends ChangeNotifier {
         _transactionPage = await _read(_loadTransactionPage);
       } catch (error) {
         failure ??= error;
+      }
+      if (canSyncBanks) {
+        try {
+          _syncStatus = ServerSyncStatus.fromJson(
+            await _read(_apiClient.syncStatus),
+          );
+        } catch (_) {
+          // The figures are complete without it; the line simply stays as is.
+        }
+      } else {
+        _syncStatus = null;
       }
       if (canWriteTransactions) {
         try {

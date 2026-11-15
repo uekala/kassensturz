@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.23
+
+- Die Mobile-App zeigt den Stand des Bankabrufs und kann ihn anstoßen (ab App 0.3.17): Enable Banking mit laufender
+  Freigabe und FinTS-Zugänge mit gespeicherter PIN, höchstens alle 30 Minuten. Braucht eine Bank eine TAN, bleibt
+  der Abruf der Oberfläche in Home Assistant vorbehalten.
+
 ## 0.3.22
 
 - Vollständige Sicherung: *Einstellungen → Daten → Vollständige Sicherung* lädt Datenbank und Belege als eine

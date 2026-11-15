@@ -5,6 +5,7 @@ import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 import 'afford_sheet.dart';
+import 'sync_status_card.dart';
 
 class LiveDashboardPage extends StatelessWidget {
   const LiveDashboardPage({
@@ -103,6 +104,11 @@ class LiveDashboardPage extends StatelessWidget {
                   ),
                 ],
               ),
+              if (controller.syncStatus != null &&
+                  controller.syncStatus!.sources > 0) ...[
+                const SizedBox(height: 18),
+                SyncStatusCard(controller: controller),
+              ],
               if (controller.canAfford) ...[
                 const SizedBox(height: 18),
                 _LinkTile(

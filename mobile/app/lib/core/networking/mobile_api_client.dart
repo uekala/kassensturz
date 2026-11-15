@@ -340,6 +340,14 @@ class MobileApiClient {
 
   /// Creates a manual transaction. [fields] must contain a
   /// `client_request_id`; sending the same id again never books twice.
+  Future<Map<String, dynamic>> syncStatus() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/sync');
+
+  /// Asks the server to fetch from the banks now. Never repeated
+  /// automatically: banks allow only a few fetches per day.
+  Future<Map<String, dynamic>> startSync() =>
+      _authenticatedJson(method: 'POST', path: '/api/v1/sync');
+
   /// Creates an account without bank feed for entries made by hand.
   Future<Map<String, dynamic>> createCashAccount(
     String name, {

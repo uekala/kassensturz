@@ -228,6 +228,113 @@ class ServerTransaction {
   final String? warrantyUntil;
 }
 
+/// What the server knows about fetching from the banks.
+class ServerSyncStatus {
+  const ServerSyncStatus({
+    required this.running,
+    required this.canStart,
+    required this.waitMinutes,
+    required this.added,
+    required this.errors,
+    required this.problems,
+    required this.sources,
+    this.lastSync,
+    this.nextSync,
+  });
+
+  factory ServerSyncStatus.fromJson(Map<String, dynamic> json) {
+    final run = json['run'];
+    final runMap = run is Map ? Map<String, dynamic>.from(run) : const {};
+    final errors = <String>[];
+    final rawErrors = runMap['errors'];
+    if (rawErrors is List) {
+      for (final entry in rawErrors.whereType<Map>()) {
+        final name = entry['name'];
+        final message = entry['message'];
+        if (message is String) {
+          errors.add(name is String ? '$name: $message' : message);
+        }
+      }
+    }
+    final problems = <String>[];
+    var count = 0;
+    final sources = json['sources'];
+    if (sources is List) {
+      for (final entry in sources.whereType<Map>()) {
+        count += 1;
+        final name = entry['name'] is String ? entry['name'] as String : 'Bank';
+        final days = entry['days_left'];
+        switch (entry['state']) {
+          case 'expired':
+            problems.add('$name: Freigabe abgelaufen');
+          case 'no_accounts':
+            problems.add('$name: keine Konten verknüpft');
+          case 'needs_pin':
+            problems.add('$name: nur von Hand in Home Assistant');
+          case 'error':
+            problems.add('$name: letzter Abruf fehlgeschlagen');
+          default:
+            if (days is int && days <= 14) {
+              problems.add(
+                days <= 0
+                    ? '$name: Freigabe läuft heute ab'
+                    : '$name: Freigabe läuft in $days Tagen ab',
+              );
+            }
+        }
+      }
+    }
+    final added = runMap['added'];
+    final wait = json['wait_minutes'];
+    return ServerSyncStatus(
+      running: runMap['state'] == 'running',
+      canStart: json['can_start'] == true,
+      waitMinutes: wait is int ? wait : 0,
+      added: added is int ? added : 0,
+      errors: errors,
+      problems: problems,
+      sources: count,
+      lastSync: DateTime.tryParse(_optionalString(json, 'last_sync') ?? ''),
+      nextSync: DateTime.tryParse(_optionalString(json, 'next_sync') ?? ''),
+    );
+  }
+
+  final bool running;
+  final bool canStart;
+  final int waitMinutes;
+
+  /// New transactions of the fetch started from the app.
+  final int added;
+  final List<String> errors;
+
+  /// Banks that need attention, ready to show.
+  final List<String> problems;
+  final int sources;
+
+  /// Oldest state among all banks; null until every bank was fetched once.
+  final DateTime? lastSync;
+  final DateTime? nextSync;
+}
+
+/// "heute, 06:30 Uhr", "gestern, …", "morgen, …" or the date.
+String formatMoment(DateTime moment, DateTime now) {
+  final day = DateTime(moment.year, moment.month, moment.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final offset = day.difference(today).inHours / 24;
+  final time =
+      '${moment.hour.toString().padLeft(2, '0')}:'
+      '${moment.minute.toString().padLeft(2, '0')} Uhr';
+  final label = switch (offset.round()) {
+    0 => 'heute',
+    -1 => 'gestern',
+    1 => 'morgen',
+    _ =>
+      '${day.day.toString().padLeft(2, '0')}.'
+          '${day.month.toString().padLeft(2, '0')}.${day.year}',
+  };
+  return '$label, $time';
+}
+
 /// The same calendar day [years] later; 29 February becomes the 28th.
 DateTime addYears(DateTime day, int years) {
   final moved = DateTime(day.year + years, day.month, day.day);

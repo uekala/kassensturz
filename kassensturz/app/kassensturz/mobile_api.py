@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import mobile_read, mobile_write, options, papers, services
+from . import banksync, mobile_read, mobile_write, options, papers, services
 from .db import get_db
 from .mobile_auth import (
     InvalidCredential,
@@ -48,6 +48,7 @@ CAPABILITIES = (
     "receipts",
     "warranty",
     "accounts.write",
+    "sync",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -400,6 +401,47 @@ def accounts(request: Request):
     if isinstance(device, Response):
         return device
     return mobile_write.list_accounts(get_db())
+
+
+def _sync_public(state: dict) -> dict:
+    """Bank names and times only; no identifiers of sessions or connections."""
+    return {
+        "sources": [
+            {"name": s["name"], "last_sync": s["last_sync"], "state": s["state"], "days_left": s["days_left"],
+             "accounts": s["accounts"]}
+            for s in state["sources"]
+        ],
+        "last_sync": state["last_sync"],
+        "newest_sync": state["newest_sync"],
+        "next_sync": state["next_sync"],
+        "run": state["run"],
+        "can_start": state["can_start"],
+        "wait_minutes": state["wait_minutes"],
+    }
+
+
+@router.get("/api/v1/sync")
+def sync_status(request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    return _sync_public(banksync.status(get_db()))
+
+
+@router.post("/api/v1/sync")
+def sync_start(request: Request):
+    """Fetch new transactions from all banks that work without further input."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    psu = {"ip": forwarded or (request.client.host if request.client else ""),
+           "ua": request.headers.get("user-agent") or ""}
+    try:
+        state = banksync.start(get_db(), psu=psu, on_done=services.schedule_refresh)
+    except banksync.SyncRefused as refused:
+        return _error(409, refused.code, refused.message)
+    return JSONResponse(_sync_public(state), status_code=202)
 
 
 @router.post("/api/v1/accounts")
