@@ -178,6 +178,7 @@ class ServerTransaction {
     this.taxKind,
     this.receiptCount = 0,
     this.warrantyUntil,
+    this.suggestedCategoryId,
   });
 
   factory ServerTransaction.fromJson(Map<String, dynamic> json) {
@@ -199,6 +200,10 @@ class ServerTransaction {
       categoryName: _optionalString(categoryMap, 'name'),
       taxKind: _optionalString(json, 'tax_kind'),
       warrantyUntil: _optionalString(json, 'warranty_until'),
+      suggestedCategoryId:
+          json['suggestion'] is Map && (json['suggestion'] as Map)['id'] is int
+          ? (json['suggestion'] as Map)['id'] as int
+          : null,
       receiptCount: json['receipt_count'] is int
           ? json['receipt_count'] as int
           : 0,
@@ -229,6 +234,9 @@ class ServerTransaction {
 
   /// ISO date on which the warranty of this purchase ends, if one is set.
   final String? warrantyUntil;
+
+  /// Category the server proposes while sorting; null without a clear hint.
+  final int? suggestedCategoryId;
 }
 
 /// New transactions since this device last marked them as read.

@@ -492,6 +492,17 @@ def triage(db: Database, limit: int | None = None) -> dict:
         "WHERE a.archived = 0 AND t.is_transfer = 0 AND t.amount_cents < 0 "
         "AND (t.category_id IS NULL OR c.builtin_key = 'sonstiges')"
     )
+    # Vorschlag je Buchung, wenn der Bestand einen klaren Hinweis hergibt.
+    from . import categorize
+
+    hints = categorize.suggestions(db, [
+        {"id": i["id"], "counterparty": i["counterparty"], "purpose": i["purpose"], "amount_cents": i["amount_cents"]}
+        for i in page["items"]
+    ])
+    names = {r["id"]: r["name"] for r in db.query("SELECT id, name FROM categories")} if hints else {}
+    for item in page["items"]:
+        hint = hints.get(item["id"])
+        item["suggestion"] = {"id": hint, "name": names[hint]} if hint in names else None
     return {"items": page["items"], "total": page["total"], "expense_cents": int(spent or 0)}
 
 
