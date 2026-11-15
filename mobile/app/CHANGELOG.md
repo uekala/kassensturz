@@ -1,5 +1,13 @@
 # Änderungen der Mobile-App
 
+## 0.3.17
+
+- Die Startseite zeigt, von wann die Bankdaten sind und wann der nächste Abruf von selbst läuft (ab Server 0.3.23).
+- „Jetzt abrufen“ holt neue Buchungen bei den Banken, höchstens alle 30 Minuten. Herunterziehen lädt weiterhin nur
+  den Stand vom Server neu.
+- Braucht eine Bank Aufmerksamkeit, steht das dabei: Freigabe abgelaufen oder bald fällig, keine Konten verknüpft,
+  letzter Abruf fehlgeschlagen.
+
 ## 0.3.16
 
 - Das Plus führt nicht mehr in eine Sackgasse: Gibt es noch kein Konto ohne Bankabruf, bietet die App an, eines für
