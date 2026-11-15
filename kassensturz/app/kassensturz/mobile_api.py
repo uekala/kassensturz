@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import banksync, mobile_read, mobile_write, options, papers, services
+from . import analytics, banksync, mobile_read, mobile_write, options, papers, services
 from .db import get_db
 from .mobile_auth import (
     InvalidCredential,
@@ -49,6 +49,8 @@ CAPABILITIES = (
     "warranty",
     "accounts.write",
     "sync",
+    "triage",
+    "budgets.suggest",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -609,6 +611,27 @@ def delete_receipt(receipt_id: str, request: Request):
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
     return {"ok": True}
+
+
+@router.get("/api/v1/triage")
+def triage(request: Request, limit: str | None = Query(default=None)):
+    """Transactions nobody has put into a real category yet, largest first."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    try:
+        return mobile_read.triage(get_db(), limit=int(limit) if limit not in (None, "") else None)
+    except (ValueError, mobile_read.MobileQueryError):
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+
+
+@router.get("/api/v1/budgets/suggestions")
+def budget_suggestions(request: Request):
+    """Budgets derived from the spending of the last full months."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    return analytics.budget_suggestions(get_db())
 
 
 @router.put("/api/v1/budgets/{category_id}")

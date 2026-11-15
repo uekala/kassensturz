@@ -315,3 +315,57 @@ def review_message(review: dict) -> str:
     if review["notable"]:
         parts.append("Auffällig: " + ", ".join(review["notable"]) + ".")
     return " ".join(parts)
+
+
+SUGGEST_MONTHS = 3
+
+
+def _round_budget(cents: int) -> int:
+    """Auf einen runden Betrag nach oben: 5 € bis 50 €, 10 € bis 500 €, darüber 50 €."""
+    step = 500 if cents <= 5000 else 1000 if cents <= 50000 else 5000
+    return -(-cents // step) * step
+
+
+def budget_suggestions(db: Database, today: date | None = None) -> dict:
+    """Budgets aus den Ausgaben der letzten vollen Monate.
+
+    Je Oberkategorie der Durchschnitt, aufgerundet. Das Auffangbecken „Sonstiges"
+    bekommt keinen Vorschlag: Dort hilft Zuordnen, kein Budget.
+    """
+    today = today or date.today()
+    end = month_start(today) - timedelta(days=1)
+    first = db.scalar("SELECT MIN(booking_date) FROM transactions")
+    months = []
+    if first:
+        first_day = date.fromisoformat(first[:10])
+        cursor = month_start(end)
+        for _ in range(SUGGEST_MONTHS):
+            # Nur Monate, die ganz in den Daten liegen; ein angebrochener erster Monat verfälscht den Schnitt.
+            if cursor < month_start(first_day) or (cursor == month_start(first_day) and first_day.day > 5):
+                break
+            months.append(cursor)
+            cursor = month_start(cursor - timedelta(days=1))
+    if not months:
+        return {"months": 0, "items": []}
+    cats, top = category_tree(db)
+    spent = defaultdict(int)
+    for e in ledger.entries(db, months[-1].isoformat(), end.isoformat()):
+        if e["is_transfer"] or e["amount_cents"] >= 0 or not e["category_id"]:
+            continue
+        spent[top.get(e["category_id"], e["category_id"])] += -e["amount_cents"]
+    items = []
+    for cid, c in cats.items():
+        if c["kind"] != "expense" or c["parent_id"] or c.get("builtin_key") == "sonstiges":
+            continue
+        average = spent.get(cid, 0) // len(months)
+        if average < 500:
+            continue
+        suggested = _round_budget(average)
+        current = c["budget_cents"] or None
+        # Ein Budget, das schon passt, braucht keinen Vorschlag.
+        if current and abs(current - suggested) <= suggested * 0.2:
+            continue
+        items.append({"category_id": cid, "name": c["name"], "average_cents": average,
+                      "suggested_cents": suggested, "current_cents": current})
+    items.sort(key=lambda i: -i["average_cents"])
+    return {"months": len(months), "items": items}

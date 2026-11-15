@@ -205,6 +205,9 @@ class ServerTransaction {
     );
   }
 
+  static List<ServerTransaction> listFrom(Map<String, dynamic> response) =>
+      _items(response, ServerTransaction.fromJson);
+
   final int id;
   final int accountId;
   final String bookingDate;
@@ -226,6 +229,37 @@ class ServerTransaction {
 
   /// ISO date on which the warranty of this purchase ends, if one is set.
   final String? warrantyUntil;
+}
+
+/// A budget the server derived from past spending.
+class BudgetSuggestion {
+  const BudgetSuggestion({
+    required this.categoryId,
+    required this.name,
+    required this.averageCents,
+    required this.suggestedCents,
+    this.currentCents,
+  });
+
+  factory BudgetSuggestion.fromJson(Map<String, dynamic> json) =>
+      BudgetSuggestion(
+        categoryId: _requiredInt(json, 'category_id'),
+        name: _requiredString(json, 'name'),
+        averageCents: _requiredInt(json, 'average_cents'),
+        suggestedCents: _requiredInt(json, 'suggested_cents'),
+        currentCents: json['current_cents'] is int
+            ? json['current_cents'] as int
+            : null,
+      );
+
+  static List<BudgetSuggestion> listFrom(Map<String, dynamic> response) =>
+      _items(response, BudgetSuggestion.fromJson);
+
+  final int categoryId;
+  final String name;
+  final int averageCents;
+  final int suggestedCents;
+  final int? currentCents;
 }
 
 /// What the server knows about fetching from the banks.

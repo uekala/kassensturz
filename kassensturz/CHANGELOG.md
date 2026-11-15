@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.24
+
+- Für die Mobile-App (ab 0.3.18): Liste der Buchungen ohne richtige Kategorie, die größten zuerst, und
+  Budget-Vorschläge aus den Ausgaben der letzten vollen Monate.
+
 ## 0.3.23
 
 - Die Mobile-App zeigt den Stand des Bankabrufs und kann ihn anstoßen (ab App 0.3.17): Enable Banking mit laufender
