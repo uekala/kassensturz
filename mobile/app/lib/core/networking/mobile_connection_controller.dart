@@ -38,6 +38,8 @@ class MobileConnectionController extends ChangeNotifier {
   static const accountsCapability = 'accounts.write';
   static const syncCapability = 'sync';
   static const triageCapability = 'triage';
+  static const newsCapability = 'news';
+  static const papersCapability = 'papers';
   static const suggestCapability = 'budgets.suggest';
 
   final MobileApiClient _apiClient;
@@ -45,6 +47,7 @@ class MobileConnectionController extends ChangeNotifier {
   final Duration _syncPollInterval;
   ServerSyncStatus? _syncStatus;
   int _triageTotal = 0;
+  ServerNews? _news;
   int _triageExpenseCents = 0;
   bool _bankSyncRunning = false;
   final DateTime Function() _clock;
@@ -113,6 +116,37 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when the server stores the end of a warranty per transaction.
   bool get canSetWarranty => _capabilities.contains(warrantyCapability);
+
+  /// True when the server shows the tax overview and warranties.
+  bool get canShowPapers => _capabilities.contains(papersCapability);
+
+  /// What arrived since this device last marked it as read; null when
+  /// nothing did or the server is older.
+  ServerNews? get news => _news;
+
+  /// Marks the news as read on the server and hides them here.
+  Future<void> markNewsRead() async {
+    _news = null;
+    _notifyIfMounted();
+    try {
+      await _apiClient.markNewsSeen();
+    } catch (error) {
+      // They simply show up again on the next load.
+      await _describeFailure(error);
+    }
+  }
+
+  /// Tax overview and warranties. Either the data or the message is set.
+  Future<({PapersOverview? data, String? error})> loadPapers({
+    int? year,
+  }) async {
+    try {
+      final response = await _read(() => _apiClient.papers(year: year));
+      return (data: PapersOverview.fromJson(response), error: null);
+    } catch (error) {
+      return (data: null, error: await _describeFailure(error));
+    }
+  }
 
   /// True when the server lists transactions that still need a category.
   bool get canTriage => _capabilities.contains(triageCapability);
@@ -462,6 +496,16 @@ class MobileConnectionController extends ChangeNotifier {
         }
       } else {
         _syncStatus = null;
+      }
+      if (_capabilities.contains(newsCapability)) {
+        try {
+          final found = ServerNews.fromJson(await _read(_apiClient.news));
+          _news = found.count > 0 ? found : null;
+        } catch (_) {
+          // Nice to have; the figures do not depend on it.
+        }
+      } else {
+        _news = null;
       }
       if (canTriage) {
         try {

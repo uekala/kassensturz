@@ -493,3 +493,77 @@ def triage(db: Database, limit: int | None = None) -> dict:
         "AND (t.category_id IS NULL OR c.builtin_key = 'sonstiges')"
     )
     return {"items": page["items"], "total": page["total"], "expense_cents": int(spent or 0)}
+
+
+NEWS_KEY = "mobile_news_seen"
+NEWS_TOP = 3
+
+
+def _news_marks(db: Database) -> dict:
+    marks = db.get_setting(NEWS_KEY)
+    return marks if isinstance(marks, dict) else {}
+
+
+def news(db: Database, device_id: str) -> dict:
+    """Was seit dem letzten „Gelesen" dieses Geräts dazugekommen ist.
+
+    Gemerkt wird je Gerät die höchste gesehene Buchungs-ID. Beim ersten Aufruf
+    gilt der aktuelle Stand als gelesen, damit nicht der ganze Bestand als neu erscheint.
+    """
+    newest = int(db.scalar("SELECT COALESCE(MAX(id), 0) FROM transactions") or 0)
+    marks = _news_marks(db)
+    seen = marks.get(device_id)
+    if not isinstance(seen, int) or seen > newest:
+        marks[device_id] = newest
+        db.set_setting(NEWS_KEY, marks)
+        seen = newest
+    rows = db.query(
+        "SELECT t.amount_cents, t.counterparty, t.purpose, t.booking_date, a.name AS account_name "
+        "FROM transactions AS t JOIN accounts AS a ON a.id = t.account_id "
+        "WHERE t.id > ? AND a.archived = 0 AND t.is_transfer = 0 ORDER BY ABS(t.amount_cents) DESC, t.id DESC",
+        (seen,),
+    )
+    return {
+        "count": len(rows),
+        "income_cents": sum(r["amount_cents"] for r in rows if r["amount_cents"] > 0),
+        "expense_cents": -sum(r["amount_cents"] for r in rows if r["amount_cents"] < 0),
+        "largest": [
+            {"label": _text(r["counterparty"] or r["purpose"], MAX_COUNTERPARTY_LENGTH) or "Buchung",
+             "amount_cents": int(r["amount_cents"]), "booking_date": r["booking_date"],
+             "account_name": _text(r["account_name"], 80)}
+            for r in rows[:NEWS_TOP]
+        ],
+    }
+
+
+def mark_news_seen(db: Database, device_id: str, known_devices: set[str] | None = None) -> None:
+    marks = _news_marks(db)
+    if known_devices is not None:
+        marks = {key: value for key, value in marks.items() if key in known_devices}
+    marks[device_id] = int(db.scalar("SELECT COALESCE(MAX(id), 0) FROM transactions") or 0)
+    db.set_setting(NEWS_KEY, marks)
+
+
+def papers_overview(db: Database, year: int | None = None) -> dict:
+    """Steuerübersicht und Garantien ohne die einzelnen Buchungen der Steuerliste."""
+    from . import papers
+
+    tax = papers.tax_year(db, year if year and 1990 <= year <= 2200 else papers.default_year(db))
+
+    def warranty(row: dict) -> dict:
+        return {"id": int(row["id"]), "label": _text(row["label"], MAX_COUNTERPARTY_LENGTH),
+                "amount_cents": int(row["amount_cents"]), "booking_date": row["booking_date"],
+                "warranty_until": row["warranty_until"], "days_left": int(row["days_left"]),
+                "receipt_count": int(row["receipt_count"] or 0)}
+
+    found = papers.warranties(db)
+    return {
+        "tax": {
+            "year": tax["year"], "years": tax["years"], "count": tax["count"], "total_cents": tax["total_cents"],
+            "missing_receipts": tax["missing_receipts"],
+            "groups": [{"kind": g["kind"], "label": g["label"], "count": g["count"], "total_cents": g["total_cents"],
+                        "missing_receipts": g["missing_receipts"]} for g in tax["groups"]],
+        },
+        "warranties": {"running": [warranty(r) for r in found["running"]],
+                       "expired": [warranty(r) for r in found["expired"]]},
+    }
