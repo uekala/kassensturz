@@ -128,6 +128,11 @@ class _TriagePageState extends State<TriagePage> {
                 category.id != current.categoryId,
           )
           .toList();
+      ServerCategory? suggested;
+      for (final category in choices) {
+        if (category.id == current.suggestedCategoryId) suggested = category;
+      }
+      final proposal = suggested;
       body = ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
@@ -179,7 +184,23 @@ class _TriagePageState extends State<TriagePage> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Wohin gehört das?', style: textTheme.labelMedium),
+          if (proposal != null) ...[
+            FilledButton.icon(
+              onPressed: _saving ? null : () => _assign(current, proposal),
+              icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+              label: Text('Vorschlag: ${proposal.name}'),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Ähnliche Empfänger hast du bisher so zugeordnet.',
+              style: textTheme.bodySmall,
+            ),
+            const SizedBox(height: 14),
+          ],
+          Text(
+            proposal == null ? 'Wohin gehört das?' : 'Oder woanders hin?',
+            style: textTheme.labelMedium,
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,

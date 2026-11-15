@@ -81,6 +81,9 @@ MOBILE_RATE_LIMITS = {
 async def lifespan(_app):
     db = get_db()
     categorize.ensure_categories(db)
+    moved = categorize.upgrade(db)
+    if moved:
+        logging.getLogger("kassensturz").info("Neue Zuordnungsregeln: %d Buchungen neu zugeordnet", moved)
     inbox.ensure_folder()
     if not os.environ.get("KASSENSTURZ_NO_BACKGROUND"):
         services.start_background()
@@ -559,13 +562,13 @@ def rules():
 def learned_categories():
     return get_db().query(
         "SELECT l.id, l.label, l.sign, l.category_id, c.name AS category_name FROM learned_categories l "
-        "LEFT JOIN categories c ON c.id = l.category_id ORDER BY l.label COLLATE NOCASE")
+        "LEFT JOIN categories c ON c.id = l.category_id WHERE l.parent_id IS NULL ORDER BY l.label COLLATE NOCASE")
 
 
 @app.delete("/api/learned/{lid}")
 def forget_learned(lid: int):
     db = get_db()
-    db.execute("DELETE FROM learned_categories WHERE id = ?", (lid,))
+    categorize.forget(db, lid)
     changed = categorize.recategorize(db)
     _changed()
     return {"ok": True, "recategorized": changed}

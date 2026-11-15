@@ -44,6 +44,48 @@ Future<void> _pump(WidgetTester tester, Widget page) async {
 }
 
 void main() {
+  testWidgets('a suggestion of the server is one tap away', (tester) async {
+    Map<String, dynamic>? sent;
+    final transport = ScriptedTransport((request) {
+      final path = request.uri.path;
+      if (path == '/api/v1/triage') {
+        return jsonResponse(200, {
+          'items': sent == null
+              ? [
+                  {
+                    ..._transaction(1, 'Erfundenes Kletterwerk Ost', -1900),
+                    'suggestion': {'id': 5, 'name': 'Wohnen'},
+                  },
+                ]
+              : <Map<String, dynamic>>[],
+          'total': sent == null ? 1 : 0,
+          'expense_cents': 1900,
+        });
+      }
+      if (request.method == 'PATCH') {
+        sent = jsonDecode(request.body!) as Map<String, dynamic>;
+        return jsonResponse(200, {
+          'transaction': _transaction(1, 'Erfundenes Kletterwerk Ost', -1900),
+          'also_changed': 0,
+          'learned': true,
+        });
+      }
+      return serverAnswer(request, capabilities: _capabilities);
+    });
+    final controller = (await tester.runAsync(() => _controller(transport)))!;
+    addTearDown(controller.dispose);
+    final suggested = controller.categories.firstWhere((c) => c.id == 5);
+
+    await _pump(tester, TriagePage(controller: controller));
+    expect(find.text('Vorschlag: ${suggested.name}'), findsOneWidget);
+    expect(find.text('Oder woanders hin?'), findsOneWidget);
+
+    await tester.tap(find.text('Vorschlag: ${suggested.name}'));
+    await tester.pumpAndSettle();
+    expect(sent, {'category_id': 5});
+    expect(find.text('Alles zugeordnet.'), findsOneWidget);
+  });
+
   testWidgets('cards are sorted one by one and similar ones follow', (
     tester,
   ) async {

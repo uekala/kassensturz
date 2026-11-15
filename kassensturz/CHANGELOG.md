@@ -1,5 +1,18 @@
 # Änderungen
 
+## 0.3.27
+
+- Kassensturz ordnet mehr Buchungen von selbst zu:
+  - Das Wörterbuch kennt gut 400 weitere Händler und Begriffe des Alltags, von Bäckerei über Krankenkasse bis
+    Fahrschule.
+  - Gelernt wird nicht mehr nur am Namen, sondern auch an Gläubiger-ID und IBAN. Wer unter wechselnden Namen
+    abbucht, wird trotzdem wiedererkannt.
+  - Steht nur PayPal, Klarna oder SumUp als Empfänger da, zählt der Händler aus dem Verwendungszweck. Damit lassen
+    sich auch diese Buchungen lernen.
+- Vorschläge beim Zuordnen: Kommt ein Wort bei mindestens drei verschiedenen Empfängern vor und gehört fast immer
+  zur selben Kategorie, schlägt Kassensturz sie für neue Empfänger mit diesem Wort vor (in der Mobile-App ab 0.3.21).
+- Nach dem Update werden alle nicht von Hand gesetzten Buchungen einmal neu zugeordnet.
+
 ## 0.3.26
 
 - Die Erinnerung an eine ablaufende Bankfreigabe kommt früher und dreimal: 14, 7 und 2 Tage vorher, jeweils in der

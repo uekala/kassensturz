@@ -315,6 +315,8 @@ MIGRATIONS = {
                  ("matures_on", "TEXT")],
     "cancellation_events": [("provider_confirmed_at", "TEXT"), ("aborted_at", "TEXT")],
     # Kennung, mit der ein Mobilgerät eine von Hand angelegte Buchung genau einmal anlegt
+    # Gläubiger-ID und IBAN hängen an dem Eintrag für den Namen, aus dem sie gelernt wurden
+    "learned_categories": [("parent_id", "INTEGER")],
     "transactions": [("client_request_id", "TEXT"),
                      # Steuerart einer von Hand markierten Buchung, siehe papers.TAX_KINDS
                      ("tax_kind", "TEXT"),

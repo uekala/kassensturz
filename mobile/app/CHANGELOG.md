@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.21
+
+- Zuordnen mit Vorschlag: Erkennt der Server einen Hinweis aus deinen bisherigen Zuordnungen, steht die Kategorie
+  als Knopf oben. Ein Tipp genügt (ab Server 0.3.27).
+
 ## 0.3.20
 
 - Vermögensverlauf auf der Kontenseite: Kurve der letzten Monate und die Veränderung in Euro (ab Server 0.3.26).

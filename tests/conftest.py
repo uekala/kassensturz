@@ -23,6 +23,8 @@ def db(tmp_path, monkeypatch):
     monkeypatch.setattr(secrets_store, "_KEY_PATH", tmp_path / "secrets.key")
     database = dbmod.reset_db_for_tests(tmp_path / "test.sqlite")
     categorize.ensure_categories(database)
+    # Die Regeln gelten als angewandt: Tests setzen Kategorien oft direkt, der Start soll sie nicht neu zuordnen.
+    database.set_setting(categorize.RULES_VERSION_KEY, categorize.RULES_VERSION)
     return database
 
 
