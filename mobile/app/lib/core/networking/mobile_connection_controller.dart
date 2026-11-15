@@ -39,6 +39,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const syncCapability = 'sync';
   static const triageCapability = 'triage';
   static const newsCapability = 'news';
+  static const netWorthCapability = 'networth';
   static const papersCapability = 'papers';
   static const suggestCapability = 'budgets.suggest';
 
@@ -116,6 +117,30 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when the server stores the end of a warranty per transaction.
   bool get canSetWarranty => _capabilities.contains(warrantyCapability);
+
+  /// True when the server reports the net worth over the last months.
+  bool get canShowNetWorthHistory => _capabilities.contains(netWorthCapability);
+
+  /// Net worth at month ends and today, oldest first; empty when unknown.
+  Future<List<({DateTime day, int cents})>> loadNetWorthHistory() async {
+    try {
+      final response = await _read(_apiClient.netWorthHistory);
+      final raw = response['history'];
+      return [
+        if (raw is List)
+          for (final entry in raw.whereType<Map>())
+            if (entry['cents'] is int &&
+                DateTime.tryParse('${entry['date']}') != null)
+              (
+                day: DateTime.parse('${entry['date']}'),
+                cents: entry['cents'] as int,
+              ),
+      ];
+    } catch (error) {
+      await _describeFailure(error);
+      return const [];
+    }
+  }
 
   /// True when the server shows the tax overview and warranties.
   bool get canShowPapers => _capabilities.contains(papersCapability);

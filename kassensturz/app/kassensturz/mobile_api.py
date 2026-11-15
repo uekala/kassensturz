@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import analytics, banksync, mobile_read, mobile_write, options, papers, services
+from . import analytics, banksync, ledger, mobile_read, mobile_write, options, papers, services
 from .db import get_db
 from .mobile_auth import (
     InvalidCredential,
@@ -53,6 +53,7 @@ CAPABILITIES = (
     "budgets.suggest",
     "news",
     "papers",
+    "networth",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -613,6 +614,15 @@ def delete_receipt(receipt_id: str, request: Request):
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
     return {"ok": True}
+
+
+@router.get("/api/v1/networth")
+def net_worth_history(request: Request):
+    """Net worth at the end of the last months and today."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    return {"history": ledger.net_worth_history(get_db())}
 
 
 @router.get("/api/v1/news")

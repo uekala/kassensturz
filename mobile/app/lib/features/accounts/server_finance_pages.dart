@@ -6,6 +6,7 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 import '../budget/budget_editor_sheet.dart';
 import '../budget/triage_page.dart';
+import 'net_worth_trend.dart';
 
 /// Accounts as the server reports them; they are managed in Home Assistant.
 class ServerAccountsPage extends StatelessWidget {
@@ -58,6 +59,8 @@ class ServerAccountsPage extends StatelessWidget {
             note: note,
           ),
           const SizedBox(height: 22),
+          if (controller.canShowNetWorthHistory && data != null)
+            NetWorthTrend(controller: controller),
           if (controller.financeLoading && data == null)
             const Center(child: CircularProgressIndicator())
           else if (data == null)
