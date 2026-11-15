@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.25
+
+- Für die Mobile-App (ab 0.3.19): neue Buchungen seit dem letzten Besuch je Gerät, dazu die Steuerübersicht und die
+  Garantien zum Ansehen.
+
 ## 0.3.24
 
 - Für die Mobile-App (ab 0.3.18): Liste der Buchungen ohne richtige Kategorie, die größten zuerst, und

@@ -5,6 +5,8 @@ import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 import 'afford_sheet.dart';
+import '../more/papers_page.dart';
+import 'news_card.dart';
 import 'sync_status_card.dart';
 
 class LiveDashboardPage extends StatelessWidget {
@@ -104,6 +106,10 @@ class LiveDashboardPage extends StatelessWidget {
                   ),
                 ],
               ),
+              if (controller.news != null) ...[
+                const SizedBox(height: 18),
+                NewsCard(controller: controller),
+              ],
               if (controller.syncStatus != null &&
                   controller.syncStatus!.sources > 0) ...[
                 const SizedBox(height: 18),
@@ -118,8 +124,25 @@ class LiveDashboardPage extends StatelessWidget {
                   onTap: () => showAffordSheet(context, controller: controller),
                 ),
               ],
-              if (controller.canShowStats) ...[
+              if (controller.canShowPapers) ...[
                 SizedBox(height: controller.canAfford ? 10 : 18),
+                _LinkTile(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Steuer und Garantien',
+                  subtitle: 'Was du absetzen kannst, was bald abläuft',
+                  onTap: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => PapersPage(controller: controller),
+                    ),
+                  ),
+                ),
+              ],
+              if (controller.canShowStats) ...[
+                SizedBox(
+                  height: controller.canAfford || controller.canShowPapers
+                      ? 10
+                      : 18,
+                ),
                 _LinkTile(
                   icon: Icons.insights_rounded,
                   title: 'Auswertung',

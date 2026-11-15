@@ -231,6 +231,139 @@ class ServerTransaction {
   final String? warrantyUntil;
 }
 
+/// New transactions since this device last marked them as read.
+class ServerNews {
+  const ServerNews({
+    required this.count,
+    required this.incomeCents,
+    required this.expenseCents,
+    required this.largest,
+  });
+
+  factory ServerNews.fromJson(Map<String, dynamic> json) {
+    final largest = <({String label, int amountCents})>[];
+    final raw = json['largest'];
+    if (raw is List) {
+      for (final entry in raw.whereType<Map>()) {
+        final label = entry['label'];
+        final amount = entry['amount_cents'];
+        if (label is String && amount is int) {
+          largest.add((label: label, amountCents: amount));
+        }
+      }
+    }
+    int number(String key) => json[key] is int ? json[key] as int : 0;
+    return ServerNews(
+      count: number('count'),
+      incomeCents: number('income_cents'),
+      expenseCents: number('expense_cents'),
+      largest: largest,
+    );
+  }
+
+  final int count;
+  final int incomeCents;
+  final int expenseCents;
+  final List<({String label, int amountCents})> largest;
+}
+
+/// One kind of the tax overview with its sum for the year.
+class TaxGroup {
+  const TaxGroup({
+    required this.label,
+    required this.count,
+    required this.totalCents,
+    required this.missingReceipts,
+  });
+
+  factory TaxGroup.fromJson(Map<String, dynamic> json) => TaxGroup(
+    label: _requiredString(json, 'label'),
+    count: _requiredInt(json, 'count'),
+    totalCents: _requiredInt(json, 'total_cents'),
+    missingReceipts: json['missing_receipts'] is int
+        ? json['missing_receipts'] as int
+        : 0,
+  );
+
+  final String label;
+  final int count;
+  final int totalCents;
+  final int missingReceipts;
+}
+
+/// A purchase whose warranty is running or ended recently.
+class ServerWarranty {
+  const ServerWarranty({
+    required this.label,
+    required this.amountCents,
+    required this.until,
+    required this.daysLeft,
+    required this.hasReceipt,
+  });
+
+  factory ServerWarranty.fromJson(Map<String, dynamic> json) => ServerWarranty(
+    label: _requiredString(json, 'label'),
+    amountCents: _requiredInt(json, 'amount_cents'),
+    until: _requiredString(json, 'warranty_until'),
+    daysLeft: _requiredInt(json, 'days_left'),
+    hasReceipt:
+        json['receipt_count'] is int && json['receipt_count'] as int > 0,
+  );
+
+  final String label;
+  final int amountCents;
+  final String until;
+  final int daysLeft;
+  final bool hasReceipt;
+}
+
+/// Tax overview of one year and the warranties, as the server reports them.
+class PapersOverview {
+  const PapersOverview({
+    required this.year,
+    required this.years,
+    required this.totalCents,
+    required this.missingReceipts,
+    required this.groups,
+    required this.running,
+    required this.expired,
+  });
+
+  factory PapersOverview.fromJson(Map<String, dynamic> json) {
+    final tax = json['tax'] is Map
+        ? Map<String, dynamic>.from(json['tax'] as Map)
+        : const <String, dynamic>{};
+    final warranties = json['warranties'] is Map
+        ? Map<String, dynamic>.from(json['warranties'] as Map)
+        : const <String, dynamic>{};
+    List<T> list<T>(Object? raw, T Function(Map<String, dynamic>) parse) => [
+      if (raw is List)
+        for (final entry in raw.whereType<Map>())
+          parse(Map<String, dynamic>.from(entry)),
+    ];
+    final years = tax['years'];
+    return PapersOverview(
+      year: tax['year'] is int ? tax['year'] as int : 0,
+      years: years is List ? years.whereType<int>().toList() : const [],
+      totalCents: tax['total_cents'] is int ? tax['total_cents'] as int : 0,
+      missingReceipts: tax['missing_receipts'] is int
+          ? tax['missing_receipts'] as int
+          : 0,
+      groups: list(tax['groups'], TaxGroup.fromJson),
+      running: list(warranties['running'], ServerWarranty.fromJson),
+      expired: list(warranties['expired'], ServerWarranty.fromJson),
+    );
+  }
+
+  final int year;
+  final List<int> years;
+  final int totalCents;
+  final int missingReceipts;
+  final List<TaxGroup> groups;
+  final List<ServerWarranty> running;
+  final List<ServerWarranty> expired;
+}
+
 /// A budget the server derived from past spending.
 class BudgetSuggestion {
   const BudgetSuggestion({

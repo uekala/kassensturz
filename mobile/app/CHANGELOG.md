@@ -1,5 +1,12 @@
 # Änderungen der Mobile-App
 
+## 0.3.19
+
+- „Seit deinem letzten Besuch“ auf der Startseite: wie viele Buchungen neu sind, was sie zusammen ausmachen und die
+  drei größten. Bleibt stehen, bis du „Gelesen“ tippst (ab Server 0.3.25).
+- Neue Seite „Steuer und Garantien“: Summen je Steuerart und Jahr, laufende und kürzlich abgelaufene Garantien.
+- Die Umsatzliste zeigt, an welchen Buchungen ein Beleg hängt.
+
 ## 0.3.18
 
 - Zuordnen im Stapel: Unter Planung → Budgets steht, wie viele Buchungen noch keine richtige Kategorie haben. Die App

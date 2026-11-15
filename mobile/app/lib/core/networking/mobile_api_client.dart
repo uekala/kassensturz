@@ -340,6 +340,20 @@ class MobileApiClient {
 
   /// Creates a manual transaction. [fields] must contain a
   /// `client_request_id`; sending the same id again never books twice.
+  Future<Map<String, dynamic>> news() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/news');
+
+  Future<void> markNewsSeen() async {
+    await _authenticatedJson(method: 'POST', path: '/api/v1/news/seen');
+  }
+
+  /// Tax overview of [year] (the newest when null) and the warranties.
+  Future<Map<String, dynamic>> papers({int? year}) => _authenticatedJson(
+    method: 'GET',
+    path: '/api/v1/papers',
+    query: year == null ? null : {'year': '$year'},
+  );
+
   /// Transactions without a real category, largest first.
   Future<Map<String, dynamic>> triage({int limit = 30}) => _authenticatedJson(
     method: 'GET',

@@ -390,6 +390,10 @@ class _LiveTransactionTile extends StatelessWidget {
     final detail = <String>[
       if (categoryName != null && categoryName.isNotEmpty) categoryName,
       if (item['account_name'] is String) item['account_name'] as String,
+      if (item['receipt_count'] is int && item['receipt_count'] as int > 0)
+        item['receipt_count'] == 1
+            ? 'Beleg'
+            : '${item['receipt_count']} Belege',
     ].join(' · ');
 
     return EntryRow(

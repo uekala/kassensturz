@@ -51,6 +51,8 @@ CAPABILITIES = (
     "sync",
     "triage",
     "budgets.suggest",
+    "news",
+    "papers",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -611,6 +613,37 @@ def delete_receipt(receipt_id: str, request: Request):
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
     return {"ok": True}
+
+
+@router.get("/api/v1/news")
+def news(request: Request):
+    """New transactions since this device last marked them as read."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    return mobile_read.news(get_db(), device.id)
+
+
+@router.post("/api/v1/news/seen")
+def news_seen(request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    db = get_db()
+    known = {row["id"] for row in db.query("SELECT id FROM mobile_devices WHERE revoked_at IS NULL")}
+    mobile_read.mark_news_seen(db, device.id, known)
+    return {"ok": True}
+
+
+@router.get("/api/v1/papers")
+def papers_overview(request: Request, year: str | None = Query(default=None)):
+    """Tax overview of one year and running warranties."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    if year not in (None, "") and not (year.isdigit() and len(year) == 4):
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    return mobile_read.papers_overview(get_db(), int(year) if year else None)
 
 
 @router.get("/api/v1/triage")
