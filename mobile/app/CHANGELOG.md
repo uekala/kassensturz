@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.24
+
+- Haushalt: Eine Ausgabe von deinem eigenen Konto teilst du jetzt direkt in der Buchung mit dem Haushalt und nimmst
+  das dort auch zurück (ab Server 0.3.30).
+
 ## 0.3.23
 
 - Haushalt: Die Kontenseite zeigt, was aus geteilten Ausgaben zwischen dir und den anderen offen ist (ab Server

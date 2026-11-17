@@ -525,6 +525,32 @@ class MobileApiClient {
     );
   }
 
+  /// Whether an expense can be shared with the household and how it is.
+  Future<Map<String, dynamic>> transactionShare(int transactionId) {
+    if (transactionId <= 0) {
+      throw const FormatException('Die Buchung ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'GET',
+      path: '/api/v1/transactions/$transactionId/share',
+    );
+  }
+
+  /// Shares an expense by the shares set for the household, or undoes that.
+  Future<Map<String, dynamic>> setTransactionShare(
+    int transactionId, {
+    required bool shared,
+  }) {
+    if (transactionId <= 0) {
+      throw const FormatException('Die Buchung ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: shared ? 'PUT' : 'DELETE',
+      path: '/api/v1/transactions/$transactionId/share',
+      body: shared ? const <String, dynamic>{} : null,
+    );
+  }
+
   Future<Uint8List> _authenticatedBinary({
     required String method,
     required String path,
