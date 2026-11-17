@@ -153,6 +153,25 @@ Gut zu wissen:
 - Eine Person lässt sich erst entfernen, wenn ihr keine Konten und Handys mehr zugeordnet sind. So wird ein
   eigenes Konto nicht versehentlich zu einem gemeinsamen.
 
+### Ausgaben teilen und ausgleichen
+
+Bezahlt jemand etwas für alle vom eigenen Konto, lässt sich die Buchung teilen: Buchung öffnen, „Mit dem Haushalt
+teilen". Die anderen schulden dem Zahler dann ihren Anteil. Gezahlt hat immer, wem das Konto gehört; was vom
+gemeinsamen Konto abgeht, ist schon gemeinsam bezahlt und lässt sich nicht teilen.
+
+- **Anteile:** Unter *Einstellungen → Haushalt* hat jede Person einen Anteil. Gleiche Zahlen teilen zu gleichen
+  Teilen, 60 und 40 im Verhältnis 60 zu 40. Mit 0 trägt eine Person nichts mit. Was beim Runden übrig bleibt, trägt
+  der Zahler.
+- **Ausgleich:** Dort steht auch, wer wem wie viel schuldet. Hat jemand überwiesen oder bar bezahlt, trägst du das
+  mit „Zahlung eintragen" ein. Gerechnet wird je Paar, nicht über Dritte.
+- **Was die anderen sehen:** von einer geteilten Buchung Datum, Empfänger, Betrag und ihren Teil. Alles andere auf
+  dem Konto bleibt verborgen.
+- **Was sich nicht ändert:** Kassensturz bucht dabei nichts um. Kontostände, Auswertung und Budgets zählen die
+  Buchung weiter ganz beim Zahler.
+
+Wird ein eigenes Konto zum gemeinsamen, zählen die Teilungen seiner Buchungen nicht mehr. Eine Person lässt sich
+erst entfernen, wenn mit ihr nichts mehr offen ist.
+
 ## Lernen aus Korrekturen
 
 Änderst du bei einer Buchung die Kategorie, merkt sich Kassensturz den Empfänger. Alle anderen Buchungen dieses Empfängers,

@@ -55,6 +55,9 @@ class ServerAccountsPage extends StatelessWidget {
     final scope = viewer.isEmpty
         ? 'Du siehst hier nur die gemeinsamen Konten.'
         : 'Du siehst deine eigenen und die gemeinsamen Konten ($viewer).';
+    // What is open between this person and the others from shared expenses.
+    final open = household is Map ? household['balances'] : null;
+    final owed = _maps(open).map(_owedLine).toList();
 
     return RefreshIndicator(
       onRefresh: controller.loadFinancialData,
@@ -70,6 +73,7 @@ class ServerAccountsPage extends StatelessWidget {
           if (split) ...[
             const SizedBox(height: 8),
             Text(scope, style: textTheme.bodySmall),
+            for (final line in owed) Text(line, style: textTheme.bodySmall),
           ],
           const SizedBox(height: 22),
           if (controller.canShowNetWorthHistory && data != null)
@@ -428,6 +432,16 @@ List<Map<String, dynamic>> _maps(dynamic value) {
 }
 
 int _integer(dynamic value) => value is int ? value : 0;
+
+/// One line per other person: positive cents mean they owe this person.
+String _owedLine(Map<String, dynamic> item) {
+  final name = _string(item['person'], 'Jemand');
+  final cents = _integer(item['cents']);
+  final amount = formatEuro(cents.abs() / 100);
+  return cents > 0
+      ? '$name schuldet dir $amount.'
+      : 'Du schuldest $name $amount.';
+}
 
 String _string(dynamic value, String fallback) =>
     value is String && value.isNotEmpty ? value : fallback;

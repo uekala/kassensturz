@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
 from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
-               secrets_store, services, umzug)
+               secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
 from .mobile_api import router as mobile_api_router
@@ -73,6 +73,8 @@ MOBILE_RATE_LIMITS = {
     ("POST", "/api/v1/sync"): ("sync-start", 6, 60),
     ("GET", "/api/v1/categories"): ("categories", 120, 60),
     ("GET", "/api/v1/contracts"): ("contracts", 60, 60),
+    ("GET", "/api/v1/household/sharing"): ("stats", 60, 60),
+    ("POST", "/api/v1/household/settlements"): ("transaction-write", 60, 60),
     ("POST", "/api/mobile/pairings"): ("pairing-create", 5, 900),
     ("GET", "/api/mobile/devices"): ("device-list", 60, 60),
 }
@@ -166,7 +168,7 @@ async def only_ingress(request: Request, call_next):
             policy = ("receipt-write", 30, 60) if request.method.upper() == "POST" else ("receipts", 120, 60)
         if policy is None and request.url.path.startswith("/api/v1/receipts/"):
             policy = ("receipt-write", 30, 60) if request.method.upper() == "DELETE" else ("receipts", 120, 60)
-        if policy is None and request.method.upper() in ("PATCH", "DELETE") and request.url.path.startswith(
+        if policy is None and request.method.upper() in ("PATCH", "DELETE", "PUT") and request.url.path.startswith(
             "/api/v1/transactions/"
         ):
             policy = ("transaction-write", 60, 60)
@@ -668,6 +670,44 @@ def update_person(pid: int, body: dict = Body(...)):
 @app.delete("/api/persons/{pid}")
 def delete_person(pid: int):
     return _household(household.delete_person, pid)
+
+
+def _sharing(call, *args):
+    try:
+        return call(get_db(), *args)
+    except sharing.SharingError as error:
+        _err(error.status, error.message)
+
+
+@app.get("/api/household/sharing")
+def household_sharing():
+    return sharing.overview(get_db())
+
+
+@app.get("/api/transactions/{tx_id}/share")
+def transaction_share(tx_id: int):
+    return _sharing(sharing.get_share, tx_id)
+
+
+@app.put("/api/transactions/{tx_id}/share")
+def share_transaction(tx_id: int, body: dict = Body(default={})):
+    return _sharing(sharing.set_share, tx_id, body.get("parts"))
+
+
+@app.delete("/api/transactions/{tx_id}/share")
+def unshare_transaction(tx_id: int):
+    return _sharing(sharing.clear_share, tx_id)
+
+
+@app.post("/api/household/settlements")
+def add_settlement(body: dict = Body(...)):
+    return _sharing(sharing.add_settlement, body)
+
+
+@app.delete("/api/household/settlements/{sid}")
+def delete_settlement(sid: int):
+    _sharing(sharing.delete_settlement, sid)
+    return {"ok": True}
 
 
 @app.get("/api/accounts")

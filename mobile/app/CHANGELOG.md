@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.23
+
+- Haushalt: Die Kontenseite zeigt, was aus geteilten Ausgaben zwischen dir und den anderen offen ist (ab Server
+  0.3.30). Geteilt und ausgeglichen wird vorerst in Kassensturz in Home Assistant.
+
 ## 0.3.22
 
 - Haushalt: Nutzt ihr Kassensturz zu mehreren, zeigt die Kontenseite, wer angemeldet ist und welche Konten nur für

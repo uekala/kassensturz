@@ -58,6 +58,26 @@ CREATE TABLE IF NOT EXISTS persons(
   created TEXT
 );
 
+-- Geteilte Ausgabe: wer welchen Teil einer Buchung trägt. Gezahlt hat, wem das Konto gehört.
+CREATE TABLE IF NOT EXISTS tx_shares(
+  tx_id INTEGER NOT NULL,
+  person_id INTEGER NOT NULL,
+  cents INTEGER NOT NULL,
+  PRIMARY KEY(tx_id, person_id)
+);
+CREATE INDEX IF NOT EXISTS tx_shares_person ON tx_shares(person_id);
+
+-- Ausgleichszahlung zwischen zwei Personen, von Hand eingetragen.
+CREATE TABLE IF NOT EXISTS settlements(
+  id INTEGER PRIMARY KEY,
+  from_person_id INTEGER NOT NULL,
+  to_person_id INTEGER NOT NULL,
+  cents INTEGER NOT NULL,
+  on_date TEXT NOT NULL,
+  note TEXT,
+  created TEXT
+);
+
 CREATE TABLE IF NOT EXISTS categories(
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
@@ -328,6 +348,8 @@ MIGRATIONS = {
     # Kennung, mit der ein Mobilgerät eine von Hand angelegte Buchung genau einmal anlegt
     # Gläubiger-ID und IBAN hängen an dem Eintrag für den Namen, aus dem sie gelernt wurden
     "learned_categories": [("parent_id", "INTEGER")],
+    # Gewicht beim Teilen gemeinsamer Ausgaben; 0 heißt, die Person trägt nichts mit
+    "persons": [("share_weight", "INTEGER DEFAULT 1")],
     "transactions": [("client_request_id", "TEXT"),
                      # Steuerart einer von Hand markierten Buchung, siehe papers.TAX_KINDS
                      ("tax_kind", "TEXT"),
@@ -341,7 +363,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {

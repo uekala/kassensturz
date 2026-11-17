@@ -1,5 +1,18 @@
 # Änderungen
 
+## 0.3.30
+
+- Haushalt, zweite Stufe: Ausgaben teilen und ausgleichen.
+  - Hat jemand etwas für den Haushalt vom eigenen Konto bezahlt, öffnest du die Buchung und wählst „Mit dem Haushalt
+    teilen". Die anderen schulden dem Zahler dann ihren Anteil.
+  - Geteilt wird zu gleichen Teilen oder nach dem Anteil, den du je Person unter *Einstellungen → Haushalt*
+    einstellst, zum Beispiel 60 und 40. Mit 0 trägt eine Person nichts mit.
+  - Unter *Einstellungen → Haushalt → Ausgleich* steht, wer wem wie viel schuldet. Eine Überweisung oder Barzahlung
+    trägst du dort als Zahlung ein.
+  - Die Mobile-App zeigt ab 0.3.23, was zwischen dir und den anderen offen ist.
+- Von einer geteilten Buchung sehen die anderen Datum, Empfänger, Betrag und ihren Teil, sonst nichts vom Konto.
+- Kassensturz bucht beim Teilen und Ausgleichen nichts um. Kontostände, Auswertung und Budgets bleiben, wie sie sind.
+
 ## 0.3.29
 
 - Haushalt: Die Übersicht für die App nennt je Konto, ob es ein eigenes oder ein gemeinsames ist, und wer angemeldet
