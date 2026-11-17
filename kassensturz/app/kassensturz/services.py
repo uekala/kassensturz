@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import analytics, backup, contracts, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
+from . import allowance, analytics, backup, contracts, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -14,6 +14,8 @@ log = logging.getLogger("kassensturz.services")
 
 
 def build_summary(db: Database) -> dict:
+    # Fälliges Taschengeld zuerst, über die ganze Datenbank: Die Sicht einer Person kann nicht schreiben.
+    allowance.apply(getattr(db, "parent", db))
     cons = contracts.list_contracts(db)
     fc = analytics.forecast(db)
     today = date.today()
@@ -40,7 +42,7 @@ def net_worth(accounts: list[dict]) -> dict:
     groups = {g: 0 for g in ledger.WORTH_GROUPS}
     loans = 0
     for a in accounts:
-        if not a["balance_known"]:
+        if not a["balance_known"] or a["group"] not in groups:
             continue
         groups[a["group"]] += a["balance_now"]
         loans += a["group"] == "kredite"

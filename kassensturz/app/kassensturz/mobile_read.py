@@ -9,7 +9,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from . import analytics, contracts, options, savings, services
+from . import analytics, contracts, mobile_write, options, savings, services
 from .db import Database
 
 
@@ -175,6 +175,7 @@ def serialize_overview(
     alerts: list[dict],
     *,
     as_of: datetime | None = None,
+    viewer: int | None = None,
 ) -> dict:
     """Map domain summaries to a stable, strictly allowlisted mobile DTO."""
     timestamp = as_of or datetime.now(timezone.utc)
@@ -201,7 +202,7 @@ def serialize_overview(
                 else int(account["value_prev_cents"]),
                 "previous_value_date": account.get("value_prev_date"),
                 # Fremde eigene Konten kommen hier gar nicht an.
-                "ownership": "shared" if account.get("owner_person_id") is None else "mine",
+                "ownership": mobile_write.ownership(account, viewer),
             }
         )
 
@@ -254,7 +255,7 @@ def get_overview(db: Database, *, as_of: datetime | None = None, view=None) -> d
     db = view or db
     summary = services.build_summary(db)
     alert_items = services.alerts(db, summary)
-    overview = serialize_overview(summary, alert_items, as_of=as_of)
+    overview = serialize_overview(summary, alert_items, as_of=as_of, viewer=getattr(db, "person_id", None))
     overview["goals"] = [
         {
             "id": int(goal["id"]),

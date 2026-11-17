@@ -180,6 +180,21 @@ gemeinsamen Konto abgeht, ist schon gemeinsam bezahlt und lässt sich nicht teil
 Wird ein eigenes Konto zum gemeinsamen, zählen die Teilungen seiner Buchungen nicht mehr. Eine Person lässt sich
 erst entfernen, wenn mit ihr nichts mehr offen ist.
 
+### Kinder und Taschengeld
+
+Kennzeichne ein Kind unter *Einstellungen → Haushalt* in der Person als „Kind". Lege dann unter *Konten* mit „Konto
+ohne Import anlegen" ein Konto der Art „Taschengeld" an: Betrag, Rhythmus (jede Woche oder jeden Monat) und bei
+„Gehört" das Kind.
+
+- **Gutschrift:** Die erste kommt sofort, danach im gewählten Rhythmus. War der Server länger aus, werden bis zu
+  zwölf ausgefallene Termine nachgeholt. Eine Änderung des Betrags gilt ab dem nächsten Termin.
+- **Ausgaben:** trägst du von Hand ein, in Home Assistant oder in der App wie auf einem Bargeld-Konto.
+- **Wer es sieht:** alle Erwachsenen des Haushalts. Das Kind selbst, wenn du sein Handy koppelst und ihm zuordnest;
+  es sieht dann nur dieses Konto und kann nichts ändern.
+- **Was es nicht ist:** Bankguthaben. Das Geld liegt weiter auf euren Konten und ist dort schon gezählt. Deshalb
+  zählt das Taschengeld-Konto nicht zum Vermögen, nicht zur Prognose und nicht zur Auswertung des Haushalts, und
+  seine Ausgaben lassen sich nicht teilen.
+
 ## Lernen aus Korrekturen
 
 Änderst du bei einer Buchung die Kategorie, merkt sich Kassensturz den Empfänger. Alle anderen Buchungen dieses Empfängers,

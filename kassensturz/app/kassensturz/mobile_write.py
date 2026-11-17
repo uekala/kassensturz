@@ -125,6 +125,16 @@ def _category(db: Database, value: Any) -> dict:
     return row
 
 
+def ownership(account: dict, viewer: int | None) -> str:
+    """Wem das Konto aus Sicht des Betrachters gehört: shared, mine oder child.
+
+    child ist das Taschengeld-Konto eines Kindes, das ein Erwachsener sieht."""
+    owner = account.get("owner_person_id")
+    if owner is None:
+        return "shared"
+    return "child" if account.get("kind") == "taschengeld" and owner != viewer else "mine"
+
+
 def account_accepts_manual_entries(account: dict) -> bool:
     """Only accounts without FinTS or Open Banking feed take manual entries."""
     return (
@@ -409,7 +419,7 @@ def list_accounts(db: Database) -> dict:
                 "transaction_count": int(account.get("tx_count") or 0),
                 "manual_entries": account_accepts_manual_entries(account),
                 # "mine" oder "shared"; fremde private Konten kommen hier gar nicht an
-                "ownership": "shared" if account.get("owner_person_id") is None else "mine",
+                "ownership": ownership(account, getattr(db, "person_id", None)),
             }
         )
     return {"items": items}

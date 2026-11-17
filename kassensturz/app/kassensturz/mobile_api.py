@@ -58,7 +58,12 @@ CAPABILITIES = (
     "household.sharing",
     "budgets.own",
 )
+# What the phone of a child gets: reading its own account, nothing that writes.
+CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
+                      "news", "networth", "household")
 INGRESS_IP = "172.30.32.2"
+# Was auch das Handy eines Kindes darf, obwohl es sonst nur liest
+READ_ONLY_ALLOWED = ("/api/v1/auth/logout", "/api/v1/news/seen")
 MAX_PAIRING_SECRET_LENGTH = 128
 MAX_TOKEN_LENGTH = 128
 TRUSTED_PROXY_NETWORKS = parse_trusted_proxy_networks(
@@ -182,7 +187,7 @@ def _authenticated_device(request: Request):
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        return _auth_service().authenticate_access_token(token)
+        device = _auth_service().authenticate_access_token(token)
     except InvalidCredential:
         return _error(
             401,
@@ -190,6 +195,11 @@ def _authenticated_device(request: Request):
             "Anmeldung erforderlich.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    # The phone of a child only reads. Signing out and marking news as seen stay possible.
+    if (request.method.upper() != "GET" and request.url.path not in READ_ONLY_ALLOWED
+            and household.is_child(get_db(), device.person_id)):
+        return _error(403, "read_only", "Mit diesem Handy lässt sich nichts ändern.")
+    return device
 
 
 @router.post("/api/mobile/pairings")
@@ -356,11 +366,12 @@ def me(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
+    profile = household.profile(get_db(), device.person_id)
     return {
         "device": {"id": device.id, "name": device.name},
         "server": {"name": "Kassensturz", "version": options.VERSION, "storage": "local"},
-        "capabilities": list(CAPABILITIES),
-        "household": household.profile(get_db(), device.person_id),
+        "capabilities": list(CHILD_CAPABILITIES if profile["read_only"] else CAPABILITIES),
+        "household": profile,
     }
 
 

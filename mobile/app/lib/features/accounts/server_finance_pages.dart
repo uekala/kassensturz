@@ -21,8 +21,10 @@ class ServerAccountsPage extends StatelessWidget {
     final data = controller.overviewData;
     final accounts = _maps(data?['accounts']);
     final textTheme = Theme.of(context).textTheme;
+    // A child's pocket money is an arrangement, not money in the bank; it
+    // does not count towards the adults' net worth.
     final known = accounts
-        .where((item) => item['balance_known'] == true)
+        .where((item) => item['balance_known'] == true && !_isPocket(item))
         .toList();
     final total = known.fold<int>(
       0,
@@ -145,8 +147,7 @@ class _AccountPanel extends StatelessWidget {
     final due = _string(account['matures_on'], '');
     final detail = [
       _typeLabels[type] ?? 'Konto',
-      if (showOwnership)
-        account['ownership'] == 'mine' ? 'nur für dich' : 'gemeinsam',
+      if (showOwnership) _ownershipLabel(account['ownership']),
       if (date.isNotEmpty) 'Stand ${formatShortDate(date)}',
       if (previous is int && previousDate.isNotEmpty)
         '${formatSignedEuro((balance - previous) / 100)} seit '
@@ -459,7 +460,17 @@ const _typeLabels = {
   'kredit': 'Kredit',
   'kreditkarte': 'Kreditkarte',
   'paypal': 'PayPal',
+  'taschengeld': 'Taschengeld',
   'sonstiges': 'Sonstiges',
+};
+
+/// The pocket money account of a child, as an adult sees it.
+bool _isPocket(Map<String, dynamic> item) => item['ownership'] == 'child';
+
+String _ownershipLabel(dynamic ownership) => switch (ownership) {
+  'mine' => 'nur für dich',
+  'child' => 'für ein Kind',
+  _ => 'gemeinsam',
 };
 
 const _valueTypes = {'depot', 'festgeld', 'vl', 'immobilie', 'kredit'};

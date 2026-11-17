@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
+from . import (allowance, analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
                secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
@@ -628,7 +628,7 @@ def recategorize_all():
 # --- Konten ----------------------------------------------------------------------------
 
 ACCOUNT_FIELDS = ("name", "kind", "iban", "bank", "settlement_pattern", "in_forecast", "archived", "sort", "matures_on",
-                  "owner_person_id")
+                  "owner_person_id", "allowance_cents", "allowance_interval")
 
 
 def _clean_account(data: dict) -> dict:
@@ -648,6 +648,13 @@ def _clean_account(data: dict) -> dict:
         except household.HouseholdError as error:
             _err(error.status, error.message)
     return data
+
+
+def _allowance_rules(existing: dict | None, data: dict) -> dict:
+    try:
+        return allowance.rules(get_db(), existing, data)
+    except allowance.AllowanceError as error:
+        _err(400, str(error))
 
 
 # --- Haushalt ---------------------------------------------------------------
@@ -742,7 +749,7 @@ def create_account(body: dict = Body(...)):
     if "in_forecast" not in body and data.get("kind") in ledger.SAVINGS_KINDS:
         # Rücklagen, Anlagen und Kredite sind nicht für den Alltag da.
         data["in_forecast"] = 0
-    aid = db.insert("accounts", _clean_account(data))
+    aid = db.insert("accounts", _allowance_rules(None, _clean_account(data)))
     categorize.recategorize(db)
     return db.one("SELECT * FROM accounts WHERE id = ?", (aid,))
 
@@ -762,7 +769,10 @@ def net_worth():
 @app.patch("/api/accounts/{aid}")
 def update_account(aid: int, body: dict = Body(...)):
     db = get_db()
-    data = _clean_account({k: body[k] for k in ACCOUNT_FIELDS if k in body})
+    existing = db.one("SELECT * FROM accounts WHERE id = ?", (aid,))
+    if not existing:
+        _err(404, "Konto nicht gefunden.")
+    data = _allowance_rules(existing, _clean_account({k: body[k] for k in ACCOUNT_FIELDS if k in body}))
     db.update("accounts", "id", aid, data)
     if {"settlement_pattern", "iban", "kind", "archived"} & set(data):
         categorize.recategorize(db)

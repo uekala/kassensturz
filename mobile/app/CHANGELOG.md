@@ -1,5 +1,11 @@
 # Änderungen der Mobile-App
 
+## 0.3.28
+
+- Haushalt: Taschengeld-Konten der Kinder erscheinen bei den Erwachsenen als „Taschengeld … für ein Kind“ und
+  zählen nicht zum Vermögen. Ausgaben trägst du wie auf einem Bargeld-Konto ein (ab Server 0.3.35).
+- Auf dem Handy eines Kindes zeigt die App nur dessen Taschengeld-Konto; Ändern ist dort ausgeblendet.
+
 ## 0.3.27
 
 - Haushalt: Sparziele, die nur dir gehören, sind als „nur für dich“ gekennzeichnet (ab Server 0.3.34).
