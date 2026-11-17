@@ -63,6 +63,10 @@ def _invalid(message: str) -> MobileWriteError:
     return MobileWriteError(400, "invalid_request", message)
 
 
+def unknown_account() -> MobileWriteError:
+    return _invalid("Das Konto ist unbekannt.")
+
+
 def _clean_text(value: Any, maximum: int, field: str, *, required: bool = False) -> str | None:
     if value is None:
         if required:
@@ -205,7 +209,7 @@ def create_transaction(db: Database, payload: dict, *, today: date | None = None
 
         account = db.one("SELECT * FROM accounts WHERE id = ?", (account_id,))
         if account is None or account.get("archived"):
-            raise _invalid("Das Konto ist unbekannt.")
+            raise unknown_account()
         if not account_accepts_manual_entries(account):
             raise MobileWriteError(
                 409,
@@ -354,11 +358,13 @@ CASH_KIND = "bargeld"
 MAX_MANUAL_ACCOUNTS = 20
 
 
-def create_cash_account(db: Database, payload: dict, *, today: date | None = None) -> dict:
+def create_cash_account(db: Database, payload: dict, *, today: date | None = None,
+                        owner_person_id: int | None = None) -> dict:
     """Create an account without bank feed so the app can book cash entries.
 
     Only this one kind can be created from the app. Bank accounts, deposits
-    and loans stay in the Home Assistant interface.
+    and loans stay in the Home Assistant interface. The account belongs to the
+    person of the device; whether it becomes a shared one is decided there too.
     """
     if set(payload) - {"name", "balance_cents"}:
         raise _invalid("Die Anfrage enthält unbekannte Felder.")
@@ -377,6 +383,7 @@ def create_cash_account(db: Database, payload: dict, *, today: date | None = Non
         if int(manual or 0) >= MAX_MANUAL_ACCOUNTS:
             raise MobileWriteError(409, "limit", "Mehr Konten lassen sich aus der App nicht anlegen.")
         data = {"name": name, "kind": CASH_KIND, "in_forecast": 1, "created": now_iso(),
+                "owner_person_id": owner_person_id,
                 "sort": int(db.scalar("SELECT COALESCE(MAX(sort), 0) FROM accounts") or 0) + 1}
         if balance is not None:
             # Der Bestand gilt bis gestern, damit Umsätze von heute schon mitzählen.
@@ -401,6 +408,8 @@ def list_accounts(db: Database) -> dict:
                 "balance_date": account.get("balance_date"),
                 "transaction_count": int(account.get("tx_count") or 0),
                 "manual_entries": account_accepts_manual_entries(account),
+                # "mine" oder "shared"; fremde private Konten kommen hier gar nicht an
+                "ownership": "shared" if account.get("owner_person_id") is None else "mine",
             }
         )
     return {"items": items}
@@ -465,13 +474,13 @@ def _contract_item(contract: dict, reference: date) -> dict:
     }
 
 
-def list_contracts(db: Database, *, today: date | None = None) -> dict:
+def list_contracts(db: Database, *, today: date | None = None, view=None) -> dict:
     """Detected and manual contracts without provider contact or customer data."""
     reference = today or date.today()
     contracts.detect(db)
     items = [
         _contract_item(contract, reference)
-        for contract in contracts.list_contracts(db)
+        for contract in contracts.list_contracts(view or db)
         if contract.get("status") != "ignored"
     ]
     return {"items": items}

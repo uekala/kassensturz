@@ -127,6 +127,32 @@ Alle diese Konten zählen zum Vermögen, aber nicht zu „frei verfügbar“ und
 in Alltag, Rücklagen, Depots, Immobilien und Kredite und zeigt den Verlauf der letzten Monate. Einzelne Wertpapiere, Kurse,
 Zinsen und Tilgungspläne kennt Kassensturz nicht.
 
+## Haushalt: zu zweit oder als Familie
+
+Kassensturz lässt sich von mehreren Personen nutzen. Jede hat die App auf ihrem Handy und sieht dort ihre eigenen
+Konten und die gemeinsamen.
+
+1. Unter *Einstellungen → Haushalt* die Personen anlegen.
+2. Unter *Konten* jedes Konto öffnen und bei „Gehört" eine Person oder „Allen gemeinsam" wählen. Neue Konten sind
+   gemeinsam.
+3. Unter *Einstellungen → Mobile Geräte* bei „Das nächste Handy gehört" die Person wählen und das Handy koppeln.
+   Schon gekoppelte Handys ordnest du in der Geräteliste zu.
+
+Was eine Person nicht sehen darf, kommt bei ihrem Handy gar nicht an: keine Buchungen, Belege, Verträge und
+Sparziele fremder Konten, und Summen, Prognose und Vermögen rechnen nur mit dem Sichtbaren. Ein Handy ohne Person
+sieht nur die gemeinsamen Konten. Solange kein Konto einer Person gehört, sieht jedes Handy alles.
+
+Gut zu wissen:
+
+- Die Oberfläche in Home Assistant ist die Verwaltung und zeigt immer alles. Wer Home Assistant verwaltet, kommt
+  ohnehin an die Datenbank und die Sicherungen. Getrennt ist also, was die Handys sehen – nicht, was die
+  Verwaltung sieht.
+- Sensoren, Ereignisse und Benachrichtigungen gelten für den ganzen Haushalt und enthalten auch eigene Konten.
+- Budgets und Kategorien sind gemeinsam. Der Verbrauch eines Budgets wird je Person aus ihren sichtbaren Konten
+  berechnet.
+- Eine Person lässt sich erst entfernen, wenn ihr keine Konten und Handys mehr zugeordnet sind. So wird ein
+  eigenes Konto nicht versehentlich zu einem gemeinsamen.
+
 ## Lernen aus Korrekturen
 
 Änderst du bei einer Buchung die Kategorie, merkt sich Kassensturz den Empfänger. Alle anderen Buchungen dieses Empfängers,

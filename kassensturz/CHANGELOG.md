@@ -1,5 +1,20 @@
 # Änderungen
 
+## 0.3.28
+
+- Haushalt für Paare und Familien, erste Stufe:
+  - Unter *Einstellungen → Haushalt* legst du an, wer mitmacht.
+  - Jedes Konto gehört einer Person oder allen gemeinsam. Das stellst du im Konto unter „Gehört" ein.
+  - Jedes Handy wird beim Koppeln einer Person zugeordnet; bei schon gekoppelten Handys geht das nachträglich
+    unter *Mobile Geräte*.
+  - In der App sieht jede Person ihre eigenen Konten und die gemeinsamen – mit allem, was daran hängt: Buchungen,
+    Belege, Verträge, Sparziele, Auswertung, Prognose und Vermögen. Fremde Konten lassen sich von dort auch nicht
+    ändern.
+  - Ein Bargeld-Konto, das jemand in der App anlegt, gehört dieser Person.
+- Die Oberfläche in Home Assistant bleibt die Verwaltung des Haushalts und zeigt alles. Sensoren und
+  Benachrichtigungen gelten weiter für den ganzen Haushalt.
+- Solange kein Konto einer Person gehört, ändert sich nichts.
+
 ## 0.3.27
 
 - Kassensturz ordnet mehr Buchungen von selbst zu:

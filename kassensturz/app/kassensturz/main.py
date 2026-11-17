@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, health, letters, openbanking, options, papers, savings,
+from . import (analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
                secrets_store, services, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
@@ -618,7 +618,8 @@ def recategorize_all():
 
 # --- Konten ----------------------------------------------------------------------------
 
-ACCOUNT_FIELDS = ("name", "kind", "iban", "bank", "settlement_pattern", "in_forecast", "archived", "sort", "matures_on")
+ACCOUNT_FIELDS = ("name", "kind", "iban", "bank", "settlement_pattern", "in_forecast", "archived", "sort", "matures_on",
+                  "owner_person_id")
 
 
 def _clean_account(data: dict) -> dict:
@@ -632,7 +633,41 @@ def _clean_account(data: dict) -> dict:
             except ValueError:
                 _err(400, "Das Datum ist ungültig.")
         data["matures_on"] = value
+    if "owner_person_id" in data:
+        try:
+            data["owner_person_id"] = household.parse_person_id(get_db(), data["owner_person_id"])
+        except household.HouseholdError as error:
+            _err(error.status, error.message)
     return data
+
+
+# --- Haushalt ---------------------------------------------------------------
+
+def _household(call, *args):
+    try:
+        return call(get_db(), *args)
+    except household.HouseholdError as error:
+        _err(error.status, error.message)
+
+
+@app.get("/api/persons")
+def persons():
+    return household.list_persons(get_db())
+
+
+@app.post("/api/persons")
+def create_person(body: dict = Body(...)):
+    return _household(household.create_person, body)
+
+
+@app.patch("/api/persons/{pid}")
+def update_person(pid: int, body: dict = Body(...)):
+    return _household(household.update_person, pid, body)
+
+
+@app.delete("/api/persons/{pid}")
+def delete_person(pid: int):
+    return _household(household.delete_person, pid)
 
 
 @app.get("/api/accounts")

@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import analytics, banksync, ledger, mobile_read, mobile_write, options, papers, services
+from . import analytics, banksync, household, ledger, mobile_read, mobile_write, options, papers, services
 from .db import get_db
 from .mobile_auth import (
     InvalidCredential,
@@ -54,6 +54,7 @@ CAPABILITIES = (
     "news",
     "papers",
     "networth",
+    "household",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -150,6 +151,16 @@ def _local_admin_allowed(request: Request) -> bool:
     return peer.is_loopback
 
 
+def _view(device):
+    """What this device may read: its person's accounts and the shared ones."""
+    return household.view(get_db(), device.person_id)
+
+
+def _not_found(what: str) -> JSONResponse:
+    # Dieselbe Antwort wie für etwas, das es nicht gibt: Fremde Konten verraten sich nicht.
+    return _error(404, "not_found", f"{what} nicht gefunden.")
+
+
 def _authenticated_device(request: Request):
     header = request.headers.get("authorization", "")
     parts = header.split()
@@ -194,8 +205,14 @@ async def create_pairing(request: Request):
             "Die Mobile-Serveradresse ist nicht als HTTPS-Adresse konfiguriert.",
         )
 
+    payload = await _json_object(request) or {}
     try:
-        pairing = _auth_service().create_pairing()
+        person_id = household.parse_person_id(get_db(), payload.get("person_id"))
+    except household.HouseholdError as error:
+        return _error(error.status, "invalid_request", error.message)
+
+    try:
+        pairing = _auth_service().create_pairing(person_id)
     except PairingLimitReached:
         return _error(
             429,
@@ -204,7 +221,7 @@ async def create_pairing(request: Request):
             headers={"Retry-After": "300"},
         )
 
-    response = {**pairing, "server_url": server_url}
+    response = {**pairing, "server_url": server_url, "person_id": person_id}
     if server_url is not None:
         qr_payload = json.dumps(
             {
@@ -243,6 +260,24 @@ def revoke_device(device_id: str, request: Request):
         return _error(404, "not_found", "Gerät nicht gefunden.")
     revoked = _auth_service().revoke_device(device_id)
     if not revoked:
+        return _error(404, "not_found", "Gerät nicht gefunden.")
+    return {"ok": True}
+
+
+@router.patch("/api/mobile/devices/{device_id}")
+async def assign_device(device_id: str, request: Request):
+    """Assign a paired device to a person of the household, or to nobody."""
+    if not _local_admin_allowed(request):
+        return _error(403, "forbidden", "Nur lokal über die Administration erlaubt.")
+    payload = await _json_object(request)
+    if payload is None or set(payload) != {"person_id"} or not device_id or len(device_id) > 128:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    db = get_db()
+    try:
+        person_id = household.parse_person_id(db, payload["person_id"])
+    except household.HouseholdError as error:
+        return _error(error.status, "invalid_request", error.message)
+    if not household.set_device_person(db, device_id, person_id):
         return _error(404, "not_found", "Gerät nicht gefunden.")
     return {"ok": True}
 
@@ -323,6 +358,7 @@ def me(request: Request):
         "device": {"id": device.id, "name": device.name},
         "server": {"name": "Kassensturz", "version": options.VERSION, "storage": "local"},
         "capabilities": list(CAPABILITIES),
+        "household": household.profile(get_db(), device.person_id),
     }
 
 
@@ -332,7 +368,7 @@ def overview(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return mobile_read.get_overview(get_db())
+    return mobile_read.get_overview(get_db(), view=_view(device))
 
 
 @router.get("/api/v1/transactions")
@@ -352,7 +388,7 @@ def transactions(
         return device
     try:
         return mobile_read.list_transactions(
-            get_db(),
+            _view(device),
             limit=limit,
             offset=offset,
             month=month,
@@ -382,7 +418,7 @@ def stats(request: Request, month: str | None = Query(default=None)):
     if isinstance(device, Response):
         return device
     try:
-        return mobile_read.get_stats(get_db(), month=month)
+        return mobile_read.get_stats(_view(device), month=month)
     except mobile_read.MobileQueryError:
         return _error(400, "invalid_query", "Ungültiger Monat.")
 
@@ -394,7 +430,7 @@ def afford(request: Request, amount_cents: int = Query(default=0)):
     if isinstance(device, Response):
         return device
     try:
-        return mobile_read.get_afford(get_db(), amount_cents)
+        return mobile_read.get_afford(_view(device), amount_cents)
     except mobile_read.MobileQueryError:
         return _error(400, "invalid_query", "Ungültiger Betrag.")
 
@@ -405,7 +441,7 @@ def accounts(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return mobile_write.list_accounts(get_db())
+    return mobile_write.list_accounts(_view(device))
 
 
 def _sync_public(state: dict) -> dict:
@@ -430,7 +466,7 @@ def sync_status(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return _sync_public(banksync.status(get_db()))
+    return _sync_public(banksync.status(_view(device)))
 
 
 @router.post("/api/v1/sync")
@@ -443,7 +479,7 @@ def sync_start(request: Request):
     psu = {"ip": forwarded or (request.client.host if request.client else ""),
            "ua": request.headers.get("user-agent") or ""}
     try:
-        state = banksync.start(get_db(), psu=psu, on_done=services.schedule_refresh)
+        state = banksync.start(_view(device), psu=psu, on_done=services.schedule_refresh)
     except banksync.SyncRefused as refused:
         return _error(409, refused.code, refused.message)
     return JSONResponse(_sync_public(state), status_code=202)
@@ -459,7 +495,7 @@ async def create_account(request: Request):
     if payload is None:
         return _error(400, "invalid_request", "Ungültige Anfrage.")
     try:
-        account = mobile_write.create_cash_account(get_db(), payload)
+        account = mobile_write.create_cash_account(get_db(), payload, owner_person_id=device.person_id)
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
     services.schedule_refresh()
@@ -472,7 +508,7 @@ def categories(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return mobile_write.list_categories(get_db())
+    return mobile_write.list_categories(_view(device))
 
 
 @router.get("/api/v1/contracts")
@@ -481,7 +517,7 @@ def contracts_list(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return mobile_write.list_contracts(get_db())
+    return mobile_write.list_contracts(get_db(), view=_view(device))
 
 
 @router.post("/api/v1/transactions")
@@ -493,6 +529,10 @@ async def create_transaction(request: Request):
     payload = await _json_object(request)
     if payload is None:
         return _error(400, "invalid_request", "Ungültige Anfrage.")
+    account_id = payload.get("account_id")
+    if (isinstance(account_id, int) and not isinstance(account_id, bool)
+            and not household.sees_account(get_db(), device.person_id, account_id)):
+        return _write_error(mobile_write.unknown_account())
     try:
         transaction, created = mobile_write.create_transaction(get_db(), payload)
     except mobile_write.MobileWriteError as error:
@@ -517,6 +557,8 @@ async def update_transaction(tx_id: str, request: Request):
     payload = await _json_object(request)
     if payload is None:
         return _error(400, "invalid_request", "Ungültige Anfrage.")
+    if not household.sees_transaction(get_db(), device.person_id, parsed_id):
+        return _not_found("Buchung")
     try:
         transaction = mobile_write.update_transaction(get_db(), parsed_id, payload)
     except mobile_write.MobileWriteError as error:
@@ -538,6 +580,8 @@ def delete_transaction(tx_id: str, request: Request):
     parsed_id = _transaction_id(tx_id)
     if parsed_id is None:
         return _error(404, "not_found", "Buchung nicht gefunden.")
+    if not household.sees_transaction(get_db(), device.person_id, parsed_id):
+        return _not_found("Buchung")
     try:
         mobile_write.delete_transaction(get_db(), parsed_id)
     except mobile_write.MobileWriteError as error:
@@ -554,6 +598,8 @@ def list_receipts(tx_id: str, request: Request):
     parsed_id = _transaction_id(tx_id)
     if parsed_id is None:
         return _error(404, "not_found", "Buchung nicht gefunden.")
+    if not household.sees_transaction(get_db(), device.person_id, parsed_id):
+        return _not_found("Buchung")
     try:
         return mobile_write.list_receipts(get_db(), parsed_id)
     except mobile_write.MobileWriteError as error:
@@ -578,6 +624,8 @@ async def add_receipt(tx_id: str, request: Request, filename: str = Query(defaul
         data.extend(chunk)
         if len(data) > papers.MAX_RECEIPT_BYTES:
             return _error(413, "too_large", "Die Datei ist größer als 10 MB.")
+    if not household.sees_transaction(get_db(), device.person_id, parsed_id):
+        return _not_found("Buchung")
     try:
         receipt = mobile_write.add_receipt(get_db(), parsed_id, filename, bytes(data))
     except mobile_write.MobileWriteError as error:
@@ -593,6 +641,8 @@ def receipt_file(receipt_id: str, request: Request):
     parsed_id = _transaction_id(receipt_id)
     if parsed_id is None:
         return _error(404, "not_found", "Beleg nicht gefunden.")
+    if not household.sees_receipt(get_db(), device.person_id, parsed_id):
+        return _not_found("Beleg")
     try:
         row, path = mobile_write.receipt_file(get_db(), parsed_id)
     except mobile_write.MobileWriteError as error:
@@ -609,6 +659,8 @@ def delete_receipt(receipt_id: str, request: Request):
     parsed_id = _transaction_id(receipt_id)
     if parsed_id is None:
         return _error(404, "not_found", "Beleg nicht gefunden.")
+    if not household.sees_receipt(get_db(), device.person_id, parsed_id):
+        return _not_found("Beleg")
     try:
         mobile_write.delete_receipt(get_db(), parsed_id)
     except mobile_write.MobileWriteError as error:
@@ -622,7 +674,7 @@ def net_worth_history(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return {"history": ledger.net_worth_history(get_db())}
+    return {"history": ledger.net_worth_history(_view(device))}
 
 
 @router.get("/api/v1/news")
@@ -631,7 +683,7 @@ def news(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return mobile_read.news(get_db(), device.id)
+    return mobile_read.news(_view(device), device.id)
 
 
 @router.post("/api/v1/news/seen")
@@ -641,7 +693,7 @@ def news_seen(request: Request):
         return device
     db = get_db()
     known = {row["id"] for row in db.query("SELECT id FROM mobile_devices WHERE revoked_at IS NULL")}
-    mobile_read.mark_news_seen(db, device.id, known)
+    mobile_read.mark_news_seen(_view(device), device.id, known)
     return {"ok": True}
 
 
@@ -653,7 +705,7 @@ def papers_overview(request: Request, year: str | None = Query(default=None)):
         return device
     if year not in (None, "") and not (year.isdigit() and len(year) == 4):
         return _error(400, "invalid_request", "Ungültige Anfrage.")
-    return mobile_read.papers_overview(get_db(), int(year) if year else None)
+    return mobile_read.papers_overview(_view(device), int(year) if year else None)
 
 
 @router.get("/api/v1/triage")
@@ -663,7 +715,7 @@ def triage(request: Request, limit: str | None = Query(default=None)):
     if isinstance(device, Response):
         return device
     try:
-        return mobile_read.triage(get_db(), limit=int(limit) if limit not in (None, "") else None)
+        return mobile_read.triage(_view(device), limit=int(limit) if limit not in (None, "") else None)
     except (ValueError, mobile_read.MobileQueryError):
         return _error(400, "invalid_request", "Ungültige Anfrage.")
 
@@ -674,7 +726,7 @@ def budget_suggestions(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return analytics.budget_suggestions(get_db())
+    return analytics.budget_suggestions(_view(device))
 
 
 @router.put("/api/v1/budgets/{category_id}")
@@ -706,6 +758,8 @@ async def update_contract(key: str, request: Request):
     payload = await _json_object(request)
     if payload is None:
         return _error(400, "invalid_request", "Ungültige Anfrage.")
+    if not household.sees_contract(get_db(), device.person_id, key):
+        return _not_found("Vertrag")
     try:
         contract = mobile_write.update_contract(get_db(), key, payload)
     except mobile_write.MobileWriteError as error:
@@ -723,6 +777,8 @@ async def contract_letter(key: str, request: Request):
     payload = await _json_object(request)
     if payload is None:
         return _error(400, "invalid_request", "Ungültige Anfrage.")
+    if not household.sees_contract(get_db(), device.person_id, key):
+        return _not_found("Vertrag")
     try:
         return mobile_write.contract_letter(get_db(), key, payload)
     except mobile_write.MobileWriteError as error:
