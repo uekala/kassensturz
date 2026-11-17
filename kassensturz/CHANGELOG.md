@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.34
+
+- Haushalt: Sparziele je Person. Im Sparziel wählst du unter „Gehört" eine Person oder „Allen gemeinsam".
+  Ein eigenes Ziel sieht in der App nur diese Person, gemeinsame sehen alle.
+- Hängen ein eigenes und ein gemeinsames Ziel am selben Konto, wird dessen Stand weiter der Reihe nach verteilt,
+  egal wer zuschaut.
+
 ## 0.3.33
 
 - Haushalt: Geteilte Ausgaben zählen anteilig. In der Auswertung und in den eigenen Budgets einer Person zählt

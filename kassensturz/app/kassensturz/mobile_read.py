@@ -266,6 +266,7 @@ def get_overview(db: Database, *, as_of: datetime | None = None, view=None) -> d
             "monthly_cents": goal["monthly_cents"],
             "status": goal["status"],
             "progress": goal["progress"],
+            "ownership": "shared" if goal.get("owner_person_id") is None else "mine",
         }
         for goal in savings.list_goals(db)
     ]

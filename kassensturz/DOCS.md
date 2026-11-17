@@ -152,6 +152,7 @@ Gut zu wissen:
   Buchungen auf gemeinsamen Konten an alle. Ohne eigenen Dienst gilt der aus der Konfiguration.
 - Warnungen, Monatsabschluss, Sensoren und Ereignisse gelten für den ganzen Haushalt und enthalten auch eigene
   Konten. Sie gehen an den Dienst aus der Konfiguration.
+- Sparziele gehören wie Konten einer Person oder allen. Ein eigenes Ziel sieht in der App nur diese Person.
 - Kategorien sind gemeinsam. Budgets gibt es zweifach: Die Budgets des Haushalts zählen die Ausgaben von den
   gemeinsamen Konten. Zusätzlich kann jede Person eigene Budgets setzen, die nur ihre eigenen Konten zählen – in der
   App unter „Nur für dich", in Home Assistant unter *Budgets* über die Auswahl der Person.

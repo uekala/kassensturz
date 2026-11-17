@@ -55,6 +55,7 @@ def list_persons(db: Database) -> list[dict]:
     return db.query(
         "SELECT p.id, p.name, p.color, COALESCE(p.share_weight, 1) AS share_weight, p.notify_service, "
         "(SELECT COUNT(*) FROM accounts AS a WHERE a.owner_person_id = p.id) AS accounts, "
+        "(SELECT COUNT(*) FROM goals AS g WHERE g.owner_person_id = p.id) AS goals, "
         "(SELECT COUNT(*) FROM mobile_devices AS d WHERE d.person_id = p.id AND d.revoked_at IS NULL) AS devices "
         "FROM persons AS p ORDER BY p.sort, p.id"
     )
@@ -123,9 +124,10 @@ def delete_person(db: Database, person_id: int) -> dict:
         accounts = int(db.scalar("SELECT COUNT(*) FROM accounts WHERE owner_person_id = ?", (person_id,)) or 0)
         devices = int(db.scalar(
             "SELECT COUNT(*) FROM mobile_devices WHERE person_id = ? AND revoked_at IS NULL", (person_id,)) or 0)
-        if accounts or devices:
+        goals = int(db.scalar("SELECT COUNT(*) FROM goals WHERE owner_person_id = ?", (person_id,)) or 0)
+        if accounts or devices or goals:
             raise HouseholdError(
-                409, "Der Person sind noch Konten oder Geräte zugeordnet. Ordne sie zuerst neu zu.")
+                409, "Der Person sind noch Konten, Sparziele oder Geräte zugeordnet. Ordne sie zuerst neu zu.")
         if not sharing.person_is_settled(db, person_id):
             raise HouseholdError(409, "Mit dieser Person ist noch ein Ausgleich offen. Gleicht das zuerst aus.")
         sharing.forget_person(db, person_id)

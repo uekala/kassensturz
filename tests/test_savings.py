@@ -102,5 +102,5 @@ def test_mobile_overview_carries_goals_and_reserve(client, db):
     overview = mobile_read.get_overview(db)
     assert overview["goals"] == [{"id": 1, "name": "Test Urlaub", "target_cents": 100000, "saved_cents": 25000,
                                   "rest_cents": 75000, "due_date": None, "monthly_cents": None, "status": "open",
-                                  "progress": 0.25}]
+                                  "progress": 0.25, "ownership": "shared"}]
     assert set(overview["forecast"]["reserve"]) == {"reserved_cents", "monthly_cents", "deducted", "items"}

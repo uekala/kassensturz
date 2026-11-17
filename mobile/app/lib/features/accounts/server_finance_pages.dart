@@ -562,6 +562,9 @@ class _GoalBlock extends StatelessWidget {
         : monthly is int && due.isNotEmpty
         ? '${formatEuro(monthly / 100)} im Monat bis ${formatShortDate(due)}'
         : 'Es fehlen ${formatEuro(rest / 100)}';
+    // With a household a goal can belong to this person alone.
+    final own = goal['ownership'] == 'mine';
+    final note = own ? '$detail · nur für dich' : detail;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -586,7 +589,7 @@ class _GoalBlock extends StatelessWidget {
           const SizedBox(height: 8),
           ThickBar(value: progress is num ? progress.toDouble() : 0),
           const SizedBox(height: 6),
-          Text(detail, style: textTheme.bodySmall),
+          Text(note, style: textTheme.bodySmall),
         ],
       ),
     );

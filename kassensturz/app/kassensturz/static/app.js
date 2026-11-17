@@ -1167,7 +1167,7 @@ async function renderBudgets(view, params, seq) {
       </section>
       <section class="section"><div class="section-head"><h2>Sparziele</h2><button class="link-btn" id="g-add">Ziel hinzufügen</button></div>
         ${plan.goals.length ? html`<div>${plan.goals.map((g) => html`<button class="goal" data-goal="${g.id}">
-          <span class="goal-head"><strong>${g.name}</strong><span class="num">${money(g.saved_cents)} von ${money(g.target_cents)}</span></span>
+          <span class="goal-head"><strong>${g.name}${g.owner_person_id ? html` <span class="chip neutral">${personName(g.owner_person_id)}</span>` : ""}</strong><span class="num">${money(g.saved_cents)} von ${money(g.target_cents)}</span></span>
           <span class="meter"><i style="width:${Math.round(g.progress * 100)}%"></i></span>
           <span class="small muted">${g.status === "done" ? "Erreicht" : g.status === "late" ? `Ziel war ${dFull(g.due_date)}, es fehlen ${money(g.rest_cents)}`
             : g.monthly_cents ? `${money(g.monthly_cents)} im Monat bis ${dFull(g.due_date)}` : `Es fehlen ${money(g.rest_cents)}`}${g.account_name ? ` · ${g.account_name}` : ""}</span></button>`)}</div>`
@@ -1250,6 +1250,7 @@ function goalSheet(g) {
     </div>
     <label class="field"><span>Wo liegt das Geld</span><select id="g-acc"><option value="">Kein Konto, ich trage den Stand selbst ein</option>
       ${accounts.map((a) => html`<option value="${a.id}" ${a.id === g.account_id ? raw("selected") : ""}>${a.name}</option>`)}</select></label>
+    ${store.persons.length ? html`<label class="field"><span>Gehört</span><select id="g-owner"><option value="">Allen gemeinsam</option>${store.persons.map((p) => html`<option value="${p.id}" ${p.id === g.owner_person_id ? raw("selected") : ""}>${p.name}</option>`)}</select></label>` : ""}
     <label class="field" id="g-saved-field" ${g.linked ? raw("hidden") : ""}><span>Schon gespart</span><input class="input" id="g-saved" inputmode="decimal" value="${toInput(isNew ? 0 : g.linked ? 0 : g.saved_cents)}"></label>
     <p class="small muted">Mit Konto zählt dessen Stand als gespart. Hängen mehrere Ziele am selben Konto, wird er der Reihe nach verteilt.</p>
     <div class="actions"><button class="btn primary" id="g-save">${isNew ? "Anlegen" : "Speichern"}</button>
@@ -1260,6 +1261,7 @@ function goalSheet(g) {
     const account = $("#g-acc", sh.el).value;
     const body = { name: $("#g-name", sh.el).value.trim(), target_cents: target === null ? 0 : Math.abs(target), due_date: $("#g-due", sh.el).value,
       account_id: account ? Number(account) : null, saved_cents: Math.abs(parseMoney($("#g-saved", sh.el).value) || 0) };
+    if ($("#g-owner", sh.el)) body.owner_person_id = Number($("#g-owner", sh.el).value) || null;
     try {
       if (isNew) await api("goals", { method: "POST", body }); else await api(`goals/${g.id}`, { method: "PATCH", body });
       sh.close(); toast("Sparziel gespeichert"); rerender();

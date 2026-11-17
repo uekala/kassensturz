@@ -1,5 +1,9 @@
 # Änderungen der Mobile-App
 
+## 0.3.27
+
+- Haushalt: Sparziele, die nur dir gehören, sind als „nur für dich“ gekennzeichnet (ab Server 0.3.34).
+
 ## 0.3.26
 
 - Haushalt: Eigene Budgets. Unter Planung → Budgets gibt es den Abschnitt „Nur für dich“ mit Budgets, die nur
