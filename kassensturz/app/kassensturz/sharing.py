@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from . import ledger
 from .db import Database, now_iso
 
 MAX_WEIGHT = 1000
@@ -260,6 +261,63 @@ def add_settlement(db: Database, payload: dict, *, today: date | None = None) ->
 def delete_settlement(db: Database, settlement_id: int) -> None:
     if db.execute_count("DELETE FROM settlements WHERE id = ?", (settlement_id,)) != 1:
         raise SharingError(404, "Ausgleich nicht gefunden.")
+
+
+# --- Anteilig zählen -------------------------------------------------------
+
+def _scale(entries: list[dict], part: int, total: int) -> list[dict]:
+    """Verkleinert die Einträge einer Buchung auf den Teil ``part`` von ``total``, auf den Cent genau."""
+    if part <= 0 or total <= 0:
+        return []
+    whole = sum(e["amount_cents"] for e in entries)
+    target = -part if whole == -total else round(whole * part / total)
+    scaled = [dict(e, amount_cents=int(e["amount_cents"] * part / total)) for e in entries]
+    rest = target - sum(e["amount_cents"] for e in scaled)
+    if rest and scaled:
+        max(scaled, key=lambda e: abs(e["amount_cents"]))["amount_cents"] += rest
+    return [e for e in scaled if e["amount_cents"]]
+
+
+def spending(db, start: str | None = None, end: str | None = None) -> list[dict]:
+    """Einträge für Auswertung und Budgets, bei einer Person mit ihren Teilen geteilter Ausgaben.
+
+    Für die Sicht einer Person zählt eine geteilte Ausgabe anteilig: Hat sie bezahlt, nur
+    ihr eigener Teil; hat jemand anderes bezahlt, kommt ihr Teil dazu. Für den Haushalt
+    und die Verwaltung bleibt jede Buchung ganz. Kontostände und Prognose rechnen nie
+    hiermit – dort zählt, was wirklich vom Konto abging.
+    """
+    entries = ledger.entries(db, start, end)
+    person = getattr(db, "person_id", None)
+    if person is None or getattr(db, "part_kind", None) not in ("all", "own"):
+        return entries
+    main = db.parent
+    rows = main.query(f"SELECT tx_id, debtor, payer, cents, total_cents FROM ({_DEBTS}) WHERE payer = ? OR debtor = ?",
+                      (person, person))
+    if not rows:
+        return entries
+    paid = {r["tx_id"]: r["total_cents"] for r in rows if r["payer"] == person}
+    mine = {r["tx_id"]: r["cents"] for r in rows if r["debtor"] == person}
+    borne = {r["tx_id"]: (r["cents"], r["total_cents"]) for r in rows if r["debtor"] == person and r["payer"] != person}
+
+    by_tx: dict[int, list[dict]] = {}
+    out = []
+    for entry in entries:
+        if entry["id"] in paid:
+            by_tx.setdefault(entry["id"], []).append(entry)
+        else:
+            out.append(entry)
+    for tx_id, group in by_tx.items():
+        out.extend(_scale(group, mine.get(tx_id, 0), paid[tx_id]))
+    if borne:
+        # Die Buchungen der anderen liegen außerhalb der Sicht; geholt wird nur, was geteilt ist.
+        foreign: dict[int, list[dict]] = {}
+        for entry in ledger.entries(main, start, end):
+            if entry["id"] in borne:
+                foreign.setdefault(entry["id"], []).append(entry)
+        for tx_id, group in foreign.items():
+            part, total = borne[tx_id]
+            out.extend(_scale(group, part, total))
+    return out
 
 
 def overview(db: Database, person_id: int | None = None) -> dict:

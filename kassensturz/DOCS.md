@@ -171,8 +171,10 @@ gemeinsamen Konto abgeht, ist schon gemeinsam bezahlt und lässt sich nicht teil
   mit „Zahlung eintragen" ein. Gerechnet wird je Paar, nicht über Dritte.
 - **Was die anderen sehen:** von einer geteilten Buchung Datum, Empfänger, Betrag und ihren Teil. Alles andere auf
   dem Konto bleibt verborgen.
-- **Was sich nicht ändert:** Kassensturz bucht dabei nichts um. Kontostände, Auswertung und Budgets zählen die
-  Buchung weiter ganz beim Zahler.
+- **Anteilig gezählt:** In der Auswertung und in den eigenen Budgets einer Person zählt von einer geteilten
+  Ausgabe nur ihr Teil – beim Zahler der eigene, bei den anderen ihrer. Je Person stimmt die Summe auf den Cent.
+- **Was sich nicht ändert:** Kassensturz bucht dabei nichts um. Buchungen, Kontostände und Prognose zeigen, was
+  wirklich vom Konto abging. Die Zahlen des Haushalts und der Verwaltung zählen die Buchung ganz.
 
 Wird ein eigenes Konto zum gemeinsamen, zählen die Teilungen seiner Buchungen nicht mehr. Eine Person lässt sich
 erst entfernen, wenn mit ihr nichts mehr offen ist.

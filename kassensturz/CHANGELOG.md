@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.3.33
+
+- Haushalt: Geteilte Ausgaben zählen anteilig. In der Auswertung und in den eigenen Budgets einer Person zählt
+  von einer geteilten Ausgabe nur ihr Teil – beim Zahler der eigene, bei den anderen ihrer.
+- Das gilt für die Zahlen je Person: Auswertung und Monatsabschluss in der App, eigene Budgets, und die Ansicht
+  einer Person unter *Budgets* in Home Assistant.
+- Unverändert bleibt, was wirklich vom Konto abging: Buchungen, Kontostände, Prognose und die Zahlen des Haushalts.
+
 ## 0.3.32
 
 - Haushalt: eigene Budgets je Person neben den gemeinsamen.

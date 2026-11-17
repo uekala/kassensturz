@@ -227,3 +227,96 @@ def test_administration_shares_and_settles(home):
         outside = https_client(peer="203.0.113.7")
         assert outside.get("/api/household/sharing").status_code == 403
         assert outside.put(f"/api/transactions/{tx}/share", json={}).status_code == 403
+
+
+def _food(db):
+    return db.scalar("SELECT id FROM categories WHERE kind = 'expense' AND parent_id IS NULL ORDER BY id LIMIT 1")
+
+
+def test_shared_expenses_count_by_part_for_each_person(home):
+    from kassensturz import analytics
+
+    db, anna, ben = home["db"], home["anna"], home["ben"]
+    food = _food(db)
+    month = date.today().strftime("%Y-%m")
+    paid = booking(db, home["accounts"]["anna"], -9001, "KS-ANNA Wocheneinkauf")
+    alone = booking(db, home["accounts"]["anna"], -2000, "KS-ANNA Buch")
+    common = booking(db, home["accounts"]["shared"], -5000, "KS-GEMEINSAM Markt")
+    for tx in (paid, alone, common):
+        db.update("transactions", "id", tx, {"category_id": food})
+
+    def expense(view):
+        return analytics.month_stats(view, month)["expense_cents"]
+
+    # Vor dem Teilen zählt alles beim Zahler.
+    assert expense(db.scoped(anna)) == 9001 + 2000 + 5000
+    assert expense(db.scoped(ben)) == 5000
+
+    sharing.set_share(db, paid)
+    # Anna trägt 45,01 €, Ben 45,00 €. Jeder sieht seinen Teil, zusammen fehlt kein Cent.
+    assert expense(db.scoped(anna)) == 4501 + 2000 + 5000
+    assert expense(db.scoped(ben)) == 4500 + 5000
+    assert expense(db.part("own", anna)) == 4501 + 2000
+    assert expense(db.part("own", ben)) == 4500
+    # Haushalt und Verwaltung sehen die Buchung weiter ganz, Kontostände ändern sich nicht.
+    assert expense(db.part("shared")) == 5000
+    assert expense(db) == 9001 + 2000 + 5000
+    breakdown = analytics.month_stats(db.scoped(ben), month)["breakdown"]
+    assert [(b["category_id"], b["cents"]) for b in breakdown] == [(food, 9500)]
+
+    # Eigene Budgets rechnen mit dem Teil.
+    household.set_own_budget(db, anna, food, 10000)
+    household.set_own_budget(db, ben, food, 4000)
+    assert household.own_budgets(db, anna)[0]["spent_cents"] == 6501
+    his = household.own_budgets(db, ben)[0]
+    assert (his["spent_cents"], his["state"]) == (4500, "over")
+
+    # Ein Kind mit Anteil 0 trägt nichts, auch wenn es dazugehört.
+    carl = household.create_person(db, {"name": "Carl"})["id"]
+    household.update_person(db, carl, {"share_weight": 0})
+    assert expense(db.scoped(carl)) == 5000
+    # Ganz von Ben getragen: bei Anna zählt davon nichts mehr.
+    sharing.set_share(db, paid, [{"person_id": ben, "cents": 9001}])
+    assert expense(db.part("own", anna)) == 2000
+    assert expense(db.part("own", ben)) == 9001
+    sharing.clear_share(db, paid)
+    assert expense(db.part("own", anna)) == 9001 + 2000 and expense(db.part("own", ben)) == 0
+
+
+def test_parts_of_a_split_booking_keep_their_categories(home):
+    from kassensturz import analytics
+
+    db, anna, ben = home["db"], home["anna"], home["ben"]
+    first, second = [r["id"] for r in db.query(
+        "SELECT id FROM categories WHERE kind = 'expense' AND parent_id IS NULL ORDER BY id LIMIT 2")]
+    month = date.today().strftime("%Y-%m")
+    tx = booking(db, home["accounts"]["anna"], -1001, "KS-ANNA Drogerie")
+    db.update("transactions", "id", tx, {"category_id": first})
+    db.insert("splits", {"tx_id": tx, "amount_cents": -301, "category_id": second})
+    sharing.set_share(db, tx)
+
+    def by_category(view):
+        return {b["category_id"]: b["cents"] for b in analytics.month_stats(view, month)["breakdown"]}
+
+    hers, his = by_category(db.part("own", anna)), by_category(db.part("own", ben))
+    assert sum(hers.values()) == 501 and sum(his.values()) == 500
+    assert set(hers) == set(his) == {first, second}
+    # Je Person stimmt die Summe auf den Cent. Je Kategorie kann zwischen den Personen ein Cent Rundung liegen.
+    assert abs(hers[first] + his[first] - 700) <= 1 and abs(hers[second] + his[second] - 301) <= 1
+    assert sum(hers.values()) + sum(his.values()) == 1001
+
+
+def test_app_statistics_use_the_parts(home):
+    db, anna_id, ben_id = home["db"], home["anna"], home["ben"]
+    tx = booking(db, home["accounts"]["anna"], -3000, "KS-ANNA Kino")
+    db.update("transactions", "id", tx, {"category_id": _food(db)})
+    sharing.set_share(db, tx)
+    with https_client() as client:
+        anna, ben = pair(client, anna_id), pair(client, ben_id)
+        assert client.get("/api/v1/stats", headers=anna).json()["month"]["expense_cents"] == 1500
+        stats = client.get("/api/v1/stats", headers=ben)
+        assert stats.json()["month"]["expense_cents"] == 1500
+        # Ben sieht den Betrag in seiner Auswertung, aber weiterhin nichts von Annas Konto.
+        assert "KS-ANNA Kasse" not in stats.text
+        assert "KS-ANNA" not in client.get("/api/v1/transactions", headers=ben).text
+        assert client.get("/api/v1/accounts", headers=anna).json()["items"][1]["balance_cents"] == -3000
