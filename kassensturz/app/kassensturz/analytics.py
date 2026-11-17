@@ -129,7 +129,9 @@ def category_tree(db: Database) -> tuple[dict, dict]:
     return cats, top
 
 
-def budgets(db: Database, on: date | None = None) -> list[dict]:
+def budgets(db: Database, on: date | None = None, limits: dict[int, int] | None = None) -> list[dict]:
+    """Budgets des Monats mit Verbrauch. ``limits`` ersetzt die Budgets der Kategorien,
+    etwa durch die eigenen einer Person; gezählt wird, was ``db`` an Buchungen zeigt."""
     on = on or date.today()
     start, end = month_start(on), month_end(on)
     cats, top = category_tree(db)
@@ -144,10 +146,10 @@ def budgets(db: Database, on: date | None = None) -> list[dict]:
     pace = on.day / days
     out = []
     for cid, c in cats.items():
-        if not c["budget_cents"]:
+        b = c["budget_cents"] if limits is None else limits.get(cid)
+        if not b:
             continue
         s = spent.get(cid, 0) + (spent.get(("top", cid), 0) if top.get(cid) == cid else 0)
-        b = c["budget_cents"]
         ratio = s / b if b else 0
         state = "over" if ratio > 1 else ("warn" if ratio > max(0.8, pace + 0.1) else "ok")
         out.append({"category_id": cid, "name": c["name"], "budget_cents": b, "spent_cents": s, "left_cents": b - s,

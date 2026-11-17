@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import re
 
-from . import sharing
+from . import analytics, sharing
 from .db import Database, now_iso
 
 MAX_PERSONS = 12
 MAX_NAME_LENGTH = 40
+MAX_BUDGET_CENTS = 10_000_000  # 100.000 € im Monat
 _COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 _NOTIFY = re.compile(r"^notify\.[a-z0-9_]{1,100}$")
 
@@ -128,6 +129,7 @@ def delete_person(db: Database, person_id: int) -> dict:
         if not sharing.person_is_settled(db, person_id):
             raise HouseholdError(409, "Mit dieser Person ist noch ein Ausgleich offen. Gleicht das zuerst aus.")
         sharing.forget_person(db, person_id)
+        db.execute("DELETE FROM person_budgets WHERE person_id = ?", (person_id,))
         db.execute("UPDATE mobile_devices SET person_id = NULL WHERE person_id = ?", (person_id,))
         db.execute("UPDATE mobile_pairings SET person_id = NULL WHERE person_id = ?", (person_id,))
         db.execute("DELETE FROM persons WHERE id = ?", (person_id,))
@@ -160,6 +162,41 @@ def sees_receipt(db: Database, person_id: int | None, receipt_id: int) -> bool:
 
 def sees_contract(db: Database, person_id: int | None, key: str) -> bool:
     return bool(view(db, person_id).scalar("SELECT 1 FROM contracts WHERE key = ?", (key,)))
+
+
+# --- Eigene Budgets ---------------------------------------------------------
+
+def own_budget_limits(db: Database, person_id: int | None) -> dict[int, int]:
+    return {r["category_id"]: r["cents"] for r in db.query(
+        "SELECT category_id, cents FROM person_budgets WHERE person_id = ?", (person_id,))}
+
+
+def own_budgets(db: Database, person_id: int | None, on=None) -> list[dict]:
+    """Eigene Budgets einer Person; gezählt werden nur die Ausgaben von ihren eigenen Konten."""
+    limits = own_budget_limits(db, person_id)
+    return analytics.budgets(db.part("own", person_id), on, limits) if limits else []
+
+
+def set_own_budget(db: Database, person_id: int | None, category_id: int, cents) -> dict:
+    """Setzt oder entfernt (``cents`` leer) das eigene Budget einer Person für eine Kategorie."""
+    if not person_exists(db, person_id):
+        raise HouseholdError(409, "Eigene Budgets gibt es erst, wenn das Handy einer Person zugeordnet ist.")
+    if cents in ("", 0):
+        cents = None
+    if cents is not None and (isinstance(cents, bool) or not isinstance(cents, int) or not 0 < cents <= MAX_BUDGET_CENTS):
+        raise HouseholdError(400, "Das Budget muss zwischen 0,01 € und 100.000 € liegen.")
+    category = db.one("SELECT id, name, kind FROM categories WHERE id = ?", (category_id,))
+    if not category:
+        raise HouseholdError(404, "Kategorie nicht gefunden.")
+    if category["kind"] != "expense":
+        raise HouseholdError(400, "Budgets gibt es nur für Ausgabenkategorien.")
+    if cents is None:
+        db.execute("DELETE FROM person_budgets WHERE person_id = ? AND category_id = ?", (person_id, category_id))
+    else:
+        db.execute("INSERT INTO person_budgets(person_id, category_id, cents) VALUES(?, ?, ?) "
+                   "ON CONFLICT(person_id, category_id) DO UPDATE SET cents = excluded.cents",
+                   (person_id, category_id, cents))
+    return {"category_id": category_id, "name": category["name"], "limit_cents": cents}
 
 
 def notice_targets(db: Database, rows: list[dict], default_service: str | None) -> dict[str, list[dict]]:

@@ -205,6 +205,11 @@ class ServerBudgetPage extends StatelessWidget {
     final klar = KlarColors.of(context);
     final data = controller.overviewData;
     final budgets = _maps(data?['budgets']);
+    // With a household these are the shared budgets; the person's own ones
+    // only count the own accounts and come separately.
+    final ownBudgets = _maps(data?['own_budgets']);
+    final household = data?['household'];
+    final split = household is Map && household['private_accounts'] == true;
     final textTheme = Theme.of(context).textTheme;
     final totalLimit = budgets.fold<int>(
       0,
@@ -302,6 +307,35 @@ class ServerBudgetPage extends StatelessWidget {
                   showBudgetEditor(context, controller: controller),
               icon: const Icon(Icons.add),
               label: const Text('Budget anlegen'),
+            ),
+          ],
+          if (split && controller.canEditOwnBudgets && data != null) ...[
+            const SizedBox(height: 22),
+            Text('Nur für dich', style: textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              'Diese Budgets zählen nur Ausgaben von deinen eigenen Konten.',
+              style: textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            for (final budget in ownBudgets)
+              _BudgetBlock(
+                budget: budget,
+                onTap: () => showBudgetEditor(
+                  context,
+                  controller: controller,
+                  categoryId: _integer(budget['category_id']),
+                  categoryName: _string(budget['name'], ''),
+                  limitCents: _integer(budget['limit_cents']),
+                  own: true,
+                ),
+              ),
+            const SizedBox(height: 4),
+            OutlinedButton.icon(
+              onPressed: () =>
+                  showBudgetEditor(context, controller: controller, own: true),
+              icon: const Icon(Icons.add),
+              label: const Text('Eigenes Budget anlegen'),
             ),
           ],
           if (controller.financeError != null && data != null) ...[

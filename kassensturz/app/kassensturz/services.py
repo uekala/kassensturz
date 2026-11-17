@@ -25,7 +25,8 @@ def build_summary(db: Database) -> dict:
         "accounts": accounts,
         "worth": net_worth(accounts),
         "goals": savings.list_goals(db, today),
-        "budgets": analytics.budgets(db),
+        # Budgets des Haushalts zählen die gemeinsamen Konten; eigene Budgets stehen bei der Person.
+        "budgets": analytics.budgets(db.part("shared")),
         "month": month,
         "fixed_monthly_cents": analytics.fixed_costs_monthly(running),
         "contract_count": sum(1 for c in running if c["kind"] == "expense"),

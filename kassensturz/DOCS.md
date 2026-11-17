@@ -152,8 +152,9 @@ Gut zu wissen:
   Buchungen auf gemeinsamen Konten an alle. Ohne eigenen Dienst gilt der aus der Konfiguration.
 - Warnungen, Monatsabschluss, Sensoren und Ereignisse gelten für den ganzen Haushalt und enthalten auch eigene
   Konten. Sie gehen an den Dienst aus der Konfiguration.
-- Budgets und Kategorien sind gemeinsam. Der Verbrauch eines Budgets wird je Person aus ihren sichtbaren Konten
-  berechnet.
+- Kategorien sind gemeinsam. Budgets gibt es zweifach: Die Budgets des Haushalts zählen die Ausgaben von den
+  gemeinsamen Konten. Zusätzlich kann jede Person eigene Budgets setzen, die nur ihre eigenen Konten zählen – in der
+  App unter „Nur für dich", in Home Assistant unter *Budgets* über die Auswahl der Person.
 - Eine Person lässt sich erst entfernen, wenn ihr keine Konten und Handys mehr zugeordnet sind. So wird ein
   eigenes Konto nicht versehentlich zu einem gemeinsamen.
 

@@ -1,5 +1,16 @@
 # Änderungen
 
+## 0.3.32
+
+- Haushalt: eigene Budgets je Person neben den gemeinsamen.
+  - Die bisherigen Budgets gelten für den Haushalt. Gibt es eigene Konten, zählen sie nur noch die Ausgaben von
+    den gemeinsamen Konten.
+  - Jede Person kann zusätzlich eigene Budgets setzen. Sie zählen nur die Ausgaben von ihren eigenen Konten.
+  - In Home Assistant wählst du unter *Budgets* zwischen „Haushalt" und den Personen. In der Mobile-App stehen die
+    eigenen Budgets ab 0.3.26 unter „Nur für dich".
+- Warnungen und Ereignisse zu Budgets beziehen sich weiter auf die Budgets des Haushalts.
+- Ohne eigene Konten ändert sich nichts.
+
 ## 0.3.31
 
 - Haushalt: Benachrichtigungen je Person. Unter *Einstellungen → Haushalt* trägst du bei jeder Person ihren

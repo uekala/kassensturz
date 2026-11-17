@@ -90,6 +90,7 @@ def test_pairing_returns_secret_once_and_me_endpoint_authenticates_device(
             "networth",
             "household",
             "household.sharing",
+            "budgets.own",
         ]
 
         replay = client.post(
