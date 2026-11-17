@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.29
+
+- Haushalt: Die Übersicht für die App nennt je Konto, ob es ein eigenes oder ein gemeinsames ist, und wer angemeldet
+  ist. Die Mobile-App zeigt das ab 0.3.22 auf der Kontenseite.
+
 ## 0.3.28
 
 - Haushalt für Paare und Familien, erste Stufe:

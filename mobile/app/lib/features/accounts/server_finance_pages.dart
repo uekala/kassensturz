@@ -46,6 +46,15 @@ class ServerAccountsPage extends StatelessWidget {
         if (entry.key == 'alltag' || (sums[entry.key] ?? 0) != 0)
           '${entry.value} ${formatEuro((sums[entry.key] ?? 0) / 100)}',
     ].join(' · ');
+    // With a household the server only sends the accounts of this person
+    // and the shared ones; say so and mark which is which.
+    final household = data?['household'];
+    final split = household is Map && household['private_accounts'] == true;
+    final person = household is Map ? household['person'] : null;
+    final viewer = person is Map ? _string(person['name'], '') : '';
+    final scope = viewer.isEmpty
+        ? 'Du siehst hier nur die gemeinsamen Konten.'
+        : 'Du siehst deine eigenen und die gemeinsamen Konten ($viewer).';
 
     return RefreshIndicator(
       onRefresh: controller.loadFinancialData,
@@ -58,6 +67,10 @@ class ServerAccountsPage extends StatelessWidget {
             amount: formatEuro(total / 100),
             note: note,
           ),
+          if (split) ...[
+            const SizedBox(height: 8),
+            Text(scope, style: textTheme.bodySmall),
+          ],
           const SizedBox(height: 22),
           if (controller.canShowNetWorthHistory && data != null)
             NetWorthTrend(controller: controller),
@@ -71,7 +84,8 @@ class ServerAccountsPage extends StatelessWidget {
           else if (accounts.isEmpty)
             const QuietMessage('Der Server liefert noch keine Konten.')
           else
-            for (final account in accounts) _AccountPanel(account: account),
+            for (final account in accounts)
+              _AccountPanel(account: account, showOwnership: split),
           if (controller.financeError != null && data != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -94,9 +108,12 @@ class ServerAccountsPage extends StatelessWidget {
 }
 
 class _AccountPanel extends StatelessWidget {
-  const _AccountPanel({required this.account});
+  const _AccountPanel({required this.account, this.showOwnership = false});
 
   final Map<String, dynamic> account;
+
+  /// Only with a household: say whether the account is private or shared.
+  final bool showOwnership;
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +128,8 @@ class _AccountPanel extends StatelessWidget {
     final due = _string(account['matures_on'], '');
     final detail = [
       _typeLabels[type] ?? 'Konto',
+      if (showOwnership)
+        account['ownership'] == 'mine' ? 'nur für dich' : 'gemeinsam',
       if (date.isNotEmpty) 'Stand ${formatShortDate(date)}',
       if (previous is int && previousDate.isNotEmpty)
         '${formatSignedEuro((balance - previous) / 100)} seit '

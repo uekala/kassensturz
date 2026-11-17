@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.22
+
+- Haushalt: Nutzt ihr Kassensturz zu mehreren, zeigt die Kontenseite, wer angemeldet ist und welche Konten nur für
+  dich und welche gemeinsam sind (ab Server 0.3.29).
+
 ## 0.3.21
 
 - Zuordnen mit Vorschlag: Erkennt der Server einen Hinweis aus deinen bisherigen Zuordnungen, steht die Kategorie
