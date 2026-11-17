@@ -84,6 +84,9 @@ WORTH_GROUPS = ("alltag", "ruecklagen", "depots", "immobilien", "kredite")
 def worth_group(account: dict) -> str:
     """In welchem Teil des Vermögens ein Konto zählt."""
     kind = account.get("kind")
+    if kind == "taschengeld":
+        # Kein Bankguthaben, sondern eine Abmachung; zählt nicht zum Vermögen.
+        return "taschengeld"
     if kind == "kredit":
         return "kredite"
     if kind == "immobilie":
@@ -112,7 +115,7 @@ def net_worth_history(db: Database, months: int = 12, today: date | None = None)
         if month == 0:
             year, month = year - 1, 12
     days = sorted(days) + [today]
-    accounts = [a for a in accounts_with_balance(db) if a["balance_known"]]
+    accounts = [a for a in accounts_with_balance(db) if a["balance_known"] and a["kind"] != "taschengeld"]
     # Der Verlauf beginnt erst, wenn für alle Konten Daten vorliegen. Sonst sähe ein neu
     # angelegtes Depot oder ein neu erfasster Kredit wie ein Sprung im Vermögen aus.
     starts = []

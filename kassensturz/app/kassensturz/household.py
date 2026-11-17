@@ -50,10 +50,21 @@ def _notify_service(value) -> str | None:
     return value.strip()
 
 
+def _child(value) -> int:
+    if not isinstance(value, bool) and value not in (0, 1):
+        raise HouseholdError(400, "Die Angabe zum Kind ist ungültig.")
+    return 1 if value else 0
+
+
+def is_child(db: Database, person_id: int | None) -> bool:
+    return bool(person_id is not None and db.scalar("SELECT is_child FROM persons WHERE id = ?", (person_id,)))
+
+
 def list_persons(db: Database) -> list[dict]:
     """Personen mit der Zahl ihrer Konten und ihrer aktiven Geräte."""
     return db.query(
         "SELECT p.id, p.name, p.color, COALESCE(p.share_weight, 1) AS share_weight, p.notify_service, "
+        "COALESCE(p.is_child, 0) AS is_child, "
         "(SELECT COUNT(*) FROM accounts AS a WHERE a.owner_person_id = p.id) AS accounts, "
         "(SELECT COUNT(*) FROM goals AS g WHERE g.owner_person_id = p.id) AS goals, "
         "(SELECT COUNT(*) FROM mobile_devices AS d WHERE d.person_id = p.id AND d.revoked_at IS NULL) AS devices "
@@ -78,6 +89,7 @@ def parse_person_id(db: Database, value) -> int | None:
 def create_person(db: Database, payload: dict) -> dict:
     name = _name(payload.get("name"))
     color = _color(payload.get("color"))
+    child = _child(payload.get("is_child", False))
     with db.tx(immediate=True):
         if int(db.scalar("SELECT COUNT(*) FROM persons") or 0) >= MAX_PERSONS:
             raise HouseholdError(409, "Mehr Personen lassen sich nicht anlegen.")
@@ -85,6 +97,8 @@ def create_person(db: Database, payload: dict) -> dict:
             raise HouseholdError(409, "Eine Person mit diesem Namen gibt es schon.")
         person_id = db.insert("persons", {
             "name": name, "color": color, "created": now_iso(),
+            # Ein Kind trägt von geteilten Ausgaben zunächst nichts.
+            "is_child": child, "share_weight": 0 if child else 1,
             "sort": int(db.scalar("SELECT COALESCE(MAX(sort), 0) FROM persons") or 0) + 1})
     return next(p for p in list_persons(db) if p["id"] == person_id)
 
@@ -97,6 +111,10 @@ def update_person(db: Database, person_id: int, payload: dict) -> dict:
         data["color"] = _color(payload["color"])
     if "notify_service" in payload:
         data["notify_service"] = _notify_service(payload["notify_service"])
+    if "is_child" in payload:
+        data["is_child"] = _child(payload["is_child"])
+        if data["is_child"] and "share_weight" not in payload:
+            data["share_weight"] = 0
     if "share_weight" in payload:
         try:
             data["share_weight"] = sharing.clean_weight(payload["share_weight"])
@@ -227,6 +245,8 @@ def profile(db: Database, person_id: int | None) -> dict:
     person = db.one("SELECT id, name, color FROM persons WHERE id = ?", (person_id,)) if person_id else None
     return {
         "person": person,
+        # Ein Kind sieht nur sein Eigenes und kann nichts ändern.
+        "read_only": is_child(db, person_id),
         "persons": int(db.scalar("SELECT COUNT(*) FROM persons") or 0),
         "private_accounts": db.has_private_accounts(),
     }

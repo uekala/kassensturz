@@ -62,7 +62,7 @@ def split_by_weight(total: int, weights: dict[int, int], payer: int) -> dict[int
 def _transaction(db: Database, tx_id: int) -> dict:
     row = db.one(
         "SELECT t.id, t.amount_cents, t.is_transfer, t.booking_date, t.counterparty, t.purpose, "
-        "a.owner_person_id AS payer_id, a.archived FROM transactions AS t "
+        "a.owner_person_id AS payer_id, a.archived, a.kind AS account_kind FROM transactions AS t "
         "JOIN accounts AS a ON a.id = t.account_id WHERE t.id = ?", (tx_id,)) if _is_int(tx_id) else None
     if row is None or row["archived"]:
         raise SharingError(404, "Buchung nicht gefunden.")
@@ -73,6 +73,8 @@ def shareable(db: Database, tx: dict) -> str | None:
     """Grund, warum sich die Buchung nicht teilen lässt, oder None."""
     if tx["payer_id"] is None:
         return "Teilen geht nur bei Buchungen auf einem eigenen Konto. Was vom gemeinsamen Konto abgeht, ist schon gemeinsam bezahlt."
+    if tx.get("account_kind") == "taschengeld":
+        return "Ausgaben vom Taschengeld lassen sich nicht teilen."
     if tx["amount_cents"] >= 0:
         return "Teilen lässt sich nur eine Ausgabe."
     if tx["is_transfer"]:
@@ -145,7 +147,8 @@ _DEBTS = (
     "t.counterparty, t.purpose, -t.amount_cents AS total_cents FROM tx_shares AS s "
     "JOIN transactions AS t ON t.id = s.tx_id JOIN accounts AS a ON a.id = t.account_id "
     "WHERE a.owner_person_id IS NOT NULL AND a.archived = 0 AND t.amount_cents < 0 AND t.is_transfer = 0 "
-    "AND s.person_id IN (SELECT id FROM persons) AND a.owner_person_id IN (SELECT id FROM persons)"
+    "AND s.person_id IN (SELECT id FROM persons) AND a.owner_person_id IN (SELECT id FROM persons) "
+    "AND a.kind != 'taschengeld'"
 )
 
 
@@ -288,6 +291,11 @@ def spending(db, start: str | None = None, end: str | None = None) -> list[dict]
     """
     entries = ledger.entries(db, start, end)
     person = getattr(db, "person_id", None)
+    # Taschengeld ist schon auf den Konten der Eltern gezählt. Seine Buchungen zählen nur beim Kind selbst.
+    pocket = {r["id"]: r["owner_person_id"] for r in getattr(db, "parent", db).query(
+        "SELECT id, owner_person_id FROM accounts WHERE kind = 'taschengeld'")}
+    if pocket:
+        entries = [e for e in entries if e["account_id"] not in pocket or pocket[e["account_id"]] == person]
     if person is None or getattr(db, "part_kind", None) not in ("all", "own"):
         return entries
     main = db.parent

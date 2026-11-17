@@ -1,5 +1,17 @@
 # Änderungen
 
+## 0.3.35
+
+- Haushalt, vierte Stufe: Kinder und Taschengeld.
+  - Eine Person lässt sich unter *Einstellungen → Haushalt* als Kind kennzeichnen. Ein Kind trägt von geteilten
+    Ausgaben zunächst nichts.
+  - Neue Kontoart „Taschengeld": Du legst Betrag und Rhythmus fest (jede Woche oder jeden Monat) und wem das Konto
+    gehört. Kassensturz schreibt das Taschengeld von selbst gut; Ausgaben trägst du von Hand ein.
+  - Alle Erwachsenen sehen die Taschengeld-Konten in der App und können dort Ausgaben eintragen.
+  - Ein Kind kann sein eigenes Handy koppeln. Es sieht nur sein Taschengeld-Konto und kann nichts ändern.
+- Taschengeld ist eine Abmachung, kein Bankguthaben: Das Konto zählt nicht zum Vermögen, nicht zur Prognose und
+  nicht zur Auswertung des Haushalts. Die Gutschrift ist als Umbuchung markiert.
+
 ## 0.3.34
 
 - Haushalt: Sparziele je Person. Im Sparziel wählst du unter „Gehört" eine Person oder „Allen gemeinsam".

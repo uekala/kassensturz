@@ -351,7 +351,9 @@ MIGRATIONS = {
                  # Fälligkeit eines Festgelds oder Laufzeitende eines Kredits
                  ("matures_on", "TEXT"),
                  # Besitzer im Haushalt; leer heißt gemeinsam
-                 ("owner_person_id", "INTEGER")],
+                 ("owner_person_id", "INTEGER"),
+                 # Taschengeld: Betrag je Termin, Rhythmus (week, month) und nächster Termin
+                 ("allowance_cents", "INTEGER"), ("allowance_interval", "TEXT"), ("allowance_next", "TEXT")],
     "cancellation_events": [("provider_confirmed_at", "TEXT"), ("aborted_at", "TEXT")],
     # Kennung, mit der ein Mobilgerät eine von Hand angelegte Buchung genau einmal anlegt
     # Gläubiger-ID und IBAN hängen an dem Eintrag für den Namen, aus dem sie gelernt wurden
@@ -360,6 +362,8 @@ MIGRATIONS = {
     # Besitzer eines Sparziels; leer heißt gemeinsam
     "goals": [("owner_person_id", "INTEGER")],
     "persons": [("share_weight", "INTEGER DEFAULT 1"),
+                # Kinder sehen in der App nur ihr Eigenes und können nichts ändern
+                ("is_child", "INTEGER DEFAULT 0"),
                 # Eigener Benachrichtigungsdienst in Home Assistant, etwa notify.mobile_app_handy
                 ("notify_service", "TEXT")],
     "transactions": [("client_request_id", "TEXT"),
@@ -375,7 +379,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {
@@ -433,9 +437,15 @@ class ScopedDatabase:
         self.conn.row_factory = sqlite3.Row
         # Die Zahl kommt aus der eigenen Datenbank; trotzdem nur als Ganzzahl einsetzen.
         mine = "0" if person_id is None else f"owner_person_id = {int(person_id)}"
-        owner = {"all": f"(owner_person_id IS NULL OR {mine})", "own": f"({mine})",
+        # Ein Kind sieht nur das Eigene. Erwachsene sehen dazu das Gemeinsame und die Taschengeld-Konten.
+        # Ob jemand ein Kind ist, wird bei jeder Abfrage nachgesehen, nicht beim Anlegen der Sicht.
+        adult = "1" if person_id is None else \
+            f"(SELECT COALESCE(is_child, 0) FROM main.persons WHERE id = {int(person_id)}) = 0"
+        pocket = "0" if person_id is None else "kind = 'taschengeld'"
+        owner = {"all": f"({mine} OR ({adult} AND owner_person_id IS NULL))", "own": f"({mine})",
                  "shared": "owner_person_id IS NULL"}[part]
-        accounts = f"SELECT id FROM main.accounts WHERE {owner}"
+        account_owner = f"({mine} OR ({adult} AND (owner_person_id IS NULL OR {pocket})))" if part == "all" else owner
+        accounts = f"SELECT id FROM main.accounts WHERE {account_owner}"
         for name, sql in _SCOPED_VIEWS.items():
             self.conn.execute(f"CREATE TEMP VIEW {name} AS {sql.format(accounts=accounts, owner=owner)}")
 

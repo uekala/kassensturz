@@ -70,7 +70,7 @@ def test_without_private_accounts_every_device_sees_everything(db, monkeypatch):
         assert [a["ownership"] for a in client.get("/api/v1/accounts", headers=headers).json()["items"]] == ["shared"]
         assert client.get("/api/v1/transactions", headers=headers).json()["total"] == 1
         profile = client.get("/api/v1/me", headers=headers).json()["household"]
-        assert profile == {"person": None, "persons": 1, "private_accounts": False}
+        assert profile == {"person": None, "read_only": False, "persons": 1, "private_accounts": False}
 
 
 def test_every_read_endpoint_hides_the_other_persons_data(home):
@@ -110,7 +110,8 @@ def test_every_read_endpoint_hides_the_other_persons_data(home):
         hidden = client.get(f"/api/v1/transactions?account_id={home['accounts']['ben']}", headers=anna).json()
         assert hidden["total"] == 0 and hidden["items"] == []
         assert client.get("/api/v1/me", headers=anna).json()["household"] == {
-            "person": {"id": home["anna"], "name": "Anna", "color": None}, "persons": 2, "private_accounts": True}
+            "person": {"id": home["anna"], "name": "Anna", "color": None}, "read_only": False, "persons": 2,
+            "private_accounts": True}
 
 
 def test_writes_to_foreign_accounts_are_refused_like_unknown_ones(home):

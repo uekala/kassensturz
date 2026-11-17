@@ -71,7 +71,7 @@ function relDay(iso) {
   if (days > 1 && days < 7) return `in ${days} Tagen`;
   return dShort(iso);
 }
-const KIND_LABEL = { giro: "Girokonto", tagesgeld: "Tagesgeld", sparkonto: "Sparkonto", festgeld: "Festgeld", vl: "VL / Bausparen", depot: "Depot", immobilie: "Immobilie", kredit: "Kredit", kreditkarte: "Kreditkarte", paypal: "PayPal", bargeld: "Bargeld", sonstiges: "Sonstiges" };
+const KIND_LABEL = { giro: "Girokonto", tagesgeld: "Tagesgeld", sparkonto: "Sparkonto", festgeld: "Festgeld", vl: "VL / Bausparen", depot: "Depot", immobilie: "Immobilie", kredit: "Kredit", kreditkarte: "Kreditkarte", paypal: "PayPal", bargeld: "Bargeld", taschengeld: "Taschengeld", sonstiges: "Sonstiges" };
 // Konten, deren Wert man einträgt statt Buchungen abzurufen.
 const VALUE_KINDS = new Set(["depot", "festgeld", "vl", "immobilie", "kredit"]);
 const SAVINGS_KINDS = new Set(["tagesgeld", "sparkonto", ...VALUE_KINDS]);
@@ -1305,6 +1305,7 @@ async function renderAccounts(view, _params, seq) {
       const change = a.value_prev_cents !== null ? a.balance_now - a.value_prev_cents : null;
       return label + (change !== null ? `, ${money(change, { plus: true })} seit ${dShort(a.value_prev_date)}` : "") + due;
     }
+    if (a.kind === "taschengeld") return a.allowance_cents ? `${money(a.allowance_cents)} ${a.allowance_interval === "week" ? "jede Woche" : "jeden Monat"}` : "ohne automatische Gutschrift";
     const range = a.last_date ? `Umsätze bis ${dShort(a.last_date)}` : "noch keine Umsätze";
     const sess = eb.sessions.find((s) => s.id === a.eb_session_id);
     if (sess) return `${sess.aspsp_name} per Open Banking, ${range}`;
@@ -1324,7 +1325,8 @@ async function renderAccounts(view, _params, seq) {
         <button class="btn small" data-eb-edit="${s.id}" aria-label="Verbindung ${s.aspsp_name} bearbeiten">Mehr</button></span></li>`;
   };
   // Vermögen: alle aktiven Konten mit bekanntem Stand, aufgeteilt in Alltag, Rücklagen und Depots.
-  const live = accounts.filter((a) => !a.archived && a.balance_known);
+  // Taschengeld ist eine Abmachung und liegt schon auf den Konten der Eltern; es zählt nicht zum Vermögen.
+  const live = accounts.filter((a) => !a.archived && a.balance_known && a.group !== "taschengeld");
   const sum = (list) => list.reduce((t, a) => t + a.balance_now, 0);
   const groups = Object.keys(GROUP_LABEL).map((g) => [GROUP_LABEL[g], sum(live.filter((a) => a.group === g))]);
   const worth = { count: live.length, total: sum(live), parts: groups.filter(([, c], i) => i === 0 || c) };
@@ -1346,7 +1348,7 @@ async function renderAccounts(view, _params, seq) {
         ${worth.count ? html`<div class="worth"><span class="label">Vermögen</span><div class="big-amount">${money(worth.total)}</div>
           <p class="small muted">${worth.parts.map(([l, c]) => `${l} ${money(c)}`).join(" · ")}</p>${spark}</div>` : ""}
         ${accounts.length ? html`<ul class="list">${accounts.map((a) => html`<li><button class="row" data-acc="${a.id}" style="${a.archived ? "opacity:.55" : ""}">
-          <span class="title">${a.name}${a.archived ? " (archiviert)" : ""}${!a.in_forecast && !a.archived && !VALUE_KINDS.has(a.kind) ? html` <span class="chip neutral">nicht in Prognose</span>` : ""}${a.drift_cents ? html` <span class="chip warn">passt nicht</span>` : ""}${a.owner_person_id ? html` <span class="chip neutral">${personName(a.owner_person_id)}</span>` : ""}</span>
+          <span class="title">${a.name}${a.archived ? " (archiviert)" : ""}${!a.in_forecast && !a.archived && !VALUE_KINDS.has(a.kind) && a.kind !== "taschengeld" ? html` <span class="chip neutral">nicht in Prognose</span>` : ""}${a.drift_cents ? html` <span class="chip warn">passt nicht</span>` : ""}${a.owner_person_id ? html` <span class="chip neutral">${personName(a.owner_person_id)}</span>` : ""}</span>
           <span class="sub">${VALUE_KINDS.has(a.kind) ? source(a) : `${KIND_LABEL[a.kind] || a.kind}, ${source(a)}`}</span>
           <span class="amount">${a.balance_known ? money(a.balance_now) : html`<span class="chip warn">${VALUE_KINDS.has(a.kind) ? "Wert fehlt" : "Stand fehlt"}</span>`}<small>${VALUE_KINDS.has(a.kind) ? (a.balance_known ? `Stand ${dShort(a.balance_date)}` : "") : `${a.tx_count} Buchungen`}</small></span></button></li>`)}</ul>`
           : html`<p class="muted">Noch keine Konten. Verbinde eine Bank oder importiere eine Datei.</p>`}
@@ -1573,7 +1575,14 @@ function accountSheet(a) {
     <p class="small muted" style="margin-top:-6px">Solche Abbuchungen gelten als Umbuchung, damit Einkäufe nicht doppelt zählen. Mehrere Begriffe mit Komma trennen.</p>
     <label class="field" id="ac-due-field" ${MATURING_KINDS.has(a.kind) ? "" : raw("hidden")}><span id="ac-due-label">${a.kind === "kredit" ? "Läuft bis" : "Fällig am"}</span>
       <input class="input" type="date" id="ac-due" value="${a.matures_on || ""}"></label>
-    <label class="check"><input type="checkbox" id="ac-fc" ${a.in_forecast ? raw("checked") : ""}><span>Zählt zum Kontostand und zur Prognose</span></label>
+    <div id="ac-pocket" ${a.kind === "taschengeld" ? "" : raw("hidden")}>
+      <div class="field-row">
+        <label class="field"><span>Taschengeld je Termin</span><input class="input" id="ac-allow" inputmode="decimal" value="${toInput(a.allowance_cents)}" placeholder="z. B. 5,00"></label>
+        <label class="field"><span>Rhythmus</span><select id="ac-allow-int"><option value="week" ${a.allowance_interval === "week" ? raw("selected") : ""}>jede Woche</option><option value="month" ${a.allowance_interval !== "week" ? raw("selected") : ""}>jeden Monat</option></select></label>
+      </div>
+      <p class="small muted" style="margin-top:-6px">${a.allowance_next ? `Nächste Gutschrift am ${dFull(a.allowance_next)}. ` : "Die erste Gutschrift kommt sofort, danach im gewählten Rhythmus. "}Ausgaben trägst du von Hand ein. Das Konto zählt nicht zum Vermögen und nicht zur Prognose. Wähle unten unter „Gehört“ das Kind.</p>
+    </div>
+    <label class="check" id="ac-fc-row" style="${a.kind === "taschengeld" ? "display:none" : ""}"><input type="checkbox" id="ac-fc" ${a.in_forecast ? raw("checked") : ""}><span>Zählt zum Kontostand und zur Prognose</span></label>
     ${store.persons.length ? html`<label class="field"><span>Gehört</span><select id="ac-owner"><option value="">Allen gemeinsam</option>${store.persons.map((p) => html`<option value="${p.id}" ${p.id === a.owner_person_id ? raw("selected") : ""}>${p.name}</option>`)}</select></label>
     <p class="small muted" style="margin-top:-6px">Ein eigenes Konto sieht in der App nur diese Person, ein gemeinsames sehen alle. Hier in Home Assistant bleibt alles sichtbar.</p>` : ""}
     ${!isNew ? html`<label class="check"><input type="checkbox" id="ac-arch" ${a.archived ? raw("checked") : ""}><span>Archivieren – Buchungen bleiben erhalten, fließen aber nicht mehr ein</span></label>` : ""}
@@ -1584,6 +1593,10 @@ function accountSheet(a) {
       settlement_pattern: $("#ac-settle", sh.el).value.trim(), in_forecast: $("#ac-fc", sh.el).checked ? 1 : 0 };
     body.matures_on = MATURING_KINDS.has(body.kind) ? $("#ac-due", sh.el).value : "";
     if ($("#ac-owner", sh.el)) body.owner_person_id = Number($("#ac-owner", sh.el).value) || null;
+    if (body.kind === "taschengeld") {
+      body.allowance_cents = Math.abs(parseMoney($("#ac-allow", sh.el).value) || 0) || null;
+      body.allowance_interval = $("#ac-allow-int", sh.el).value;
+    }
     if (!isNew) body.archived = $("#ac-arch", sh.el).checked ? 1 : 0;
     try {
       if (isNew) await api("accounts", { method: "POST", body }); else await api(`accounts/${a.id}`, { method: "PATCH", body });
@@ -1594,6 +1607,8 @@ function accountSheet(a) {
     const kind = e.target.value;
     if (isNew) $("#ac-fc", sh.el).checked = !SAVINGS_KINDS.has(kind);
     $("#ac-due-field", sh.el).hidden = !MATURING_KINDS.has(kind);
+    $("#ac-pocket", sh.el).hidden = kind !== "taschengeld";
+    $("#ac-fc-row", sh.el).style.display = kind === "taschengeld" ? "none" : "";
     $("#ac-due-label", sh.el).textContent = kind === "kredit" ? "Läuft bis" : "Fällig am";
   };
   if ($("#ac-bal", sh.el)) $("#ac-bal", sh.el).onclick = () => { sh.close(); balanceSheet(a); };
@@ -1879,7 +1894,7 @@ async function renderSettings(view, _params, seq) {
         <div class="section-head"><h2>Haushalt</h2><button class="link-btn" id="p-add">Person hinzufügen</button></div>
         <p class="small muted">Für Paare und Familien: Lege an, wer mitmacht, und ordne Konten und Handys zu. Jede Person sieht in der App ihre eigenen Konten und die gemeinsamen. Diese Oberfläche in Home Assistant ist die Verwaltung und zeigt immer alles.</p>
         ${store.persons.length ? html`<ul class="list">${store.persons.map((p) => html`<li class="row static">
-          <span class="title">${p.name}</span>
+          <span class="title">${p.name}${p.is_child ? html` <span class="chip neutral">Kind</span>` : ""}</span>
           <span class="sub">${p.accounts === 1 ? "1 eigenes Konto" : `${p.accounts} eigene Konten`} · ${p.devices === 1 ? "1 Handy" : `${p.devices} Handys`}${store.persons.length > 1 ? ` · Anteil ${p.share_weight}` : ""}</span>
           <span class="amount"><button class="btn small" data-person="${p.id}">Bearbeiten</button></span></li>`)}</ul>`
           : html`<p class="small muted">Noch niemand angelegt. Solange kein Konto einer Person gehört, sieht jedes gekoppelte Handy alles.</p>`}
@@ -2051,6 +2066,8 @@ async function renderSettings(view, _params, seq) {
 function personSheet(person) {
   const sh = openSheet(html`${sheetHead(person ? person.name : "Person hinzufügen")}
     <label class="field"><span>Name</span><input class="input" id="pe-name" value="${person ? person.name : ""}" maxlength="40" ${person ? "" : raw("autofocus")}></label>
+    <label class="check"><input type="checkbox" id="pe-child" ${person && person.is_child ? raw("checked") : ""}><span>Kind
+      <span class="muted small">Ein Kind sieht in der App nur sein Taschengeld-Konto und kann nichts ändern.</span></span></label>
     ${person ? html`<label class="field"><span>Anteil an geteilten Ausgaben</span><input class="input" id="pe-weight" inputmode="numeric" value="${person.share_weight}"></label>
       <p class="small muted" style="margin-top:-6px">Gleiche Zahlen heißen: zu gleichen Teilen. 60 und 40 teilen im Verhältnis 60 zu 40. Mit 0 trägt die Person nichts mit, etwa ein Kind.</p>
       <label class="field"><span>Benachrichtigungsdienst</span><input class="input" id="pe-notify" value="${person.notify_service || ""}" placeholder="notify.mobile_app_handy" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
@@ -2059,11 +2076,12 @@ function personSheet(person) {
     <div class="actions"><button class="btn primary" id="pe-save">${person ? "Speichern" : "Anlegen"}</button>
       ${person ? html`<button class="btn danger" id="pe-del">Person entfernen</button>` : ""}</div>`.s);
   $("#pe-save", sh.el).onclick = async () => {
-    const body = { name: $("#pe-name", sh.el).value };
+    const body = { name: $("#pe-name", sh.el).value, is_child: $("#pe-child", sh.el).checked };
     if (person) {
       const weight = $("#pe-weight", sh.el).value.trim();
       if (!/^\d{1,4}$/.test(weight)) { toast("Der Anteil muss eine ganze Zahl sein."); return; }
-      body.share_weight = Number(weight);
+      // Wird jemand zum Kind, trägt es von geteilten Ausgaben zunächst nichts.
+      body.share_weight = body.is_child && !person.is_child ? 0 : Number(weight);
       body.notify_service = $("#pe-notify", sh.el).value.trim() || null;
     }
     try {
