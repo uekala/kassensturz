@@ -863,6 +863,25 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
+  /// Shared expenses of this person, what is open, and the payments.
+  Future<({Map<String, dynamic>? data, String? error})> loadSharing() async {
+    try {
+      return (data: await _read(_apiClient.householdSharing), error: null);
+    } catch (error) {
+      return (data: null, error: await _describeFailure(error));
+    }
+  }
+
+  /// Records that this person paid someone back. Null when it worked.
+  Future<String?> addSettlement(int toPersonId, int cents, String note) async {
+    try {
+      await _apiClient.addSettlement(toPersonId, cents, note);
+      return null;
+    } catch (error) {
+      return _describeFailure(error);
+    }
+  }
+
   /// Shares an expense with the household or takes that back.
   Future<({Map<String, dynamic>? share, String? error})> setShare(
     int id, {

@@ -1,5 +1,11 @@
 # Änderungen der Mobile-App
 
+## 0.3.25
+
+- Haushalt: Neue Seite „Geteilte Ausgaben und Ausgleich“, erreichbar von der Kontenseite. Sie zeigt, was zwischen
+  dir und den anderen offen ist, die zuletzt geteilten Ausgaben und die eingetragenen Zahlungen.
+- Hast du jemandem deinen Anteil überwiesen oder bar gegeben, trägst du die Zahlung dort ein (ab Server 0.3.30).
+
 ## 0.3.24
 
 - Haushalt: Eine Ausgabe von deinem eigenen Konto teilst du jetzt direkt in der Buchung mit dem Haushalt und nimmst
