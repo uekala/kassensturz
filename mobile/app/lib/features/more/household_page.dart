@@ -99,10 +99,8 @@ class _HouseholdPageState extends State<HouseholdPage> {
     if (others.isEmpty) return;
     final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => _SettlementDialog(
-        controller: widget.controller,
-        persons: others,
-      ),
+      builder: (_) =>
+          _SettlementDialog(controller: widget.controller, persons: others),
     );
     if (saved == true && mounted) await _load();
   }
