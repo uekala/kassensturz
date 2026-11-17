@@ -480,6 +480,25 @@ function bindCategoryPicker(root, onPick) {
   });
 }
 
+// Eine Ausgabe vom eigenen Konto mit dem Haushalt teilen: Die anderen schulden dem Zahler ihren Teil.
+async function drawShare(box, txId) {
+  let share;
+  try { share = await api(`transactions/${txId}/share`); } catch { return; }
+  if (!box.isConnected || !share.shareable) return;
+  box.innerHTML = html`<h3>Haushalt</h3>
+    ${share.shared ? html`<p class="small">Geteilt, bezahlt von ${share.payer}: ${share.parts.map((p) => `${p.name} ${money(p.cents)}`).join(", ")}.</p>
+      <div class="actions" style="margin-top:0"><button class="btn small" type="button" id="share-off">Nicht mehr teilen</button></div>`
+      : html`<p class="small muted">${share.payer} hat das vom eigenen Konto bezahlt. Teilst du die Ausgabe, schulden die anderen ${share.payer} ihren Anteil.</p>
+      <div class="actions" style="margin-top:0"><button class="btn small" type="button" id="share-on">Mit dem Haushalt teilen</button></div>`}`.s;
+  const change = async (method) => {
+    try { await api(`transactions/${txId}/share`, { method, body: method === "PUT" ? {} : undefined }); toast(method === "PUT" ? "Ausgabe geteilt" : "Teilen zurückgenommen"); }
+    catch (e) { toast(e.message); }
+    drawShare(box, txId);
+  };
+  if ($("#share-on", box)) $("#share-on", box).onclick = () => change("PUT");
+  if ($("#share-off", box)) $("#share-off", box).onclick = () => change("DELETE");
+}
+
 async function txSheet(t) {
   const name = t.counterparty || t.purpose || "Buchung";
   const rule = t.rule_ref || "";
@@ -518,12 +537,14 @@ async function txSheet(t) {
       <button class="btn small" type="button" data-warranty-years="0">Keine</button>
     </div>` : ""}
     <div id="tx-receipts"></div>
+    <div id="tx-share"></div>
     <div class="actions">
       <button class="btn primary" id="tx-save">Speichern</button>
       <button class="btn" id="tx-split">Aufteilen</button>
       ${t.category_locked ? html`<button class="btn" id="tx-reset">Automatisch zuordnen</button>` : ""}
     </div>`.s);
   let picked = null;
+  if (store.persons.length > 1) drawShare($("#tx-share", sh.el), t.id);
   $("#tx-cat-details", sh.el).addEventListener("toggle", (e) => {
     const sel = $('#cat-list [aria-pressed="true"]', sh.el);
     if (e.target.open && sel) sel.scrollIntoView({ block: "center" });
@@ -1806,11 +1827,12 @@ function syncSheet(conn) {
 
 /* ------------------------------------------------------------------ Einstellungen */
 async function renderSettings(view, _params, seq) {
-  const [s, rules, learned, devices] = await Promise.all([
+  const [s, rules, learned, devices, sharing] = await Promise.all([
     api("settings"),
     api("rules"),
     api("learned"),
     api("mobile/devices").catch(() => ({ items: [] })),
+    api("household/sharing"),
   ]);
   if (seq !== renderSeq) return;
   const p = s.profile || {};
@@ -1842,11 +1864,21 @@ async function renderSettings(view, _params, seq) {
         <p class="small muted">Für Paare und Familien: Lege an, wer mitmacht, und ordne Konten und Handys zu. Jede Person sieht in der App ihre eigenen Konten und die gemeinsamen. Diese Oberfläche in Home Assistant ist die Verwaltung und zeigt immer alles.</p>
         ${store.persons.length ? html`<ul class="list">${store.persons.map((p) => html`<li class="row static">
           <span class="title">${p.name}</span>
-          <span class="sub">${p.accounts === 1 ? "1 eigenes Konto" : `${p.accounts} eigene Konten`} · ${p.devices === 1 ? "1 Handy" : `${p.devices} Handys`}</span>
+          <span class="sub">${p.accounts === 1 ? "1 eigenes Konto" : `${p.accounts} eigene Konten`} · ${p.devices === 1 ? "1 Handy" : `${p.devices} Handys`}${store.persons.length > 1 ? ` · Anteil ${p.share_weight}` : ""}</span>
           <span class="amount"><button class="btn small" data-person="${p.id}">Bearbeiten</button></span></li>`)}</ul>`
           : html`<p class="small muted">Noch niemand angelegt. Solange kein Konto einer Person gehört, sieht jedes gekoppelte Handy alles.</p>`}
         ${unassigned ? html`<div class="alert warning" style="margin:10px 0"><div><strong>${unassigned === 1 ? "Ein Handy ist" : `${unassigned} Handys sind`} keiner Person zugeordnet</strong>
           <p class="small">Solche Handys sehen nur die gemeinsamen Konten. Ordne sie unten unter „Mobile Geräte“ zu.</p></div></div>` : ""}
+        ${store.persons.length > 1 ? html`
+          <div class="section-head" style="margin-top:22px"><h2>Ausgleich</h2><button class="link-btn" id="st-add">Zahlung eintragen</button></div>
+          ${sharing.balances.length ? html`<ul class="list">${sharing.balances.map((b) => html`<li class="row static">
+            <span class="title">${b.from} schuldet ${b.to}</span><span class="sub">aus geteilten Ausgaben, abzüglich eingetragener Zahlungen</span>
+            <span class="amount">${money(b.cents)}</span></li>`)}</ul>`
+            : html`<p class="small muted">${sharing.items.length ? "Alles ausgeglichen." : "Noch nichts geteilt. Öffne unter Umsätze eine Ausgabe von einem eigenen Konto und wähle „Mit dem Haushalt teilen“."}</p>`}
+          ${sharing.items.length ? html`<p class="small muted" style="margin-top:10px">Zuletzt geteilt: ${sharing.items.slice(0, 5).map((i) => `${i.label} ${money(i.total_cents)} (${i.payer}, ${dShort(i.booking_date)})`).join("; ")}.</p>` : ""}
+          ${sharing.settlements.length ? html`<ul class="list">${sharing.settlements.slice(0, 5).map((x) => html`<li class="row static">
+            <span class="title">${x.from} an ${x.to}</span><span class="sub">${dFull(x.on_date)}${x.note ? ` · ${x.note}` : ""}</span>
+            <span class="amount" style="display:flex;gap:6px;align-items:center">${money(x.cents)}<button class="btn small" data-st-del="${x.id}">Entfernen</button></span></li>`)}</ul>` : ""}` : ""}
       </section>
       <section class="section">
         <div class="section-head">
@@ -1973,6 +2005,11 @@ async function renderSettings(view, _params, seq) {
     }
   }));
   $("#p-add").onclick = () => personSheet();
+  if ($("#st-add")) $("#st-add").onclick = () => settlementSheet(sharing.balances[0]);
+  $$("[data-st-del]", view).forEach((button) => confirmButton(button, "Wirklich entfernen?", async () => {
+    try { await api(`household/settlements/${button.dataset.stDel}`, { method: "DELETE" }); toast("Zahlung entfernt"); } catch (e) { toast(e.message); }
+    rerender();
+  }));
   on(view, "[data-person]", "click", (_e, el) => personSheet(store.persons.find((x) => x.id === Number(el.dataset.person))));
   on(view, "[data-mobile-person]", "change", async (_e, el) => {
     try {
@@ -1998,11 +2035,18 @@ async function renderSettings(view, _params, seq) {
 function personSheet(person) {
   const sh = openSheet(html`${sheetHead(person ? person.name : "Person hinzufügen")}
     <label class="field"><span>Name</span><input class="input" id="pe-name" value="${person ? person.name : ""}" maxlength="40" ${person ? "" : raw("autofocus")}></label>
-    ${person ? "" : html`<p class="small muted" style="margin-top:-6px">Danach ordnest du unter „Konten“ zu, welche Konten ihr gehören, und koppelst ihr Handy.</p>`}
+    ${person ? html`<label class="field"><span>Anteil an geteilten Ausgaben</span><input class="input" id="pe-weight" inputmode="numeric" value="${person.share_weight}"></label>
+      <p class="small muted" style="margin-top:-6px">Gleiche Zahlen heißen: zu gleichen Teilen. 60 und 40 teilen im Verhältnis 60 zu 40. Mit 0 trägt die Person nichts mit, etwa ein Kind.</p>`
+      : html`<p class="small muted" style="margin-top:-6px">Danach ordnest du unter „Konten“ zu, welche Konten ihr gehören, und koppelst ihr Handy.</p>`}
     <div class="actions"><button class="btn primary" id="pe-save">${person ? "Speichern" : "Anlegen"}</button>
       ${person ? html`<button class="btn danger" id="pe-del">Person entfernen</button>` : ""}</div>`.s);
   $("#pe-save", sh.el).onclick = async () => {
     const body = { name: $("#pe-name", sh.el).value };
+    if (person) {
+      const weight = $("#pe-weight", sh.el).value.trim();
+      if (!/^\d{1,4}$/.test(weight)) { toast("Der Anteil muss eine ganze Zahl sein."); return; }
+      body.share_weight = Number(weight);
+    }
     try {
       if (person) await api(`persons/${person.id}`, { method: "PATCH", body }); else await api("persons", { method: "POST", body });
       sh.close(); toast("Gespeichert"); rerender();
@@ -2011,6 +2055,24 @@ function personSheet(person) {
   if (person) confirmButton($("#pe-del", sh.el), "Wirklich entfernen?", async () => {
     try { await api(`persons/${person.id}`, { method: "DELETE" }); sh.close(); toast("Person entfernt"); rerender(); } catch (e) { toast(e.message); }
   });
+}
+
+function settlementSheet(open) {
+  const option = (selected) => store.persons.map((p) => html`<option value="${p.id}" ${p.id === selected ? raw("selected") : ""}>${p.name}</option>`);
+  const sh = openSheet(html`${sheetHead("Zahlung eintragen")}
+    <p class="small muted">Hat jemand seinen Anteil überwiesen oder bar gegeben, trägst du das hier ein. Kassensturz bucht dabei nichts um.</p>
+    <div class="field-row">
+      <label class="field"><span>Von</span><select id="st-from">${option(open ? open.from_id : store.persons[0].id)}</select></label>
+      <label class="field"><span>An</span><select id="st-to">${option(open ? open.to_id : store.persons[1].id)}</select></label>
+    </div>
+    <label class="field"><span>Betrag</span><input class="input" id="st-cents" inputmode="decimal" value="${open ? toInput(open.cents) : ""}" placeholder="0,00"></label>
+    <label class="field"><span>Notiz</span><input class="input" id="st-note" maxlength="120"></label>
+    <div class="actions"><button class="btn primary" id="st-save">Eintragen</button></div>`.s);
+  $("#st-save", sh.el).onclick = async () => {
+    const body = { from_person_id: Number($("#st-from", sh.el).value), to_person_id: Number($("#st-to", sh.el).value),
+      cents: Math.abs(parseMoney($("#st-cents", sh.el).value) || 0), note: $("#st-note", sh.el).value };
+    try { await api("household/settlements", { method: "POST", body }); sh.close(); toast("Zahlung eingetragen"); rerender(); } catch (e) { toast(e.message); }
+  };
 }
 
 function ruleSheet() {

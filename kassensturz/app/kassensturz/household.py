@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 
+from . import sharing
 from .db import Database, now_iso
 
 MAX_PERSONS = 12
@@ -42,7 +43,7 @@ def _color(value) -> str | None:
 def list_persons(db: Database) -> list[dict]:
     """Personen mit der Zahl ihrer Konten und ihrer aktiven Geräte."""
     return db.query(
-        "SELECT p.id, p.name, p.color, "
+        "SELECT p.id, p.name, p.color, COALESCE(p.share_weight, 1) AS share_weight, "
         "(SELECT COUNT(*) FROM accounts AS a WHERE a.owner_person_id = p.id) AS accounts, "
         "(SELECT COUNT(*) FROM mobile_devices AS d WHERE d.person_id = p.id AND d.revoked_at IS NULL) AS devices "
         "FROM persons AS p ORDER BY p.sort, p.id"
@@ -83,6 +84,11 @@ def update_person(db: Database, person_id: int, payload: dict) -> dict:
         data["name"] = _name(payload["name"])
     if "color" in payload:
         data["color"] = _color(payload["color"])
+    if "share_weight" in payload:
+        try:
+            data["share_weight"] = sharing.clean_weight(payload["share_weight"])
+        except sharing.SharingError as error:
+            raise HouseholdError(error.status, error.message) from None
     with db.tx(immediate=True):
         if not person_exists(db, person_id):
             raise HouseholdError(404, "Diese Person gibt es nicht.")
@@ -108,6 +114,9 @@ def delete_person(db: Database, person_id: int) -> dict:
         if accounts or devices:
             raise HouseholdError(
                 409, "Der Person sind noch Konten oder Geräte zugeordnet. Ordne sie zuerst neu zu.")
+        if not sharing.person_is_settled(db, person_id):
+            raise HouseholdError(409, "Mit dieser Person ist noch ein Ausgleich offen. Gleicht das zuerst aus.")
+        sharing.forget_person(db, person_id)
         db.execute("UPDATE mobile_devices SET person_id = NULL WHERE person_id = ?", (person_id,))
         db.execute("UPDATE mobile_pairings SET person_id = NULL WHERE person_id = ?", (person_id,))
         db.execute("DELETE FROM persons WHERE id = ?", (person_id,))

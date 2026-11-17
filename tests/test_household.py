@@ -263,6 +263,6 @@ def test_old_database_gets_the_new_columns(tmp_path):
         assert again.scalar("SELECT COUNT(*) FROM persons") == 0
         for table in ("mobile_devices", "mobile_pairings"):
             assert "person_id" in {r["name"] for r in again.query(f"PRAGMA table_info({table})")}
-        assert again.conn.execute("PRAGMA user_version").fetchone()[0] == dbmod.SCHEMA_VERSION == 2
+        assert again.conn.execute("PRAGMA user_version").fetchone()[0] == dbmod.SCHEMA_VERSION
     finally:
         again.close()

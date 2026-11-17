@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import analytics, banksync, household, ledger, mobile_read, mobile_write, options, papers, services
+from . import analytics, banksync, household, ledger, mobile_read, mobile_write, options, papers, services, sharing
 from .db import get_db
 from .mobile_auth import (
     InvalidCredential,
@@ -55,6 +55,7 @@ CAPABILITIES = (
     "papers",
     "networth",
     "household",
+    "household.sharing",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -370,6 +371,7 @@ def overview(request: Request):
         return device
     result = mobile_read.get_overview(get_db(), view=_view(device))
     result["household"] = household.profile(get_db(), device.person_id)
+    result["household"]["balances"] = sharing.for_person(get_db(), device.person_id)
     return result
 
 
@@ -668,6 +670,100 @@ def delete_receipt(receipt_id: str, request: Request):
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
     return {"ok": True}
+
+
+def _sharing_error(error: sharing.SharingError) -> JSONResponse:
+    code = {400: "invalid_request", 404: "not_found"}.get(error.status, "not_possible")
+    return _error(error.status, code, error.message)
+
+
+def _own_payment(device, tx_id: int) -> bool:
+    """Only the person whose account paid may share a transaction or take that back."""
+    db = get_db()
+    if device.person_id is None or not household.sees_transaction(db, device.person_id, tx_id):
+        return False
+    owner = db.scalar("SELECT a.owner_person_id FROM transactions AS t JOIN accounts AS a ON a.id = t.account_id "
+                      "WHERE t.id = ?", (tx_id,))
+    return owner is None or owner == device.person_id
+
+
+@router.get("/api/v1/household/sharing")
+def household_sharing(request: Request):
+    """Shared expenses this person is part of, what is open, and settlements."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    if device.person_id is None:
+        return {"balances": [], "items": [], "settlements": [], "open": [], "persons": []}
+    db = get_db()
+    return {
+        **sharing.overview(db, device.person_id),
+        "open": sharing.for_person(db, device.person_id),
+        # Names only, to pick whom a settlement went to.
+        "persons": [{"id": p["id"], "name": p["name"]} for p in household.list_persons(db)],
+    }
+
+
+@router.get("/api/v1/transactions/{tx_id}/share")
+def transaction_share(tx_id: str, request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(tx_id)
+    if parsed_id is None or not household.sees_transaction(get_db(), device.person_id, parsed_id):
+        return _not_found("Buchung")
+    try:
+        return sharing.get_share(get_db(), parsed_id)
+    except sharing.SharingError as error:
+        return _sharing_error(error)
+
+
+@router.put("/api/v1/transactions/{tx_id}/share")
+async def share_transaction(tx_id: str, request: Request):
+    """Share an expense paid from the person's own account with the household."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(tx_id)
+    if parsed_id is None or not _own_payment(device, parsed_id):
+        return _not_found("Buchung")
+    payload = await _json_object(request)
+    if payload is None or set(payload) - {"parts"}:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    try:
+        return sharing.set_share(get_db(), parsed_id, payload.get("parts"))
+    except sharing.SharingError as error:
+        return _sharing_error(error)
+
+
+@router.delete("/api/v1/transactions/{tx_id}/share")
+def unshare_transaction(tx_id: str, request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(tx_id)
+    if parsed_id is None or not _own_payment(device, parsed_id):
+        return _not_found("Buchung")
+    try:
+        return sharing.clear_share(get_db(), parsed_id)
+    except sharing.SharingError as error:
+        return _sharing_error(error)
+
+
+@router.post("/api/v1/household/settlements")
+async def add_settlement(request: Request):
+    """Record that this person has paid another one back."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    if payload is None or set(payload) - {"to_person_id", "cents", "note"} or device.person_id is None:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    try:
+        settlement = sharing.add_settlement(get_db(), {**payload, "from_person_id": device.person_id})
+    except sharing.SharingError as error:
+        return _sharing_error(error)
+    return JSONResponse({"settlement": settlement}, status_code=201)
 
 
 @router.get("/api/v1/networth")
