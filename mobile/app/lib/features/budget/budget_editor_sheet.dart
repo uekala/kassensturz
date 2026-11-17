@@ -14,6 +14,7 @@ Future<void> showBudgetEditor(
   int? categoryId,
   String? categoryName,
   int? limitCents,
+  bool own = false,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -25,6 +26,7 @@ Future<void> showBudgetEditor(
       categoryId: categoryId,
       categoryName: categoryName,
       limitCents: limitCents,
+      own: own,
     ),
   ),
 );
@@ -35,6 +37,7 @@ class BudgetEditorSheet extends StatefulWidget {
     this.categoryId,
     this.categoryName,
     this.limitCents,
+    this.own = false,
     super.key,
   });
 
@@ -42,6 +45,9 @@ class BudgetEditorSheet extends StatefulWidget {
   final int? categoryId;
   final String? categoryName;
   final int? limitCents;
+
+  /// True for a budget of this person that only counts own accounts.
+  final bool own;
 
   @override
   State<BudgetEditorSheet> createState() => _BudgetEditorSheetState();
@@ -72,11 +78,17 @@ class _BudgetEditorSheetState extends State<BudgetEditorSheet> {
     super.dispose();
   }
 
-  List<ServerCategory> get _choices =>
-      widget.controller.categories
-          .where((c) => c.kind == 'expense' && c.budgetCents == null)
-          .toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
+  /// Expense categories that can still get a budget. An own budget may sit
+  /// next to a shared one, so those are not left out.
+  List<ServerCategory> get _choices {
+    final free = <ServerCategory>[];
+    for (final category in widget.controller.categories) {
+      if (category.kind != 'expense') continue;
+      if (widget.own || category.budgetCents == null) free.add(category);
+    }
+    free.sort((a, b) => a.name.compareTo(b.name));
+    return free;
+  }
 
   Future<void> _save(int? cents) async {
     final categoryId = _categoryId;
@@ -85,7 +97,11 @@ class _BudgetEditorSheetState extends State<BudgetEditorSheet> {
       _saving = true;
       _error = null;
     });
-    final error = await widget.controller.setBudget(categoryId, cents);
+    final error = await widget.controller.setBudget(
+      categoryId,
+      cents,
+      own: widget.own,
+    );
     if (!mounted) return;
     if (error != null) {
       setState(() {

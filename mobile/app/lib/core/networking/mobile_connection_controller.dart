@@ -30,6 +30,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const searchCapability = 'transactions.search';
   static const statsCapability = 'stats';
   static const budgetCapability = 'budgets.write';
+  static const ownBudgetCapability = 'budgets.own';
   static const contractCapability = 'contracts.write';
   static const affordCapability = 'afford';
   static const taxCapability = 'tax';
@@ -326,6 +327,9 @@ class MobileConnectionController extends ChangeNotifier {
       return (answer: null, error: describeMobileError(error));
     }
   }
+
+  /// True when this person can keep budgets that only count own accounts.
+  bool get canEditOwnBudgets => _capabilities.contains(ownBudgetCapability);
 
   /// True once the server accepts contract changes and builds letters.
   bool get canEditContracts => _capabilities.contains(contractCapability);
@@ -915,9 +919,13 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// Sets or, with null, removes the monthly budget of a category. Returns
   /// null on success, otherwise the message to show.
-  Future<String?> setBudget(int categoryId, int? limitCents) => _write(
-    () => _apiClient.setBudget(categoryId, limitCents),
-    capability: budgetCapability,
+  Future<String?> setBudget(
+    int categoryId,
+    int? limitCents, {
+    bool own = false,
+  }) => _write(
+    () => _apiClient.setBudget(categoryId, limitCents, own: own),
+    capability: own ? ownBudgetCapability : budgetCapability,
   );
 
   /// Write calls are never repeated automatically. After success all views

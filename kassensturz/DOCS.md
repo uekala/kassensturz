@@ -147,9 +147,15 @@ Gut zu wissen:
 - Die Oberfläche in Home Assistant ist die Verwaltung und zeigt immer alles. Wer Home Assistant verwaltet, kommt
   ohnehin an die Datenbank und die Sicherungen. Getrennt ist also, was die Handys sehen – nicht, was die
   Verwaltung sieht.
-- Sensoren, Ereignisse und Benachrichtigungen gelten für den ganzen Haushalt und enthalten auch eigene Konten.
-- Budgets und Kategorien sind gemeinsam. Der Verbrauch eines Budgets wird je Person aus ihren sichtbaren Konten
-  berechnet.
+- Neue Buchungen meldet Kassensturz je Person: Trage bei jeder Person unter *Einstellungen → Haushalt* ihren
+  Benachrichtigungsdienst ein (etwa `notify.mobile_app_handy`). Buchungen auf eigenen Konten gehen dann nur an sie,
+  Buchungen auf gemeinsamen Konten an alle. Ohne eigenen Dienst gilt der aus der Konfiguration.
+- Warnungen, Monatsabschluss, Sensoren und Ereignisse gelten für den ganzen Haushalt und enthalten auch eigene
+  Konten. Sie gehen an den Dienst aus der Konfiguration.
+- Sparziele gehören wie Konten einer Person oder allen. Ein eigenes Ziel sieht in der App nur diese Person.
+- Kategorien sind gemeinsam. Budgets gibt es zweifach: Die Budgets des Haushalts zählen die Ausgaben von den
+  gemeinsamen Konten. Zusätzlich kann jede Person eigene Budgets setzen, die nur ihre eigenen Konten zählen – in der
+  App unter „Nur für dich", in Home Assistant unter *Budgets* über die Auswahl der Person.
 - Eine Person lässt sich erst entfernen, wenn ihr keine Konten und Handys mehr zugeordnet sind. So wird ein
   eigenes Konto nicht versehentlich zu einem gemeinsamen.
 
@@ -166,8 +172,10 @@ gemeinsamen Konto abgeht, ist schon gemeinsam bezahlt und lässt sich nicht teil
   mit „Zahlung eintragen" ein. Gerechnet wird je Paar, nicht über Dritte.
 - **Was die anderen sehen:** von einer geteilten Buchung Datum, Empfänger, Betrag und ihren Teil. Alles andere auf
   dem Konto bleibt verborgen.
-- **Was sich nicht ändert:** Kassensturz bucht dabei nichts um. Kontostände, Auswertung und Budgets zählen die
-  Buchung weiter ganz beim Zahler.
+- **Anteilig gezählt:** In der Auswertung und in den eigenen Budgets einer Person zählt von einer geteilten
+  Ausgabe nur ihr Teil – beim Zahler der eigene, bei den anderen ihrer. Je Person stimmt die Summe auf den Cent.
+- **Was sich nicht ändert:** Kassensturz bucht dabei nichts um. Buchungen, Kontostände und Prognose zeigen, was
+  wirklich vom Konto abging. Die Zahlen des Haushalts und der Verwaltung zählen die Buchung ganz.
 
 Wird ein eigenes Konto zum gemeinsamen, zählen die Teilungen seiner Buchungen nicht mehr. Eine Person lässt sich
 erst entfernen, wenn mit ihr nichts mehr offen ist.

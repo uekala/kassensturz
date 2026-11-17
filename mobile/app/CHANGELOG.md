@@ -1,5 +1,15 @@
 # Änderungen der Mobile-App
 
+## 0.3.27
+
+- Haushalt: Sparziele, die nur dir gehören, sind als „nur für dich“ gekennzeichnet (ab Server 0.3.34).
+
+## 0.3.26
+
+- Haushalt: Eigene Budgets. Unter Planung → Budgets gibt es den Abschnitt „Nur für dich“ mit Budgets, die nur
+  Ausgaben von deinen eigenen Konten zählen. Die anderen Budgets gelten für den Haushalt und zählen die
+  gemeinsamen Konten (ab Server 0.3.32).
+
 ## 0.3.25
 
 - Haushalt: Neue Seite „Geteilte Ausgaben und Ausgleich“, erreichbar von der Kontenseite. Sie zeigt, was zwischen

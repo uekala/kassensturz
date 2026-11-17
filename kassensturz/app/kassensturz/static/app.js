@@ -304,9 +304,10 @@ async function renderOverview(view, _params, seq) {
   bindBudgetRows(view);
 }
 
-function bindBudgetRows(view) {
-  on(view, "[data-budget]", "click", (_e, el) => budgetSheet(Number(el.dataset.budget)));
-  on(view, "[data-budget]", "keydown", (e, el) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); budgetSheet(Number(el.dataset.budget)); } });
+// Mit person sind es deren eigene Budgets; limits sind dann ihre Beträge je Kategorie.
+function bindBudgetRows(view, person, limits) {
+  on(view, "[data-budget]", "click", (_e, el) => budgetSheet(Number(el.dataset.budget), person, limits));
+  on(view, "[data-budget]", "keydown", (e, el) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); budgetSheet(Number(el.dataset.budget), person, limits); } });
 }
 
 function budgetRow(b) {
@@ -1135,8 +1136,12 @@ function reviewHtml(r) {
 
 async function renderBudgets(view, params, seq) {
   const month = params.month || todayIso().slice(0, 7);
-  const [data, stats, plan] = await Promise.all([api("budgets?month=" + month), api("stats?month=" + month), api("goals")]);
+  // Haushalt (gemeinsame Konten) oder die eigenen Budgets einer Person auf ihren eigenen Konten
+  const person = store.persons.find((p) => String(p.id) === params.person) || null;
+  const split = store.accounts.some((a) => a.owner_person_id);
+  const [data, stats, plan] = await Promise.all([api("budgets?month=" + month + (person ? "&person=" + person.id : "")), api("stats?month=" + month), api("goals")]);
   if (seq !== renderSeq) return;
+  const here = (extra) => ({ month, ...(person ? { person: String(person.id) } : {}), ...extra });
   const [y, m] = month.split("-").map(Number);
   const prev = new Date(y, m - 2, 1), next = new Date(y, m, 1);
   const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -1154,13 +1159,15 @@ async function renderBudgets(view, params, seq) {
       <li class="tally-sum" style="font-weight:650"><span class="op">=</span><span>${st.saldo_cents >= 0 ? "Überschuss" : "Fehlbetrag"}</span><span class="amount">${money(st.saldo_cents)}</span></li>
     </ul>
     ${raw(reviewHtml(stats.review))}
+    ${store.persons.length && (split || person) ? html`<div class="segmented" style="margin:14px 0 0"><button data-bperson="" ${person ? "" : raw('aria-pressed="true"')}>Haushalt</button>${store.persons.map((p) => html`<button data-bperson="${p.id}" ${person && person.id === p.id ? raw('aria-pressed="true"') : ""}>${p.name}</button>`)}</div>
+      <p class="small muted" style="margin-top:6px">${person ? `Eigene Budgets von ${person.name}. Zahlen und Budgets zählen nur die eigenen Konten.` : "Budgets des Haushalts zählen die gemeinsamen Konten. Die Zahlen oben umfassen alle Konten."}</p>` : ""}
     <div class="cols"><div>
-      <section class="section"><div class="section-head"><h2>Budgets</h2><span class="small muted">Strich: so viel wäre bis heute im Plan</span></div>
+      <section class="section"><div class="section-head"><h2>${person ? `Budgets von ${person.name}` : "Budgets"}</h2><span class="small muted">Strich: so viel wäre bis heute im Plan</span></div>
         ${data.budgets.length ? html`<div>${data.budgets.map(budgetRow)}</div>` : html`<p class="muted">Tipp auf eine Kategorie rechts oder unten, um ein Monatsbudget festzulegen.</p>`}
       </section>
       <section class="section"><div class="section-head"><h2>Sparziele</h2><button class="link-btn" id="g-add">Ziel hinzufügen</button></div>
         ${plan.goals.length ? html`<div>${plan.goals.map((g) => html`<button class="goal" data-goal="${g.id}">
-          <span class="goal-head"><strong>${g.name}</strong><span class="num">${money(g.saved_cents)} von ${money(g.target_cents)}</span></span>
+          <span class="goal-head"><strong>${g.name}${g.owner_person_id ? html` <span class="chip neutral">${personName(g.owner_person_id)}</span>` : ""}</strong><span class="num">${money(g.saved_cents)} von ${money(g.target_cents)}</span></span>
           <span class="meter"><i style="width:${Math.round(g.progress * 100)}%"></i></span>
           <span class="small muted">${g.status === "done" ? "Erreicht" : g.status === "late" ? `Ziel war ${dFull(g.due_date)}, es fehlen ${money(g.rest_cents)}`
             : g.monthly_cents ? `${money(g.monthly_cents)} im Monat bis ${dFull(g.due_date)}` : `Es fehlen ${money(g.rest_cents)}`}${g.account_name ? ` · ${g.account_name}` : ""}</span></button>`)}</div>`
@@ -1184,12 +1191,13 @@ async function renderBudgets(view, params, seq) {
           : html`<p class="muted">Keine Ausgaben in diesem Monat.</p>`}
       </section>
     </div></div>`.s;
-  $("#b-prev").onclick = () => go("budgets", { month: key(prev) });
+  $("#b-prev").onclick = () => go("budgets", here({ month: key(prev) }));
+  on(view, "[data-bperson]", "click", (_e, el) => go("budgets", el.dataset.bperson ? { month, person: el.dataset.bperson } : { month }));
   $("#g-add").onclick = () => goalSheet(null);
   on(view, "[data-goal]", "click", (_e, el) => goalSheet(plan.goals.find((g) => String(g.id) === el.dataset.goal)));
-  if ($("#b-next")) $("#b-next").onclick = () => go("budgets", { month: key(next) });
-  bindBudgetRows(view);
-  on(view, "[data-setbudget]", "click", (e, el) => { e.stopPropagation(); budgetSheet(Number(el.dataset.setbudget)); });
+  if ($("#b-next")) $("#b-next").onclick = () => go("budgets", here({ month: key(next) }));
+  bindBudgetRows(view, person, data.limits);
+  on(view, "[data-setbudget]", "click", (e, el) => { e.stopPropagation(); budgetSheet(Number(el.dataset.setbudget), person, data.limits); });
   on(view, ".bar-row[data-cat]", "click", (_e, el) => { if (el.dataset.cat) go("umsaetze", { category: el.dataset.cat, month, kind: "out" }); });
   historyChart($("#hist-chart"), stats.history);
 }
@@ -1242,6 +1250,7 @@ function goalSheet(g) {
     </div>
     <label class="field"><span>Wo liegt das Geld</span><select id="g-acc"><option value="">Kein Konto, ich trage den Stand selbst ein</option>
       ${accounts.map((a) => html`<option value="${a.id}" ${a.id === g.account_id ? raw("selected") : ""}>${a.name}</option>`)}</select></label>
+    ${store.persons.length ? html`<label class="field"><span>Gehört</span><select id="g-owner"><option value="">Allen gemeinsam</option>${store.persons.map((p) => html`<option value="${p.id}" ${p.id === g.owner_person_id ? raw("selected") : ""}>${p.name}</option>`)}</select></label>` : ""}
     <label class="field" id="g-saved-field" ${g.linked ? raw("hidden") : ""}><span>Schon gespart</span><input class="input" id="g-saved" inputmode="decimal" value="${toInput(isNew ? 0 : g.linked ? 0 : g.saved_cents)}"></label>
     <p class="small muted">Mit Konto zählt dessen Stand als gespart. Hängen mehrere Ziele am selben Konto, wird er der Reihe nach verteilt.</p>
     <div class="actions"><button class="btn primary" id="g-save">${isNew ? "Anlegen" : "Speichern"}</button>
@@ -1252,6 +1261,7 @@ function goalSheet(g) {
     const account = $("#g-acc", sh.el).value;
     const body = { name: $("#g-name", sh.el).value.trim(), target_cents: target === null ? 0 : Math.abs(target), due_date: $("#g-due", sh.el).value,
       account_id: account ? Number(account) : null, saved_cents: Math.abs(parseMoney($("#g-saved", sh.el).value) || 0) };
+    if ($("#g-owner", sh.el)) body.owner_person_id = Number($("#g-owner", sh.el).value) || null;
     try {
       if (isNew) await api("goals", { method: "POST", body }); else await api(`goals/${g.id}`, { method: "PATCH", body });
       sh.close(); toast("Sparziel gespeichert"); rerender();
@@ -1262,15 +1272,21 @@ function goalSheet(g) {
   });
 }
 
-function budgetSheet(catId) {
+function budgetSheet(catId, person, limits) {
   const c = store.catById.get(catId);
   if (!c) return;
-  const sh = openSheet(html`${sheetHead("Budget " + c.name)}
-    <p class="small muted">Monatliche Obergrenze für ${c.name}${childCats(c.id).length ? " inklusive aller Unterkategorien" : ""}.</p>
-    <label class="field"><span>Betrag pro Monat</span><input class="input" id="bu-amt" inputmode="decimal" value="${toInput(c.budget_cents)}" placeholder="z. B. 400" autofocus></label>
-    <div class="actions"><button class="btn primary" id="bu-save">Speichern</button>${c.budget_cents ? html`<button class="btn" id="bu-del">Budget entfernen</button>` : ""}
+  const current = person ? (limits || {})[catId] || null : c.budget_cents;
+  const sh = openSheet(html`${sheetHead((person ? `Budget von ${person.name}: ` : "Budget ") + c.name)}
+    <p class="small muted">Monatliche Obergrenze für ${c.name}${childCats(c.id).length ? " inklusive aller Unterkategorien" : ""}${person ? `. Zählt nur Ausgaben von den eigenen Konten von ${person.name}` : ""}.</p>
+    <label class="field"><span>Betrag pro Monat</span><input class="input" id="bu-amt" inputmode="decimal" value="${toInput(current)}" placeholder="z. B. 400" autofocus></label>
+    <div class="actions"><button class="btn primary" id="bu-save">Speichern</button>${current ? html`<button class="btn" id="bu-del">Budget entfernen</button>` : ""}
       <a class="btn" href="#/umsaetze?category=${c.id}&month=${todayIso().slice(0, 7)}" data-close>Buchungen ansehen</a></div>`.s);
-  const save = async (cents) => { await api(`categories/${c.id}`, { method: "PATCH", body: { budget_cents: cents } }); sh.close(); toast(cents ? "Budget gespeichert" : "Budget entfernt"); rerender(); };
+  const save = async (cents) => {
+    try {
+      if (person) await api(`persons/${person.id}/budgets/${c.id}`, { method: "PUT", body: { budget_cents: cents } });
+      else await api(`categories/${c.id}`, { method: "PATCH", body: { budget_cents: cents } });
+    } catch (e) { toast(e.message); return; }
+    sh.close(); toast(cents ? "Budget gespeichert" : "Budget entfernt"); rerender(); };
   $("#bu-save", sh.el).onclick = () => save(Math.abs(parseMoney($("#bu-amt", sh.el).value) || 0) || null);
   $("#bu-amt", sh.el).addEventListener("keydown", (e) => { if (e.key === "Enter") $("#bu-save", sh.el).click(); });
   if ($("#bu-del", sh.el)) $("#bu-del", sh.el).onclick = () => save(null);
@@ -2036,7 +2052,9 @@ function personSheet(person) {
   const sh = openSheet(html`${sheetHead(person ? person.name : "Person hinzufügen")}
     <label class="field"><span>Name</span><input class="input" id="pe-name" value="${person ? person.name : ""}" maxlength="40" ${person ? "" : raw("autofocus")}></label>
     ${person ? html`<label class="field"><span>Anteil an geteilten Ausgaben</span><input class="input" id="pe-weight" inputmode="numeric" value="${person.share_weight}"></label>
-      <p class="small muted" style="margin-top:-6px">Gleiche Zahlen heißen: zu gleichen Teilen. 60 und 40 teilen im Verhältnis 60 zu 40. Mit 0 trägt die Person nichts mit, etwa ein Kind.</p>`
+      <p class="small muted" style="margin-top:-6px">Gleiche Zahlen heißen: zu gleichen Teilen. 60 und 40 teilen im Verhältnis 60 zu 40. Mit 0 trägt die Person nichts mit, etwa ein Kind.</p>
+      <label class="field"><span>Benachrichtigungsdienst</span><input class="input" id="pe-notify" value="${person.notify_service || ""}" placeholder="notify.mobile_app_handy" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <p class="small muted" style="margin-top:-6px">Neue Buchungen auf eigenen Konten dieser Person gehen nur an diesen Dienst, Buchungen auf gemeinsamen Konten an alle. Bleibt das Feld leer, gilt der Dienst aus der Konfiguration der App.</p>`
       : html`<p class="small muted" style="margin-top:-6px">Danach ordnest du unter „Konten“ zu, welche Konten ihr gehören, und koppelst ihr Handy.</p>`}
     <div class="actions"><button class="btn primary" id="pe-save">${person ? "Speichern" : "Anlegen"}</button>
       ${person ? html`<button class="btn danger" id="pe-del">Person entfernen</button>` : ""}</div>`.s);
@@ -2046,6 +2064,7 @@ function personSheet(person) {
       const weight = $("#pe-weight", sh.el).value.trim();
       if (!/^\d{1,4}$/.test(weight)) { toast("Der Anteil muss eine ganze Zahl sein."); return; }
       body.share_weight = Number(weight);
+      body.notify_service = $("#pe-notify", sh.el).value.trim() || null;
     }
     try {
       if (person) await api(`persons/${person.id}`, { method: "PATCH", body }); else await api("persons", { method: "POST", body });

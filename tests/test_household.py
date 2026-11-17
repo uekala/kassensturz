@@ -266,3 +266,112 @@ def test_old_database_gets_the_new_columns(tmp_path):
         assert again.conn.execute("PRAGMA user_version").fetchone()[0] == dbmod.SCHEMA_VERSION
     finally:
         again.close()
+
+
+def test_new_transactions_are_announced_to_whom_they_concern(home, monkeypatch):
+    from kassensturz import ha, options, services
+
+    db, anna, ben = home["db"], home["anna"], home["ben"]
+    sent = []
+    monkeypatch.setattr(ha, "available", lambda: True)
+    monkeypatch.setattr(ha, "_post", lambda path, payload: sent.append((path, payload["message"])) or True)
+    monkeypatch.setattr(ha, "push_sensors", lambda summary: 0)
+    monkeypatch.setattr(options, "load", lambda: dict(options.DEFAULTS, notify_service="notify.haushalt", events=False))
+
+    def fetched(account, who):
+        tx = booking(db, home["accounts"][account], -1234, who)
+        db.update("transactions", "id", tx, {"source": services.AUTO_SOURCES[0]})
+
+    def announce():
+        sent.clear()
+        for name, who in (("shared", "KS-GEMEINSAM Abruf"), ("anna", "KS-ANNA Abruf"), ("ben", "KS-BEN Abruf")):
+            fetched(name, who)
+        services.refresh(db)
+        return {path.rsplit("/", 1)[-1]: message for path, message in sent if "Abruf" in message}
+
+    services.new_auto_transactions(db)  # Stand festhalten
+    # Ohne eigene Dienste geht alles an den Dienst aus der Konfiguration, wie bisher.
+    everything = announce()
+    assert list(everything) == ["haushalt"]
+    assert all(marker in everything["haushalt"] for marker in ("KS-GEMEINSAM", "KS-ANNA", "KS-BEN"))
+
+    household.update_person(db, anna, {"notify_service": "notify.mobile_app_anna"})
+    split = announce()
+    assert set(split) == {"haushalt", "mobile_app_anna"}
+    assert "KS-ANNA" in split["mobile_app_anna"] and "KS-GEMEINSAM" in split["mobile_app_anna"]
+    assert "KS-BEN" not in split["mobile_app_anna"]
+    # Anna hat einen eigenen Dienst: Ihr Konto taucht beim allgemeinen nicht mehr auf. Bens schon, er hat keinen.
+    assert "KS-ANNA" not in split["haushalt"]
+    assert "KS-BEN" in split["haushalt"] and "KS-GEMEINSAM" in split["haushalt"]
+
+    # Trägt Ben den Dienst aus der Konfiguration ein, bekommt er dort seins und das Gemeinsame genau einmal.
+    household.update_person(db, ben, {"notify_service": "notify.haushalt"})
+    same = announce()
+    assert set(same) == {"haushalt", "mobile_app_anna"}
+    assert same["haushalt"].count("KS-GEMEINSAM Abruf") == 1 and "KS-BEN" in same["haushalt"]
+
+    for bad in ("mobile_app_anna", "notify.", "notify.Anna", "notify.a b", "light.turn_on", 5):
+        with pytest.raises(household.HouseholdError):
+            household.update_person(db, anna, {"notify_service": bad})
+    assert household.update_person(db, anna, {"notify_service": ""})["notify_service"] is None
+
+
+def test_goals_belong_to_a_person_or_to_everyone(home):
+    from kassensturz import savings
+
+    db, anna, ben, accounts = home["db"], home["anna"], home["ben"], home["accounts"]
+    db.execute("DELETE FROM goals")
+    shared = savings.create_goal(db, {"name": "KS-GEMEINSAM Urlaub", "target_cents": 6000, "account_id": accounts["shared"]})
+    hers = savings.create_goal(db, {"name": "KS-ANNA Rad", "target_cents": 3000, "owner_person_id": anna,
+                                    "account_id": accounts["shared"]})
+    his = savings.create_goal(db, {"name": "KS-BEN Kamera", "target_cents": 5000, "saved_cents": 1000, "owner_person_id": ben})
+    assert [g["owner_person_id"] for g in savings.list_goals(db)] == [None, anna, ben]
+    with pytest.raises(savings.GoalError):
+        savings.create_goal(db, {"name": "KS Falsch", "target_cents": 100, "owner_person_id": 999})
+
+    def names(view):
+        return [g["name"] for g in savings.list_goals(view)]
+
+    assert names(db.scoped(anna)) == ["KS-GEMEINSAM Urlaub", "KS-ANNA Rad"]
+    assert names(db.scoped(ben)) == ["KS-GEMEINSAM Urlaub", "KS-BEN Kamera"]
+    assert names(db.scoped(None)) == ["KS-GEMEINSAM Urlaub"]
+    assert names(db.part("shared")) == ["KS-GEMEINSAM Urlaub"]
+
+    # Das gemeinsame Konto hat 89,00 €: 60 für den Urlaub, der Rest fürs Rad – egal, wer hinsieht.
+    everything = {g["name"]: g["saved_cents"] for g in savings.list_goals(db)}
+    assert (everything["KS-GEMEINSAM Urlaub"], everything["KS-ANNA Rad"]) == (6000, 2900)
+    assert {g["name"]: g["saved_cents"] for g in savings.list_goals(db.scoped(anna))}["KS-ANNA Rad"] == 2900
+    # Wird das gemeinsame Ziel zu Bens, sieht Anna es nicht mehr; ihr Rad bekommt trotzdem nur den Rest.
+    savings.update_goal(db, shared, {"owner_person_id": ben})
+    seen = {g["name"]: g["saved_cents"] for g in savings.list_goals(db.scoped(anna))}
+    assert seen == {"KS-ANNA Rad": 2900}
+
+    with https_client() as client:
+        headers = pair(client, anna)
+        goals = client.get("/api/v1/overview", headers=headers).json()["goals"]
+        assert [(g["name"], g["ownership"]) for g in goals] == [("KS-ANNA Rad", "mine")]
+        assert "KS-BEN" not in client.get("/api/v1/overview", headers=headers).text
+        assert client.patch(f"/api/goals/{hers}", json={"owner_person_id": None}).status_code == 200
+        assert client.patch(f"/api/goals/{hers}", json={"owner_person_id": 999}).status_code == 400
+        seen_by_ben = client.get("/api/v1/overview", headers=pair(client, ben)).json()["goals"]
+        assert {g["name"]: g["ownership"] for g in seen_by_ben} == {
+            "KS-GEMEINSAM Urlaub": "mine", "KS-ANNA Rad": "shared", "KS-BEN Kamera": "mine"}
+
+        # Solange Ben Ziele gehören, bleibt er.
+        db.execute("UPDATE accounts SET owner_person_id = NULL")
+        with pytest.raises(household.HouseholdError):
+            household.delete_person(db, ben)
+        assert his and db.scalar("SELECT COUNT(*) FROM goals WHERE owner_person_id = ?", (ben,)) == 2
+
+
+def test_an_own_goal_alone_separates_the_views(db, monkeypatch):
+    from kassensturz import savings
+
+    reset_mobile_guards(monkeypatch)
+    anna = household.create_person(db, {"name": "Anna"})["id"]
+    db.insert("accounts", {"name": "KS-GEMEINSAM Kasse", "kind": "cash"})
+    assert db.scoped(None) is db
+    savings.create_goal(db, {"name": "KS-ANNA Rad", "target_cents": 3000, "owner_person_id": anna})
+    assert db.scoped(None) is not db
+    assert [g["name"] for g in savings.list_goals(db.scoped(None))] == []
+    assert [g["name"] for g in savings.list_goals(db.scoped(anna))] == ["KS-ANNA Rad"]

@@ -1,5 +1,41 @@
 # Änderungen
 
+## 0.3.34
+
+- Haushalt: Sparziele je Person. Im Sparziel wählst du unter „Gehört" eine Person oder „Allen gemeinsam".
+  Ein eigenes Ziel sieht in der App nur diese Person, gemeinsame sehen alle.
+- Hängen ein eigenes und ein gemeinsames Ziel am selben Konto, wird dessen Stand weiter der Reihe nach verteilt,
+  egal wer zuschaut.
+
+## 0.3.33
+
+- Haushalt: Geteilte Ausgaben zählen anteilig. In der Auswertung und in den eigenen Budgets einer Person zählt
+  von einer geteilten Ausgabe nur ihr Teil – beim Zahler der eigene, bei den anderen ihrer.
+- Das gilt für die Zahlen je Person: Auswertung und Monatsabschluss in der App, eigene Budgets, und die Ansicht
+  einer Person unter *Budgets* in Home Assistant.
+- Unverändert bleibt, was wirklich vom Konto abging: Buchungen, Kontostände, Prognose und die Zahlen des Haushalts.
+
+## 0.3.32
+
+- Haushalt: eigene Budgets je Person neben den gemeinsamen.
+  - Die bisherigen Budgets gelten für den Haushalt. Gibt es eigene Konten, zählen sie nur noch die Ausgaben von
+    den gemeinsamen Konten.
+  - Jede Person kann zusätzlich eigene Budgets setzen. Sie zählen nur die Ausgaben von ihren eigenen Konten.
+  - In Home Assistant wählst du unter *Budgets* zwischen „Haushalt" und den Personen. In der Mobile-App stehen die
+    eigenen Budgets ab 0.3.26 unter „Nur für dich".
+- Warnungen und Ereignisse zu Budgets beziehen sich weiter auf die Budgets des Haushalts.
+- Ohne eigene Konten ändert sich nichts.
+
+## 0.3.31
+
+- Haushalt: Benachrichtigungen je Person. Unter *Einstellungen → Haushalt* trägst du bei jeder Person ihren
+  Benachrichtigungsdienst ein, zum Beispiel `notify.mobile_app_handy`.
+  - Neue Buchungen auf einem eigenen Konto gehen nur an die Person, der es gehört.
+  - Neue Buchungen auf gemeinsamen Konten gehen an alle.
+  - Hat eine Person keinen eigenen Dienst, gilt für ihre Konten weiter der Dienst aus der Konfiguration.
+- Warnungen, Monatsabschluss, Sensoren und Ereignisse gelten weiter für den ganzen Haushalt und gehen an den Dienst
+  aus der Konfiguration.
+
 ## 0.3.30
 
 - Haushalt, zweite Stufe: Ausgaben teilen und ausgleichen.

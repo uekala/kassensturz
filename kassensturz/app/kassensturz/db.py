@@ -67,6 +67,14 @@ CREATE TABLE IF NOT EXISTS tx_shares(
 );
 CREATE INDEX IF NOT EXISTS tx_shares_person ON tx_shares(person_id);
 
+-- Eigenes Monatsbudget einer Person für eine Kategorie; zählt nur ihre eigenen Konten.
+CREATE TABLE IF NOT EXISTS person_budgets(
+  person_id INTEGER NOT NULL,
+  category_id INTEGER NOT NULL,
+  cents INTEGER NOT NULL,
+  PRIMARY KEY(person_id, category_id)
+);
+
 -- Ausgleichszahlung zwischen zwei Personen, von Hand eingetragen.
 CREATE TABLE IF NOT EXISTS settlements(
   id INTEGER PRIMARY KEY,
@@ -349,7 +357,11 @@ MIGRATIONS = {
     # Gläubiger-ID und IBAN hängen an dem Eintrag für den Namen, aus dem sie gelernt wurden
     "learned_categories": [("parent_id", "INTEGER")],
     # Gewicht beim Teilen gemeinsamer Ausgaben; 0 heißt, die Person trägt nichts mit
-    "persons": [("share_weight", "INTEGER DEFAULT 1")],
+    # Besitzer eines Sparziels; leer heißt gemeinsam
+    "goals": [("owner_person_id", "INTEGER")],
+    "persons": [("share_weight", "INTEGER DEFAULT 1"),
+                # Eigener Benachrichtigungsdienst in Home Assistant, etwa notify.mobile_app_handy
+                ("notify_service", "TEXT")],
     "transactions": [("client_request_id", "TEXT"),
                      # Steuerart einer von Hand markierten Buchung, siehe papers.TAX_KINDS
                      ("tax_kind", "TEXT"),
@@ -363,7 +375,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 6
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {
@@ -388,7 +400,8 @@ _SCOPED_VIEWS = {
     "contracts": "SELECT * FROM main.contracts WHERE account_id IS NULL OR account_id IN ({accounts})",
     "cancellation_events": "SELECT * FROM main.cancellation_events WHERE contract_key IN "
                            "(SELECT key FROM main.contracts WHERE account_id IS NULL OR account_id IN ({accounts}))",
-    "goals": "SELECT * FROM main.goals WHERE account_id IS NULL OR account_id IN ({accounts})",
+    # Ein Ziel gehört wie ein Konto einer Person oder allen; hängt es an einem Konto, muss auch das sichtbar sein
+    "goals": "SELECT * FROM main.goals WHERE {owner} AND (account_id IS NULL OR account_id IN ({accounts}))",
     # Bankzugänge nur, wenn eines ihrer Konten sichtbar ist oder noch keines daran hängt
     "connections": "SELECT * FROM main.connections AS c WHERE "
                    "c.id IN (SELECT connection_id FROM main.accounts WHERE id IN ({accounts})) "
@@ -408,20 +421,23 @@ class ScopedDatabase:
     hier nicht; das läuft über die Hauptverbindung und wird dort einzeln geprüft.
     """
 
-    def __init__(self, parent: "Database", person_id: int | None):
+    def __init__(self, parent: "Database", person_id: int | None, part: str = "all"):
+        """``part``: "all" zeigt eigene und gemeinsame Konten, "own" nur die eigenen, "shared" nur die gemeinsamen."""
         self.parent = parent
         self.person_id = person_id
+        self.part_kind = part
         self.path = parent.path
         self.lock = threading.RLock()
         self.conn = sqlite3.connect(f"file:{parent.path}?mode=ro", uri=True, check_same_thread=False,
                                     isolation_level=None)
         self.conn.row_factory = sqlite3.Row
         # Die Zahl kommt aus der eigenen Datenbank; trotzdem nur als Ganzzahl einsetzen.
-        owner = "owner_person_id IS NULL" if person_id is None else \
-            f"(owner_person_id IS NULL OR owner_person_id = {int(person_id)})"
+        mine = "0" if person_id is None else f"owner_person_id = {int(person_id)}"
+        owner = {"all": f"(owner_person_id IS NULL OR {mine})", "own": f"({mine})",
+                 "shared": "owner_person_id IS NULL"}[part]
         accounts = f"SELECT id FROM main.accounts WHERE {owner}"
         for name, sql in _SCOPED_VIEWS.items():
-            self.conn.execute(f"CREATE TEMP VIEW {name} AS {sql.format(accounts=accounts)}")
+            self.conn.execute(f"CREATE TEMP VIEW {name} AS {sql.format(accounts=accounts, owner=owner)}")
 
     def close(self) -> None:
         with self.lock:
@@ -445,6 +461,9 @@ class ScopedDatabase:
 
     def scoped(self, person_id: int | None):
         return self.parent.scoped(person_id)
+
+    def part(self, kind: str, person_id: int | None = None):
+        return self.parent.part(kind, person_id)
 
     def query(self, sql: str, params=()) -> list[dict]:
         with self.lock:
@@ -507,19 +526,32 @@ class Database:
             self.conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         self.integrity = self._quick_check()
         self._depth = 0
-        self._scoped: dict[int | None, ScopedDatabase] = {}
+        self._scoped: dict[tuple, ScopedDatabase] = {}
 
     def has_private_accounts(self) -> bool:
-        return bool(self.scalar("SELECT 1 FROM accounts WHERE owner_person_id IS NOT NULL LIMIT 1"))
+        """Ob etwas einer einzelnen Person gehört – ein Konto oder ein Sparziel. Erst dann wird getrennt."""
+        return bool(self.scalar(
+            "SELECT 1 FROM accounts WHERE owner_person_id IS NOT NULL UNION ALL "
+            "SELECT 1 FROM goals WHERE owner_person_id IS NOT NULL LIMIT 1"))
 
     def scoped(self, person_id: int | None):
         """Sicht einer Person. Solange kein Konto jemandem gehört, ist das die ganze Datenbank."""
         if not self.has_private_accounts():
             return self
+        return self._view("all", person_id)
+
+    def part(self, kind: str, person_id: int | None = None):
+        """Nur die gemeinsamen Konten ("shared") oder nur die eigenen einer Person ("own")."""
+        if kind == "shared":
+            # Ohne eigene Konten ist alles gemeinsam.
+            return self._view("shared", None) if self.has_private_accounts() else self
+        return self._view("own", person_id)
+
+    def _view(self, kind: str, person_id: int | None):
         with self.lock:
-            view = self._scoped.get(person_id)
+            view = self._scoped.get((kind, person_id))
             if view is None:
-                view = self._scoped[person_id] = ScopedDatabase(self, person_id)
+                view = self._scoped[(kind, person_id)] = ScopedDatabase(self, person_id, kind)
             return view
 
     def _quick_check(self) -> str:

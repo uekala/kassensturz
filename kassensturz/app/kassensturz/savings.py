@@ -63,13 +63,18 @@ def list_goals(db: Database, today: date | None = None) -> list[dict]:
     balances = {a["id"]: max(0, a["balance_now"]) for a in ledger.accounts_with_balance(db) if a["balance_known"]}
     names = {a["id"]: a["name"] for a in db.query("SELECT id, name FROM accounts")}
     out = []
-    for g in db.query("SELECT * FROM goals ORDER BY id"):
+    # In der Sicht einer Person fehlen die Ziele der anderen. Hängen sie am selben gemeinsamen
+    # Konto, bekommen sie trotzdem zuerst ihren Teil vom Stand, sonst zählte das Geld doppelt.
+    visible = {g["id"] for g in db.query("SELECT id FROM goals")}
+    for g in getattr(db, "parent", db).query("SELECT * FROM goals ORDER BY id"):
         target = int(g["target_cents"])
         if g["account_id"] in balances:
             saved = min(target, balances[g["account_id"]])
             balances[g["account_id"]] -= saved
         else:
             saved = min(target, max(0, int(g["saved_cents"] or 0)))
+        if g["id"] not in visible:
+            continue
         rest = target - saved
         due = None
         try:
@@ -83,6 +88,7 @@ def list_goals(db: Database, today: date | None = None) -> list[dict]:
         out.append({"id": g["id"], "name": g["name"], "target_cents": target, "saved_cents": saved, "rest_cents": rest,
                     "due_date": g["due_date"], "account_id": g["account_id"], "account_name": names.get(g["account_id"]),
                     "linked": g["account_id"] in names, "monthly_cents": monthly, "status": status,
+                    "owner_person_id": g["owner_person_id"],
                     "progress": round(saved / target, 4) if target else 0})
     return out
 
@@ -121,6 +127,12 @@ def _clean(db: Database, body: dict, existing: dict | None = None) -> dict:
         if account is not None and not db.one("SELECT id FROM accounts WHERE id = ?", (account,)):
             raise GoalError("Das Konto gibt es nicht.")
         data["account_id"] = account
+    if "owner_person_id" in body:
+        owner = body.get("owner_person_id") or None
+        if owner is not None and (isinstance(owner, bool) or not isinstance(owner, int)
+                                  or not db.one("SELECT id FROM persons WHERE id = ?", (owner,))):
+            raise GoalError("Diese Person gibt es nicht.")
+        data["owner_person_id"] = owner
     return data
 
 

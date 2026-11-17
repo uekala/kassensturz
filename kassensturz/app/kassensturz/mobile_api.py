@@ -56,6 +56,7 @@ CAPABILITIES = (
     "networth",
     "household",
     "household.sharing",
+    "budgets.own",
 )
 INGRESS_IP = "172.30.32.2"
 MAX_PAIRING_SECRET_LENGTH = 128
@@ -372,6 +373,8 @@ def overview(request: Request):
     result = mobile_read.get_overview(get_db(), view=_view(device))
     result["household"] = household.profile(get_db(), device.person_id)
     result["household"]["balances"] = sharing.for_person(get_db(), device.person_id)
+    # Budgets that only count this person's own accounts; "budgets" are the household's.
+    result["own_budgets"] = mobile_read.budget_items(household.own_budgets(get_db(), device.person_id))
     return result
 
 
@@ -843,6 +846,27 @@ async def set_budget(category_id: str, request: Request):
         budget = mobile_write.set_budget(get_db(), parsed_id, payload)
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
+    services.schedule_refresh()
+    return {"budget": budget}
+
+
+@router.put("/api/v1/budgets/own/{category_id}")
+async def set_own_budget(category_id: str, request: Request):
+    """Set or remove a budget that only counts this person's own accounts."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed_id = _transaction_id(category_id)
+    if parsed_id is None:
+        return _not_found("Kategorie")
+    payload = await _json_object(request)
+    if payload is None or set(payload) != {"limit_cents"}:
+        return _error(400, "invalid_request", "Erwartet wird genau das Feld limit_cents.")
+    try:
+        budget = household.set_own_budget(get_db(), device.person_id, parsed_id, payload["limit_cents"])
+    except household.HouseholdError as error:
+        code = {400: "invalid_request", 404: "not_found"}.get(error.status, "not_possible")
+        return _error(error.status, code, error.message)
     services.schedule_refresh()
     return {"budget": budget}
 

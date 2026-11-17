@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import analytics, backup, contracts, fints_sync, ha, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
+from . import analytics, backup, contracts, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -25,7 +25,8 @@ def build_summary(db: Database) -> dict:
         "accounts": accounts,
         "worth": net_worth(accounts),
         "goals": savings.list_goals(db, today),
-        "budgets": analytics.budgets(db),
+        # Budgets des Haushalts zählen die gemeinsamen Konten; eigene Budgets stehen bei der Person.
+        "budgets": analytics.budgets(db.part("shared")),
         "month": month,
         "fixed_monthly_cents": analytics.fixed_costs_monthly(running),
         "contract_count": sum(1 for c in running if c["kind"] == "expense"),
@@ -210,7 +211,7 @@ def new_auto_transactions(db: Database) -> list[dict]:
     marks = ",".join("?" for _ in AUTO_SOURCES)
     rows = db.query(
         f"""SELECT t.id, t.booking_date, t.amount_cents, t.counterparty, t.booking_text, t.purpose, t.is_transfer,
-                   a.name AS account, c.builtin_key AS category_key
+                   a.name AS account, a.owner_person_id, c.builtin_key AS category_key
             FROM transactions t JOIN accounts a ON a.id = t.account_id
             LEFT JOIN categories c ON c.id = t.category_id
             WHERE t.id > ? AND t.source IN ({marks})
@@ -322,9 +323,12 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
         if review and opts.get("notify_month_review", True):
             ha.notify(db, review["key"], review["title"], review["message"], opts.get("notify_service"))
         rows = new_auto_transactions(db)
-        notice = transactions_notice(rows)
-        if notice and opts.get("notify_new_transactions", True):
-            ha.notify(db, notice["key"], notice["title"], notice["message"], opts.get("notify_service"))
+        if opts.get("notify_new_transactions", True):
+            # Je Empfänger eine Meldung mit dem, was er sehen darf.
+            for service, own_rows in household.notice_targets(db, rows, opts.get("notify_service")).items():
+                notice = transactions_notice(own_rows)
+                key = notice["key"] + (f":{service}" if service else "")
+                ha.notify(db, key, notice["title"], notice["message"], service or opts.get("notify_service"))
         if opts.get("events", True):
             for event, data in transaction_events(rows, large_transaction_cents(opts)):
                 ha.fire(event, data)

@@ -8,6 +8,7 @@ import 'package:kassensturz_mobile/features/more/household_page.dart';
 import 'support/fake_server.dart';
 
 const _capabilities = [...fullCapabilities, 'household.sharing'];
+const _budgetCapabilities = [...fullCapabilities, 'budgets.own'];
 
 const _sharing = <String, dynamic>{
   'open': [
@@ -78,5 +79,30 @@ void main() {
     expect(await controller.addSettlement(1, 1500, 'Kino'), isNull);
     expect(sent, {'to_person_id': 1, 'cents': 1500, 'note': 'Kino'});
     expect(await controller.addSettlement(0, 1500, ''), isNotNull);
+  });
+
+  test('an own budget is saved under its own address', () async {
+    final paths = <String>[];
+    final transport = ScriptedTransport((request) {
+      if (request.method == 'PUT') {
+        paths.add(request.uri.path);
+        return jsonResponse(200, {'budget': <String, dynamic>{}});
+      }
+      return serverAnswer(request, capabilities: _budgetCapabilities);
+    });
+    final controller = MobileConnectionController(
+      apiClient: MobileApiClient(
+        sessionStore: await pairedStore(),
+        transport: transport,
+        refreshRetryDelay: Duration.zero,
+      ),
+      readRetryDelay: Duration.zero,
+    );
+    await controller.restore();
+    expect(controller.canEditOwnBudgets, isTrue);
+
+    expect(await controller.setBudget(6, 2000, own: true), isNull);
+    expect(await controller.setBudget(6, 2000), isNull);
+    expect(paths, ['/api/v1/budgets/own/6', '/api/v1/budgets/6']);
   });
 }

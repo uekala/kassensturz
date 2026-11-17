@@ -155,6 +155,21 @@ def _forecast_dto(source: dict) -> dict:
     }
 
 
+def budget_items(budgets: list[dict]) -> list[dict]:
+    """Budgets in der Form, in der die App sie bekommt."""
+    return [
+        {
+            "category_id": int(item["category_id"]),
+            "name": _text(item.get("name"), 80),
+            "limit_cents": int(item.get("budget_cents") or 0),
+            "spent_cents": int(item.get("spent_cents") or 0),
+            "remaining_cents": int(item.get("left_cents") or 0),
+            "state": item.get("state") if item.get("state") in {"ok", "warn", "over"} else "ok",
+        }
+        for item in budgets
+    ]
+
+
 def serialize_overview(
     summary: dict,
     alerts: list[dict],
@@ -190,17 +205,7 @@ def serialize_overview(
             }
         )
 
-    budgets = [
-        {
-            "category_id": int(item["category_id"]),
-            "name": _text(item.get("name"), 80),
-            "limit_cents": int(item.get("budget_cents") or 0),
-            "spent_cents": int(item.get("spent_cents") or 0),
-            "remaining_cents": int(item.get("left_cents") or 0),
-            "state": item.get("state") if item.get("state") in {"ok", "warn", "over"} else "ok",
-        }
-        for item in summary.get("budgets", [])
-    ]
+    budgets = budget_items(summary.get("budgets", []))
 
     month = summary.get("month") or {}
     month_dto = {
@@ -261,6 +266,7 @@ def get_overview(db: Database, *, as_of: datetime | None = None, view=None) -> d
             "monthly_cents": goal["monthly_cents"],
             "status": goal["status"],
             "progress": goal["progress"],
+            "ownership": "shared" if goal.get("owner_person_id") is None else "mine",
         }
         for goal in savings.list_goals(db)
     ]

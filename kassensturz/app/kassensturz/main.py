@@ -543,7 +543,8 @@ def delete_category(cid: int):
 
 
 @app.get("/api/budgets")
-def get_budgets(month: str = ""):
+def get_budgets(month: str = "", person: int | None = None):
+    """Budgets des Haushalts oder, mit ``person``, die eigenen einer Person auf ihren eigenen Konten."""
     db = get_db()
     on = date.fromisoformat(month + "-15") if month else date.today()
     if on.year == date.today().year and on.month == date.today().month:
@@ -551,7 +552,13 @@ def get_budgets(month: str = ""):
     else:
         from .util import month_end
         on = month_end(on)
-    return {"budgets": analytics.budgets(db, on), "stats": analytics.month_stats(db, on.strftime("%Y-%m"))}
+    if person is not None:
+        if not household.person_exists(db, person):
+            _err(404, "Diese Person gibt es nicht.")
+        own = db.part("own", person)
+        return {"budgets": household.own_budgets(db, person, on), "stats": analytics.month_stats(own, on.strftime("%Y-%m")),
+                "limits": household.own_budget_limits(db, person)}
+    return {"budgets": analytics.budgets(db.part("shared"), on), "stats": analytics.month_stats(db, on.strftime("%Y-%m"))}
 
 
 @app.get("/api/rules")
@@ -670,6 +677,13 @@ def update_person(pid: int, body: dict = Body(...)):
 @app.delete("/api/persons/{pid}")
 def delete_person(pid: int):
     return _household(household.delete_person, pid)
+
+
+@app.put("/api/persons/{pid}/budgets/{cid}")
+def set_person_budget(pid: int, cid: int, body: dict = Body(...)):
+    result = _household(household.set_own_budget, pid, cid, body.get("budget_cents"))
+    _changed()
+    return result
 
 
 def _sharing(call, *args):

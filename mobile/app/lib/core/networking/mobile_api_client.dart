@@ -446,14 +446,20 @@ class MobileApiClient {
     );
   }
 
-  /// Sets the monthly budget of an expense category; null removes it.
-  Future<Map<String, dynamic>> setBudget(int categoryId, int? limitCents) {
+  /// Sets the monthly budget of an expense category; null removes it. With
+  /// [own] it is the budget of this person that only counts own accounts.
+  Future<Map<String, dynamic>> setBudget(
+    int categoryId,
+    int? limitCents, {
+    bool own = false,
+  }) {
     if (categoryId <= 0 || (limitCents != null && limitCents <= 0)) {
       throw const FormatException('Das Budget ist ungültig.');
     }
+    final prefix = own ? '/api/v1/budgets/own' : '/api/v1/budgets';
     return _authenticatedJson(
       method: 'PUT',
-      path: '/api/v1/budgets/$categoryId',
+      path: '$prefix/$categoryId',
       body: {'limit_cents': limitCents},
     );
   }

@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from . import contracts as contracts_mod
-from . import ledger, savings
+from . import ledger, savings, sharing
 from .db import Database
 from .util import add_months, euro, month_end, month_start
 
@@ -129,12 +129,14 @@ def category_tree(db: Database) -> tuple[dict, dict]:
     return cats, top
 
 
-def budgets(db: Database, on: date | None = None) -> list[dict]:
+def budgets(db: Database, on: date | None = None, limits: dict[int, int] | None = None) -> list[dict]:
+    """Budgets des Monats mit Verbrauch. ``limits`` ersetzt die Budgets der Kategorien,
+    etwa durch die eigenen einer Person; gezählt wird, was ``db`` an Buchungen zeigt."""
     on = on or date.today()
     start, end = month_start(on), month_end(on)
     cats, top = category_tree(db)
     spent = defaultdict(int)
-    for e in ledger.entries(db, start.isoformat(), end.isoformat()):
+    for e in sharing.spending(db, start.isoformat(), end.isoformat()):
         if e["is_transfer"] or e["amount_cents"] >= 0 or not e["category_id"]:
             continue
         spent[e["category_id"]] += -e["amount_cents"]
@@ -144,10 +146,10 @@ def budgets(db: Database, on: date | None = None) -> list[dict]:
     pace = on.day / days
     out = []
     for cid, c in cats.items():
-        if not c["budget_cents"]:
+        b = c["budget_cents"] if limits is None else limits.get(cid)
+        if not b:
             continue
         s = spent.get(cid, 0) + (spent.get(("top", cid), 0) if top.get(cid) == cid else 0)
-        b = c["budget_cents"]
         ratio = s / b if b else 0
         state = "over" if ratio > 1 else ("warn" if ratio > max(0.8, pace + 0.1) else "ok")
         out.append({"category_id": cid, "name": c["name"], "budget_cents": b, "spent_cents": s, "left_cents": b - s,
@@ -164,7 +166,7 @@ def month_stats(db: Database, month: str) -> dict:
     inc = exp = 0
     by_top = defaultdict(int)
     by_cat = defaultdict(int)
-    for e in ledger.entries(db, start.isoformat(), end.isoformat()):
+    for e in sharing.spending(db, start.isoformat(), end.isoformat()):
         if e["is_transfer"]:
             continue
         if e["amount_cents"] > 0:
@@ -191,7 +193,7 @@ def monthly_totals(db: Database, months: int = 12) -> list[dict]:
     for i in range(months):
         k = add_months(start, i).strftime("%Y-%m")
         res[k] = {"month": k, "income_cents": 0, "expense_cents": 0}
-    for e in ledger.entries(db, start.isoformat(), today.isoformat()):
+    for e in sharing.spending(db, start.isoformat(), today.isoformat()):
         if e["is_transfer"]:
             continue
         k = e["booking_date"][:7]
@@ -275,7 +277,7 @@ def month_review(db: Database, month: str) -> dict:
     notable = sorted((c for c in categories if c["change_cents"] is not None and c["change_cents"] >= 3000
                       and c["change_cents"] * 4 >= (c["usual_cents"] or 0)), key=lambda c: -c["change_cents"])
     biggest = None
-    for e in ledger.entries(db, start.isoformat(), month_end(start).isoformat()):
+    for e in sharing.spending(db, start.isoformat(), month_end(start).isoformat()):
         if e["is_transfer"] or e["amount_cents"] >= 0 or e["contract_key"]:
             continue
         if biggest is None or e["amount_cents"] < biggest["amount_cents"]:
@@ -349,7 +351,7 @@ def budget_suggestions(db: Database, today: date | None = None) -> dict:
         return {"months": 0, "items": []}
     cats, top = category_tree(db)
     spent = defaultdict(int)
-    for e in ledger.entries(db, months[-1].isoformat(), end.isoformat()):
+    for e in sharing.spending(db, months[-1].isoformat(), end.isoformat()):
         if e["is_transfer"] or e["amount_cents"] >= 0 or not e["category_id"]:
             continue
         spent[top.get(e["category_id"], e["category_id"])] += -e["amount_cents"]
