@@ -49,6 +49,15 @@ CREATE TABLE IF NOT EXISTS accounts(
   created TEXT
 );
 
+-- Wer zum Haushalt gehört. Ein Konto gehört einer Person oder allen (owner_person_id leer).
+CREATE TABLE IF NOT EXISTS persons(
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  color TEXT,
+  sort INTEGER DEFAULT 0,
+  created TEXT
+);
+
 CREATE TABLE IF NOT EXISTS categories(
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
@@ -312,7 +321,9 @@ CREATE INDEX IF NOT EXISTS mobile_tokens_expiry ON mobile_tokens(expires_at);
 MIGRATIONS = {
     "accounts": [("eb_session_id", "INTEGER"), ("eb_uid", "TEXT"), ("eb_ident", "TEXT"),
                  # Fälligkeit eines Festgelds oder Laufzeitende eines Kredits
-                 ("matures_on", "TEXT")],
+                 ("matures_on", "TEXT"),
+                 # Besitzer im Haushalt; leer heißt gemeinsam
+                 ("owner_person_id", "INTEGER")],
     "cancellation_events": [("provider_confirmed_at", "TEXT"), ("aborted_at", "TEXT")],
     # Kennung, mit der ein Mobilgerät eine von Hand angelegte Buchung genau einmal anlegt
     # Gläubiger-ID und IBAN hängen an dem Eintrag für den Namen, aus dem sie gelernt wurden
@@ -330,7 +341,120 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+
+# Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
+MOBILE_MIGRATIONS = {
+    # Person, der ein Gerät zugeordnet ist; ein Kopplungscode trägt sie bis zum Einlösen
+    "mobile_devices": [("person_id", "INTEGER")],
+    "mobile_pairings": [("person_id", "INTEGER")],
+}
+
+# Tabellen, die eine Person nur für ihre eigenen und die gemeinsamen Konten sieht.
+# {accounts} steht für die Auswahl der sichtbaren Konto-IDs.
+_SCOPED_VIEWS = {
+    "accounts": "SELECT * FROM main.accounts WHERE id IN ({accounts})",
+    "transactions": "SELECT * FROM main.transactions WHERE account_id IN ({accounts})",
+    "splits": "SELECT * FROM main.splits WHERE tx_id IN "
+              "(SELECT id FROM main.transactions WHERE account_id IN ({accounts}))",
+    "receipts": "SELECT * FROM main.receipts WHERE tx_id IN "
+                "(SELECT id FROM main.transactions WHERE account_id IN ({accounts}))",
+    "valuations": "SELECT * FROM main.valuations WHERE account_id IN ({accounts})",
+    "balance_checks": "SELECT * FROM main.balance_checks WHERE account_id IN ({accounts})",
+    "imports": "SELECT * FROM main.imports WHERE account_id IS NULL OR account_id IN ({accounts})",
+    "csv_profiles": "SELECT * FROM main.csv_profiles WHERE account_id IS NULL OR account_id IN ({accounts})",
+    "contracts": "SELECT * FROM main.contracts WHERE account_id IS NULL OR account_id IN ({accounts})",
+    "cancellation_events": "SELECT * FROM main.cancellation_events WHERE contract_key IN "
+                           "(SELECT key FROM main.contracts WHERE account_id IS NULL OR account_id IN ({accounts}))",
+    "goals": "SELECT * FROM main.goals WHERE account_id IS NULL OR account_id IN ({accounts})",
+    # Bankzugänge nur, wenn eines ihrer Konten sichtbar ist oder noch keines daran hängt
+    "connections": "SELECT * FROM main.connections AS c WHERE "
+                   "c.id IN (SELECT connection_id FROM main.accounts WHERE id IN ({accounts})) "
+                   "OR NOT EXISTS (SELECT 1 FROM main.accounts WHERE connection_id = c.id)",
+    "eb_sessions": "SELECT * FROM main.eb_sessions AS s WHERE "
+                   "s.id IN (SELECT eb_session_id FROM main.accounts WHERE id IN ({accounts})) "
+                   "OR NOT EXISTS (SELECT 1 FROM main.accounts WHERE eb_session_id = s.id)",
+}
+
+
+class ScopedDatabase:
+    """Nur-Lese-Sicht einer Person: eigene und gemeinsame Konten, sonst nichts.
+
+    Eine eigene SQLite-Verbindung im Nur-Lese-Modus. Temporäre Sichten überdecken die
+    Tabellen mit Kontobezug, deshalb sehen alle vorhandenen Abfragen von selbst nur,
+    was die Person sehen darf – auch solche, die später dazukommen. Schreiben geht
+    hier nicht; das läuft über die Hauptverbindung und wird dort einzeln geprüft.
+    """
+
+    def __init__(self, parent: "Database", person_id: int | None):
+        self.parent = parent
+        self.person_id = person_id
+        self.path = parent.path
+        self.lock = threading.RLock()
+        self.conn = sqlite3.connect(f"file:{parent.path}?mode=ro", uri=True, check_same_thread=False,
+                                    isolation_level=None)
+        self.conn.row_factory = sqlite3.Row
+        # Die Zahl kommt aus der eigenen Datenbank; trotzdem nur als Ganzzahl einsetzen.
+        owner = "owner_person_id IS NULL" if person_id is None else \
+            f"(owner_person_id IS NULL OR owner_person_id = {int(person_id)})"
+        accounts = f"SELECT id FROM main.accounts WHERE {owner}"
+        for name, sql in _SCOPED_VIEWS.items():
+            self.conn.execute(f"CREATE TEMP VIEW {name} AS {sql.format(accounts=accounts)}")
+
+    def close(self) -> None:
+        with self.lock:
+            self.conn.close()
+
+    # Zustand der Datei, den die Zustandsprüfung liest
+    @property
+    def integrity(self) -> str:
+        return self.parent.integrity
+
+    @property
+    def schema_before(self) -> int:
+        return self.parent.schema_before
+
+    @property
+    def newer_schema(self) -> bool:
+        return self.parent.newer_schema
+
+    def has_private_accounts(self) -> bool:
+        return self.parent.has_private_accounts()
+
+    def scoped(self, person_id: int | None):
+        return self.parent.scoped(person_id)
+
+    def query(self, sql: str, params=()) -> list[dict]:
+        with self.lock:
+            return [dict(r) for r in self.conn.execute(sql, params).fetchall()]
+
+    def one(self, sql: str, params=()) -> dict | None:
+        with self.lock:
+            row = self.conn.execute(sql, params).fetchone()
+            return dict(row) if row else None
+
+    def scalar(self, sql: str, params=()):
+        with self.lock:
+            row = self.conn.execute(sql, params).fetchone()
+            return row[0] if row else None
+
+    def get_setting(self, key: str, default=None):
+        row = self.one("SELECT value FROM settings WHERE key = ?", (key,))
+        if not row:
+            return default
+        try:
+            return json.loads(row["value"])
+        except (TypeError, ValueError):
+            return default
+
+    def set_setting(self, key: str, value) -> None:
+        # Einstellungen haben keinen Kontobezug und werden über die Hauptverbindung geschrieben.
+        self.parent.set_setting(key, value)
+
+    def _read_only(self, *args, **kwargs):
+        raise RuntimeError("Die Sicht einer Person ist nur lesbar.")
+
+    execute = execute_count = executemany = insert = update = tx = _read_only
 
 
 class Database:
@@ -361,6 +485,20 @@ class Database:
             self.conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         self.integrity = self._quick_check()
         self._depth = 0
+        self._scoped: dict[int | None, ScopedDatabase] = {}
+
+    def has_private_accounts(self) -> bool:
+        return bool(self.scalar("SELECT 1 FROM accounts WHERE owner_person_id IS NOT NULL LIMIT 1"))
+
+    def scoped(self, person_id: int | None):
+        """Sicht einer Person. Solange kein Konto jemandem gehört, ist das die ganze Datenbank."""
+        if not self.has_private_accounts():
+            return self
+        with self.lock:
+            view = self._scoped.get(person_id)
+            if view is None:
+                view = self._scoped[person_id] = ScopedDatabase(self, person_id)
+            return view
 
     def _quick_check(self) -> str:
         """„ok“ oder die erste Meldung von SQLite. Läuft einmal beim Start."""
@@ -378,6 +516,9 @@ class Database:
         plus write-ahead log. A running transaction finishes first (lock).
         """
         with self.lock:
+            for view in self._scoped.values():
+                view.close()
+            self._scoped.clear()
             try:
                 self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
             finally:
@@ -394,6 +535,14 @@ class Database:
             "WHERE client_request_id IS NOT NULL"
         )
         self._migrate_mobile_tables()
+        self._add_columns(MOBILE_MIGRATIONS)
+
+    def _add_columns(self, migrations: dict) -> None:
+        for table, cols in migrations.items():
+            have = {r[1] for r in self.conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            for name, typ in cols:
+                if name not in have:
+                    self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {typ}")
 
     def _migrate_mobile_tables(self) -> None:
         """Härtet die noch nicht produktiv genutzten Mobile-Tabellen verlustfrei nach."""

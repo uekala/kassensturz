@@ -237,9 +237,14 @@ def serialize_overview(
     }
 
 
-def get_overview(db: Database, *, as_of: datetime | None = None) -> dict:
-    """Build a fresh mobile overview from the existing local domain services."""
+def get_overview(db: Database, *, as_of: datetime | None = None, view=None) -> dict:
+    """Build a fresh mobile overview from the existing local domain services.
+
+    Contracts are detected on the whole database; everything shown is read
+    through ``view``, the part of it the device's person may see.
+    """
     contracts.detect(db)
+    db = view or db
     summary = services.build_summary(db)
     alert_items = services.alerts(db, summary)
     overview = serialize_overview(summary, alert_items, as_of=as_of)

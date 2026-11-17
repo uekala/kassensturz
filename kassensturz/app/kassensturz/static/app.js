@@ -100,14 +100,16 @@ function toast(text) {
 }
 
 /* ------------------------------------------------------------------ Zustand */
-const store = { cats: [], catById: new Map(), accounts: [], state: {} };
+const store = { cats: [], catById: new Map(), accounts: [], persons: [], state: {} };
 async function loadBase() {
-  const [cats, accounts, state] = await Promise.all([api("categories"), api("accounts"), api("state")]);
+  const [cats, accounts, state, persons] = await Promise.all([api("categories"), api("accounts"), api("state"), api("persons")]);
+  store.persons = persons;
   store.cats = cats;
   store.catById = new Map(cats.map((c) => [c.id, c]));
   store.accounts = accounts;
   store.state = state;
 }
+function personName(id) { return store.persons.find((p) => p.id === id)?.name || ""; }
 function catName(id) { return store.catById.get(id)?.name || "Ohne Kategorie"; }
 function topCats() { return store.cats.filter((c) => !c.parent_id); }
 function childCats(id) { return store.cats.filter((c) => c.parent_id === id); }
@@ -1307,7 +1309,7 @@ async function renderAccounts(view, _params, seq) {
         ${worth.count ? html`<div class="worth"><span class="label">Vermögen</span><div class="big-amount">${money(worth.total)}</div>
           <p class="small muted">${worth.parts.map(([l, c]) => `${l} ${money(c)}`).join(" · ")}</p>${spark}</div>` : ""}
         ${accounts.length ? html`<ul class="list">${accounts.map((a) => html`<li><button class="row" data-acc="${a.id}" style="${a.archived ? "opacity:.55" : ""}">
-          <span class="title">${a.name}${a.archived ? " (archiviert)" : ""}${!a.in_forecast && !a.archived && !VALUE_KINDS.has(a.kind) ? html` <span class="chip neutral">nicht in Prognose</span>` : ""}${a.drift_cents ? html` <span class="chip warn">passt nicht</span>` : ""}</span>
+          <span class="title">${a.name}${a.archived ? " (archiviert)" : ""}${!a.in_forecast && !a.archived && !VALUE_KINDS.has(a.kind) ? html` <span class="chip neutral">nicht in Prognose</span>` : ""}${a.drift_cents ? html` <span class="chip warn">passt nicht</span>` : ""}${a.owner_person_id ? html` <span class="chip neutral">${personName(a.owner_person_id)}</span>` : ""}</span>
           <span class="sub">${VALUE_KINDS.has(a.kind) ? source(a) : `${KIND_LABEL[a.kind] || a.kind}, ${source(a)}`}</span>
           <span class="amount">${a.balance_known ? money(a.balance_now) : html`<span class="chip warn">${VALUE_KINDS.has(a.kind) ? "Wert fehlt" : "Stand fehlt"}</span>`}<small>${VALUE_KINDS.has(a.kind) ? (a.balance_known ? `Stand ${dShort(a.balance_date)}` : "") : `${a.tx_count} Buchungen`}</small></span></button></li>`)}</ul>`
           : html`<p class="muted">Noch keine Konten. Verbinde eine Bank oder importiere eine Datei.</p>`}
@@ -1535,6 +1537,8 @@ function accountSheet(a) {
     <label class="field" id="ac-due-field" ${MATURING_KINDS.has(a.kind) ? "" : raw("hidden")}><span id="ac-due-label">${a.kind === "kredit" ? "Läuft bis" : "Fällig am"}</span>
       <input class="input" type="date" id="ac-due" value="${a.matures_on || ""}"></label>
     <label class="check"><input type="checkbox" id="ac-fc" ${a.in_forecast ? raw("checked") : ""}><span>Zählt zum Kontostand und zur Prognose</span></label>
+    ${store.persons.length ? html`<label class="field"><span>Gehört</span><select id="ac-owner"><option value="">Allen gemeinsam</option>${store.persons.map((p) => html`<option value="${p.id}" ${p.id === a.owner_person_id ? raw("selected") : ""}>${p.name}</option>`)}</select></label>
+    <p class="small muted" style="margin-top:-6px">Ein eigenes Konto sieht in der App nur diese Person, ein gemeinsames sehen alle. Hier in Home Assistant bleibt alles sichtbar.</p>` : ""}
     ${!isNew ? html`<label class="check"><input type="checkbox" id="ac-arch" ${a.archived ? raw("checked") : ""}><span>Archivieren – Buchungen bleiben erhalten, fließen aber nicht mehr ein</span></label>` : ""}
     <div class="actions"><button class="btn primary" id="ac-save">${isNew ? "Anlegen" : "Speichern"}</button>
       ${!isNew ? html`<button class="btn danger" id="ac-del">Konto löschen</button>` : ""}</div>`.s);
@@ -1542,6 +1546,7 @@ function accountSheet(a) {
     const body = { name: $("#ac-name", sh.el).value.trim(), kind: $("#ac-kind", sh.el).value, iban: $("#ac-iban", sh.el).value.trim(),
       settlement_pattern: $("#ac-settle", sh.el).value.trim(), in_forecast: $("#ac-fc", sh.el).checked ? 1 : 0 };
     body.matures_on = MATURING_KINDS.has(body.kind) ? $("#ac-due", sh.el).value : "";
+    if ($("#ac-owner", sh.el)) body.owner_person_id = Number($("#ac-owner", sh.el).value) || null;
     if (!isNew) body.archived = $("#ac-arch", sh.el).checked ? 1 : 0;
     try {
       if (isNew) await api("accounts", { method: "POST", body }); else await api(`accounts/${a.id}`, { method: "PATCH", body });
@@ -1809,6 +1814,8 @@ async function renderSettings(view, _params, seq) {
   ]);
   if (seq !== renderSeq) return;
   const p = s.profile || {};
+  // Handys ohne Person fallen erst auf, wenn es eigene Konten gibt: Dann sehen sie nur noch die gemeinsamen.
+  const unassigned = store.accounts.some((a) => a.owner_person_id) ? devices.items.filter((d) => !d.revoked_at && !d.person_id).length : 0;
   view.innerHTML = html`
     <div class="page-head"><h1>Einstellungen</h1></div>
     <div class="cols"><div>
@@ -1831,10 +1838,22 @@ async function renderSettings(view, _params, seq) {
         <p class="small muted">Warnschwelle ${s.options.warn_threshold} €, täglicher Abruf um ${s.options.sync_time} Uhr, Benachrichtigung über ${s.options.notify_service || "persistente Meldungen"}. Ändern lässt sich das in der Konfiguration der App.</p>
       </section>
       <section class="section">
+        <div class="section-head"><h2>Haushalt</h2><button class="link-btn" id="p-add">Person hinzufügen</button></div>
+        <p class="small muted">Für Paare und Familien: Lege an, wer mitmacht, und ordne Konten und Handys zu. Jede Person sieht in der App ihre eigenen Konten und die gemeinsamen. Diese Oberfläche in Home Assistant ist die Verwaltung und zeigt immer alles.</p>
+        ${store.persons.length ? html`<ul class="list">${store.persons.map((p) => html`<li class="row static">
+          <span class="title">${p.name}</span>
+          <span class="sub">${p.accounts === 1 ? "1 eigenes Konto" : `${p.accounts} eigene Konten`} · ${p.devices === 1 ? "1 Handy" : `${p.devices} Handys`}</span>
+          <span class="amount"><button class="btn small" data-person="${p.id}">Bearbeiten</button></span></li>`)}</ul>`
+          : html`<p class="small muted">Noch niemand angelegt. Solange kein Konto einer Person gehört, sieht jedes gekoppelte Handy alles.</p>`}
+        ${unassigned ? html`<div class="alert warning" style="margin:10px 0"><div><strong>${unassigned === 1 ? "Ein Handy ist" : `${unassigned} Handys sind`} keiner Person zugeordnet</strong>
+          <p class="small">Solche Handys sehen nur die gemeinsamen Konten. Ordne sie unten unter „Mobile Geräte“ zu.</p></div></div>` : ""}
+      </section>
+      <section class="section">
         <div class="section-head">
           <h2>Mobile Geräte</h2>
           <button class="link-btn" id="mobile-pair">Gerät koppeln</button>
         </div>
+        ${store.persons.length ? html`<label class="field"><span>Das nächste Handy gehört</span><select id="mobile-pair-person"><option value="">Noch niemandem</option>${store.persons.map((p) => html`<option value="${p.id}">${p.name}</option>`)}</select></label>` : ""}
         <p class="small muted">Hier verwaltest du die Geräte, die auf Kassensturz Mobile zugreifen dürfen. Ein Pairing-Code ist fünf Minuten gültig und kann nur einmal verwendet werden.</p>
         ${s.options.mobile_server_url ? html`<p class="small muted">Mobile-Adresse für QR-Pairing: <code>${s.options.mobile_server_url}</code></p>` : html`<p class="small muted">Für QR-Pairing muss in den Home-Assistant-App-Optionen die externe HTTPS-Adresse als <code>mobile_server_url</code> hinterlegt sein. Ohne diese Einstellung bleibt die manuelle Code-Eingabe verfügbar.</p>`}
         <div id="mobile-pair-result" aria-live="polite"></div>
@@ -1843,7 +1862,7 @@ async function renderSettings(view, _params, seq) {
             <li class="row static">
               <span class="title">${d.name}</span>
               <span class="sub">${d.revoked_at ? "Widerrufen" : "Aktiv"} · hinzugefügt ${d.created_at ? dFull(d.created_at.slice(0, 10)) : "–"}${d.last_used_at ? ` · zuletzt aktiv ${dFull(d.last_used_at.slice(0, 10))}` : ""}</span>
-              <span class="amount">${!d.revoked_at ? html`<button class="btn small danger" data-mobile-revoke="${d.id}">Widerrufen</button>` : html`<span class="small muted">Gesperrt</span>`}</span>
+              <span class="amount" style="display:flex;gap:6px;align-items:center">${!d.revoked_at && store.persons.length ? html`<select data-mobile-person="${d.id}" aria-label="Person für ${d.name}"><option value="">Niemand</option>${store.persons.map((p) => html`<option value="${p.id}" ${p.id === d.person_id ? raw("selected") : ""}>${p.name}</option>`)}</select>` : ""}${!d.revoked_at ? html`<button class="btn small danger" data-mobile-revoke="${d.id}">Widerrufen</button>` : html`<span class="small muted">Gesperrt</span>`}</span>
             </li>` )}</ul>` : html`<p class="small muted">Noch keine gekoppelten Geräte.</p>`}
         </div>
       </section>
@@ -1897,10 +1916,11 @@ async function renderSettings(view, _params, seq) {
     const button = $("#mobile-pair");
     button.disabled = true;
     try {
-      const pairing = await api("mobile/pairings", { method: "POST" });
+      const owner = $("#mobile-pair-person");
+      const pairing = await api("mobile/pairings", { method: "POST", body: owner ? { person_id: Number(owner.value) || null } : undefined });
       $("#mobile-pair-result").innerHTML = html`
         <div class="note" style="margin:12px 0" role="status">
-          <strong>Einmaliger Pairing-Code</strong>
+          <strong>Einmaliger Pairing-Code${pairing.person_id ? ` für ${personName(pairing.person_id)}` : ""}</strong>
           <p class="small muted">Gib diesen Code in Kassensturz Mobile ein. Er verfällt am ${new Date(pairing.expires_at).toLocaleString("de-DE")}. Er kann nur einmal verwendet werden.</p>
           ${pairing.qr_svg_base64 ? html`
             <div style="display:flex;justify-content:center;padding:12px 0">
@@ -1952,6 +1972,15 @@ async function renderSettings(view, _params, seq) {
       toast(err.message);
     }
   }));
+  $("#p-add").onclick = () => personSheet();
+  on(view, "[data-person]", "click", (_e, el) => personSheet(store.persons.find((x) => x.id === Number(el.dataset.person))));
+  on(view, "[data-mobile-person]", "change", async (_e, el) => {
+    try {
+      await api(`mobile/devices/${encodeURIComponent(el.dataset.mobilePerson)}`, { method: "PATCH", body: { person_id: Number(el.value) || null } });
+      toast("Zuordnung gespeichert");
+    } catch (err) { toast(err.message); }
+    rerender();
+  });
   $("#s-save").onclick = async () => {
     await api("settings", { method: "PUT", body: { profile: { name: $("#s-name").value, street: $("#s-street").value, city: $("#s-city").value, email: $("#s-email").value },
       buffer_cents: Math.abs(parseMoney($("#s-buffer").value) || 0), deduct_reserve: $("#s-reserve").checked } });
@@ -1964,6 +1993,24 @@ async function renderSettings(view, _params, seq) {
   $("#d-recat").onclick = async () => { const r = await api("recategorize", { method: "POST" }); toast(`${r.recategorized} Buchungen neu zugeordnet`); };
   if ($("#d-demo")) $("#d-demo").onclick = async () => { await api("demo", { method: "POST" }); toast("Beispieldaten geladen"); go(""); };
   if ($("#d-demo-off")) confirmButton($("#d-demo-off"), "Wirklich entfernen?", async () => { await api("demo", { method: "DELETE" }); toast("Beispieldaten entfernt"); rerender(); });
+}
+
+function personSheet(person) {
+  const sh = openSheet(html`${sheetHead(person ? person.name : "Person hinzufügen")}
+    <label class="field"><span>Name</span><input class="input" id="pe-name" value="${person ? person.name : ""}" maxlength="40" ${person ? "" : raw("autofocus")}></label>
+    ${person ? "" : html`<p class="small muted" style="margin-top:-6px">Danach ordnest du unter „Konten“ zu, welche Konten ihr gehören, und koppelst ihr Handy.</p>`}
+    <div class="actions"><button class="btn primary" id="pe-save">${person ? "Speichern" : "Anlegen"}</button>
+      ${person ? html`<button class="btn danger" id="pe-del">Person entfernen</button>` : ""}</div>`.s);
+  $("#pe-save", sh.el).onclick = async () => {
+    const body = { name: $("#pe-name", sh.el).value };
+    try {
+      if (person) await api(`persons/${person.id}`, { method: "PATCH", body }); else await api("persons", { method: "POST", body });
+      sh.close(); toast("Gespeichert"); rerender();
+    } catch (e) { toast(e.message); }
+  };
+  if (person) confirmButton($("#pe-del", sh.el), "Wirklich entfernen?", async () => {
+    try { await api(`persons/${person.id}`, { method: "DELETE" }); sh.close(); toast("Person entfernt"); rerender(); } catch (e) { toast(e.message); }
+  });
 }
 
 function ruleSheet() {

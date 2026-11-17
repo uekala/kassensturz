@@ -54,6 +54,8 @@ class RefreshReplayDetected(InvalidCredential):
 class MobileDevice:
     id: str
     name: str
+    # Person im Haushalt, der das Gerät zugeordnet ist; None heißt keiner
+    person_id: int | None = None
 
 
 def _utc(value: datetime) -> datetime:
@@ -113,8 +115,11 @@ class MobileAuthService:
     def _now(self) -> datetime:
         return _utc(self._clock())
 
-    def create_pairing(self) -> dict:
-        """Create a five-minute pairing secret; the raw value is returned once."""
+    def create_pairing(self, person_id: int | None = None) -> dict:
+        """Create a five-minute pairing secret; the raw value is returned once.
+
+        The device that redeems it is assigned to ``person_id``.
+        """
         now = self._now()
         created_at = _stamp(now)
         expires_at = _stamp(now + PAIRING_TTL)
@@ -140,6 +145,7 @@ class MobileAuthService:
                     "created_at": created_at,
                     "expires_at": expires_at,
                     "consumed_at": None,
+                    "person_id": person_id,
                 },
             )
 
@@ -164,7 +170,7 @@ class MobileAuthService:
 
         with self._db.tx(immediate=True):
             pairing = self._db.one(
-                "SELECT id, expires_at, consumed_at FROM mobile_pairings "
+                "SELECT id, expires_at, consumed_at, person_id FROM mobile_pairings "
                 "WHERE secret_hash = ?",
                 (pairing_hash,),
             )
@@ -185,7 +191,8 @@ class MobileAuthService:
 
             self._db.insert(
                 "mobile_devices",
-                {"id": device_id, "name": name, "created_at": now_text},
+                {"id": device_id, "name": name, "created_at": now_text,
+                 "person_id": pairing["person_id"]},
             )
             self._insert_token(
                 access_hash, device_id, "access", now, ACCESS_TTL
@@ -212,7 +219,7 @@ class MobileAuthService:
             row = self._db.one(
                 """
                 SELECT t.device_id, t.expires_at, t.revoked_at,
-                       d.name, d.revoked_at AS device_revoked_at
+                       d.name, d.person_id, d.revoked_at AS device_revoked_at
                 FROM mobile_tokens AS t
                 JOIN mobile_devices AS d ON d.id = t.device_id
                 WHERE t.token_hash = ? AND t.token_type = 'access'
@@ -233,7 +240,7 @@ class MobileAuthService:
                 row["device_id"],
                 {"last_used_at": now_text},
             )
-            return MobileDevice(id=row["device_id"], name=row["name"])
+            return MobileDevice(id=row["device_id"], name=row["name"], person_id=row["person_id"])
 
     def rotate_refresh_token(self, refresh_token: str) -> dict:
         """Rotate a refresh token.
@@ -404,7 +411,7 @@ class MobileAuthService:
     def list_devices(self) -> list[dict]:
         """Return device metadata only; credential material is never included."""
         return self._db.query(
-            "SELECT id, name, created_at, last_used_at, revoked_at "
+            "SELECT id, name, created_at, last_used_at, revoked_at, person_id "
             "FROM mobile_devices ORDER BY created_at DESC, id ASC"
         )
 

@@ -102,6 +102,7 @@ def test_create_manual_transaction_updates_balance_and_is_listed(db, monkeypatch
                 "balance_date": "2026-11-01",
                 "transaction_count": 1,
                 "manual_entries": True,
+                "ownership": "shared",
             }
         ]
 
