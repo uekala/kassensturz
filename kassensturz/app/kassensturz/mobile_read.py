@@ -185,6 +185,8 @@ def serialize_overview(
                 if account.get("value_prev_cents") is None
                 else int(account["value_prev_cents"]),
                 "previous_value_date": account.get("value_prev_date"),
+                # Fremde eigene Konten kommen hier gar nicht an.
+                "ownership": "shared" if account.get("owner_person_id") is None else "mine",
             }
         )
 

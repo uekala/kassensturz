@@ -96,6 +96,12 @@ def test_every_read_endpoint_hides_the_other_persons_data(home):
         assert {name: a["ownership"] for name, a in accounts.items()} == {
             "KS-GEMEINSAM Kasse": "shared", "KS-ANNA Kasse": "mine"}
         assert accounts["KS-ANNA Kasse"]["balance_cents"] == 20000 - 2200
+        overview = client.get("/api/v1/overview", headers=anna).json()
+        assert {a["name"]: a["ownership"] for a in overview["accounts"]} == {
+            "KS-GEMEINSAM Kasse": "shared", "KS-ANNA Kasse": "mine"}
+        assert overview["household"]["person"]["name"] == "Anna"
+        assert overview["household"]["private_accounts"] is True
+        assert client.get("/api/v1/overview", headers=nobody).json()["household"]["person"] is None
         # Summen rechnen nur mit dem Sichtbaren.
         month = client.get("/api/v1/stats", headers=anna).json()["month"]
         assert month["expense_cents"] == 1100 + 2200

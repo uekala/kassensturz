@@ -368,7 +368,9 @@ def overview(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return mobile_read.get_overview(get_db(), view=_view(device))
+    result = mobile_read.get_overview(get_db(), view=_view(device))
+    result["household"] = household.profile(get_db(), device.person_id)
+    return result
 
 
 @router.get("/api/v1/transactions")
