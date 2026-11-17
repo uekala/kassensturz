@@ -536,6 +536,26 @@ class MobileApiClient {
     );
   }
 
+  /// Shared expenses of this person, what is open, and the payments.
+  Future<Map<String, dynamic>> householdSharing() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/household/sharing');
+
+  /// Records a payment from this person to another one of the household.
+  Future<Map<String, dynamic>> addSettlement(
+    int toPersonId,
+    int cents,
+    String note,
+  ) {
+    if (toPersonId <= 0 || cents <= 0) {
+      throw const FormatException('Die Zahlung ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'POST',
+      path: '/api/v1/household/settlements',
+      body: {'to_person_id': toPersonId, 'cents': cents, 'note': note},
+    );
+  }
+
   /// Shares an expense by the shares set for the household, or undoes that.
   Future<Map<String, dynamic>> setTransactionShare(
     int transactionId, {

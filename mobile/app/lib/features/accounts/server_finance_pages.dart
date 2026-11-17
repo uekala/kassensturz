@@ -6,6 +6,7 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 import '../budget/budget_editor_sheet.dart';
 import '../budget/triage_page.dart';
+import '../more/household_page.dart';
 import 'net_worth_trend.dart';
 
 /// Accounts as the server reports them; they are managed in Home Assistant.
@@ -74,6 +75,18 @@ class ServerAccountsPage extends StatelessWidget {
             const SizedBox(height: 8),
             Text(scope, style: textTheme.bodySmall),
             for (final line in owed) Text(line, style: textTheme.bodySmall),
+            if (controller.canShareExpenses)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => HouseholdPage(controller: controller),
+                    ),
+                  ),
+                  child: const Text('Geteilte Ausgaben und Ausgleich'),
+                ),
+              ),
           ],
           const SizedBox(height: 22),
           if (controller.canShowNetWorthHistory && data != null)
