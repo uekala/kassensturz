@@ -4,6 +4,7 @@ import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import 'receipts_section.dart';
+import 'share_section.dart';
 
 /// Creates a manual transaction or edits an existing one. Everything is
 /// stored on the server; the page keeps no copy on the device.
@@ -533,6 +534,13 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
                 controller: widget.controller,
                 transactionId: existing.id,
                 picker: widget.receiptPicker,
+              ),
+            ],
+            if (existing != null && widget.controller.canShareExpenses) ...[
+              const SizedBox(height: 16),
+              ShareSection(
+                controller: widget.controller,
+                transactionId: existing.id,
               ),
             ],
             if (_error != null) ...[

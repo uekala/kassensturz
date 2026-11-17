@@ -34,6 +34,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const affordCapability = 'afford';
   static const taxCapability = 'tax';
   static const receiptsCapability = 'receipts';
+  static const sharingCapability = 'household.sharing';
   static const warrantyCapability = 'warranty';
   static const accountsCapability = 'accounts.write';
   static const syncCapability = 'sync';
@@ -283,6 +284,9 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when the server keeps receipts for transactions.
   bool get canUseReceipts => _capabilities.contains(receiptsCapability);
+
+  /// True when expenses can be shared with the household.
+  bool get canShareExpenses => _capabilities.contains(sharingCapability);
 
   /// True once the server announced that it accepts manual transactions.
   bool get canWriteTransactions => _capabilities.contains(writeCapability);
@@ -845,6 +849,30 @@ class MobileConnectionController extends ChangeNotifier {
       return null;
     } catch (error) {
       return _describeFailure(error);
+    }
+  }
+
+  /// How one expense is shared with the household.
+  Future<({Map<String, dynamic>? share, String? error})> loadShare(
+    int id,
+  ) async {
+    try {
+      return (share: await _apiClient.transactionShare(id), error: null);
+    } catch (error) {
+      return (share: null, error: await _describeFailure(error));
+    }
+  }
+
+  /// Shares an expense with the household or takes that back.
+  Future<({Map<String, dynamic>? share, String? error})> setShare(
+    int id, {
+    required bool shared,
+  }) async {
+    try {
+      final share = await _apiClient.setTransactionShare(id, shared: shared);
+      return (share: share, error: null);
+    } catch (error) {
+      return (share: null, error: await _describeFailure(error));
     }
   }
 
