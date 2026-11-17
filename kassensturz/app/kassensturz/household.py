@@ -17,6 +17,7 @@ from .db import Database, now_iso
 MAX_PERSONS = 12
 MAX_NAME_LENGTH = 40
 _COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+_NOTIFY = re.compile(r"^notify\.[a-z0-9_]{1,100}$")
 
 
 class HouseholdError(Exception):
@@ -40,10 +41,18 @@ def _color(value) -> str | None:
     return value.lower()
 
 
+def _notify_service(value) -> str | None:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, str) or not _NOTIFY.match(value.strip()):
+        raise HouseholdError(400, "Der Benachrichtigungsdienst muss so aussehen: notify.mobile_app_name")
+    return value.strip()
+
+
 def list_persons(db: Database) -> list[dict]:
     """Personen mit der Zahl ihrer Konten und ihrer aktiven Geräte."""
     return db.query(
-        "SELECT p.id, p.name, p.color, COALESCE(p.share_weight, 1) AS share_weight, "
+        "SELECT p.id, p.name, p.color, COALESCE(p.share_weight, 1) AS share_weight, p.notify_service, "
         "(SELECT COUNT(*) FROM accounts AS a WHERE a.owner_person_id = p.id) AS accounts, "
         "(SELECT COUNT(*) FROM mobile_devices AS d WHERE d.person_id = p.id AND d.revoked_at IS NULL) AS devices "
         "FROM persons AS p ORDER BY p.sort, p.id"
@@ -84,6 +93,8 @@ def update_person(db: Database, person_id: int, payload: dict) -> dict:
         data["name"] = _name(payload["name"])
     if "color" in payload:
         data["color"] = _color(payload["color"])
+    if "notify_service" in payload:
+        data["notify_service"] = _notify_service(payload["notify_service"])
     if "share_weight" in payload:
         try:
             data["share_weight"] = sharing.clean_weight(payload["share_weight"])
@@ -149,6 +160,27 @@ def sees_receipt(db: Database, person_id: int | None, receipt_id: int) -> bool:
 
 def sees_contract(db: Database, person_id: int | None, key: str) -> bool:
     return bool(view(db, person_id).scalar("SELECT 1 FROM contracts WHERE key = ?", (key,)))
+
+
+def notice_targets(db: Database, rows: list[dict], default_service: str | None) -> dict[str, list[dict]]:
+    """Wer von welchen neuen Buchungen erfährt, je Benachrichtigungsdienst.
+
+    Eine Buchung auf einem eigenen Konto geht an den Dienst der Person, der das Konto
+    gehört; hat sie keinen, an den Dienst aus der Konfiguration. Eine Buchung auf einem
+    gemeinsamen Konto geht an alle. Der Schlüssel "" steht für den Dienst aus der
+    Konfiguration, auch wenn dort keiner eingetragen ist (dann persistente Meldung).
+    """
+    default = (default_service or "").strip()
+    services = {p["id"]: (p["notify_service"] or "").strip()
+                for p in db.query("SELECT id, notify_service FROM persons")}
+    own = {pid: ("" if service == default else service) for pid, service in services.items()}
+    everyone = {""} | set(own.values())
+    out: dict[str, list[dict]] = {}
+    for row in rows:
+        owner = row.get("owner_person_id")
+        for target in (everyone if owner is None else {own.get(owner, "")}):
+            out.setdefault(target, []).append(row)
+    return out
 
 
 def profile(db: Database, person_id: int | None) -> dict:

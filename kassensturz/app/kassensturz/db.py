@@ -349,7 +349,9 @@ MIGRATIONS = {
     # Gläubiger-ID und IBAN hängen an dem Eintrag für den Namen, aus dem sie gelernt wurden
     "learned_categories": [("parent_id", "INTEGER")],
     # Gewicht beim Teilen gemeinsamer Ausgaben; 0 heißt, die Person trägt nichts mit
-    "persons": [("share_weight", "INTEGER DEFAULT 1")],
+    "persons": [("share_weight", "INTEGER DEFAULT 1"),
+                # Eigener Benachrichtigungsdienst in Home Assistant, etwa notify.mobile_app_handy
+                ("notify_service", "TEXT")],
     "transactions": [("client_request_id", "TEXT"),
                      # Steuerart einer von Hand markierten Buchung, siehe papers.TAX_KINDS
                      ("tax_kind", "TEXT"),
@@ -363,7 +365,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {

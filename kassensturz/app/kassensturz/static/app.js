@@ -2036,7 +2036,9 @@ function personSheet(person) {
   const sh = openSheet(html`${sheetHead(person ? person.name : "Person hinzufügen")}
     <label class="field"><span>Name</span><input class="input" id="pe-name" value="${person ? person.name : ""}" maxlength="40" ${person ? "" : raw("autofocus")}></label>
     ${person ? html`<label class="field"><span>Anteil an geteilten Ausgaben</span><input class="input" id="pe-weight" inputmode="numeric" value="${person.share_weight}"></label>
-      <p class="small muted" style="margin-top:-6px">Gleiche Zahlen heißen: zu gleichen Teilen. 60 und 40 teilen im Verhältnis 60 zu 40. Mit 0 trägt die Person nichts mit, etwa ein Kind.</p>`
+      <p class="small muted" style="margin-top:-6px">Gleiche Zahlen heißen: zu gleichen Teilen. 60 und 40 teilen im Verhältnis 60 zu 40. Mit 0 trägt die Person nichts mit, etwa ein Kind.</p>
+      <label class="field"><span>Benachrichtigungsdienst</span><input class="input" id="pe-notify" value="${person.notify_service || ""}" placeholder="notify.mobile_app_handy" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <p class="small muted" style="margin-top:-6px">Neue Buchungen auf eigenen Konten dieser Person gehen nur an diesen Dienst, Buchungen auf gemeinsamen Konten an alle. Bleibt das Feld leer, gilt der Dienst aus der Konfiguration der App.</p>`
       : html`<p class="small muted" style="margin-top:-6px">Danach ordnest du unter „Konten“ zu, welche Konten ihr gehören, und koppelst ihr Handy.</p>`}
     <div class="actions"><button class="btn primary" id="pe-save">${person ? "Speichern" : "Anlegen"}</button>
       ${person ? html`<button class="btn danger" id="pe-del">Person entfernen</button>` : ""}</div>`.s);
@@ -2046,6 +2048,7 @@ function personSheet(person) {
       const weight = $("#pe-weight", sh.el).value.trim();
       if (!/^\d{1,4}$/.test(weight)) { toast("Der Anteil muss eine ganze Zahl sein."); return; }
       body.share_weight = Number(weight);
+      body.notify_service = $("#pe-notify", sh.el).value.trim() || null;
     }
     try {
       if (person) await api(`persons/${person.id}`, { method: "PATCH", body }); else await api("persons", { method: "POST", body });

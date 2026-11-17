@@ -147,7 +147,11 @@ Gut zu wissen:
 - Die Oberfläche in Home Assistant ist die Verwaltung und zeigt immer alles. Wer Home Assistant verwaltet, kommt
   ohnehin an die Datenbank und die Sicherungen. Getrennt ist also, was die Handys sehen – nicht, was die
   Verwaltung sieht.
-- Sensoren, Ereignisse und Benachrichtigungen gelten für den ganzen Haushalt und enthalten auch eigene Konten.
+- Neue Buchungen meldet Kassensturz je Person: Trage bei jeder Person unter *Einstellungen → Haushalt* ihren
+  Benachrichtigungsdienst ein (etwa `notify.mobile_app_handy`). Buchungen auf eigenen Konten gehen dann nur an sie,
+  Buchungen auf gemeinsamen Konten an alle. Ohne eigenen Dienst gilt der aus der Konfiguration.
+- Warnungen, Monatsabschluss, Sensoren und Ereignisse gelten für den ganzen Haushalt und enthalten auch eigene
+  Konten. Sie gehen an den Dienst aus der Konfiguration.
 - Budgets und Kategorien sind gemeinsam. Der Verbrauch eines Budgets wird je Person aus ihren sichtbaren Konten
   berechnet.
 - Eine Person lässt sich erst entfernen, wenn ihr keine Konten und Handys mehr zugeordnet sind. So wird ein

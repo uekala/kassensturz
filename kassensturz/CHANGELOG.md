@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.31
+
+- Haushalt: Benachrichtigungen je Person. Unter *Einstellungen → Haushalt* trägst du bei jeder Person ihren
+  Benachrichtigungsdienst ein, zum Beispiel `notify.mobile_app_handy`.
+  - Neue Buchungen auf einem eigenen Konto gehen nur an die Person, der es gehört.
+  - Neue Buchungen auf gemeinsamen Konten gehen an alle.
+  - Hat eine Person keinen eigenen Dienst, gilt für ihre Konten weiter der Dienst aus der Konfiguration.
+- Warnungen, Monatsabschluss, Sensoren und Ereignisse gelten weiter für den ganzen Haushalt und gehen an den Dienst
+  aus der Konfiguration.
+
 ## 0.3.30
 
 - Haushalt, zweite Stufe: Ausgaben teilen und ausgleichen.
