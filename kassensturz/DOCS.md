@@ -272,6 +272,19 @@ also 300 € da sein. Die Budgetseite zeigt die Summe und jeden Vertrag einzeln.
 Unter *Einstellungen* kannst du diese Rücklage von „frei verfügbar“ abziehen lassen. Lass das aus, wenn du dafür schon Geld
 auf einem Tagesgeld- oder Sparkonto zurücklegst, sonst zählt es doppelt.
 
+## Änderungsprotokoll
+
+Unter *Einstellungen → Änderungen* steht, wer wann was geändert hat: in Home Assistant oder an einem gekoppelten Handy.
+*Alle ansehen* zeigt jeden Eintrag und filtert nach Person oder Gerät.
+
+- **Wer:** in Home Assistant der angemeldete Benutzer, am Handy die Person, der das Handy gehört, sonst sein Name.
+- **Was:** ein Satz, bei Buchungen, Budgets, Konten und Ausgleichszahlungen mit den Einzelheiten, etwa
+  „REWE, −23,40 € am 12.11.2026: Kategorie „Lebensmittel““ oder „Budget „Freizeit“: 250,00 € statt 200,00 €“.
+- **Nicht darin:** was Kassensturz von selbst erledigt (Bankabruf, Taschengeld, automatische Zuordnung), bloßes
+  Ansehen, und nie der Inhalt von Formularen: PINs, Schlüssel und TANs landen nicht im Protokoll.
+
+Einträge bleiben gut ein Jahr, höchstens 20.000 Stück; Ältere löscht Kassensturz von selbst.
+
 ## Kredite mit Tilgungsplan
 
 Ein Kredit ist ein Konto der Art *Kredit* mit einer von Hand eingetragenen Restschuld. Trägst du am Konto auch

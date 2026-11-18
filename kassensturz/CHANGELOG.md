@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.3.45
+
+- Änderungsprotokoll: Unter *Einstellungen → Änderungen* steht, wer im Haushalt wann was geändert hat, in Home
+  Assistant oder am Handy.
+  - Bei Buchungen, Budgets, Konten und Ausgleichszahlungen mit den Einzelheiten, sonst mit einem kurzen Satz.
+  - Filter nach Person oder Gerät.
+  - Hintergrundläufe und Inhalte von Formularen (PINs, Schlüssel, TANs) stehen nie darin. Einträge bleiben gut ein
+    Jahr.
+
 ## 0.3.44
 
 - Kredite mit Tilgungsplan: Am Konto der Art *Kredit* lassen sich Sollzins und Monatsrate eintragen.

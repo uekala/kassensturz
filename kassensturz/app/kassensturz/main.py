@@ -18,10 +18,11 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (allowance, analytics, anomalies, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, loans, openbanking, options, papers, planned, projects, savings,
+from . import (allowance, analytics, anomalies, audit, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, loans, openbanking, options, papers, planned, projects, savings,
                secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
+from .util import euro
 from .mobile_api import router as mobile_api_router
 from .mobile_security import (
     InMemoryRateLimiter,
@@ -104,6 +105,25 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 app.include_router(mobile_api_router)
 
 _imports: dict[str, dict] = {}
+
+
+@app.middleware("http")
+async def audit_trail(request: Request, call_next):
+    """Schreibt erfolgreiche Änderungen ins Protokoll, mit dem, der sie gemacht hat."""
+    if request.method not in audit.WRITE_METHODS or not request.url.path.startswith("/api/"):
+        return await call_next(request)
+    holder, token = audit.begin(request)
+    try:
+        response = await call_next(request)
+    finally:
+        audit.end(token)
+    route = request.scope.get("route")
+    if response.status_code < 400 and route is not None:
+        try:
+            audit.finish(get_db(), holder, request.method, route.path)
+        except Exception:  # noqa: BLE001 – das Protokoll darf keine Änderung scheitern lassen
+            log.warning("Änderungsprotokoll nicht geschrieben", exc_info=True)
+    return response
 
 
 @app.middleware("http")
@@ -293,6 +313,7 @@ def _expected(call, *args):
         result = call(get_db(), *args)
     except expected.ExpectedError as error:
         _err(error.status, error.message)
+    audit.subject(result.get("label"), result.get("account_id"))
     _changed()
     return result
 
@@ -327,6 +348,11 @@ def _projects(call, *args):
         result = call(get_db(), *args)
     except projects.ProjectError as error:
         _err(error.status, error.message)
+    if isinstance(result, dict):
+        project = result.get("project") or result
+        audit.subject(project.get("name"))
+        if "assigned" in result:
+            audit.subject(f"{project.get('name')}, {result['assigned']} Buchungen")
     _changed()
     return result
 
@@ -362,6 +388,7 @@ def project_change(project_id: int, body: dict = Body(...)):
 
 @app.delete("/api/projects/{project_id}")
 def project_delete(project_id: int):
+    audit.subject(get_db().scalar("SELECT name FROM projects WHERE id = ?", (project_id,)))
     _projects(projects.delete, project_id)
     return {"ok": True}
 
@@ -402,6 +429,7 @@ def _planned(call, *args):
         result = call(get_db(), *args)
     except planned.PlannedError as error:
         _err(error.status, error.message)
+    audit.subject(result.get("label"), result.get("account_id"))
     _changed()
     return result
 
@@ -552,12 +580,14 @@ def update_transaction(tx_id: int, body: dict = Body(...)):
     learned = None
     if "category_id" in data and not body.get("rule") and body.get("learn", True):
         learned = categorize.learn(db, tx, data["category_id"])
+    project_before = db.scalar("SELECT project_id FROM project_tx WHERE tx_id = ?", (tx_id,))
     if "project_id" in body:
         try:
             projects.set_for(db, tx_id, body.get("project_id"))
         except projects.ProjectError as error:
             _err(error.status, error.message)
     db.update("transactions", "id", tx_id, data)
+    _note_tx_change(db, tx, data, project_before, body)
     if body.get("rule") or learned:
         changed = categorize.recategorize(db)
     _changed()
@@ -623,6 +653,7 @@ def reset_transaction(tx_id: int):
     db = get_db()
     db.update("transactions", "id", tx_id, {"category_locked": 0})
     categorize.recategorize(db, [tx_id])
+    _note_tx(db, tx_id, "wieder automatisch zugeordnet")
     _changed()
     return {"ok": True}
 
@@ -642,6 +673,8 @@ def set_splits(tx_id: int, body: dict = Body(...)):
         for p in parts:
             db.insert("splits", {"tx_id": tx_id, "amount_cents": int(p["amount_cents"]), "category_id": p.get("category_id"),
                                  "note": (p.get("note") or "").strip() or None})
+    audit.note(f"{audit.tx_label(tx)}: " + (f"aufgeteilt in {len(parts)} Teile" if parts else "Aufteilung entfernt"),
+               tx["account_id"])
     _changed()
     return {"ok": True}
 
@@ -661,6 +694,35 @@ def suggest_rule(tx_id: int):
             if rx.search(norm(r["counterparty"])) or rx.search(norm(r["purpose"])):
                 count += 1
     return {"pattern": pattern, "matches": count, "sign": "in" if tx["amount_cents"] > 0 else "out"}
+
+
+def _note_tx_change(db, tx: dict, data: dict, project_before, body: dict) -> None:
+    """Was sich an einer Buchung geändert hat, als ein Satz fürs Protokoll."""
+    parts = []
+    if "category_id" in data:
+        name = db.scalar("SELECT name FROM categories WHERE id = ?", (data["category_id"],))
+        rule = (body.get("rule") or {}).get("pattern") if isinstance(body.get("rule"), dict) else None
+        parts.append(f"Kategorie „{name}“" + (f", auch künftig bei „{rule.strip()[:40]}“" if rule and rule.strip() else ""))
+    if "note" in data and data["note"] != tx["note"]:
+        parts.append("Notiz geändert" if data["note"] else "Notiz gelöscht")
+    if "tax_kind" in data and data["tax_kind"] != tx["tax_kind"]:
+        parts.append("für die Steuer markiert" if data["tax_kind"] else "Steuer-Markierung entfernt")
+    if "warranty_until" in data and data["warranty_until"] != tx["warranty_until"]:
+        parts.append(f"Garantie bis {date.fromisoformat(data['warranty_until']).strftime('%d.%m.%Y')}"
+                     if data["warranty_until"] else "Garantie entfernt")
+    if "project_id" in body and body.get("project_id") != project_before:
+        name = db.scalar("SELECT name FROM projects WHERE id = ?", (body.get("project_id"),)) if body.get("project_id") else None
+        parts.append(f"Projekt „{name}“" if name else "aus dem Projekt genommen")
+    if parts:
+        audit.note(f"{audit.tx_label(tx)}: {', '.join(parts)}", tx["account_id"])
+    else:
+        audit.skip()
+
+
+def _note_tx(db, tx_id: int, what: str) -> None:
+    tx = db.one("SELECT * FROM transactions WHERE id = ?", (tx_id,))
+    if tx:
+        audit.note(f"{audit.tx_label(tx)}: {what}", tx["account_id"])
 
 
 # --- Kategorien, Budgets, Regeln ------------------------------------------------------
@@ -683,6 +745,7 @@ def create_category(body: dict = Body(...)):
         kind = p["kind"] if p else kind
     sort = (db.scalar("SELECT MAX(sort) FROM categories") or 0) + 10
     cid = db.insert("categories", {"name": name[:60], "parent_id": parent, "kind": kind, "sort": sort})
+    audit.subject(name[:60])
     return db.one("SELECT * FROM categories WHERE id = ?", (cid,))
 
 
@@ -695,9 +758,30 @@ def update_category(cid: int, body: dict = Body(...)):
     if "budget_cents" in body:
         b = body["budget_cents"]
         data["budget_cents"] = int(b) if b not in (None, "", 0) else None
+    before = db.one("SELECT name, budget_cents FROM categories WHERE id = ?", (cid,))
     db.update("categories", "id", cid, data)
+    if before:
+        _note_category(before, data)
     _changed()
     return db.one("SELECT * FROM categories WHERE id = ?", (cid,))
+
+
+def _note_category(before: dict, data: dict) -> None:
+    parts = []
+    if "name" in data and data["name"] != before["name"]:
+        parts.append(f"Kategorie „{before['name']}“ heißt jetzt „{data['name']}“")
+    if "budget_cents" in data and data["budget_cents"] != before["budget_cents"]:
+        name = data.get("name") or before["name"]
+        if data["budget_cents"] is None:
+            parts.append(f"Budget „{name}“ entfernt (vorher {euro(before['budget_cents'])})")
+        elif before["budget_cents"] is None:
+            parts.append(f"Budget „{name}“ festgelegt: {euro(data['budget_cents'])}")
+        else:
+            parts.append(f"Budget „{name}“: {euro(data['budget_cents'])} statt {euro(before['budget_cents'])}")
+    for text in parts:
+        audit.note(text)
+    if not parts:
+        audit.skip()
 
 
 @app.delete("/api/categories/{cid}")
@@ -706,6 +790,7 @@ def delete_category(cid: int):
     cat = db.one("SELECT * FROM categories WHERE id = ?", (cid,))
     if not cat:
         _err(404, "Kategorie nicht gefunden.")
+    audit.subject(cat["name"])
     if cat["builtin_key"]:
         _err(400, "Eingebaute Kategorien lassen sich nur umbenennen.")
     fallback = cat["parent_id"] or db.scalar("SELECT id FROM categories WHERE builtin_key = 'sonstiges'")
@@ -768,6 +853,8 @@ def create_rule(body: dict = Body(...)):
     if not pattern:
         _err(400, "Suchbegriff fehlt.")
     cat = db.one("SELECT * FROM categories WHERE id = ?", (body.get("category_id"),)) if body.get("category_id") else None
+    audit.subject(f"„{pattern[:40]}“ → " + ("Umbuchung" if body.get("mark_transfer") or (cat and cat["kind"] == "transfer")
+                                               else (cat["name"] if cat else "keine Kategorie")))
     rid = db.insert("rules", {"pattern": pattern, "field": body.get("field") or "any", "sign": body.get("sign") or "any",
                               "category_id": cat["id"] if cat else None,
                               "mark_transfer": 1 if (body.get("mark_transfer") or (cat and cat["kind"] == "transfer")) else 0,
@@ -790,6 +877,8 @@ def update_rule(rid: int, body: dict = Body(...)):
 @app.delete("/api/rules/{rid}")
 def delete_rule(rid: int):
     db = get_db()
+    pattern = db.scalar("SELECT pattern FROM rules WHERE id = ?", (rid,))
+    audit.subject(f"„{pattern[:40]}“" if pattern else None)
     db.execute("DELETE FROM rules WHERE id = ?", (rid,))
     n = categorize.recategorize(db)
     _changed()
@@ -848,6 +937,11 @@ def _household(call, *args):
         _err(error.status, error.message)
 
 
+@app.get("/api/changes")
+def changes(offset: int = 0, limit: int = 50, actor: str = ""):
+    return audit.listing(get_db(), offset, limit, actor or None)
+
+
 @app.get("/api/persons")
 def persons():
     return household.list_persons(get_db())
@@ -855,24 +949,38 @@ def persons():
 
 @app.post("/api/persons")
 def create_person(body: dict = Body(...)):
-    return _household(household.create_person, body)
+    result = _household(household.create_person, body)
+    audit.subject(result.get("name"))
+    return result
 
 
 @app.patch("/api/persons/{pid}")
 def update_person(pid: int, body: dict = Body(...)):
-    return _household(household.update_person, pid, body)
+    before = get_db().scalar("SELECT name FROM persons WHERE id = ?", (pid,))
+    result = _household(household.update_person, pid, body)
+    after = result.get("name") if isinstance(result, dict) else None
+    audit.subject(f"{before} heißt jetzt {after}" if before and after and before != after else before)
+    return result
 
 
 @app.delete("/api/persons/{pid}")
 def delete_person(pid: int):
+    audit.subject(get_db().scalar("SELECT name FROM persons WHERE id = ?", (pid,)))
     return _household(household.delete_person, pid)
 
 
 @app.put("/api/persons/{pid}/budgets/{cid}")
 def set_person_budget(pid: int, cid: int, body: dict = Body(...)):
     result = _household(household.set_own_budget, pid, cid, body.get("budget_cents"))
+    _note_own_budget(get_db(), pid, result)
     _changed()
     return result
+
+
+def _note_own_budget(db, person_id, result: dict) -> None:
+    person = db.scalar("SELECT name FROM persons WHERE id = ?", (person_id,)) or "?"
+    audit.note(f"Eigenes Budget von {person} für „{result['name']}“: "
+               + (euro(result["limit_cents"]) if result.get("limit_cents") else "entfernt"))
 
 
 def _sharing(call, *args):
@@ -894,17 +1002,27 @@ def transaction_share(tx_id: int):
 
 @app.put("/api/transactions/{tx_id}/share")
 def share_transaction(tx_id: int, body: dict = Body(default={})):
-    return _sharing(sharing.set_share, tx_id, body.get("parts"))
+    result = _sharing(sharing.set_share, tx_id, body.get("parts"))
+    _note_tx(get_db(), tx_id, "mit dem Haushalt geteilt")
+    return result
 
 
 @app.delete("/api/transactions/{tx_id}/share")
 def unshare_transaction(tx_id: int):
-    return _sharing(sharing.clear_share, tx_id)
+    result = _sharing(sharing.clear_share, tx_id)
+    _note_tx(get_db(), tx_id, "Teilen aufgehoben")
+    return result
 
 
 @app.post("/api/household/settlements")
 def add_settlement(body: dict = Body(...)):
-    return _sharing(sharing.add_settlement, body)
+    result = _sharing(sharing.add_settlement, body)
+    audit.note(_settlement_text(result))
+    return result
+
+
+def _settlement_text(s: dict) -> str:
+    return f"Ausgleichszahlung: {s.get('from')} an {s.get('to')}, {euro(s.get('cents'))}"
 
 
 @app.delete("/api/household/settlements/{sid}")
@@ -932,6 +1050,7 @@ def create_account(body: dict = Body(...)):
         # Rücklagen, Anlagen und Kredite sind nicht für den Alltag da.
         data["in_forecast"] = 0
     aid = db.insert("accounts", _allowance_rules(None, _clean_account(data)))
+    audit.subject(name[:60], aid)
     categorize.recategorize(db)
     return db.one("SELECT * FROM accounts WHERE id = ?", (aid,))
 
@@ -956,6 +1075,8 @@ def update_account(aid: int, body: dict = Body(...)):
         _err(404, "Konto nicht gefunden.")
     data = _allowance_rules(existing, _clean_account({k: body[k] for k in ACCOUNT_FIELDS if k in body}))
     db.update("accounts", "id", aid, data)
+    renamed = data.get("name") and data["name"] != existing["name"]
+    audit.subject(f"{existing['name']} heißt jetzt {data['name']}" if renamed else existing["name"], aid)
     if {"settlement_pattern", "iban", "kind", "archived"} & set(data):
         categorize.recategorize(db)
     _changed()
@@ -973,6 +1094,9 @@ def set_balance(aid: int, body: dict = Body(...)):
     if not acc:
         _err(404, "Konto nicht gefunden.")
     cents = ledger.signed_value(acc["kind"], int(cents))
+    name = db.scalar("SELECT name FROM accounts WHERE id = ?", (aid,))
+    word = "Restschuld" if acc["kind"] == "kredit" else "Wert" if acc["kind"] in ledger.VALUE_KINDS else "Kontostand"
+    audit.note(f"{word} von „{name}“ eingetragen: {euro(abs(cents) if acc['kind'] == 'kredit' else cents)}", aid)
     ledger.set_balance_anchor(db, aid, cents, on)
     if acc["kind"] in ledger.VALUE_KINDS:
         ledger.record_valuation(db, aid, cents, on)
@@ -991,6 +1115,9 @@ def loan_plan(aid: int, extra_cents: int = 0):
 @app.delete("/api/accounts/{aid}")
 def delete_account(aid: int):
     db = get_db()
+    gone = db.one("SELECT name, (SELECT COUNT(*) FROM transactions WHERE account_id = ?) AS n FROM accounts WHERE id = ?", (aid, aid))
+    if gone:
+        audit.note(f"Konto „{gone['name']}“ gelöscht, mit {gone['n']} Buchungen")
     ledger.delete_account(db, aid)
     categorize.recategorize(db)
     _changed()
@@ -1102,6 +1229,8 @@ def import_commit(body: dict = Body(...)):
     contracts.detect(db)
     services.schedule_refresh()
     acc = db.one("SELECT * FROM accounts WHERE id = ?", (account_id,))
+    audit.note(f"Datei „{(item['filename'] or 'ohne Namen')[:60]}“ importiert: {result['added']} neue Buchungen auf „{acc['name']}“",
+               int(account_id))
     return {"added": result["added"], "skipped": result["skipped"], "account_id": account_id, "balance_known": acc["balance_date"] is not None}
 
 
@@ -1157,6 +1286,8 @@ def finanzguru_commit(body: dict = Body(...)):
                                    learn=bool(body.get("learn", True)), filename=item["filename"])
     except ValueError as exc:
         _err(400, str(exc))
+    added = result.get("added") if isinstance(result, dict) else None
+    audit.subject(f"{added} Buchungen" if isinstance(added, int) else None)
     _imports.pop(body["token"], None)
     if item.get("inbox_file"):
         try:
@@ -1678,6 +1809,7 @@ def create_goal(body: dict = Body(...)):
         gid = savings.create_goal(get_db(), body)
     except savings.GoalError as error:
         _err(400, str(error))
+    audit.subject(get_db().scalar("SELECT name FROM goals WHERE id = ?", (gid,)))
     return {"ok": True, "id": gid}
 
 
@@ -1694,6 +1826,7 @@ def update_goal(gid: int, body: dict = Body(...)):
 
 @app.delete("/api/goals/{gid}")
 def delete_goal(gid: int):
+    audit.subject(get_db().scalar("SELECT name FROM goals WHERE id = ?", (gid,)))
     get_db().execute("DELETE FROM goals WHERE id = ?", (gid,))
     return {"ok": True}
 
