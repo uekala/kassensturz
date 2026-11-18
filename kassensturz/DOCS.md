@@ -127,6 +127,10 @@ Gut zu wissen:
 - Neue Konten gehören zunächst allen im Haushalt. Den Besitzer stellst du danach im Konto ein.
 - Verträge erkennt Kassensturz aus den Buchungen selbst; mit mehr Historie werden es meist mehr.
 - Buchungen in fremder Währung überspringt der Import, wie bei anderen Dateien auch.
+- Notizen aus Finanzguru stehen danach als Notiz an der Buchung. Tags hängt der Import als Text an die Notiz an
+  („Tags: …“), damit sie nicht verloren gehen.
+- Aufgeteilte Buchungen bleiben aufgeteilt, wenn der Export die Buchung und ihre Teile enthält und die Teile zusammen
+  genau ihren Betrag ergeben. Passt das nicht, übernimmt der Import die Zeilen einzeln und weist im Dialog darauf hin.
 
 Liegt der Export im Eingangsordner, importiert Kassensturz ihn nicht von selbst. Er erscheint unter *Konten →
 Eingangsordner* mit dem Knopf *Zuordnen*, der denselben Dialog öffnet.
