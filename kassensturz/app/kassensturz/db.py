@@ -290,6 +290,24 @@ CREATE TABLE IF NOT EXISTS notices(
   created TEXT
 );
 
+-- Geld, das zurückkommen soll: Retouren, Erstattungen, Auslagen. Offen, bis der Eingang da ist.
+CREATE TABLE IF NOT EXISTS expected_incomes(
+  id INTEGER PRIMARY KEY,
+  label TEXT NOT NULL,
+  cents INTEGER NOT NULL,
+  tx_id INTEGER,
+  account_id INTEGER NOT NULL,
+  payee TEXT,
+  since TEXT NOT NULL,
+  due_date TEXT,
+  note TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  received_tx_id INTEGER,
+  closed_on TEXT,
+  created TEXT
+);
+CREATE INDEX IF NOT EXISTS expected_incomes_status ON expected_incomes(status, since);
+
 -- Auffälligkeiten, die jemand als geprüft ausgeblendet hat (Schlüssel wie anomaly:double:123).
 CREATE TABLE IF NOT EXISTS anomaly_acks(
   key TEXT PRIMARY KEY,
@@ -387,7 +405,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {
@@ -407,6 +425,7 @@ _SCOPED_VIEWS = {
                 "(SELECT id FROM main.transactions WHERE account_id IN ({accounts}))",
     "valuations": "SELECT * FROM main.valuations WHERE account_id IN ({accounts})",
     "balance_checks": "SELECT * FROM main.balance_checks WHERE account_id IN ({accounts})",
+    "expected_incomes": "SELECT * FROM main.expected_incomes WHERE account_id IN ({accounts})",
     "imports": "SELECT * FROM main.imports WHERE account_id IS NULL OR account_id IN ({accounts})",
     "csv_profiles": "SELECT * FROM main.csv_profiles WHERE account_id IS NULL OR account_id IN ({accounts})",
     "contracts": "SELECT * FROM main.contracts WHERE account_id IS NULL OR account_id IN ({accounts})",

@@ -272,6 +272,27 @@ also 300 € da sein. Die Budgetseite zeigt die Summe und jeden Vertrag einzeln.
 Unter *Einstellungen* kannst du diese Rücklage von „frei verfügbar“ abziehen lassen. Lass das aus, wenn du dafür schon Geld
 auf einem Tagesgeld- oder Sparkonto zurücklegst, sonst zählt es doppelt.
 
+## Erwartete Eingänge
+
+Geld, das zurückkommen soll, bleibt offen, bis es da ist: eine Retoure, eine Erstattung, Auslagen für die Firma oder
+für Freunde.
+
+- **Zu einer Ausgabe:** Buchung öffnen, *Geld kommt zurück*. Der Betrag ist vorbelegt; kommt nur ein Teil zurück, trag
+  den Teil ein.
+- **Für sich allein:** in der Übersicht unter *Erwartete Eingänge → Hinzufügen*, mit Bezeichnung, Betrag und dem Konto,
+  auf dem das Geld ankommen soll.
+
+Die Übersicht zeigt, was aussteht und wie viel es zusammen ist. Ab dem Tag unter *Erinnern ab* (Standard: drei Wochen)
+erinnert Kassensturz einmal per Benachrichtigung und zeigt einen Hinweis, auch in der App.
+
+**Von selbst abgehakt** wird nur, was eindeutig ist: ein Eingang über genau den erwarteten Betrag, vom selben Absender
+wie bei der Ausgabe, auf demselben Konto, gebucht nach der Ausgabe. Dann kommt die Mitteilung „Geld ist da“. Alles
+andere schlägt Kassensturz nur vor: Im erwarteten Eingang stehen Eingänge mit gleichem Betrag oder vom selben Absender
+zur Auswahl. *Anders angekommen* hakt ohne Buchung ab, etwa bei Bargeld; *Kommt nicht mehr* legt ihn ab. Umbuchungen
+zwischen eigenen Konten gelten nie als Erstattung.
+
+An Kontostand, Prognose und Auswertung ändert ein erwarteter Eingang nichts; er ist ein Merkzettel, kein Geld.
+
 ## Auffälligkeiten
 
 Kassensturz weist auf Buchungen der letzten zwei Wochen hin, auf die sich ein zweiter Blick lohnt:

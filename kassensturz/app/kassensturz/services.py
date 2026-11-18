@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import allowance, analytics, anomalies, backup, contracts, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
+from . import allowance, analytics, anomalies, backup, contracts, expected, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -170,6 +170,7 @@ def alerts(db: Database, summary: dict) -> list[dict]:
                         "text": f"{left} Danach kommen keine neuen Umsätze mehr. Erneuern dauert eine Minute "
                                 "in Kassensturz in Home Assistant unter Konten."})
     out += anomalies.alerts(db, today)
+    out += expected.alerts(db, today)
     pending = db.scalar("SELECT COUNT(*) FROM inbox")
     if pending:
         out.append({"key": f"inbox:{pending}", "level": "info", "inbox": True,
@@ -333,6 +334,8 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
     db = db or get_db()
     contracts.detect(db)
     papers.prune(db)  # Belege gelöschter Buchungen und Konten
+    expected.prune(db)
+    expected.settle(db)  # erwartete Eingänge abhaken, die angekommen sind
     summary = build_summary(db)
     opts = options.load()
     if opts.get("sensors", True):
@@ -342,6 +345,9 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
             if a["level"] in ("critical", "warning"):
                 ha.notify(db, a["key"], f"Kassensturz: {a['title']}", a["text"],
                           _alert_service(db, a, opts.get("notify_service")))
+        for arrival in expected.arrivals(db):
+            ha.notify(db, arrival["key"], f"Kassensturz: {arrival['title']}", arrival["text"],
+                      _alert_service(db, arrival, opts.get("notify_service")))
         review = month_review_notice(db)
         if review and opts.get("notify_month_review", True):
             ha.notify(db, review["key"], review["title"], review["message"], opts.get("notify_service"))
