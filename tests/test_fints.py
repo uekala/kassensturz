@@ -107,13 +107,13 @@ def test_bank_replies_are_recorded_and_explain_a_refused_login():
     client = _recording(replies)
     dialog = type("D", (), {"open": False})()
     for code, text in (("0020", "Auftrag ausgeführt"), ("3050", "Erfundene Warnung"),
-                       ("9800", "Dialog   abgebrochen"), ("9800", "Dialog abgebrochen"), ("9210", "Erfundener Grund")):
+                       ("9800", "Dialog   abgebrochen"), ("9800", "Dialog abgebrochen"), ("9330", "Erfundener Grund")):
         client._process_response(dialog, None, FakeReply(code, text))
     assert replies == [("0020", "Auftrag ausgeführt"), ("3050", "Erfundene Warnung"), ("9800", "Dialog abgebrochen"),
-                       ("9210", "Erfundener Grund")]
+                       ("9330", "Erfundener Grund")]
     text = fints_sync._explain(ValueError("Could not find system_id"), replies)
     assert text.startswith("Die Bank hat die Anmeldung nicht angenommen. Antwort der Bank: Dialog abgebrochen (Code 9800); "
-                           "Erfundener Grund (Code 9210).")
+                           "Erfundener Grund (Code 9330).")
     assert "system_id" not in text and "nicht mehrfach" in text
     # Ohne Fehler der Bank zählen ihre Warnungen; ohne jede Antwort bleibt die Meldung ehrlich.
     assert "Erfundene Warnung (Code 3050)" in fints_sync._explain(ValueError("Could not find system_id"), replies[:2])
@@ -128,3 +128,25 @@ def test_recorded_replies_stay_bounded():
     for i in range(60):
         client._process_response(dialog, None, FakeReply(f"30{i:02d}", "x" * 500))
     assert len(replies) == fints_sync.MAX_BANK_REPLIES and len(replies[-1][1]) == 160 and replies[-1][0] == "3059"
+
+
+def test_1822direkt_gets_its_fints_bank_code_upper_case_login_and_no_customer_id():
+    """Erfundene Zugangsdaten."""
+    server = "https://fints.1822direkt.com/fints/hbci"
+    assert fints_sync.bank_access({"blz": "500 502 01", "login": " 1234567a ", "customer_id": "1234567", "server": server}) == (
+        "50050222", "1234567A", None)
+    assert fints_sync.bank_access({"blz": "50050222", "login": "1234567A", "customer_id": None, "server": server}) == (
+        "50050222", "1234567A", None)
+    # Andere Banken bleiben, wie eingetragen.
+    assert fints_sync.bank_access({"blz": "50050201", "login": "erfunden", "customer_id": " k1 ",
+                                   "server": "https://bank.invalid/fints"}) == ("50050201", "erfunden", "k1")
+    assert fints_sync.bank_access({"blz": "12030000", "login": "Erfunden", "customer_id": "", "server": None}) == (
+        "12030000", "Erfunden", None)
+
+
+def test_code_9210_says_what_to_check():
+    replies = [("9800", "Dialoginitialisierung abgebrochen."), ("9210", "Benutzer für Kunden nicht bevollmächtigt.")]
+    text = fints_sync._explain(ValueError("Could not find system_id"), replies)
+    assert text.startswith("Die Bank kennt diesen Zugang nicht. Antwort der Bank:") and "Code 9210" in text
+    assert "Bankleitzahl" in text and "Kundennummer" in text and "system_id" not in text
+    assert fints_sync._explain(fints_sync.UserFacingError("Eigene Meldung"), replies) == "Eigene Meldung"

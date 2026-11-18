@@ -160,6 +160,24 @@ def start(connection_id: int, pin: str | None, save_pin: bool = False, history_d
 
 
 MAX_BANK_REPLIES = 20
+# Die 1822direkt führt Konten unter der Bankleitzahl der Frankfurter Sparkasse (steht in der IBAN),
+# erwartet für FinTS aber ihre eigene.
+BLZ_1822_IBAN, BLZ_1822_FINTS = "50050201", "50050222"
+
+
+def bank_access(conn: dict) -> tuple[str, str, str | None]:
+    """Bankleitzahl, Anmeldename und Kunden-ID, wie die Bank sie für FinTS erwartet.
+
+    Bei der 1822direkt: die eigene Bankleitzahl statt der aus der IBAN, die Online-Kennung
+    (Kundennummer plus Buchstabe) in Großbuchstaben, und keine eigene Kunden-ID. Wer dort seine
+    Kundennummer einträgt, bekommt „Benutzer für Kunden nicht bevollmächtigt“ (Code 9210)."""
+    blz, login = (conn.get("blz") or "").strip().replace(" ", ""), (conn.get("login") or "").strip()
+    customer = (conn.get("customer_id") or "").strip() or None
+    if "1822direkt" in (conn.get("server") or "").lower():
+        if blz == BLZ_1822_IBAN:
+            blz = BLZ_1822_FINTS
+        login, customer = login.upper(), None
+    return blz, login, customer
 
 
 def _recording_client(replies: list):
@@ -196,6 +214,11 @@ def _explain(exc: Exception, replies: list | None = None) -> str:
     if isinstance(exc, UserFacingError):
         return str(exc)
     said = _bank_said(replies)
+    if any(code == "9210" for code, _text in replies or []) and not isinstance(exc, UserFacingError):
+        # 9210 heißt bei der Anmeldung: Diese Bank kennt den Anmeldenamen so nicht.
+        return ("Die Bank kennt diesen Zugang nicht." + said + " Prüfe im Bankzugang Bankleitzahl, Anmeldename und "
+                "Kundennummer: Manche Banken erwarten für FinTS eine andere Bankleitzahl als die in der IBAN, und das Feld "
+                "Kundennummer bleibt meist leer. Bitte nicht mehrfach wiederholen, sonst sperrt die Bank den Zugang.")
     if isinstance(exc, FinTSClientPINError):
         return ("Die Bank hat die PIN abgelehnt. Prüfe PIN und Anmeldenamen – nach mehreren Fehlversuchen sperrt die Bank "
                 "den Zugang." + said)
@@ -268,9 +291,10 @@ def _sync(job: Job, conn: dict, pin: str, history_days: int | None, background: 
     if not product_id:
         raise UserFacingError("Für den Bankabruf fehlt die FinTS-Produkt-ID. Trage sie in der Konfiguration der App ein "
                               "(Registrierung kostenlos über fints.org).")
+    blz, login, customer = bank_access(conn)
     client = _recording_client(job.bank_replies)(
-        conn["blz"].strip(), conn["login"].strip(), pin, conn["server"].strip(),
-        customer_id=(conn["customer_id"] or None), product_id=product_id, product_version=options.VERSION[:5],
+        blz, login, pin, conn["server"].strip(),
+        customer_id=customer, product_id=product_id, product_version=options.VERSION[:5],
         from_data=conn["client_state"] or None,
     )
 

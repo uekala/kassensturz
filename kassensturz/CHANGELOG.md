@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.42
+
+- 1822direkt per FinTS: Kassensturz meldet sich jetzt so an, wie die Bank es erwartet.
+  - Steht im Bankzugang die Bankleitzahl aus der IBAN (50050201), nimmt Kassensturz die der 1822direkt für FinTS
+    (50050222).
+  - Der Anmeldename geht in Großbuchstaben an die Bank; ein Eintrag im Feld Kunden-ID wird für diese Bank nicht
+    mitgeschickt. Beides führte zu „Benutzer für Kunden nicht bevollmächtigt“ (Code 9210).
+- Meldet eine Bank Code 9210, sagt Kassensturz, was im Bankzugang zu prüfen ist. Das Feld „Kundennummer, falls
+  abweichend“ heißt jetzt „Kunden-ID (fast immer leer lassen)“.
+
 ## 0.3.41
 
 - Bankabruf per FinTS: Nimmt die Bank die Anmeldung nicht an, steht jetzt ihr Grund in der Meldung (Text und Code der
