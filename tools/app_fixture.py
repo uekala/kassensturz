@@ -95,6 +95,12 @@ def _household(admin) -> dict:
         _ok(admin.patch(f"/api/transactions/{out[0]['id']}", json={"tax_kind": "handwerker"}), "Steuerart")
         until = (date.today() + timedelta(days=400)).isoformat()
         _ok(admin.patch(f"/api/transactions/{out[1]['id']}", json={"warranty_until": until}), "Garantie")
+    # Geplant und erwartet: eine Ausgabe in zehn Tagen, Geld, das von einer Ausgabe zurückkommt.
+    soon = (date.today() + timedelta(days=10)).isoformat()
+    _ok(admin.post("/api/planned", json={"label": "Handwerkerrechnung", "cents": 85000, "due_date": soon,
+                                         "account_id": accounts["Girokonto"]["id"]}), "Geplant")
+    if len(out) >= 3:
+        _ok(admin.post("/api/expected", json={"tx_id": out[2]["id"]}), "Erwartet")
     return {"anna": anna, "ben": ben, "mia": mia}
 
 

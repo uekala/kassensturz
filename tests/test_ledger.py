@@ -122,3 +122,15 @@ def test_exact_existing_transaction_does_not_hide_new_same_amount_transaction(db
         (aid, "2026-11-06", -2500),
     )
     assert sorted(r["counterparty"] for r in rows) == ["REWE Markt GmbH", "Shell Tankstelle"]
+
+
+def test_second_equal_booking_from_a_later_sync_is_kept_when_the_bank_resends_the_first(db):
+    """Erfundene Buchungen. Bankabrufe holen ab einige Tage vor der letzten Buchung neu ab; die erste kommt also mit."""
+    acc = db.insert("accounts", {"name": "KS-Giro", "kind": "giro"})
+    first = {"booking_date": "2026-11-10", "amount_cents": -1299, "counterparty": "KS-Kiosk", "purpose": "Karte 1"}
+    second = {"booking_date": "2026-11-10", "amount_cents": -1299, "counterparty": "KS-Kiosk", "purpose": "Karte 2"}
+    assert ledger.import_rows(db, acc, [dict(first)], "openbanking")["added"] == 1
+    assert ledger.import_rows(db, acc, [dict(first), dict(second)], "openbanking")["added"] == 1
+    assert db.scalar("SELECT COUNT(*) FROM transactions WHERE account_id = ?", (acc,)) == 2
+    # Ein dritter Abruf mit beiden ändert nichts.
+    assert ledger.import_rows(db, acc, [dict(first), dict(second)], "openbanking")["added"] == 0

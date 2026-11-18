@@ -390,6 +390,10 @@ zwischen eigenen Konten gelten nie als Erstattung.
 
 An Kontostand, Prognose und Auswertung ändert ein erwarteter Eingang nichts; er ist ein Merkzettel, kein Geld.
 
+In der App (ab 0.3.30) stehen offene erwartete Eingänge und geplante Ausgaben auf der Startseite; ein Tipp hakt
+sie ab. *Geld kommt zurück* gibt es dort an jeder Ausgabe, *Als geplante Ausgabe vormerken* unter *Kann ich mir das
+leisten?*. Auffälligkeiten lassen sich in der App als geprüft ausblenden.
+
 ## Auffälligkeiten
 
 Kassensturz weist auf Buchungen der letzten zwei Wochen hin, auf die sich ein zweiter Blick lohnt:

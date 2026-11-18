@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import analytics, audit, banksync, household, ledger, mobile_read, mobile_write, options, papers, services, sharing
+from . import analytics, anomalies, audit, banksync, expected, household, ledger, mobile_read, mobile_write, options, papers, planned, services, sharing
 from .db import get_db
 from .util import euro
 from .mobile_auth import (
@@ -58,6 +58,8 @@ CAPABILITIES = (
     "household",
     "household.sharing",
     "budgets.own",
+    # Hinweise erledigen, geplante Ausgaben und erwartete Eingänge anlegen und abhaken
+    "plans",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -895,6 +897,125 @@ def budget_suggestions(request: Request):
     if isinstance(device, Response):
         return device
     return analytics.budget_suggestions(_view(device))
+
+
+# --- Hinweise, geplante Ausgaben, erwartete Eingänge -----------------------------------------
+# Abhaken geht nur für, was die Person sieht: Die Kennung muss in ihrer eigenen Übersicht stehen.
+
+def _visible_open(device, kind: str, item_id: str):
+    parsed = _transaction_id(item_id)
+    if parsed is None:
+        return None
+    view = _view(device)
+    items = planned.overview(view)["open"] if kind == "planned" else expected.overview(view)["open"]
+    return next((i for i in items if i["id"] == parsed), None)
+
+
+def _plan_error(error) -> JSONResponse:
+    code = {400: "invalid_request", 404: "not_found", 409: "not_possible"}.get(error.status, "not_possible")
+    return _error(error.status, code, error.message)
+
+
+@router.post("/api/v1/alerts/ack")
+async def acknowledge_alert(request: Request):
+    """Mark an anomaly the person can see as checked; it no longer shows."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    if payload is None or set(payload) != {"key"} or not isinstance(payload["key"], str):
+        return _error(400, "invalid_request", "Erwartet wird genau das Feld key.")
+    seen = {a["key"]: a for a in anomalies.alerts(_view(device))}
+    if payload["key"] not in seen:
+        return _not_found("Hinweis")
+    anomalies.acknowledge(get_db(), payload["key"])
+    audit.subject(seen[payload["key"]]["title"])
+    services.schedule_refresh()
+    return {"ok": True}
+
+
+@router.post("/api/v1/planned")
+async def create_planned(request: Request):
+    """Plan a one-off expense on an account the person sees."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    if payload is None or set(payload) - {"label", "cents", "due_date", "account_id", "note"}:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    account_id = payload.get("account_id")
+    if (not isinstance(account_id, int) or isinstance(account_id, bool)
+            or not household.sees_account(get_db(), device.person_id, account_id)):
+        return _not_found("Konto")
+    try:
+        item = planned.create(get_db(), payload)
+    except planned.PlannedError as error:
+        return _plan_error(error)
+    audit.subject(item["label"], item["account_id"])
+    services.schedule_refresh()
+    return JSONResponse({"planned": mobile_read.plans(_view(device))["planned"]}, status_code=201)
+
+
+@router.post("/api/v1/planned/{item_id}/{action}")
+def settle_planned(item_id: str, action: str, request: Request):
+    """Tick a planned expense off as paid, or drop it."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    if action not in ("paid", "drop"):
+        return _not_found("Aktion")
+    item = _visible_open(device, "planned", item_id)
+    if item is None:
+        return _not_found("Geplante Ausgabe")
+    try:
+        (planned.close if action == "paid" else planned.drop)(get_db(), item["id"])
+    except planned.PlannedError as error:
+        return _plan_error(error)
+    audit.note(f"Geplante Ausgabe {'abgehakt' if action == 'paid' else 'gestrichen'}: {item['label']}", item["account_id"])
+    services.schedule_refresh()
+    return {"ok": True}
+
+
+@router.post("/api/v1/expected")
+async def create_expected(request: Request):
+    """Note that money comes back for an expense the person sees."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    if payload is None or set(payload) - {"tx_id", "cents", "due_date", "note"}:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    tx_id = payload.get("tx_id")
+    if (not isinstance(tx_id, int) or isinstance(tx_id, bool)
+            or not household.sees_transaction(get_db(), device.person_id, tx_id)):
+        return _not_found("Buchung")
+    try:
+        item = expected.create(get_db(), payload)
+    except expected.ExpectedError as error:
+        return _plan_error(error)
+    audit.subject(item["label"], item["account_id"])
+    services.schedule_refresh()
+    return JSONResponse({"expected": mobile_read.plans(_view(device))["expected"]}, status_code=201)
+
+
+@router.post("/api/v1/expected/{item_id}/{action}")
+def settle_expected(item_id: str, action: str, request: Request):
+    """Tick an expected income off as received, or drop it."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    if action not in ("received", "drop"):
+        return _not_found("Aktion")
+    item = _visible_open(device, "expected", item_id)
+    if item is None:
+        return _not_found("Erwarteter Eingang")
+    try:
+        (expected.close if action == "received" else expected.drop)(get_db(), item["id"])
+    except expected.ExpectedError as error:
+        return _plan_error(error)
+    audit.note(f"Erwarteten Eingang {'abgehakt' if action == 'received' else 'abgelegt'}: {item['label']}", item["account_id"])
+    services.schedule_refresh()
+    return {"ok": True}
 
 
 @router.put("/api/v1/budgets/{category_id}")

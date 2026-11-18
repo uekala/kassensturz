@@ -124,6 +124,11 @@ LABELS: dict[tuple[str, str], str] = {
     ("PUT", "/api/v1/budgets/{category_id}"): "Budget geändert",
     ("PUT", "/api/v1/budgets/own/{category_id}"): "Eigenes Budget geändert",
     ("PATCH", "/api/v1/contracts/{key:path}"): "Vertrag geändert",
+    ("POST", "/api/v1/alerts/ack"): "Auffälligkeit als geprüft ausgeblendet",
+    ("POST", "/api/v1/planned"): "Geplante Ausgabe angelegt",
+    ("POST", "/api/v1/planned/{item_id}/{action}"): "Geplante Ausgabe abgehakt oder gestrichen",
+    ("POST", "/api/v1/expected"): "Erwarteten Eingang angelegt",
+    ("POST", "/api/v1/expected/{item_id}/{action}"): "Erwarteten Eingang abgehakt oder abgelegt",
 }
 
 # Anfragen, die nichts ändern, was jemand nachlesen muss: Anmeldung, Vorschauen, Prüfungen, TAN-Antworten.

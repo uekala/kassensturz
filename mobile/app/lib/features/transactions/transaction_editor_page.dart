@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
+import '../dashboard/plans.dart';
 import 'receipts_section.dart';
 import 'share_section.dart';
 
@@ -562,6 +563,23 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
               ShareSection(
                 controller: widget.controller,
                 transactionId: existing.id,
+              ),
+            ],
+            if (existing != null &&
+                existing.amountCents < 0 &&
+                widget.controller.canManagePlans) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _saving
+                    ? null
+                    : () => showMoneyBackDialog(
+                        context,
+                        controller: widget.controller,
+                        transactionId: existing.id,
+                        expenseCents: existing.amountCents,
+                      ),
+                icon: const Icon(Icons.undo_rounded),
+                label: const Text('Geld kommt zurück'),
               ),
             ],
             if (_error != null) ...[

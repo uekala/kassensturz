@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.3.48
+
+- App (ab Version 0.3.30): Hinweise lassen sich am Handy erledigen. Eine Auffälligkeit als geprüft ausblenden, eine
+  geplante Ausgabe als bezahlt oder entfallen abhaken, einen erwarteten Eingang als angekommen.
+- App: Geplante Ausgaben und erwartete Eingänge stehen auf der Startseite. Eine geplante Ausgabe lässt sich nach
+  *Kann ich mir das leisten?* vormerken, an einer Ausgabe *Geld kommt zurück* anmerken.
+- Abhaken und Anlegen geht nur für Konten und Buchungen, die die Person sieht; ein Kinderhandy liest nur.
+
 ## 0.3.47
 
 - Nach einem Update lädt die Oberfläche sicher die neue Fassung. Bisher zeigten Skript und Stil seit 0.3.22 dieselbe
