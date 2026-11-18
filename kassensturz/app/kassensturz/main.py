@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (allowance, analytics, anomalies, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, planned, projects, savings,
+from . import (allowance, analytics, anomalies, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, loans, openbanking, options, papers, planned, projects, savings,
                secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
@@ -806,7 +806,7 @@ def recategorize_all():
 # --- Konten ----------------------------------------------------------------------------
 
 ACCOUNT_FIELDS = ("name", "kind", "iban", "bank", "settlement_pattern", "in_forecast", "archived", "sort", "matures_on",
-                  "owner_person_id", "allowance_cents", "allowance_interval")
+                  "owner_person_id", "allowance_cents", "allowance_interval", "loan_rate_milli", "loan_payment_cents")
 
 
 def _clean_account(data: dict) -> dict:
@@ -825,6 +825,10 @@ def _clean_account(data: dict) -> dict:
             data["owner_person_id"] = household.parse_person_id(get_db(), data["owner_person_id"])
         except household.HouseholdError as error:
             _err(error.status, error.message)
+    try:
+        data.update(loans.clean_terms(data))
+    except loans.LoanError as error:
+        _err(error.status, error.message)
     return data
 
 
@@ -974,6 +978,14 @@ def set_balance(aid: int, body: dict = Body(...)):
         ledger.record_valuation(db, aid, cents, on)
     _changed()
     return {"ok": True}
+
+
+@app.get("/api/accounts/{aid}/loan")
+def loan_plan(aid: int, extra_cents: int = 0):
+    try:
+        return loans.overview(get_db(), aid, extra_cents)
+    except loans.LoanError as error:
+        _err(error.status, error.message)
 
 
 @app.delete("/api/accounts/{aid}")

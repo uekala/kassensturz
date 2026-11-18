@@ -272,6 +272,24 @@ also 300 € da sein. Die Budgetseite zeigt die Summe und jeden Vertrag einzeln.
 Unter *Einstellungen* kannst du diese Rücklage von „frei verfügbar“ abziehen lassen. Lass das aus, wenn du dafür schon Geld
 auf einem Tagesgeld- oder Sparkonto zurücklegst, sonst zählt es doppelt.
 
+## Kredite mit Tilgungsplan
+
+Ein Kredit ist ein Konto der Art *Kredit* mit einer von Hand eingetragenen Restschuld. Trägst du am Konto auch
+**Sollzins** und **Monatsrate** ein, rechnet Kassensturz den Tilgungsplan (*Konten → Kredit öffnen → Tilgungsplan*):
+
+- **Restschuld heute:** von der zuletzt eingetragenen Restschuld Monat für Monat weitergerechnet. *Geschätzte
+  Restschuld übernehmen* trägt sie als neuen Wert ein; erst dann ändert sich das Vermögen.
+- **Fertig:** Monat der letzten Rate und die Zeit bis dahin.
+- **Noch Zinsen:** was bis zum Ende an Zinsen anfällt, und die Summe aller restlichen Zahlungen.
+- **Sondertilgung:** Betrag eintragen, *Rechnen*. Kassensturz zeigt, wie viel früher der Kredit fertig wäre und wie
+  viel Zinsen du sparst, wenn du den Betrag heute tilgst und die Rate gleich bleibt.
+- **Plan je Jahr:** gezahlt, davon Zinsen, Restschuld am Jahresende.
+
+Gerechnet wird wie bei Raten- und Baukrediten üblich: jeden Monat Zinsen auf den Rest, die Rate tilgt, was übrig
+bleibt. Das ist eine Schätzung. Die Bank rechnet taggenau und kennt Zinsbindung, Gebühren und Sondertilgungen, die
+hier nicht vorkommen; verbindlich ist ihr Auszug. Trag deshalb ab und zu die Restschuld aus dem Jahresauszug ein.
+Deckt die Rate die Zinsen nicht, sagt Kassensturz das, statt ein Enddatum zu nennen.
+
 ## Projekte
 
 Was hat der Urlaub, das Auto oder die Renovierung insgesamt gekostet? Ein Projekt sammelt Buchungen aus allen

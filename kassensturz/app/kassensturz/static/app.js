@@ -73,6 +73,7 @@ function relDay(iso) {
 }
 const KIND_LABEL = { giro: "Girokonto", tagesgeld: "Tagesgeld", sparkonto: "Sparkonto", festgeld: "Festgeld", vl: "VL / Bausparen", depot: "Depot", immobilie: "Immobilie", kredit: "Kredit", kreditkarte: "Kreditkarte", paypal: "PayPal", bargeld: "Bargeld", taschengeld: "Taschengeld", sonstiges: "Sonstiges" };
 // Konten, deren Wert man einträgt statt Buchungen abzurufen.
+const PCT = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 3 });
 const VALUE_KINDS = new Set(["depot", "festgeld", "vl", "immobilie", "kredit"]);
 const SAVINGS_KINDS = new Set(["tagesgeld", "sparkonto", ...VALUE_KINDS]);
 const MATURING_KINDS = new Set(["festgeld", "kredit"]);
@@ -1814,7 +1815,7 @@ function accountSheet(a) {
   const sh = openSheet(html`${sheetHead(isNew ? "Konto anlegen" : a.name)}
     ${!isNew ? html`<div class="big-amount">${a.balance_known ? money(a.balance_now) : "Kontostand fehlt"}</div>
       <div class="actions" style="margin-top:0"><button class="btn small" id="ac-bal">${a.kind === "kredit" ? "Restschuld eintragen" : VALUE_KINDS.has(a.kind) ? "Wert eintragen" : "Kontostand eintragen"}</button>
-      <a class="btn small" href="#/umsaetze?account=${a.id}" data-close>Buchungen ansehen</a></div>
+      ${a.kind === "kredit" ? html`<button class="btn small" id="ac-loan">Tilgungsplan</button>` : html`<a class="btn small" href="#/umsaetze?account=${a.id}" data-close>Buchungen ansehen</a>`}</div>
       ${a.drift_cents ? html`<div class="alert warning" style="margin:10px 0"><div><strong>Kontostand passt nicht zu den Buchungen</strong>
         <p class="small">Die Bank zeigt seit ${dShort(a.drift_since)} ${money(Math.abs(a.drift_cents))} ${a.drift_cents > 0 ? "mehr" : "weniger"}, als die abgerufenen Buchungen erklären. Vermutlich fehlt eine Buchung oder ist doppelt. Der angezeigte Kontostand stammt von der Bank und stimmt; betroffen sind Auswertung und Budgets.</p>
         <button class="btn small" id="ac-drift">Geprüft, Hinweis ausblenden</button></div></div>` : ""}` : ""}
@@ -1828,6 +1829,13 @@ function accountSheet(a) {
     <p class="small muted" style="margin-top:-6px">Solche Abbuchungen gelten als Umbuchung, damit Einkäufe nicht doppelt zählen. Mehrere Begriffe mit Komma trennen.</p>
     <label class="field" id="ac-due-field" ${MATURING_KINDS.has(a.kind) ? "" : raw("hidden")}><span id="ac-due-label">${a.kind === "kredit" ? "Läuft bis" : "Fällig am"}</span>
       <input class="input" type="date" id="ac-due" value="${a.matures_on || ""}"></label>
+    <div id="ac-loan-terms" ${a.kind === "kredit" ? "" : raw("hidden")}>
+      <div class="field-row">
+        <label class="field"><span>Sollzins in % pro Jahr</span><input class="input" id="ac-rate" inputmode="decimal" value="${a.loan_rate_milli === null || a.loan_rate_milli === undefined ? "" : PCT.format(a.loan_rate_milli / 1000)}" placeholder="z. B. 3,49"></label>
+        <label class="field"><span>Monatsrate</span><input class="input" id="ac-pay" inputmode="decimal" value="${toInput(a.loan_payment_cents)}" placeholder="z. B. 350,00"></label>
+      </div>
+      <p class="small muted" style="margin-top:-6px">Mit Zins und Rate rechnet Kassensturz den Tilgungsplan: Restschuld, Enddatum, Zinsen und was eine Sondertilgung bringt.</p>
+    </div>
     <div id="ac-pocket" ${a.kind === "taschengeld" ? "" : raw("hidden")}>
       <div class="field-row">
         <label class="field"><span>Taschengeld je Termin</span><input class="input" id="ac-allow" inputmode="decimal" value="${toInput(a.allowance_cents)}" placeholder="z. B. 5,00"></label>
@@ -1851,6 +1859,13 @@ function accountSheet(a) {
       body.allowance_interval = $("#ac-allow-int", sh.el).value;
     }
     if (!isNew) body.archived = $("#ac-arch", sh.el).checked ? 1 : 0;
+    if (body.kind === "kredit") {
+      const rate = $("#ac-rate", sh.el).value.trim().replace("%", "").trim();
+      const pct = rate === "" ? null : Number(rate.replace(",", "."));
+      if (pct !== null && !(pct >= 0 && pct <= 30)) { toast("Der Sollzins ist keine Zahl zwischen 0 und 30"); return; }
+      body.loan_rate_milli = pct === null ? null : Math.round(pct * 1000);
+      body.loan_payment_cents = Math.abs(parseMoney($("#ac-pay", sh.el).value) || 0) || null;
+    }
     try {
       if (isNew) await api("accounts", { method: "POST", body }); else await api(`accounts/${a.id}`, { method: "PATCH", body });
       sh.close(); toast("Konto gespeichert"); rerender();
@@ -1861,16 +1876,67 @@ function accountSheet(a) {
     if (isNew) $("#ac-fc", sh.el).checked = !SAVINGS_KINDS.has(kind);
     $("#ac-due-field", sh.el).hidden = !MATURING_KINDS.has(kind);
     $("#ac-pocket", sh.el).hidden = kind !== "taschengeld";
+    $("#ac-loan-terms", sh.el).hidden = kind !== "kredit";
     $("#ac-fc-row", sh.el).style.display = kind === "taschengeld" ? "none" : "";
     $("#ac-due-label", sh.el).textContent = kind === "kredit" ? "Läuft bis" : "Fällig am";
   };
   if ($("#ac-bal", sh.el)) $("#ac-bal", sh.el).onclick = () => { sh.close(); balanceSheet(a); };
+  if ($("#ac-loan", sh.el)) $("#ac-loan", sh.el).onclick = () => { sh.close(); loanSheet(a); };
   if ($("#ac-drift", sh.el)) $("#ac-drift", sh.el).onclick = async () => {
     await api(`accounts/${a.id}/balance-check/reset`, { method: "POST" }); sh.close(); toast("Hinweis ausgeblendet"); rerender();
   };
   if ($("#ac-del", sh.el)) confirmButton($("#ac-del", sh.el), `Wirklich ${a.tx_count} Buchungen löschen?`, async () => {
     await api(`accounts/${a.id}`, { method: "DELETE" }); sh.close(); toast("Konto gelöscht"); rerender();
   });
+}
+
+// Tilgungsplan eines Kredits: Restschuld heute, Enddatum, Zinsen, Sondertilgung, Plan je Jahr.
+async function loanSheet(a) {
+  let p;
+  try { p = await api(`accounts/${a.id}/loan`); } catch (err) { toast(err.message); return; }
+  const need = { rate: "den Sollzins", payment: "die Monatsrate", balance: "die Restschuld" };
+  const span = (n) => (n >= 12 ? `${Math.floor(n / 12)} ${Math.floor(n / 12) === 1 ? "Jahr" : "Jahre"}${n % 12 ? ` und ${n % 12} ${n % 12 === 1 ? "Monat" : "Monate"}` : ""}` : `${n} ${n === 1 ? "Monat" : "Monate"}`);
+  const body = !p.ready
+    ? html`<p class="muted">Für den Tilgungsplan fehlt noch: ${p.missing.map((m) => need[m]).join(", ")}. ${p.missing.includes("balance") ? "Die Restschuld trägst du über „Restschuld eintragen“ ein, " : ""}Zins und Rate stehen in den Angaben des Kontos.</p>
+      <div class="actions"><button class="btn primary" id="ln-edit">Angaben ergänzen</button></div>`
+    : !p.covers_interest
+      ? html`<div class="big-amount">${money(-p.today_cents)}</div>
+        <div class="alert critical"><div><strong>Die Rate deckt die Zinsen nicht</strong><p class="small">Im Monat fallen ${money(p.first_interest_cents)} Zinsen an, die Rate beträgt ${money(p.payment_cents)}. So wächst die Schuld. Prüfe Zins und Rate.</p></div></div>
+        <div class="actions"><button class="btn primary" id="ln-edit">Angaben ändern</button></div>`
+      : html`<div class="big-amount">${money(-p.today_cents)}</div>
+        <p class="small muted">${p.months_since_entry ? `Geschätzt. Eingetragen waren ${money(p.entered_cents)} am ${dFull(p.entered_on)}, seitdem ${p.months_since_entry} ${p.months_since_entry === 1 ? "Rate" : "Raten"}.` : `Restschuld, eingetragen am ${dFull(p.entered_on)}.`}</p>
+        <dl class="facts">
+          <dt>Sollzins</dt><dd>${PCT.format(p.rate_milli / 1000)} % pro Jahr</dd>
+          <dt>Monatsrate</dt><dd>${money(p.payment_cents)}, davon zurzeit ${money(p.first_interest_cents)} Zinsen</dd>
+          <dt>Fertig</dt><dd>${p.done ? `${fmtMonth.format(D(p.end_date))}, in ${span(p.months)}` : "in mehr als 60 Jahren"}</dd>
+          <dt>Noch Zinsen</dt><dd>${money(p.interest_cents)}${p.done ? `, zusammen noch ${money(p.total_cents)}` : ""}</dd>
+        </dl>
+        ${p.end_differs ? html`<p class="small muted">Am Konto steht „läuft bis ${dFull(p.matures_on)}“. Nach Zins und Rate wäre der Kredit ${fmtMonth.format(D(p.end_date))} getilgt. Bleibt am Ende der Laufzeit eine Restschuld, ist das die Schlussrate oder die Anschlussfinanzierung.</p>` : ""}
+        <h3 style="margin-top:18px">Sondertilgung</h3>
+        <form class="afford" id="ln-extra-form"><input class="input" id="ln-extra" inputmode="decimal" placeholder="Betrag in Euro" aria-label="Sondertilgung in Euro"><button class="btn" type="submit">Rechnen</button></form>
+        <div id="ln-extra-out" aria-live="polite"></div>
+        ${p.years.length ? html`<h3 style="margin-top:18px">Plan je Jahr</h3>
+          <table class="plan"><thead><tr><th>Jahr</th><th>Gezahlt</th><th>davon Zinsen</th><th>Rest am Ende</th></tr></thead>
+          <tbody>${p.years.slice(0, 40).map((y) => html`<tr><td>${y.year}</td><td>${money(y.paid_cents)}</td><td>${money(y.interest_cents)}</td><td>${money(y.rest_cents)}</td></tr>`)}</tbody></table>` : ""}
+        <p class="small muted">Gerechnet mit monatlicher Verrechnung und gleichbleibendem Zins. Die Bank rechnet taggenau; verbindlich ist ihr Auszug.</p>
+        <div class="actions">${p.months_since_entry ? html`<button class="btn primary" id="ln-take">Geschätzte Restschuld übernehmen</button>` : ""}<button class="btn" id="ln-bal">Restschuld eintragen</button><button class="btn" id="ln-edit">Angaben ändern</button></div>`;
+  const sh = openSheet(html`${sheetHead(`Tilgungsplan ${a.name}`)}${body}`.s);
+  $("#ln-edit", sh.el).onclick = () => { sh.close(); accountSheet(a); };
+  if ($("#ln-bal", sh.el)) $("#ln-bal", sh.el).onclick = () => { sh.close(); balanceSheet(a); };
+  if ($("#ln-take", sh.el)) $("#ln-take", sh.el).onclick = async () => {
+    try { await api(`accounts/${a.id}/balance`, { method: "POST", body: { balance_cents: p.today_cents, date: todayIso() } }); sh.close(); toast("Restschuld übernommen"); rerender(); }
+    catch (err) { toast(err.message); }
+  };
+  if ($("#ln-extra-form", sh.el)) $("#ln-extra-form", sh.el).onsubmit = async (e) => {
+    e.preventDefault();
+    const cents = Math.abs(parseMoney($("#ln-extra", sh.el).value) || 0);
+    if (!cents) { toast("Bitte einen Betrag eintragen"); return; }
+    try {
+      const x = (await api(`accounts/${a.id}/loan?extra_cents=${cents}`)).extra;
+      $("#ln-extra-out", sh.el).innerHTML = html`<div class="alert" style="margin-top:10px;display:block;cursor:default"><strong>${money(x.cents)} heute getilgt</strong>
+        <p class="small">${x.months ? `Fertig ${fmtMonth.format(D(x.end_date))}${x.months_saved ? `, ${span(x.months_saved)} früher` : ", zur selben Zeit"}.` : "Damit wäre der Kredit sofort getilgt."} Du sparst ${money(x.interest_saved_cents)} Zinsen. Ob und wie viel du ohne Gebühr sondertilgen darfst, steht im Vertrag.</p></div>`.s;
+    } catch (err) { toast(err.message); }
+  };
 }
 
 function balanceSheet(a) {

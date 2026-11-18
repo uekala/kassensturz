@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.3.44
+
+- Kredite mit Tilgungsplan: Am Konto der Art *Kredit* lassen sich Sollzins und Monatsrate eintragen.
+  - Der Tilgungsplan zeigt die geschätzte Restschuld heute, den Monat der letzten Rate, die restlichen Zinsen und
+    den Plan je Jahr.
+  - Sondertilgung: Betrag eintragen und sehen, wie viel früher der Kredit fertig ist und wie viel Zinsen das spart.
+  - Die geschätzte Restschuld ändert das Vermögen erst, wenn du sie übernimmst.
+
 ## 0.3.43
 
 - Projekte: Buchungen quer zu Kategorien bündeln und sehen, was etwas insgesamt gekostet hat.
