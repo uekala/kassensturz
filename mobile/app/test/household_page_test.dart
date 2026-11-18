@@ -81,6 +81,32 @@ void main() {
     expect(await controller.addSettlement(0, 1500, ''), isNotNull);
   });
 
+  test('a child phone is read-only and asks for no server update', () async {
+    final transport = ScriptedTransport((request) {
+      if (request.uri.path == '/api/v1/me') {
+        return jsonResponse(200, {
+          'device': {'id': 'device-1', 'name': 'Testgerät'},
+          'server': {'name': 'Kassensturz', 'version': '0.3.37'},
+          'capabilities': ['overview', 'transactions', 'accounts'],
+          'household': {'read_only': true},
+        });
+      }
+      return serverAnswer(request);
+    });
+    final controller = MobileConnectionController(
+      apiClient: MobileApiClient(
+        sessionStore: await pairedStore(),
+        transport: transport,
+        refreshRetryDelay: Duration.zero,
+      ),
+      readRetryDelay: Duration.zero,
+    );
+    await controller.restore();
+    expect(controller.isReadOnly, isTrue);
+    expect(controller.canWriteTransactions, isFalse);
+    expect(controller.serverNeedsUpdate, isFalse);
+  });
+
   test('an own budget is saved under its own address', () async {
     final paths = <String>[];
     final transport = ScriptedTransport((request) {

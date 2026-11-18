@@ -68,6 +68,7 @@ class MobileConnectionController extends ChangeNotifier {
   DateTime? _lastSyncAt;
   Set<String> _capabilities = const {};
   String? _serverVersion;
+  bool _readOnly = false;
   List<ServerAccount> _accounts = const [];
   List<ServerCategory> _categories = const [];
   List<ServerContract> _contracts = const [];
@@ -292,9 +293,17 @@ class MobileConnectionController extends ChangeNotifier {
   /// True once the server announced that it accepts manual transactions.
   bool get canWriteTransactions => _capabilities.contains(writeCapability);
 
-  /// True when the server answered but is older than this app expects.
+  /// True when this phone belongs to a child of the household: it shows
+  /// that person's own money and cannot change anything.
+  bool get isReadOnly => _readOnly;
+
+  /// True when the server answered but is older than this app expects. A
+  /// read-only phone lacks the same abilities on purpose.
   bool get serverNeedsUpdate =>
-      _session != null && _serverVersion != null && !canWriteTransactions;
+      _session != null &&
+      _serverVersion != null &&
+      !canWriteTransactions &&
+      !_readOnly;
 
   List<ServerAccount> get accounts => _accounts;
   List<ServerAccount> get manualAccounts =>
@@ -584,6 +593,8 @@ class MobileConnectionController extends ChangeNotifier {
     _capabilities = capabilities is List
         ? capabilities.whereType<String>().toSet()
         : const {};
+    final household = identity['household'];
+    _readOnly = household is Map && household['read_only'] == true;
   }
 
   /// An older server ignores unknown parameters and would answer with the
@@ -976,6 +987,7 @@ class MobileConnectionController extends ChangeNotifier {
     _lastSyncAt = null;
     _capabilities = const {};
     _serverVersion = null;
+    _readOnly = false;
     _accounts = const [];
     _categories = const [];
     _contracts = const [];

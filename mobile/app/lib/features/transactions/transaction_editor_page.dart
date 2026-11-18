@@ -51,6 +51,28 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
   bool get _isNew => widget.existing == null;
   bool get _fullyEditable => _isNew || widget.existing!.manual;
 
+  /// True for the credit Kassensturz books on a pocket money account.
+  bool get _isPocketMoney {
+    final existing = widget.existing;
+    if (existing == null || existing.manual) return false;
+    for (final account in widget.controller.accounts) {
+      if (account.id == existing.accountId) {
+        return account.type == 'taschengeld';
+      }
+    }
+    return false;
+  }
+
+  /// Says why amount, date and text of this transaction cannot be changed.
+  String get _fixedHint {
+    if (_isPocketMoney) {
+      return 'Diese Gutschrift hat Kassensturz angelegt. Betrag, Datum und '
+          'Text bleiben, wie sie sind; alles andere kannst du ändern.';
+    }
+    return 'Dieser Umsatz stammt von der Bank. Betrag, Datum und Text '
+        'bleiben wie geliefert; alles andere kannst du ändern.';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -380,6 +402,8 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
         ? 'Neuer Umsatz'
         : _fullyEditable
         ? 'Umsatz bearbeiten'
+        : _isPocketMoney
+        ? 'Taschengeld'
         : 'Bankumsatz';
     return Scaffold(
       appBar: AppBar(
@@ -399,10 +423,7 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
             if (!_fullyEditable) ...[
-              const _Hint(
-                'Dieser Umsatz stammt von der Bank. Betrag, Datum und Text '
-                'bleiben wie geliefert; alles andere kannst du ändern.',
-              ),
+              _Hint(_fixedHint),
               const SizedBox(height: 16),
             ],
             if (_fullyEditable) ...[

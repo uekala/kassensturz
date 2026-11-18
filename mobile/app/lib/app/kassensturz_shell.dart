@@ -277,10 +277,13 @@ class _KassensturzShellState extends State<KassensturzShell>
           ],
         ),
       ),
-      bottomNavigationBar: _ShellNavigation(
-        selectedIndex: _selectedIndex,
-        onSelected: (index) => setState(() => _selectedIndex = index),
-        onAdd: _addTransaction,
+      bottomNavigationBar: AnimatedBuilder(
+        animation: _mobileConnectionController,
+        builder: (context, _) => _ShellNavigation(
+          selectedIndex: _selectedIndex,
+          onSelected: (index) => setState(() => _selectedIndex = index),
+          onAdd: controller.isReadOnly ? null : _addTransaction,
+        ),
       ),
     );
   }
@@ -371,7 +374,9 @@ class _ShellNavigation extends StatelessWidget {
 
   final int selectedIndex;
   final ValueChanged<int> onSelected;
-  final VoidCallback onAdd;
+
+  /// Null on a read-only phone; the button is then left out.
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -400,20 +405,21 @@ class _ShellNavigation extends StatelessWidget {
                   selected: selectedIndex == 1,
                   onTap: () => onSelected(1),
                 ),
-                Expanded(
-                  child: Center(
-                    child: IconButton.filled(
-                      tooltip: 'Umsatz anlegen',
-                      onPressed: onAdd,
-                      style: IconButton.styleFrom(
-                        backgroundColor: klar.brand,
-                        foregroundColor: klar.onBrand,
-                        minimumSize: const Size(52, 52),
+                if (onAdd != null)
+                  Expanded(
+                    child: Center(
+                      child: IconButton.filled(
+                        tooltip: 'Umsatz anlegen',
+                        onPressed: onAdd,
+                        style: IconButton.styleFrom(
+                          backgroundColor: klar.brand,
+                          foregroundColor: klar.onBrand,
+                          minimumSize: const Size(52, 52),
+                        ),
+                        icon: const Icon(Icons.add_rounded, size: 28),
                       ),
-                      icon: const Icon(Icons.add_rounded, size: 28),
                     ),
                   ),
-                ),
                 _NavigationItem(
                   label: 'Planung',
                   icon: Icons.bar_chart_rounded,

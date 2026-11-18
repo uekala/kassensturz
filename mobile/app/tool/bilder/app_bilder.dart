@@ -299,6 +299,11 @@ void main() {
 
   _scene('Handy eines Kindes', (tester) async {
     final phone = await _Phone.start(tester, view: 'mia');
+    // A child's phone is read-only on purpose; nothing there may suggest
+    // that the server is outdated or that something can be added.
+    expect(find.textContaining('aktualisieren'), findsNothing);
+    expect(find.byTooltip('Umsatz anlegen'), findsNothing);
+    expect(find.text('Dein Geld'), findsOneWidget);
     await phone.shot('20-kind-heute');
     await phone.tab('Umsätze');
     await phone.shot('21-kind-umsaetze');

@@ -83,6 +83,11 @@ class _Contracts extends StatelessWidget {
             'verbunden ist.',
           );
         }
+        if (controller.isReadOnly) {
+          return const _Notice(
+            'Verträge sehen nur die Erwachsenen im Haushalt.',
+          );
+        }
         if (!controller.canWriteTransactions) {
           return const _Notice(
             'Bitte aktualisiere Kassensturz in Home Assistant, um Verträge '

@@ -55,9 +55,14 @@ class ServerAccountsPage extends StatelessWidget {
     final split = household is Map && household['private_accounts'] == true;
     final person = household is Map ? household['person'] : null;
     final viewer = person is Map ? _string(person['name'], '') : '';
-    final scope = viewer.isEmpty
-        ? 'Du siehst hier nur die gemeinsamen Konten.'
-        : 'Du siehst deine eigenen und die gemeinsamen Konten ($viewer).';
+    final String scope;
+    if (controller.isReadOnly) {
+      scope = 'Das ist dein Geld. Ändern können es nur die Erwachsenen.';
+    } else if (viewer.isEmpty) {
+      scope = 'Du siehst hier nur die gemeinsamen Konten.';
+    } else {
+      scope = 'Du siehst deine eigenen und die gemeinsamen Konten ($viewer).';
+    }
     // What is open between this person and the others from shared expenses.
     final open = household is Map ? household['balances'] : null;
     final owed = _maps(open).map(_owedLine).toList();
@@ -113,13 +118,15 @@ class ServerAccountsPage extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 10),
-          Text(
-            'Konten legst du in Kassensturz in Home Assistant an, dort trägst '
-            'du auch Werte für Depot, Festgeld, Immobilie und Kredit ein. '
-            'Umsätze von Hand gehen nur auf Konten ohne Bankabruf; ein '
-            'Konto für Bargeld legt die App über das Plus selbst an.',
-            style: textTheme.bodySmall,
-          ),
+          if (!controller.isReadOnly)
+            Text(
+              'Konten legst du in Kassensturz in Home Assistant an, dort '
+              'trägst du auch Werte für Depot, Festgeld, Immobilie und '
+              'Kredit ein. Umsätze von Hand gehen nur auf Konten ohne '
+              'Bankabruf; ein Konto für Bargeld legt die App über das Plus '
+              'selbst an.',
+              style: textTheme.bodySmall,
+            ),
         ],
       ),
     );
@@ -347,13 +354,7 @@ class ServerBudgetPage extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 6),
-          Text(
-            controller.canEditBudgets
-                ? 'Tippe auf ein Budget, um es zu ändern oder zu entfernen.'
-                : 'Budgets änderst du in Kassensturz in Home Assistant. Ab '
-                      'Server 0.3.9 geht das auch hier.',
-            style: textTheme.bodySmall,
-          ),
+          Text(_budgetHint(controller), style: textTheme.bodySmall),
           ..._savingsSections(context, data),
         ],
       ),
@@ -605,4 +606,16 @@ class _GoalBlock extends StatelessWidget {
       ),
     );
   }
+}
+
+/// What the line below the budgets says, depending on what this phone may do.
+String _budgetHint(MobileConnectionController controller) {
+  if (controller.canEditBudgets) {
+    return 'Tippe auf ein Budget, um es zu ändern oder zu entfernen.';
+  }
+  if (controller.isReadOnly) {
+    return 'Budgets legen die Erwachsenen im Haushalt fest.';
+  }
+  return 'Budgets änderst du in Kassensturz in Home Assistant. Ab Server '
+      '0.3.9 geht das auch hier.';
 }
