@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.54
+
+- Budgets in Home Assistant: neuer Abschnitt *Vorschläge*, wie in der App. Aus den Ausgaben der letzten vollen Monate,
+  aufgerundet; einzeln oder alle auf einmal übernehmen. Gezählt werden die gemeinsamen Konten, wie bei den Budgets
+  des Haushalts. Kategorien, deren Budget schon passt, erscheinen nicht.
+
 ## 0.3.53
 
 - App (ab Version 0.3.33): Umsätze und Auswertung lassen sich auf „Ich“ (nur die eigenen Konten) oder „Gemeinsam“
