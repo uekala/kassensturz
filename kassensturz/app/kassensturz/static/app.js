@@ -503,7 +503,7 @@ async function drawShare(box, txId) {
 async function txSheet(t) {
   const name = t.counterparty || t.purpose || "Buchung";
   const rule = t.rule_ref || "";
-  const how = t.category_locked ? "von dir gesetzt" : rule.startsWith("user:") ? "durch deine Regel" : rule === "learned" ? "aus deiner Korrektur gelernt" : rule.startsWith("builtin") ? "automatisch erkannt"
+  const how = rule === "finanzguru" ? "aus Finanzguru übernommen" : t.category_locked ? "von dir gesetzt" : rule.startsWith("user:") ? "durch deine Regel" : rule === "learned" ? "aus deiner Korrektur gelernt" : rule.startsWith("builtin") ? "automatisch erkannt"
     : rule === "own-iban" ? "Überweisung zwischen eigenen Konten" : rule.startsWith("settlement") ? "Ausgleich eines anderen Kontos"
     : rule === "paypal-funding" ? "Aufladung des PayPal-Kontos" : rule === "card-payment" ? "Ausgleich der Kartenabrechnung" : "keine Regel gefunden";
   const sh = openSheet(html`
@@ -1405,7 +1405,10 @@ async function renderAccounts(view, _params, seq) {
   on(view, "[data-eb-renew]", "click", (_e, el) => ebConnectSheet(eb.sessions.find((s) => s.id === Number(el.dataset.ebRenew))));
   on(view, "[data-eb-edit]", "click", (_e, el) => ebEditSheet(eb.sessions.find((s) => s.id === Number(el.dataset.ebEdit))));
   on(view, "[data-ib-assign]", "click", async (_e, el) => {
-    try { importSheet(await api("inbox/analyze", { method: "POST", body: { filename: el.dataset.ibAssign } })); } catch (e) { toast(e.message); }
+    try {
+      const res = await api("inbox/analyze", { method: "POST", body: { filename: el.dataset.ibAssign } });
+      if (res.kind === "finanzguru") finanzguruSheet(res); else importSheet(res);
+    } catch (e) { toast(e.message); }
   });
   on(view, "[data-ib-del]", "click", (_e, el) => {
     if (el.dataset.armed) { api(`inbox/${encodeURIComponent(el.dataset.ibDel)}`, { method: "DELETE" }).then(() => { toast("Datei gelöscht"); rerender(); }); return; }
@@ -1645,7 +1648,7 @@ function balanceSheet(a) {
 function pickImportFile() {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = ".csv,.txt,.xml,.zip,.sta,.mt940,.940";
+  input.accept = ".csv,.txt,.xml,.zip,.sta,.mt940,.940,.xlsx";
   input.onchange = async () => {
     const f = input.files[0];
     if (!f) return;
@@ -1655,7 +1658,7 @@ function pickImportFile() {
     try {
       const res = await api("import/analyze", { method: "POST", form });
       sh.close();
-      importSheet(res);
+      if (res.kind === "finanzguru") finanzguruSheet(res); else importSheet(res);
     } catch (e) {
       sh.set(html`${sheetHead("Datei nicht lesbar")}<p>${e.message}</p><div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
     }
@@ -1727,6 +1730,79 @@ function importSheet(res) {
         }
         rerender();
       } catch (e) { toast(e.message); $("#im-go", sh.el).disabled = false; }
+    };
+  };
+  draw();
+}
+
+/* --- Umstieg von Finanzguru -------------------------------------------------------------- */
+function finanzguruSheet(res) {
+  // Die Auswahl bleibt erhalten, wenn die Vorschau nach einer Änderung neu kommt.
+  const accChoice = new Map(res.accounts.map((a) => [a.ref, { target: a.target, name: a.suggest.name, kind: a.suggest.kind }]));
+  const catChoice = res.categories.map((c) => (c.suggest === null || c.suggest === undefined ? "" : String(c.suggest)));
+  const NEW_KINDS = ["giro", "tagesgeld", "sparkonto", "kreditkarte", "paypal", "bargeld", "sonstiges"];
+  let learn = true;
+  const sh = openSheet("", { wide: true });
+  const choices = () => res.accounts.map((a) => ({ ref: a.ref, ...accChoice.get(a.ref) }));
+  const catOptions = (selected) => html`<option value="" ${selected === "" ? raw("selected") : ""}>Kassensturz ordnet zu</option>
+    <option value="new" ${selected === "new" ? raw("selected") : ""}>Neu anlegen</option>
+    ${topCats().map((c) => html`<option value="${c.id}" ${String(c.id) === selected ? raw("selected") : ""}>${c.name}</option>${childCats(c.id).map((ch) => html`<option value="${ch.id}" ${String(ch.id) === selected ? raw("selected") : ""}>\u00a0\u00a0${ch.name}</option>`)}`)}`;
+  const draw = () => {
+    const accs = store.accounts.filter((a) => !a.archived && !VALUE_KINDS.has(a.kind) && a.kind !== "taschengeld");
+    const skipped = Object.entries(res.skipped || {}).map(([k, v]) => `${v} ${k}`).join(", ");
+    const total = res.accounts.reduce((sum, a) => sum + a.will_add, 0);
+    sh.set(html`${sheetHead("Von Finanzguru umziehen")}
+      <p><strong>${res.count} Buchungen</strong> auf ${res.accounts.length} ${res.accounts.length === 1 ? "Konto" : "Konten"}${res.first ? `, vom ${dFull(res.first)} bis ${dFull(res.last)}` : ""}.${skipped ? html` <span class="muted">Übersprungen: ${skipped}.</span>` : ""}</p>
+      <h3>Konten</h3>
+      <p class="small muted">Hat ein Konto schon Buchungen aus Bankabruf oder Datei, füllt der Export nur die Zeit davor auf. So entsteht nichts doppelt.</p>
+      ${res.accounts.map((a, i) => { const ch = accChoice.get(a.ref); return html`<div class="fg-acc">
+        <div><strong>${a.name}</strong>${a.label ? html` <span class="muted small">${a.label}</span>` : ""}<br>
+          <span class="small muted">${a.count} Buchungen, ${dFull(a.first)} bis ${dFull(a.last)}</span></div>
+        <select data-fg-acc="${i}" aria-label="Ziel für ${a.name}">
+          <option value="new" ${ch.target === "new" ? raw("selected") : ""}>Neues Konto anlegen</option>
+          ${accs.map((x) => html`<option value="${x.id}" ${ch.target === x.id ? raw("selected") : ""}>${x.name}</option>`)}
+          <option value="skip" ${ch.target === "skip" ? raw("selected") : ""}>Nicht übernehmen</option></select>
+        ${ch.target === "new" ? html`<div class="field-row">
+          <label class="field"><span>Name</span><input class="input" data-fg-name="${i}" value="${ch.name}"></label>
+          <label class="field"><span>Art</span><select data-fg-kind="${i}">${NEW_KINDS.map((k) => html`<option value="${k}" ${k === ch.kind ? raw("selected") : ""}>${KIND_LABEL[k]}</option>`)}</select></label></div>` : ""}
+        ${typeof ch.target === "number" && a.cutoff ? html`<p class="small muted">Dieses Konto hat Buchungen ab dem ${dFull(a.cutoff)}. Übernommen wird, was davor liegt: ${a.will_add} von ${a.count}.</p>` : ""}
+      </div>`; })}
+      ${res.categories.length ? html`<h3 style="margin-top:20px">Kategorien</h3>
+      <p class="small muted">Was du hier zuordnest, behält seine Kategorie. Bei „Kassensturz ordnet zu“ entscheidet Kassensturz selbst.${res.transfers ? ` ${res.transfers} Umbuchungen bleiben Umbuchungen.` : ""}</p>
+      <table class="map-table">${res.categories.map((c, i) => html`<tr><td>${c.main}${c.main && c.sub ? " › " : ""}${c.sub} <span class="muted">(${c.count})</span></td>
+        <td><select data-fg-cat="${i}" aria-label="Kategorie für ${c.sub || c.main}">${catOptions(catChoice[i])}</select></td></tr>`)}</table>
+      <label class="check"><input type="checkbox" id="fg-learn" ${learn ? raw("checked") : ""}><span>Daraus lernen: Was in Finanzguru verlässlich gleich zugeordnet war, gilt auch für künftige Buchungen.</span></label>` : ""}
+      <div class="actions"><button class="btn primary" id="fg-go" ${!total ? raw("disabled") : ""}>${total} Buchungen übernehmen</button><button class="btn" data-close>Abbrechen</button></div>`.s);
+    on(sh.el, "[data-fg-acc]", "change", async (_e, el) => {
+      const a = res.accounts[Number(el.dataset.fgAcc)];
+      accChoice.get(a.ref).target = /^\d+$/.test(el.value) ? Number(el.value) : el.value;
+      try {
+        const next = await api("import/finanzguru/preview", { method: "POST", body: { token: res.token, accounts: choices() } });
+        res = { ...res, accounts: next.accounts };
+        draw();
+      } catch (e) { toast(e.message); }
+    });
+    on(sh.el, "[data-fg-name]", "input", (_e, el) => { accChoice.get(res.accounts[Number(el.dataset.fgName)].ref).name = el.value; });
+    on(sh.el, "[data-fg-kind]", "change", (_e, el) => { accChoice.get(res.accounts[Number(el.dataset.fgKind)].ref).kind = el.value; });
+    on(sh.el, "[data-fg-cat]", "change", (_e, el) => { catChoice[Number(el.dataset.fgCat)] = el.value; });
+    if ($("#fg-learn", sh.el)) $("#fg-learn", sh.el).onchange = (e) => { learn = e.target.checked; };
+    $("#fg-go", sh.el).onclick = async () => {
+      $("#fg-go", sh.el).disabled = true;
+      const body = { token: res.token, learn, accounts: choices(),
+        categories: res.categories.map((c, i) => ({ main: c.main, sub: c.sub, target: catChoice[i] === "" ? null : catChoice[i] })) };
+      try {
+        const r = await api("import/finanzguru/commit", { method: "POST", body });
+        const extras = [r.learned ? `${r.learned} ${r.learned === 1 ? "Zuordnung" : "Zuordnungen"} gelernt` : "",
+          r.categories_created ? `${r.categories_created} ${r.categories_created === 1 ? "Kategorie" : "Kategorien"} angelegt` : ""].filter(Boolean).join(", ");
+        sh.set(html`${sheetHead("Umzug abgeschlossen")}
+          <p><strong>${r.added} Buchungen übernommen</strong>.${extras ? ` ${extras}.` : ""}</p>
+          ${r.accounts.map((a) => html`<div class="fg-acc"><div><strong>${a.name}</strong>${a.created ? " (neu)" : ""}${a.balance_known ? "" : html` <span class="chip warn">Stand fehlt</span>`}<br>
+            <span class="small muted">${a.added} übernommen${a.skipped ? `, ${a.skipped} waren schon da` : ""}${a.held_back ? `. ${a.held_back} ab dem ${dFull(a.cutoff)} liefert die Bank` : ""}</span></div></div>`)}
+          ${r.accounts.some((a) => !a.balance_known) ? html`<p class="small muted">Wo der Stand fehlt: Konto unter „Konten“ öffnen und den aktuellen Kontostand eintragen.</p>` : ""}
+          <div class="actions"><button class="btn primary" data-close>Fertig</button></div>`.s);
+        await loadBase();
+        rerender();
+      } catch (e) { toast(e.message); $("#fg-go", sh.el).disabled = false; }
     };
   };
   draw();

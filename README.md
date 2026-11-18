@@ -43,6 +43,7 @@ und Revolut) oder FinTS mit einer kostenlosen Produkt-ID. Alles Weitere steht in
 Open Banking: alle Banken, die Enable Banking anbindet – darunter N26.
 FinTS: Sparkassen, Volks- und Raiffeisenbanken, ING, DKB, comdirect und alle weiteren Banken mit FinTS-PIN/TAN.
 Datei-Import und Eingangsordner: zusätzlich PayPal, American Express, Revolut, Klarna, Advanzia sowie CAMT.052/.053 und MT940.
+Umstieg: Der Excel-Export aus Finanzguru bringt Historie und Kategorien mit.
 
 ## Eigenständiger Betrieb
 

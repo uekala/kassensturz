@@ -494,6 +494,10 @@ def analyze(data: bytes, filename: str, mapping_override: dict | None = None) ->
     if len(data) > MAX_IMPORT_BYTES:
         raise ValueError(f"Die Datei überschreitet das Importlimit von {MAX_IMPORT_BYTES // (1024 * 1024)} MB.")
     name = (filename or "").lower()
+    from . import finanzguru  # baut auf diesem Modul auf
+
+    if finanzguru.is_workbook(data):
+        return _finanzguru(finanzguru.from_workbook(data))
     if zipfile.is_zipfile(io.BytesIO(data)):
         rows, meta = [], {}
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
@@ -533,6 +537,9 @@ def analyze(data: bytes, filename: str, mapping_override: dict | None = None) ->
 
     delim = sniff_delimiter(text)
     table = list(csv.reader(io.StringIO(text), delimiter=delim))
+    start = finanzguru.header_row(table)
+    if start >= 0:
+        return _finanzguru(finanzguru.parse(table, start))
     hidx = _find_header(table)
     if hidx < 0:
         return {"kind": "csv", "error": "Keine Kopfzeile mit Datum und Betrag gefunden. Prüfe, ob du den Umsatz-Export als CSV gewählt hast.",
@@ -566,6 +573,18 @@ def analyze(data: bytes, filename: str, mapping_override: dict | None = None) ->
     })
     positives = sum(1 for r in rows if r["amount_cents"] > 0)
     res["invert_suggested"] = len(rows) >= 5 and positives / len(rows) > 0.75 and not mapping.get("invert")
+    return res
+
+
+def _finanzguru(parsed: dict) -> dict:
+    """Der Export aus Finanzguru enthält mehrere Konten und geht deshalb einen eigenen Weg.
+
+    Für alle, die eine Datei einem einzelnen Konto zuordnen, sieht er aus wie eine Datei ohne
+    Buchungen mit einem Hinweis. Der eigene Dialog liest die Zeilen unter „finanzguru“."""
+    from . import finanzguru
+
+    res = _result("finanzguru", "Finanzguru", [], {}, None)
+    res.update({"error": finanzguru.HINT, "count": len(parsed["rows"]), "finanzguru": parsed})
     return res
 
 

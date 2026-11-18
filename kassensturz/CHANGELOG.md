@@ -1,5 +1,18 @@
 # Änderungen
 
+## 0.3.36
+
+- Umstieg von Finanzguru: Der Excel- oder CSV-Export lässt sich unter *Konten → Datei importieren* übernehmen.
+  - Ein Dialog ordnet die Konten des Exports zu: vorhandenes Konto, neues Konto oder nicht übernehmen.
+  - Hat ein Konto schon Buchungen aus Bankabruf oder Datei, füllt der Export nur die Zeit davor auf. So entsteht
+    nichts doppelt.
+  - Kategorien aus Finanzguru lassen sich einer Kategorie von Kassensturz zuordnen oder neu anlegen. Zugeordnete
+    Buchungen behalten ihre Kategorie; Umbuchungen bleiben Umbuchungen.
+  - Auf Wunsch lernt Kassensturz daraus: Empfänger, die in Finanzguru verlässlich in einer Kategorie lagen, gelten
+    auch für vorhandene und künftige Buchungen. Eigene Korrekturen haben Vorrang.
+- Der Selbsttest des Kontostands zählt nachgetragene alte Buchungen nicht als neu.
+- Excel-Dateien werden nur als Finanzguru-Export gelesen; der Eingangsordner zeigt einen solchen Export zum Zuordnen an.
+
 ## 0.3.35
 
 - Haushalt, vierte Stufe: Kinder und Taschengeld.
