@@ -155,6 +155,12 @@ def alerts(db: Database, summary: dict) -> list[dict]:
         if b["state"] == "over":
             out.append({"key": f"budget:{b['category_id']}:{today:%Y-%m}", "level": "warning", "title": f"Budget {b['name']} überschritten",
                         "text": f"{euro(b['spent_cents'])} von {euro(b['budget_cents'])} ausgegeben."})
+    for person, rows in household.all_own_budgets(db, today):
+        for b in rows:
+            if b["state"] == "over":
+                out.append({"key": f"own-budget:{person['id']}:{b['category_id']}:{today:%Y-%m}", "level": "warning",
+                            "owner_person_id": person["id"], "title": f"Eigenes Budget {b['name']} überschritten",
+                            "text": f"{person['name']}: {euro(b['spent_cents'])} von {euro(b['budget_cents'])} ausgegeben."})
     for s in openbanking.list_sessions(db):
         if s["status"] == "expired" or (s["days_left"] is not None and s["days_left"] < 0):
             out.append({"key": f"eb-expired:{s['id']}:{s['valid_until']}", "level": "warning", "eb": s["id"],
@@ -272,18 +278,27 @@ def transaction_events(rows: list[dict], large_cents: int) -> list[tuple[str, di
     return out
 
 
-def budget_events(summary: dict, today: date | None = None) -> list[tuple[str, str, dict]]:
-    """Je Budget und Monat höchstens zwei Ereignisse: bei 80 % und bei 100 %."""
+def budget_events(summary: dict, today: date | None = None,
+                  own: list[tuple[dict, list[dict]]] = ()) -> list[tuple[str, str, dict]]:
+    """Je Budget und Monat höchstens zwei Ereignisse: bei 80 % und bei 100 %.
+
+    ``own`` sind die eigenen Budgets je Person; ihre Ereignisse tragen zusätzlich die Person."""
     month = (today or date.today()).strftime("%Y-%m")
     out = []
-    for b in summary["budgets"]:
-        percent = round(b["ratio"] * 100)
-        for level in BUDGET_LEVELS:
-            if percent >= level:
-                out.append((f"ev-budget:{month}:{b['category_id']}:{level}", "budget_schwelle",
-                            {"kategorie": b["name"], "schwelle": level, "prozent": percent,
-                             "budget": round(b["budget_cents"] / 100, 2), "ausgegeben": round(b["spent_cents"] / 100, 2),
-                             "rest": round(b["left_cents"] / 100, 2), "monat": month}))
+    for person, rows in [(None, summary["budgets"]), *own]:
+        for b in rows:
+            percent = round(b["ratio"] * 100)
+            for level in BUDGET_LEVELS:
+                if percent < level:
+                    continue
+                key = f"ev-budget:{month}:{b['category_id']}:{level}" if person is None else \
+                    f"ev-budget:{month}:p{person['id']}:{b['category_id']}:{level}"
+                data = {"kategorie": b["name"], "schwelle": level, "prozent": percent,
+                        "budget": round(b["budget_cents"] / 100, 2), "ausgegeben": round(b["spent_cents"] / 100, 2),
+                        "rest": round(b["left_cents"] / 100, 2), "monat": month}
+                if person is not None:
+                    data.update({"person": person["name"], "person_id": person["id"]})
+                out.append((key, "budget_schwelle", data))
     return out
 
 
@@ -367,7 +382,7 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
             for event, data in transaction_events(rows, large_transaction_cents(opts)):
                 ha.fire(event, data)
             # Erst die höhere Schwelle: Wer in einem Schritt über 100 % springt, bekommt beide Ereignisse.
-            for key, event, data in budget_events(summary):
+            for key, event, data in budget_events(summary, own=household.all_own_budgets(db)):
                 ha.fire_once(db, key, event, data)
             for found in anomalies.find(db):
                 ha.fire_once(db, f"ev-{found['key']}", "auffaelligkeit", anomaly_event(found))

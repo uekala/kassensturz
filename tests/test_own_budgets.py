@@ -112,3 +112,33 @@ def test_administration_reads_and_sets_budgets_of_a_person(home):
         db.execute("UPDATE accounts SET owner_person_id = NULL WHERE owner_person_id = ?", (anna,))
         assert client.delete(f"/api/persons/{anna}").status_code == 200
         assert db.scalar("SELECT COUNT(*) FROM person_budgets") == 0
+
+
+def test_own_budget_warns_its_person_and_fires_events(home, monkeypatch):
+    from kassensturz import services
+    db, anna, ben, food, fun = (home[k] for k in ("db", "anna", "ben", "food", "fun"))
+    household.set_own_budget(db, anna, fun, 2000)   # 25 € von 20 €: drüber
+    household.set_own_budget(db, anna, food, 3500)  # 30 € von 35 €: 86 %
+    household.set_own_budget(db, ben, food, 5000)   # 7 € von 50 €: nichts
+    today = date.today()
+
+    summary = services.build_summary(db)
+    own = [a for a in services.alerts(db, summary) if a["key"].startswith("own-budget:")]
+    assert [(a["owner_person_id"], a["key"]) for a in own] == [(anna, f"own-budget:{anna}:{fun}:{today:%Y-%m}")]
+    assert own[0]["text"].startswith("Anna: ")
+
+    # Am Handy sieht nur Anna ihre Warnung, Ben nicht.
+    def own_keys(person):
+        view = db.scoped(person)
+        return [a["key"] for a in services.alerts(view, services.build_summary(view)) if a["key"].startswith("own-budget:")]
+    assert own_keys(anna) == [own[0]["key"]]
+    assert own_keys(ben) == []
+
+    events = services.budget_events({"budgets": []}, today, household.all_own_budgets(db))
+    got = sorted((k, d["person"], d["schwelle"]) for k, _, d in events)
+    month = f"{today:%Y-%m}"
+    assert got == sorted([(f"ev-budget:{month}:p{anna}:{fun}:100", "Anna", 100),
+                          (f"ev-budget:{month}:p{anna}:{fun}:80", "Anna", 80),
+                          (f"ev-budget:{month}:p{anna}:{food}:80", "Anna", 80)])
+    # Gemeinsame Budgets behalten ihre bisherigen Schlüssel.
+    assert all(":p" not in k for k, _, _ in services.budget_events(summary, today))

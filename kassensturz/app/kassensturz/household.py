@@ -197,6 +197,22 @@ def own_budgets(db: Database, person_id: int | None, on=None) -> list[dict]:
     return analytics.budgets(db.part("own", person_id), on, limits) if limits else []
 
 
+def all_own_budgets(db, on=None) -> list[tuple[dict, list[dict]]]:
+    """Eigene Budgets je Person, für Hinweise und Ereignisse.
+
+    In der Sicht einer Person nur deren eigene; im ganzen Haushalt die aller Personen."""
+    viewer = getattr(db, "person_id", None)
+    base = getattr(db, "parent", db)
+    sql = "SELECT DISTINCT p.id, p.name FROM persons AS p JOIN person_budgets AS b ON b.person_id = p.id"
+    people = base.query(sql + " WHERE p.id = ?", (viewer,)) if viewer is not None else base.query(sql + " ORDER BY p.sort, p.id")
+    out = []
+    for person in people:
+        rows = own_budgets(base, person["id"], on)
+        if rows:
+            out.append((person, rows))
+    return out
+
+
 def set_own_budget(db: Database, person_id: int | None, category_id: int, cents) -> dict:
     """Setzt oder entfernt (``cents`` leer) das eigene Budget einer Person für eine Kategorie."""
     if not person_exists(db, person_id):

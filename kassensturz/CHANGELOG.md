@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.51
+
+- Eigene Budgets warnen jetzt wie die gemeinsamen: Ist eines überschritten, kommt ein Hinweis an die Person, der es
+  gehört (an ihren Benachrichtigungsdienst, sonst an den üblichen). Am Handy sieht ihn nur sie.
+- Das Ereignis `kassensturz_budget_schwelle` kommt auch für eigene Budgets, bei 80 % und 100 %, und trägt dann
+  `person` und `person_id`. Die Ereignisse der gemeinsamen Budgets bleiben, wie sie waren.
+
 ## 0.3.50
 
 - App (ab Version 0.3.32): *Konten → Wer hat was geändert?* zeigt das Änderungsprotokoll. Jede Person sieht nur
