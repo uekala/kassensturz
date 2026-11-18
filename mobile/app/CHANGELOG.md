@@ -7,6 +7,7 @@
 - Neuer Abschnitt *Geplant und erwartet* auf der Startseite; ein Tipp hakt ab.
 - *Kann ich mir das leisten?*: Unter der Antwort lässt sich der Betrag als geplante Ausgabe vormerken.
 - An einer Ausgabe: *Geld kommt zurück*, etwa nach einer Retoure.
+- Der Knopf zum Speichern einer Buchung steht in der Schrift der App.
 
 ## 0.3.29
 

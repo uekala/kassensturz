@@ -591,6 +591,8 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(54),
                 textStyle: const TextStyle(
+                  fontFamily: AppTheme.textFamily,
+                  fontFamilyFallback: AppTheme.textFallback,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
