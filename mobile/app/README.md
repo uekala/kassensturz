@@ -71,3 +71,21 @@ See [Mobile architecture](../../docs/architecture/0006-flutter-mobile-client.md)
 ## Releasing
 
 A tag `mobile-v<version>` (the version in `pubspec.yaml` without the build number, e.g. `mobile-v0.3.4`) runs the tests, builds the signed arm64 APK and attaches it to a GitHub release with the matching section of `CHANGELOG.md`. The build needs the four `ANDROID_*` repository secrets; without them it stops before building. The build number comes from the run number of the workflow, so every release installs over the previous one.
+
+## Bildschirmfotos aus der CI
+
+Der Ablauf „App-Bilder“ rendert bei jedem Pull Request jede Seite der App und legt die Bilder als Artefakt
+`kassensturz-app-bilder` an den Lauf: hell, dunkel und so, wie das Handy eines Kindes sie sieht.
+
+Die Daten dafür sind nicht von Hand gebaut. `tools/app_fixture.py` startet den Server mit den Beispieldaten und einem
+kleinen Haushalt und speichert, was er der App antwortet. `tool/bilder/app_bilder.dart` spielt diese Antworten ab. Passen
+Server und App nicht mehr zusammen, sieht man es in den Bildern oder der Lauf schlägt fehl.
+
+Von Hand:
+
+```bash
+python3 tools/app_fixture.py mobile/app/tool/bilder/server.json
+cd mobile/app && flutter test tool/bilder/app_bilder.dart
+```
+
+Die Bilder liegen danach unter `mobile/app/build/app-bilder`.
