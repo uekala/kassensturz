@@ -308,6 +308,22 @@ CREATE TABLE IF NOT EXISTS expected_incomes(
 );
 CREATE INDEX IF NOT EXISTS expected_incomes_status ON expected_incomes(status, since);
 
+-- Einmalige Ausgaben, die schon feststehen. Offen zählen sie in der Prognose mit.
+CREATE TABLE IF NOT EXISTS planned_expenses(
+  id INTEGER PRIMARY KEY,
+  label TEXT NOT NULL,
+  cents INTEGER NOT NULL,
+  due_date TEXT NOT NULL,
+  account_id INTEGER NOT NULL,
+  note TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  since TEXT NOT NULL,
+  paid_tx_id INTEGER,
+  closed_on TEXT,
+  created TEXT
+);
+CREATE INDEX IF NOT EXISTS planned_expenses_status ON planned_expenses(status, due_date);
+
 -- Auffälligkeiten, die jemand als geprüft ausgeblendet hat (Schlüssel wie anomaly:double:123).
 CREATE TABLE IF NOT EXISTS anomaly_acks(
   key TEXT PRIMARY KEY,
@@ -405,7 +421,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {
@@ -426,6 +442,7 @@ _SCOPED_VIEWS = {
     "valuations": "SELECT * FROM main.valuations WHERE account_id IN ({accounts})",
     "balance_checks": "SELECT * FROM main.balance_checks WHERE account_id IN ({accounts})",
     "expected_incomes": "SELECT * FROM main.expected_incomes WHERE account_id IN ({accounts})",
+    "planned_expenses": "SELECT * FROM main.planned_expenses WHERE account_id IN ({accounts})",
     "imports": "SELECT * FROM main.imports WHERE account_id IS NULL OR account_id IN ({accounts})",
     "csv_profiles": "SELECT * FROM main.csv_profiles WHERE account_id IS NULL OR account_id IN ({accounts})",
     "contracts": "SELECT * FROM main.contracts WHERE account_id IS NULL OR account_id IN ({accounts})",

@@ -247,6 +247,7 @@ async function renderOverview(view, _params, seq) {
             <li><span class="op"></span><span>Kontostand heute</span><span class="amount">${money(fc.balance_now)}</span></li>
             ${fc.fixed_in_cents ? html`<li><span class="op">+</span><span>feste Eingänge bis ${dShort(fc.period_end)}</span><span class="amount">${money(fc.fixed_in_cents)}</span></li>` : ""}
             <li><span class="op">−</span><span>feste Abbuchungen bis ${dShort(fc.period_end)}</span><span class="amount">${money(Math.abs(fc.fixed_out_cents))}</span></li>
+            ${fc.planned_out_cents ? html`<li><span class="op">−</span><span>geplante Ausgaben bis ${dShort(fc.period_end)}</span><span class="amount">${money(Math.abs(fc.planned_out_cents))}</span></li>` : ""}
             ${fc.buffer_cents ? html`<li><span class="op">−</span><span>Sicherheitspuffer</span><span class="amount">${money(fc.buffer_cents)}</span></li>` : ""}
             ${fc.reserve_deducted && fc.reserve_cents ? html`<li><span class="op">−</span><span>Rücklage für Jahreskosten</span><span class="amount">${money(fc.reserve_cents)}</span></li>` : ""}
           </ul>
@@ -274,6 +275,15 @@ async function renderOverview(view, _params, seq) {
           ${o.upcoming.length ? html`<ul class="list">${upcoming}</ul>` : html`<p class="muted">In den nächsten zwei Wochen ist nichts Festes fällig.</p>`}
         </section>
         <section class="section">
+          <div class="section-head"><h2>Geplante Ausgaben</h2><button class="link-btn" id="plan-add">Hinzufügen</button></div>
+          ${o.planned.open.length ? html`<ul class="list">${o.planned.open.map((p) => html`<li><button class="row" data-plan="${p.id}">
+              <span class="title">${p.label}${p.overdue ? html` <span class="chip warn">noch offen</span>` : ""}</span>
+              <span class="sub">${p.overdue ? `war für ${dShort(p.due_date)} geplant` : relDay(p.due_date)}, ${p.account}${p.in_forecast ? "" : ", zählt nicht in der Prognose"}${p.candidates.length ? ". Schon bezahlt?" : ""}</span>
+              <span class="amount">${money(-p.cents)}</span></button></li>`)}</ul>
+            ${o.planned.open.length > 1 ? html`<p class="small muted">Zusammen stehen ${money(o.planned.open_cents)} an.</p>` : ""}`
+            : html`<p class="muted">Nichts geplant. Steht eine größere Ausgabe an, etwa eine Rechnung oder eine Anschaffung, trag sie ein: Sie zählt dann in der Prognose mit.</p>`}
+        </section>
+        <section class="section">
           <div class="section-head"><h2>Erwartete Eingänge</h2><button class="link-btn" id="exp-add">Hinzufügen</button></div>
           ${o.expected.open.length ? html`<ul class="list">${o.expected.open.map((e) => html`<li><button class="row" data-exp="${e.id}">
               <span class="title">${e.label}${e.overdue ? html` <span class="chip warn">steht aus</span>` : ""}</span>
@@ -299,20 +309,29 @@ async function renderOverview(view, _params, seq) {
     e.preventDefault();
     const cents = parseMoney($("#afford-amt").value);
     if (cents === null || cents === 0) { toast("Bitte einen Betrag eintragen"); return; }
-    try { $("#afford-out").innerHTML = affordHtml(await api("afford?amount_cents=" + Math.abs(cents))); } catch (err) { toast(err.message); }
+    try { $("#afford-out").innerHTML = affordHtml(await api("afford?amount_cents=" + Math.abs(cents)), true); } catch (err) { toast(err.message); }
   };
   on(view, "[data-acc]", "click", (_e, el) => go("umsaetze", { account: el.dataset.acc }));
   on(view, "[data-alert]", "click", async (_e, el) => {
     const d = JSON.parse(el.dataset.alert);
     const found = o.alerts.find((x) => x.key === d.k);
     const waiting = found && found.expected ? o.expected.open.find((x) => x.id === found.expected) : null;
+    const due = found && found.planned ? o.planned.open.find((x) => x.id === found.planned) : null;
     if (found && found.anomaly) anomalySheet(found);
+    else if (due) plannedSheet(due);
     else if (waiting) expectedSheet(waiting);
     else if (d.c) { const list = await api("contracts"); const c = list.items.find((x) => x.key === d.c); if (c) contractSheet(c); }
     else if (d.a) { const acc = store.accounts.find((x) => x.id === d.a); if (acc) balanceSheet(acc); }
     else if (d.e) { const eb = await api("eb"); const s = eb.sessions.find((x) => x.id === d.e); if (s) ebConnectSheet(s); }
     else if (d.i) go("konten");
     else if (d.k.startsWith("budget")) go("budgets");
+  });
+  $("#plan-add").onclick = () => plannedEditSheet(null);
+  on(view, "[data-plan]", "click", (_e, el) => plannedSheet(o.planned.open.find((x) => x.id === Number(el.dataset.plan))));
+  // Der Knopf entsteht erst mit dem Ergebnis, darum hört der Rahmen zu.
+  $("#afford-out").addEventListener("click", (e) => {
+    const el = e.target.closest("[data-plan-cents]");
+    if (el) plannedEditSheet(null, Number(el.dataset.planCents));
   });
   $("#exp-add").onclick = () => expectedNewSheet(null);
   on(view, "[data-exp]", "click", (_e, el) => expectedSheet(o.expected.open.find((x) => x.id === Number(el.dataset.exp))));
@@ -364,6 +383,55 @@ function expectedNewSheet(t) {
     if (t) body.tx_id = t.id;
     else { body.label = $("#exp-label", sh.el).value; body.account_id = Number($("#exp-acc", sh.el).value); }
     try { await api("expected", { method: "POST", body }); sh.close(); toast("Gemerkt. Bleibt offen, bis das Geld da ist"); rerender(); }
+    catch (err) { toast(err.message); }
+  };
+}
+
+// Eine geplante Ausgabe: wann sie ansteht, welche Abbuchung es sein könnte, und das Abhaken von Hand.
+function plannedSheet(p) {
+  const sh = openSheet(html`${sheetHead(p.label)}
+    <div class="big-amount">${money(-p.cents)}</div>
+    <dl class="facts">
+      <dt>Geplant für</dt><dd>${dFull(p.due_date)}${p.overdue ? ", noch offen" : ""}</dd>
+      <dt>Konto</dt><dd>${p.account}</dd>
+      ${p.note ? html`<dt>Notiz</dt><dd>${p.note}</dd>` : ""}
+    </dl>
+    <p class="small muted">${p.in_forecast ? "Zählt in der Prognose mit, bis sie bezahlt ist oder entfällt." : "Dieses Konto zählt nicht in der Prognose, die Ausgabe darum auch nicht."}</p>
+    ${p.candidates.length ? html`<h3>Ist es eine dieser Abbuchungen?</h3>
+      <ul class="list">${p.candidates.map((c) => html`<li><button class="row" data-plan-take="${c.tx_id}">
+        <span class="title">${c.counterparty || "Abbuchung"}</span><span class="sub">${dFull(c.booking_date)}</span>
+        <span class="amount">${money(c.amount_cents)}</span></button></li>`)}</ul>` : ""}
+    <div class="actions"><button class="btn primary" id="plan-done">${p.candidates.length ? "Anders bezahlt" : "Ist bezahlt"}</button><button class="btn" id="plan-edit">Ändern</button><button class="btn" id="plan-drop">Entfällt</button></div>`.s);
+  const act = async (path, body, text) => {
+    try { await api(`planned/${p.id}/${path}`, { method: "POST", body: body || {} }); sh.close(); toast(text); rerender(); }
+    catch (err) { toast(err.message); }
+  };
+  on(sh.el, "[data-plan-take]", "click", (_e, el) => act("paid", { tx_id: Number(el.dataset.planTake) }, "Abgehakt"));
+  $("#plan-done", sh.el).onclick = () => act("paid", {}, "Abgehakt");
+  $("#plan-drop", sh.el).onclick = () => act("drop", null, "Gestrichen");
+  $("#plan-edit", sh.el).onclick = () => { sh.close(); plannedEditSheet(p); };
+}
+
+// Legt eine geplante Ausgabe an (p leer, Betrag optional vorbelegt) oder ändert eine offene.
+function plannedEditSheet(p, cents) {
+  const accs = store.accounts.filter((a) => !a.archived && !VALUE_KINDS.has(a.kind) && a.kind !== "taschengeld");
+  const first = (accs.find((a) => a.in_forecast) || accs[0] || {}).id;
+  const sh = openSheet(html`${sheetHead(p ? "Geplante Ausgabe ändern" : "Geplante Ausgabe")}
+    <label class="field"><span>Wofür?</span><input class="input" id="plan-label" maxlength="80" placeholder="z. B. Handwerkerrechnung" value="${p ? p.label : ""}" autofocus></label>
+    <div class="field-row">
+      <label class="field"><span>Betrag in Euro</span><input class="input" id="plan-amt" inputmode="decimal" value="${p ? toInput(p.cents) : cents ? toInput(cents) : ""}"></label>
+      <label class="field"><span>Wann?</span><input class="input" id="plan-due" type="date" min="${todayIso()}" value="${p ? p.due_date : ""}"></label>
+    </div>
+    <label class="field"><span>Von welchem Konto?</span><select class="input" id="plan-acc">${accs.map((a) => html`<option value="${a.id}" ${(p ? p.account_id : first) === a.id ? "selected" : ""}>${a.name}</option>`)}</select></label>
+    <label class="field"><span>Notiz</span><input class="input" id="plan-note" maxlength="200" value="${p && p.note ? p.note : ""}"></label>
+    <div class="actions"><button class="btn primary" id="plan-save">${p ? "Speichern" : "Einplanen"}</button><button class="btn" data-close>Abbrechen</button></div>`.s);
+  $("#plan-save", sh.el).onclick = async () => {
+    const amount = parseMoney($("#plan-amt", sh.el).value);
+    if (!amount || amount < 0) { toast("Bitte einen Betrag eintragen"); return; }
+    if (!$("#plan-due", sh.el).value) { toast("Bitte den Tag eintragen"); return; }
+    const body = { label: $("#plan-label", sh.el).value, cents: amount, due_date: $("#plan-due", sh.el).value,
+      account_id: Number($("#plan-acc", sh.el).value), note: $("#plan-note", sh.el).value };
+    try { await api(p ? `planned/${p.id}` : "planned", { method: "POST", body }); sh.close(); toast(p ? "Gespeichert" : "Eingeplant. Zählt jetzt in der Prognose mit"); rerender(); }
     catch (err) { toast(err.message); }
   };
 }
@@ -1198,7 +1266,7 @@ function manualContractSheet(intervals) {
 }
 
 /* ------------------------------------------------------------------ Budgets & Auswertung */
-function affordHtml(r) {
+function affordHtml(r, canPlan) {
   const head = { yes: "Ja, das passt.", tight: "Knapp.", no: "Nein, das reißt ein Loch." }[r.verdict];
   const until = r.period_label === "bis Monatsende" ? "bis Monatsende" : `bis zum Gehalt am ${dShort(new Date(new Date(r.period_end).getTime() + 86400000).toISOString().slice(0, 10))}`;
   const lines = [];
@@ -1209,7 +1277,8 @@ function affordHtml(r) {
   }
   if (r.below_threshold) lines.push(`Die Prognose fällt am ${dShort(r.low_point_after.date)} auf ${money(r.low_point_after.cents)}.`);
   return html`<div class="alert ${r.verdict === "yes" ? "" : r.verdict === "tight" ? "warning" : "critical"}" style="margin-top:10px"><div><strong>${money(r.amount_cents)}: ${head}</strong>
-    <p class="small">${lines.join(" ")}</p></div></div>`.s;
+    <p class="small">${lines.join(" ")}</p>
+    ${canPlan ? html`<button class="link-btn" data-plan-cents="${r.amount_cents}">Als geplante Ausgabe vormerken</button>` : ""}</div></div>`.s;
 }
 
 function reviewHtml(r) {

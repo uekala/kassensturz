@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (allowance, analytics, anomalies, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
+from . import (allowance, analytics, anomalies, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, planned, savings,
                secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
@@ -282,6 +282,7 @@ def overview():
         "upcoming": soon,
         "alerts": services.alerts(db, s),
         "expected": expected.overview(db),
+        "planned": planned.overview(db),
         "price_changes": sum(1 for c in cons if c.get("price_change_cents") and c["kind"] == "expense" and c["price_change_cents"] < 0
                              and c["status"] != "ignored"),
     }
@@ -319,6 +320,45 @@ def expected_drop(item_id: int):
 @app.post("/api/expected/{item_id}/reopen")
 def expected_reopen(item_id: int):
     return _expected(expected.reopen, item_id)
+
+
+def _planned(call, *args):
+    try:
+        result = call(get_db(), *args)
+    except planned.PlannedError as error:
+        _err(error.status, error.message)
+    _changed()
+    return result
+
+
+@app.get("/api/planned")
+def planned_list():
+    return planned.overview(get_db())
+
+
+@app.post("/api/planned")
+def planned_create(body: dict = Body(...)):
+    return _planned(planned.create, body)
+
+
+@app.post("/api/planned/{item_id}")
+def planned_change(item_id: int, body: dict = Body(...)):
+    return _planned(planned.change, item_id, body)
+
+
+@app.post("/api/planned/{item_id}/paid")
+def planned_paid(item_id: int, body: dict = Body(default={})):
+    return _planned(planned.close, item_id, body)
+
+
+@app.post("/api/planned/{item_id}/drop")
+def planned_drop(item_id: int):
+    return _planned(planned.drop, item_id)
+
+
+@app.post("/api/planned/{item_id}/reopen")
+def planned_reopen(item_id: int):
+    return _planned(planned.reopen, item_id)
 
 
 @app.post("/api/anomalies/ack")
