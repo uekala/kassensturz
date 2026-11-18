@@ -406,6 +406,7 @@ class MobileConnectionController extends ChangeNotifier {
     await refreshTransactions();
     if (stats) await loadStats(month: _statsMonth);
   }
+
   bool get hasTransactionFilter =>
       _filterAccountId != null ||
       _filterCategoryId != null ||
