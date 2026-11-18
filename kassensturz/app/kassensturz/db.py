@@ -290,6 +290,12 @@ CREATE TABLE IF NOT EXISTS notices(
   created TEXT
 );
 
+-- Auffälligkeiten, die jemand als geprüft ausgeblendet hat (Schlüssel wie anomaly:double:123).
+CREATE TABLE IF NOT EXISTS anomaly_acks(
+  key TEXT PRIMARY KEY,
+  created TEXT
+);
+
 CREATE TABLE IF NOT EXISTS eb_sessions(
   id INTEGER PRIMARY KEY,
   session_id TEXT,
@@ -381,7 +387,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {

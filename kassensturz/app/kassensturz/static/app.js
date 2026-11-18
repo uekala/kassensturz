@@ -295,13 +295,38 @@ async function renderOverview(view, _params, seq) {
   on(view, "[data-acc]", "click", (_e, el) => go("umsaetze", { account: el.dataset.acc }));
   on(view, "[data-alert]", "click", async (_e, el) => {
     const d = JSON.parse(el.dataset.alert);
-    if (d.c) { const list = await api("contracts"); const c = list.items.find((x) => x.key === d.c); if (c) contractSheet(c); }
+    const found = o.alerts.find((x) => x.key === d.k);
+    if (found && found.anomaly) anomalySheet(found);
+    else if (d.c) { const list = await api("contracts"); const c = list.items.find((x) => x.key === d.c); if (c) contractSheet(c); }
     else if (d.a) { const acc = store.accounts.find((x) => x.id === d.a); if (acc) balanceSheet(acc); }
     else if (d.e) { const eb = await api("eb"); const s = eb.sessions.find((x) => x.id === d.e); if (s) ebConnectSheet(s); }
     else if (d.i) go("konten");
     else if (d.k.startsWith("budget")) go("budgets");
   });
   bindBudgetRows(view);
+}
+
+// Eine Auffälligkeit: was aufgefallen ist, und die Wahl, sie als geprüft auszublenden.
+function anomalySheet(a) {
+  const n = a.anomaly;
+  const sh = openSheet(html`${sheetHead(a.title)}
+    <p>${a.text}</p>
+    <dl class="facts">
+      <dt>Empfänger</dt><dd>${n.counterparty || "Unbekannt"}</dd>
+      <dt>Betrag</dt><dd>${money(n.amount_cents)}</dd>
+      <dt>Gebucht</dt><dd>${dFull(n.booking_date)}${n.other_date ? `, davor am ${dFull(n.other_date)}` : ""}</dd>
+      <dt>Konto</dt><dd>${n.account}</dd>
+      ${n.creditor_id ? html`<dt>Gläubiger-ID</dt><dd>${n.creditor_id}${n.mandate_ref ? `, Mandat ${n.mandate_ref}` : ""}</dd>` : ""}
+      ${n.return_until ? html`<dt>Rückgabe bis</dt><dd>${dFull(n.return_until)}</dd>` : ""}
+      ${n.usual_max_cents ? html`<dt>Bisher höchstens</dt><dd>${money(-n.usual_max_cents)}</dd>` : ""}
+    </dl>
+    <p class="small muted">Der Hinweis verschwindet nach zwei Wochen von selbst.</p>
+    <div class="actions"><button class="btn primary" id="an-ok">Passt, ausblenden</button><button class="btn" id="an-show">Umsätze ansehen</button></div>`.s);
+  $("#an-ok", sh.el).onclick = async () => {
+    try { await api("anomalies/ack", { method: "POST", body: { key: a.key } }); sh.close(); toast("Hinweis ausgeblendet"); rerender(); }
+    catch (e) { toast(e.message); }
+  };
+  $("#an-show", sh.el).onclick = () => { sh.close(); go("umsaetze", { q: n.counterparty || "" }); };
 }
 
 // Mit person sind es deren eigene Budgets; limits sind dann ihre Beträge je Kategorie.
