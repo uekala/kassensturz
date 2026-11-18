@@ -225,18 +225,20 @@ def serialize_overview(
         ],
     }
 
-    alert_dto = [
-        {
-            "key": _text(item.get("key"), 120),
+    alert_dto = []
+    for item in alerts:
+        if not (item.get("title") and item.get("text")):
+            continue
+        dto = {
             "level": item["level"] if item.get("level") in {"critical", "warning", "info"} else "info",
             "title": _text(item.get("title"), 120),
             "message": _text(item.get("text"), 300),
-            # Was die App mit dem Hinweis tun kann; leer heißt nur lesen.
-            "actions": alert_actions(item),
         }
-        for item in alerts
-        if item.get("title") and item.get("text")
-    ]
+        # Nur Hinweise, die die App erledigen kann, verraten ihre Kennung; die übrigen bleiben, wie sie waren.
+        actions = alert_actions(item)
+        if actions:
+            dto.update({"key": _text(item.get("key"), 120), "actions": actions})
+        alert_dto.append(dto)
 
     return {
         "as_of": timestamp.isoformat(),
