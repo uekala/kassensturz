@@ -7,6 +7,7 @@ import '../../core/widgets/klar_widgets.dart';
 import 'afford_sheet.dart';
 import '../more/papers_page.dart';
 import 'news_card.dart';
+import 'plans.dart';
 import 'sync_status_card.dart';
 
 class LiveDashboardPage extends StatelessWidget {
@@ -161,8 +162,20 @@ class LiveDashboardPage extends StatelessWidget {
               ],
               if (alerts.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                for (final alert in alerts) _AlertRow(alert: alert),
+                for (final alert in alerts)
+                  _AlertRow(
+                    alert: alert,
+                    onAction: controller.canManagePlans
+                        ? (action) =>
+                              runAlertAction(context, controller, alert, action)
+                        : null,
+                  ),
               ],
+              if (!ownOnly)
+                PlansSection(
+                  controller: controller,
+                  plans: _asMap(data['plans']),
+                ),
               const SizedBox(height: 24),
               if (accounts.isEmpty)
                 const QuietMessage(
@@ -445,9 +458,10 @@ class _BudgetRow extends StatelessWidget {
 }
 
 class _AlertRow extends StatelessWidget {
-  const _AlertRow({required this.alert});
+  const _AlertRow({required this.alert, this.onAction});
 
   final Map<String, dynamic> alert;
+  final Future<void> Function(String action)? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -456,6 +470,11 @@ class _AlertRow extends StatelessWidget {
     final level = alert['level']?.toString() ?? 'info';
     final urgent = level == 'critical' || level == 'warning';
     final message = alert['message']?.toString() ?? '';
+    final actions = alert['actions'] is List
+        ? (alert['actions'] as List).whereType<String>().toList()
+        : const <String>[];
+    final expense = planOfAlert(alert)?.kind != 'expected';
+    final act = onAction;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -482,6 +501,19 @@ class _AlertRow extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(message, style: textTheme.bodySmall),
                   ],
+                  if (act != null && actions.isNotEmpty)
+                    Wrap(
+                      spacing: 4,
+                      children: [
+                        for (final action in actions)
+                          TextButton(
+                            onPressed: () => act(action),
+                            child: Text(
+                              planActionLabel(action, expense: expense),
+                            ),
+                          ),
+                      ],
+                    ),
                 ],
               ),
             ),

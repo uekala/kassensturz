@@ -9,7 +9,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from . import analytics, contracts, mobile_write, options, savings, services
+from . import analytics, contracts, expected, mobile_write, options, planned, savings, services
 from .db import Database
 
 
@@ -225,15 +225,20 @@ def serialize_overview(
         ],
     }
 
-    alert_dto = [
-        {
+    alert_dto = []
+    for item in alerts:
+        if not (item.get("title") and item.get("text")):
+            continue
+        dto = {
             "level": item["level"] if item.get("level") in {"critical", "warning", "info"} else "info",
             "title": _text(item.get("title"), 120),
             "message": _text(item.get("text"), 300),
         }
-        for item in alerts
-        if item.get("title") and item.get("text")
-    ]
+        # Nur Hinweise, die die App erledigen kann, verraten ihre Kennung; die übrigen bleiben, wie sie waren.
+        actions = alert_actions(item)
+        if actions:
+            dto.update({"key": _text(item.get("key"), 120), "actions": actions})
+        alert_dto.append(dto)
 
     return {
         "as_of": timestamp.isoformat(),
@@ -243,6 +248,36 @@ def serialize_overview(
         "month": month_dto,
         "budgets": budgets,
         "alerts": alert_dto,
+    }
+
+
+def alert_actions(item: dict) -> list[str]:
+    if item.get("anomaly"):
+        return ["ack"]
+    if item.get("expected"):
+        return ["received", "drop"]
+    if item.get("planned"):
+        return ["paid", "drop"]
+    return []
+
+
+def plans(db: Database) -> dict:
+    """Offene geplante Ausgaben und erwartete Eingänge, so weit die Person sie sieht."""
+    open_planned = planned.overview(db)["open"]
+    open_expected = expected.overview(db)["open"]
+    return {
+        "planned": [
+            {"id": int(p["id"]), "label": _text(p["label"], 80), "cents": int(p["cents"]), "due_date": p["due_date"],
+             "account": _text(p["account"], 80), "overdue": bool(p["overdue"]), "in_forecast": bool(p["in_forecast"])}
+            for p in open_planned
+        ],
+        "expected": [
+            {"id": int(e["id"]), "label": _text(e["label"], 80), "cents": int(e["cents"]), "since": e["since"],
+             "due_date": e["due_date"], "account": _text(e["account"], 80), "overdue": bool(e["overdue"])}
+            for e in open_expected
+        ],
+        "planned_cents": sum(int(p["cents"]) for p in open_planned),
+        "expected_cents": sum(int(e["cents"]) for e in open_expected),
     }
 
 
@@ -272,6 +307,7 @@ def get_overview(db: Database, *, as_of: datetime | None = None, view=None) -> d
         }
         for goal in savings.list_goals(db)
     ]
+    overview["plans"] = plans(db)
     return overview
 
 

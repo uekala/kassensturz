@@ -5,6 +5,7 @@ import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
+import 'plans.dart';
 
 /// Opens the sheet that answers "can I afford this?".
 Future<void> showAffordSheet(
@@ -112,6 +113,20 @@ class _AffordSheetState extends State<AffordSheet> {
             if (answer != null) ...[
               const SizedBox(height: 18),
               OutlinedPanel(child: _AffordAnswer(answer: answer)),
+              if (widget.controller.canManagePlans) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    final cents = answer['amount_cents'];
+                    showPlanExpenseSheet(
+                      context,
+                      controller: widget.controller,
+                      cents: cents is int ? cents : null,
+                    );
+                  },
+                  child: const Text('Als geplante Ausgabe vormerken'),
+                ),
+              ],
             ],
           ],
         ),

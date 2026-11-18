@@ -44,6 +44,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const netWorthCapability = 'networth';
   static const papersCapability = 'papers';
   static const suggestCapability = 'budgets.suggest';
+  static const plansCapability = 'plans';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -289,6 +290,10 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when expenses can be shared with the household.
   bool get canShareExpenses => _capabilities.contains(sharingCapability);
+
+  /// Whether this phone can tick alerts off and plan expenses and incomes.
+  bool get canManagePlans =>
+      _capabilities.contains(plansCapability) && !isReadOnly;
 
   /// True once the server announced that it accepts manual transactions.
   bool get canWriteTransactions => _capabilities.contains(writeCapability);
@@ -937,6 +942,40 @@ class MobileConnectionController extends ChangeNotifier {
   }) => _write(
     () => _apiClient.setBudget(categoryId, limitCents, own: own),
     capability: own ? ownBudgetCapability : budgetCapability,
+  );
+
+  /// Hides a checked anomaly. Null when it worked, otherwise the message.
+  Future<String?> acknowledgeAlert(String key) => _write(
+    () => _apiClient.acknowledgeAlert(key),
+    capability: plansCapability,
+  );
+
+  /// Plans a one-off expense on an account this person sees.
+  Future<String?> createPlanned({
+    required String label,
+    required int cents,
+    required String dueDate,
+    required int accountId,
+  }) => _write(
+    () => _apiClient.createPlanned(
+      label: label,
+      cents: cents,
+      dueDate: dueDate,
+      accountId: accountId,
+    ),
+    capability: plansCapability,
+  );
+
+  /// Notes that money comes back for an expense.
+  Future<String?> createExpected(int transactionId, int cents) => _write(
+    () => _apiClient.createExpected(transactionId, cents),
+    capability: plansCapability,
+  );
+
+  /// Ticks a planned expense or an expected income off, or drops it.
+  Future<String?> settlePlan(String kind, int id, String action) => _write(
+    () => _apiClient.settlePlan(kind, id, action),
+    capability: plansCapability,
   );
 
   /// Write calls are never repeated automatically. After success all views

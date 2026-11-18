@@ -577,6 +577,67 @@ class MobileApiClient {
     );
   }
 
+  /// Hides an anomaly the person has checked.
+  Future<Map<String, dynamic>> acknowledgeAlert(String key) {
+    if (key.isEmpty) throw const FormatException('Der Hinweis fehlt.');
+    return _authenticatedJson(
+      method: 'POST',
+      path: '/api/v1/alerts/ack',
+      body: {'key': key},
+    );
+  }
+
+  /// Plans a one-off expense that then counts in the forecast.
+  Future<Map<String, dynamic>> createPlanned({
+    required String label,
+    required int cents,
+    required String dueDate,
+    required int accountId,
+  }) {
+    if (label.trim().isEmpty || cents <= 0 || accountId <= 0) {
+      throw const FormatException('Die geplante Ausgabe ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'POST',
+      path: '/api/v1/planned',
+      body: {
+        'label': label.trim(),
+        'cents': cents,
+        'due_date': dueDate,
+        'account_id': accountId,
+      },
+    );
+  }
+
+  /// Notes that money comes back for an expense, all of it or a part.
+  Future<Map<String, dynamic>> createExpected(int transactionId, int cents) {
+    if (transactionId <= 0 || cents <= 0) {
+      throw const FormatException('Der erwartete Eingang ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'POST',
+      path: '/api/v1/expected',
+      body: {'tx_id': transactionId, 'cents': cents},
+    );
+  }
+
+  /// Ticks a planned expense or an expected income off, or drops it.
+  /// [kind] is `planned` or `expected`; [action] `paid`, `received` or `drop`.
+  Future<Map<String, dynamic>> settlePlan(String kind, int id, String action) {
+    const allowed = {
+      'planned': {'paid', 'drop'},
+      'expected': {'received', 'drop'},
+    };
+    if (id <= 0 || !(allowed[kind]?.contains(action) ?? false)) {
+      throw const FormatException('Die Aktion ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'POST',
+      path: '/api/v1/$kind/$id/$action',
+      body: const <String, dynamic>{},
+    );
+  }
+
   Future<Uint8List> _authenticatedBinary({
     required String method,
     required String path,

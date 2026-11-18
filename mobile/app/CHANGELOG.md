@@ -1,5 +1,14 @@
 # Änderungen der Mobile-App
 
+## 0.3.30
+
+- Hinweise auf der Startseite haben Knöpfe: Auffälligkeit *Geprüft*, geplante Ausgabe *Bezahlt* oder *Entfällt*,
+  erwarteter Eingang *Ist angekommen* oder *Kommt nicht mehr* (ab Server 0.3.48).
+- Neuer Abschnitt *Geplant und erwartet* auf der Startseite; ein Tipp hakt ab.
+- *Kann ich mir das leisten?*: Unter der Antwort lässt sich der Betrag als geplante Ausgabe vormerken.
+- An einer Ausgabe: *Geld kommt zurück*, etwa nach einer Retoure.
+- Der Knopf zum Speichern einer Buchung steht in der Schrift der App.
+
 ## 0.3.29
 
 - Handy eines Kindes: Der Hinweis „Kassensturz in Home Assistant aktualisieren“ erscheint dort nicht mehr, das Plus
