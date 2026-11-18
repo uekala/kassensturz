@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.52
+
+- Enable Banking: Gibt die Bank bei der Freigabe keine Konten frei, wird nichts gespeichert, und die Meldung sagt,
+  woran es meist liegt und was zu tun ist. Bisher blieb eine leere Bankverbindung zurück. Beim Erneuern einer
+  Freigabe bleibt die alte in dem Fall bestehen.
+
 ## 0.3.51
 
 - Eigene Budgets warnen jetzt wie die gemeinsamen: Ist eines überschritten, kommt ein Hinweis an die Person, der es

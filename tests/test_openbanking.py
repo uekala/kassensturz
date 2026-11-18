@@ -137,3 +137,27 @@ def test_open_banking_callback_requires_exact_state(db, monkeypatch):
     assert calls == []
     assert state in openbanking._pending
 
+
+
+@pytest.mark.parametrize("renew", [False, True])
+def test_consent_without_accounts_is_not_saved(db, monkeypatch, renew):
+    from kassensturz import openbanking
+
+    old_id = None
+    if renew:
+        old_id = db.insert("eb_sessions", {"session_id": "ks-test-alt", "aspsp_name": "KS-TESTBANK", "aspsp_country": "DE",
+                                           "valid_until": "2099-01-01T00:00:00+00:00", "status": "active", "created": "2026-01-01"})
+    state = f"ks-test-state-{renew}"
+    openbanking._pending[state] = {"aspsp": "KS-TESTBANK", "country": "DE", "renew": old_id, "created": time.time(), "days": 180}
+    calls = []
+
+    def fake(method, path, **kwargs):
+        calls.append((method, path))
+        return {"session_id": "ks-test-neu", "accounts": [], "aspsp": {"name": "KS-TESTBANK"}} if method == "POST" else {}
+    monkeypatch.setattr(openbanking, "call", fake)
+
+    with pytest.raises(openbanking.EBError, match="keine Konten freigegeben"):
+        openbanking.complete_auth(db, f"https://enablebanking.com/?code=ks-test-code&state={state}")
+    assert ("DELETE", "/sessions/ks-test-neu") in calls
+    rows = db.query("SELECT session_id FROM eb_sessions")
+    assert rows == ([{"session_id": "ks-test-alt"}] if renew else [])
