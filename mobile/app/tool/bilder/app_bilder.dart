@@ -82,6 +82,7 @@ class _Phone {
     WidgetTester tester, {
     String view = 'anna',
     bool dark = false,
+    MobileHttpResponse? Function(RecordedRequest request)? instead,
   }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -94,7 +95,9 @@ class _Phone {
     final controller = MobileConnectionController(
       apiClient: MobileApiClient(
         sessionStore: await pairedStore(),
-        transport: ScriptedTransport((request) => _replay(view, request)),
+        transport: ScriptedTransport(
+          (request) => instead?.call(request) ?? _replay(view, request),
+        ),
         refreshRetryDelay: Duration.zero,
       ),
       readRetryDelay: Duration.zero,
@@ -309,6 +312,89 @@ void main() {
     }
     phone.done();
   });
+
+  // The recorded household has no bank that asks back, so the question is
+  // put into the answers here: invented bank, invented wording.
+  for (final (name, question) in [
+    (
+      '33-bank-tan',
+      {
+        'qid': 'ks-bild-1',
+        'kind': 'tan',
+        'bank': 'Musterbank',
+        'text': 'Bitte gib die TAN aus deiner TAN-App ein.',
+      },
+    ),
+    (
+      '34-bank-freigabe',
+      {
+        'qid': 'ks-bild-2',
+        'kind': 'decoupled',
+        'bank': 'Musterbank',
+        'text': 'Bitte bestätige den Zugriff in deiner Banking-App.',
+      },
+    ),
+    (
+      '35-bank-auswahl',
+      {
+        'qid': 'ks-bild-3',
+        'kind': 'choice',
+        'bank': 'Musterbank',
+        'title': 'Welches TAN-Verfahren nutzt du?',
+        'options': [
+          {'value': '1', 'label': 'pushTAN', 'hint': 'App-Freigabe'},
+          {'value': '2', 'label': 'chipTAN', 'hint': ''},
+        ],
+      },
+    ),
+  ]) {
+    _scene('Bank fragt: $name', (tester) async {
+      final phone = await _Phone.start(
+        tester,
+        instead: (request) {
+          if (request.method != 'GET') return null;
+          if (request.uri.path == '/api/v1/me') {
+            final me = Map<String, dynamic>.from(_body('anna', '/api/v1/me'));
+            me['capabilities'] = [
+              ...me['capabilities'] as List<dynamic>,
+              'sync',
+              'sync.tan',
+            ];
+            return jsonResponse(200, me);
+          }
+          if (request.uri.path == '/api/v1/sync') {
+            return jsonResponse(200, {
+              'sources': [
+                {
+                  'name': 'Musterbank',
+                  'last_sync': '2026-11-18T06:30:05',
+                  'state': 'ok',
+                  'days_left': null,
+                  'accounts': 1,
+                  'renew': null,
+                },
+              ],
+              'last_sync': '2026-11-18T06:30:05',
+              'newest_sync': '2026-11-18T06:30:05',
+              'next_sync': '2026-11-19T06:30:00',
+              'run': {'state': 'running', 'added': 0, 'errors': <Object>[]},
+              'can_start': false,
+              'wait_minutes': 0,
+              'question': question,
+            });
+          }
+          return null;
+        },
+      );
+      final asked = find.text('Abruf abbrechen');
+      for (var step = 0; step < 14; step++) {
+        if (asked.hitTestable().evaluate().isNotEmpty) break;
+        await phone.down(300);
+      }
+      expect(asked.hitTestable(), findsOneWidget);
+      await phone.shot(name);
+    });
+  }
 
   _scene('Einstellungen', (tester) async {
     final phone = await _Phone.start(tester);

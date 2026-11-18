@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
+import 'bank_question_panel.dart';
 import 'bank_renew_sheet.dart';
 
 /// Says how old the bank data is and fetches on request. Pulling the page
@@ -76,7 +77,13 @@ class SyncStatusCard extends StatelessWidget {
                 ),
               ),
           const SizedBox(height: 12),
-          if (running)
+          if (controller.bankQuestion != null)
+            BankQuestionPanel(
+              key: ValueKey(controller.bankQuestion!.qid),
+              controller: controller,
+              question: controller.bankQuestion!,
+            )
+          else if (running)
             Row(
               children: [
                 const SizedBox(

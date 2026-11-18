@@ -71,6 +71,8 @@ CAPABILITIES = (
     "banks.renew",
     # Wert eines Depots oder Restschuld eines Kredits eintragen
     "accounts.value",
+    # Rückfragen der Bank beim Abruf (TAN, Freigabe, Verfahren) am Handy beantworten
+    "sync.tan",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -534,6 +536,14 @@ def accounts(request: Request):
     return mobile_write.list_accounts(_view(device))
 
 
+def _sync_for(device, state: dict) -> dict:
+    """The fetch state for this phone. A child's phone gets neither renewals nor the bank's questions."""
+    adult = not household.is_child(get_db(), device.person_id)
+    out = _sync_public(state, renew=adult)
+    out["question"] = banksync.question() if adult else None
+    return out
+
+
 def _sync_public(state: dict, renew: bool = False) -> dict:
     """Bank names and times only. ``renew`` is the local number of a consent
     that may be renewed from this phone; never the session at the bank."""
@@ -557,7 +567,31 @@ def sync_status(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return _sync_public(banksync.status(_view(device)), renew=not household.is_child(get_db(), device.person_id))
+    return _sync_for(device, banksync.status(_view(device)))
+
+
+@router.post("/api/v1/sync/answer")
+async def sync_answer(request: Request):
+    """Answer the bank's question of a running fetch: a TAN, a choice, or "approved in the banking app".
+
+    ``qid`` names the exact question; an answer to one that is no longer open is refused."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    if payload is None or set(payload) - {"qid", "value", "cancel"}:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    qid = payload.get("qid")
+    if not isinstance(qid, str) or not qid or len(qid) > 32:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    try:
+        if payload.get("cancel") is True:
+            banksync.cancel(qid)
+        else:
+            banksync.answer(qid, payload.get("value"))
+    except banksync.AnswerRefused as refused:
+        return _error(409, "bank_refused", str(refused))
+    return _sync_for(device, banksync.status(_view(device)))
 
 
 def _psu(request: Request) -> dict:
@@ -613,16 +647,21 @@ async def bank_renew_complete(request: Request):
 
 
 @router.post("/api/v1/sync")
-def sync_start(request: Request):
-    """Fetch new transactions from all banks that work without further input."""
+async def sync_start(request: Request):
+    """Fetch new transactions from all banks that work without further input.
+
+    With ``{"interactive": true}`` a bank may ask back (TAN and the like); the app answers above."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
+    payload = await _json_object(request)
+    interactive = isinstance(payload, dict) and payload.get("interactive") is True
     try:
-        state = banksync.start(_view(device), psu=_psu(request), on_done=services.schedule_refresh)
+        state = banksync.start(_view(device), psu=_psu(request), on_done=services.schedule_refresh,
+                               interactive=interactive)
     except banksync.SyncRefused as refused:
         return _error(409, refused.code, refused.message)
-    return JSONResponse(_sync_public(state), status_code=202)
+    return JSONResponse(_sync_for(device, state), status_code=202)
 
 
 @router.post("/api/v1/accounts")

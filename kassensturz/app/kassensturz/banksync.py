@@ -1,9 +1,10 @@
 """Stand des Bankabrufs und Abruf auf Wunsch, für die Mobile-App.
 
 Der Abruf von hier läuft wie der tägliche im Hintergrund: Enable Banking mit
-laufender Freigabe und FinTS-Zugänge mit gespeicherter PIN. Verlangt eine Bank
-eine TAN, endet der Auftrag mit einem Hinweis; die Eingabe bleibt der
-Oberfläche in Home Assistant vorbehalten.
+laufender Freigabe und FinTS-Zugänge mit gespeicherter PIN. Die PIN kommt nie
+vom Handy. Verlangt eine Bank eine TAN, endet der Auftrag mit einem Hinweis –
+außer die App hat den Abruf mit Rückfragen gestartet: Dann wartet der Auftrag,
+die App zeigt die Rückfrage der Bank und gibt die Antwort zurück.
 """
 from __future__ import annotations
 
@@ -105,8 +106,79 @@ class SyncRefused(Exception):
         self.message = message
 
 
-def start(db: Database, psu: dict | None = None, on_done=None, now: datetime | None = None) -> dict:
-    """Stößt den Abruf aller Quellen an, die ohne Eingabe laufen."""
+MAX_TEXT = 600
+MAX_IMAGE = 400_000  # Zeichen der Data-URL; eine photoTAN-Grafik ist weit kleiner
+
+
+def question() -> dict | None:
+    """Die Rückfrage der Bank, auf die ein Abruf aus der App gerade wartet; ohne Kennung des Auftrags."""
+    with _lock:
+        jobs = list(_jobs)
+    for job in jobs:
+        q = getattr(job, "question", None)
+        if getattr(job, "state", None) != "waiting" or not q or q.get("kind") not in ("tan", "decoupled", "choice"):
+            continue
+        out = {"qid": q["qid"], "kind": q["kind"], "bank": job.name}
+        if q["kind"] == "choice":
+            out["title"] = str(q.get("title") or "Bitte wählen")[:120]
+            out["options"] = [{"value": str(o["value"])[:64], "label": str(o.get("label") or "")[:80],
+                               "hint": str(o.get("hint") or "")[:80]} for o in (q.get("options") or [])[:12]]
+        else:
+            out["text"] = str(q.get("text") or "")[:MAX_TEXT]
+        if q["kind"] == "tan":
+            image = q.get("image")
+            if isinstance(image, str) and image.startswith(("data:image/png;base64,", "data:image/jpeg;base64,",
+                                                            "data:image/gif;base64,")) and len(image) <= MAX_IMAGE:
+                out["image"] = image
+            flicker = q.get("flicker")
+            if isinstance(flicker, list) and len(flicker) <= 400 and all(
+                    isinstance(f, str) and len(f) == 5 and set(f) <= {"0", "1"} for f in flicker):
+                out["flicker"] = flicker
+        return out
+    return None
+
+
+class AnswerRefused(Exception):
+    pass
+
+
+def _waiting_job(qid: str):
+    with _lock:
+        jobs = list(_jobs)
+    for job in jobs:
+        q = getattr(job, "question", None)
+        if getattr(job, "state", None) == "waiting" and q and q.get("qid") == qid:
+            return job, q
+    raise AnswerRefused("Diese Rückfrage ist nicht mehr offen.")
+
+
+def answer(qid: str, value) -> None:
+    """Gibt die Antwort an genau den Auftrag, der diese Rückfrage gestellt hat."""
+    job, q = _waiting_job(qid)
+    if q["kind"] == "choice":
+        if str(value) not in {str(o["value"]) for o in q.get("options") or []}:
+            raise AnswerRefused("Diese Auswahl gibt es nicht.")
+        value = str(value)
+    elif q["kind"] == "tan":
+        if not isinstance(value, str) or not value.strip() or len(value) > 64:
+            raise AnswerRefused("Bitte gib die TAN ein.")
+        value = value.strip()
+    else:
+        value = "ok"
+    job.answer(value)
+
+
+def cancel(qid: str) -> None:
+    job, _q = _waiting_job(qid)
+    job.cancel()
+
+
+def start(db: Database, psu: dict | None = None, on_done=None, now: datetime | None = None,
+          interactive: bool = False) -> dict:
+    """Stößt den Abruf aller Quellen an, die ohne Eingabe laufen.
+
+    Mit ``interactive`` darf eine FinTS-Bank nachfragen (TAN, Freigabe in der Banking-App, Verfahren);
+    ohne Antwort bricht der Auftrag nach fünf Minuten ab."""
     now = now or datetime.now()
     current = status(db, now)
     if current["run"]["state"] == "running":
@@ -128,7 +200,7 @@ def start(db: Database, psu: dict | None = None, on_done=None, now: datetime | N
                 # Der Mensch hat den Abruf gerade selbst angestoßen; das darf die Bank wissen.
                 jobs.append(openbanking.start_sync(int(raw), psu=psu, on_done=on_done))
             else:
-                jobs.append(fints_sync.start(int(raw), None, background=True, on_done=on_done))
+                jobs.append(fints_sync.start(int(raw), None, background=not interactive, on_done=on_done))
         except fints_sync.UserFacingError:
             continue
     with _lock:

@@ -377,9 +377,26 @@ class MobileApiClient {
       _authenticatedJson(method: 'GET', path: '/api/v1/sync');
 
   /// Asks the server to fetch from the banks now. Never repeated
-  /// automatically: banks allow only a few fetches per day.
-  Future<Map<String, dynamic>> startSync() =>
-      _authenticatedJson(method: 'POST', path: '/api/v1/sync');
+  /// automatically: banks allow only a few fetches per day. With
+  /// [interactive] a bank may ask back, for a TAN for example.
+  Future<Map<String, dynamic>> startSync({bool interactive = false}) =>
+      _authenticatedJson(
+        method: 'POST',
+        path: '/api/v1/sync',
+        body: interactive ? {'interactive': true} : null,
+      );
+
+  /// Answers what a bank asks during a fetch, or gives the fetch up. A TAN
+  /// works once, so this is never repeated automatically.
+  Future<Map<String, dynamic>> answerSync(
+    String qid, {
+    String? value,
+    bool cancel = false,
+  }) => _authenticatedJson(
+    method: 'POST',
+    path: '/api/v1/sync/answer',
+    body: {'qid': qid, 'value': ?value, if (cancel) 'cancel': true},
+  );
 
   /// Starts renewing an expiring bank consent; the answer carries the bank's
   /// page to open. Nothing changes on the server yet.

@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.39
+
+- Bankabruf: Fragt die Bank nach einer TAN, einer Freigabe in ihrer App oder dem TAN-Verfahren, erscheint die
+  Rückfrage in der Karte *Bankabruf* und lässt sich dort beantworten oder abbrechen (ab Server 0.3.58).
+
 ## 0.3.38
 
 - Nur Tests: Die Haushalt-Ansichten (Filter *Ich / Gemeinsam*, Konten mit Besitz, Kinderhandy, Ausgleich) und das

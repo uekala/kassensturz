@@ -63,6 +63,7 @@ MOBILE_RATE_LIMITS = {
     ("GET", "/api/v1/papers"): ("stats", 60, 60),
     ("GET", "/api/v1/budgets/suggestions"): ("stats", 60, 60),
     ("POST", "/api/v1/sync"): ("sync-start", 6, 60),
+    ("POST", "/api/v1/sync/answer"): ("sync-answer", 20, 60),
     ("POST", "/api/v1/banks/renew"): ("bank-renew", 10, 300),
     ("POST", "/api/v1/banks/renew/complete"): ("bank-renew-complete", 10, 300),
     ("GET", "/api/v1/categories"): ("categories", 120, 60),
