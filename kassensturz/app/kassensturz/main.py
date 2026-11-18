@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (allowance, analytics, anomalies, audit, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, loans, openbanking, options, papers, planned, projects, savings,
+from . import (allowance, analytics, anomalies, audit, calendar_feed, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, loans, openbanking, options, papers, planned, projects, savings,
                secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
@@ -130,6 +130,15 @@ async def audit_trail(request: Request, call_next):
 async def only_ingress(request: Request, call_next):
     client = request.client.host if request.client else ""
 
+    # Der Zahlungskalender: Home Assistant Core holt ihn aus seinem internen Netz. Nur diese eine
+    # Leseadresse, nur mit Schlüssel in der Adresse; alles andere bleibt Ingress und lokal vorbehalten.
+    # Ein Proxy für das Handy kann selbst lokal verbunden sein; über ihn gibt es den Kalender nicht.
+    if request.url.path.startswith("/calendar/"):
+        if (request.method == "GET" and calendar_feed.peer_allowed(client)
+                and not address_in_networks(socket_peer(request), TRUSTED_PROXY_NETWORKS)):
+            return await call_next(request)
+        return JSONResponse({"detail": "Nicht erreichbar."}, status_code=403, headers={"Cache-Control": "no-store"})
+
     # Mobile namespaces require direct TLS or an HTTPS assertion from an
     # explicitly trusted proxy. Route registration does not publish a port;
     # the add-on port mapping remains disabled until an administrator opts in.
@@ -226,6 +235,35 @@ async def only_ingress(request: Request, call_next):
 
 # Ohne Zeitplan-Durchlauf seit dieser Zeit gilt die App als hängend.
 SCHEDULER_STALE_SECONDS = 900
+
+
+@app.get("/calendar/{name}")
+def calendar_ics(name: str):
+    """Der Zahlungskalender als iCalendar-Datei, für „Remote Calendar“ in Home Assistant."""
+    db = get_db()
+    if not name.endswith(".ics") or not calendar_feed.matches(db, name[:-4]):
+        return Response(status_code=404)
+    return Response(calendar_feed.ics(calendar_feed.events(db)), media_type="text/calendar; charset=utf-8",
+                    headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/calendar")
+def calendar_state():
+    db = get_db()
+    value = calendar_feed.token(db)
+    upcoming = calendar_feed.events(db)
+    return {"enabled": bool(value), "url": calendar_feed.address(value), "count": len(upcoming),
+            "next": [{"date": e["date"].isoformat(), "summary": e["summary"]} for e in upcoming[:6]]}
+
+
+@app.post("/api/calendar")
+def calendar_switch(body: dict = Body(...)):
+    action = body.get("action")
+    if action not in ("on", "renew", "off"):
+        _err(400, "Unbekannte Aktion.")
+    calendar_feed.switch(get_db(), action)
+    audit.subject({"on": "eingeschaltet", "renew": "neue Adresse, die alte gilt nicht mehr", "off": "ausgeschaltet"}[action])
+    return calendar_state()
 
 
 @app.get("/healthz")

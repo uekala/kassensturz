@@ -272,6 +272,31 @@ also 300 € da sein. Die Budgetseite zeigt die Summe und jeden Vertrag einzeln.
 Unter *Einstellungen* kannst du diese Rücklage von „frei verfügbar“ abziehen lassen. Lass das aus, wenn du dafür schon Geld
 auf einem Tagesgeld- oder Sparkonto zurücklegst, sonst zählt es doppelt.
 
+## Zahlungskalender in Home Assistant
+
+Kassensturz stellt kommende Termine als Kalender bereit, ein Jahr im Voraus, als ganztägige Einträge:
+
+- Abbuchungen und Eingänge aus Verträgen, mit Betrag
+- geplante Ausgaben und erwartete Eingänge
+- letzte Tage zum Kündigen (bei Verträgen mit Vertragsende und Kündigungsfrist)
+- Fälligkeit von Festgeld und Ende von Krediten, Zieltage von Sparzielen
+- Ablauf der Bankfreigaben über Open Banking
+
+**Einrichten:**
+
+1. In Kassensturz unter *Einstellungen → Zahlungskalender* auf *Kalender-Adresse erstellen*.
+2. *Adresse kopieren*.
+3. In Home Assistant *Einstellungen → Geräte & Dienste → Integration hinzufügen → Remote Calendar*, einen Namen
+   wählen (etwa „Kassensturz“) und die Adresse einfügen.
+
+Danach gibt es eine Kalender-Entität. Sie erscheint im Kalender von Home Assistant und kann Automationen auslösen,
+etwa mit einem Kalender-Auslöser und Versatz: eine Benachrichtigung einen Tag vor jeder Abbuchung über 500 €.
+
+Die Integration kann sich nicht anmelden. Darum steckt ein langer Zufallsschlüssel in der Adresse, und die Adresse ist
+nur im internen Netz von Home Assistant erreichbar: nicht über Tailscale, nicht aus dem Heimnetz, nicht von außen.
+Wer Home Assistant bedienen darf, sieht die Termine mit Beträgen. *Neue Adresse* macht die alte ungültig,
+*Ausschalten* schaltet den Kalender ganz ab. Bis jemand die Adresse erstellt, ist der Kalender aus.
+
 ## Änderungsprotokoll
 
 Unter *Einstellungen → Änderungen* steht, wer wann was geändert hat: in Home Assistant oder an einem gekoppelten Handy.

@@ -106,6 +106,7 @@ LABELS: dict[tuple[str, str], str] = {
     ("PATCH", "/api/eb/sessions/{eb_id}"): "Open-Banking-Verbindung geändert",
     ("DELETE", "/api/eb/sessions/{eb_id}"): "Open-Banking-Verbindung getrennt",
     ("DELETE", "/api/inbox/{filename}"): "Datei aus dem Eingangsordner gelöscht",
+    ("POST", "/api/calendar"): "Zahlungskalender",
     ("POST", "/api/mobile/pairings"): "Kopplungscode für ein Handy erstellt",
     ("DELETE", "/api/mobile/devices/{device_id}"): "Handy widerrufen",
     ("PATCH", "/api/mobile/devices/{device_id}"): "Handy einer Person zugeordnet",

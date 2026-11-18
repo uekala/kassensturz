@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.3.46
+
+- Zahlungskalender: Kommende Abbuchungen, Eingänge, geplante Ausgaben, letzte Tage zum Kündigen, Fälligkeiten und das
+  Ende der Bankfreigaben als Kalender in Home Assistant, ein Jahr im Voraus.
+  - Unter *Einstellungen → Zahlungskalender* die Adresse erstellen und in Home Assistant mit der Integration
+    *Remote Calendar* eintragen.
+  - Der Kalender ist aus, bis du die Adresse erstellst. Die Adresse ist nur im internen Netz von Home Assistant
+    erreichbar und lässt sich jederzeit ersetzen oder abschalten.
+
 ## 0.3.45
 
 - Änderungsprotokoll: Unter *Einstellungen → Änderungen* steht, wer im Haushalt wann was geändert hat, in Home

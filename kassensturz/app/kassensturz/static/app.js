@@ -2282,14 +2282,42 @@ async function changesSheet() {
   await load(true);
 }
 
+// Zahlungskalender: Adresse für „Remote Calendar“ in Home Assistant, ein- und ausschalten.
+function calendarBox(cal) {
+  if (!cal.enabled) {
+    return html`<p class="small muted">Kommende Abbuchungen, Eingänge, geplante Ausgaben und letzte Tage zum Kündigen als Kalender in Home Assistant, ein Jahr im Voraus. Gut für Automationen, etwa eine Erinnerung am Tag vor einer großen Abbuchung.</p>
+      <div class="actions" style="margin-top:8px"><button class="btn" id="cal-on">Kalender-Adresse erstellen</button></div>`.s;
+  }
+  return html`<p class="small">Diese Adresse in Home Assistant unter <em>Einstellungen → Geräte & Dienste → Integration hinzufügen → Remote Calendar</em> eintragen:</p>
+    <p class="small"><code class="cal-url" id="cal-url">${cal.url}</code></p>
+    <p class="small muted">Erreichbar nur im internen Netz von Home Assistant, nicht übers Handy. Wer die Adresse kennt, sieht die Termine mit Beträgen; eine neue Adresse macht die alte ungültig.</p>
+    ${cal.next.length ? html`<ul class="list">${cal.next.map((e) => html`<li class="row static"><span class="title">${e.summary}</span><span class="sub">${relDay(e.date)}</span></li>`)}</ul>
+      <p class="small muted">${cal.count} Termine im nächsten Jahr.</p>` : html`<p class="small muted">Im nächsten Jahr steht noch nichts an.</p>`}
+    <div class="actions" style="margin-top:8px"><button class="btn" id="cal-copy">Adresse kopieren</button><button class="btn" id="cal-renew">Neue Adresse</button><button class="btn" id="cal-off">Ausschalten</button></div>`.s;
+}
+function bindCalendar(box) {
+  const act = async (action, text) => {
+    try { box.innerHTML = calendarBox(await api("calendar", { method: "POST", body: { action } })); bindCalendar(box); toast(text); }
+    catch (err) { toast(err.message); }
+  };
+  if ($("#cal-on", box)) $("#cal-on", box).onclick = () => act("on", "Kalender-Adresse erstellt");
+  if ($("#cal-renew", box)) $("#cal-renew", box).onclick = () => act("renew", "Neue Adresse. Trag sie in Home Assistant neu ein");
+  if ($("#cal-off", box)) $("#cal-off", box).onclick = () => act("off", "Kalender ausgeschaltet");
+  if ($("#cal-copy", box)) $("#cal-copy", box).onclick = async () => {
+    try { await navigator.clipboard.writeText($("#cal-url", box).textContent); toast("Adresse kopiert"); }
+    catch { toast("Kopieren ging nicht. Bitte die Adresse markieren und kopieren"); }
+  };
+}
+
 async function renderSettings(view, _params, seq) {
-  const [s, rules, learned, devices, sharing, changes] = await Promise.all([
+  const [s, rules, learned, devices, sharing, changes, cal] = await Promise.all([
     api("settings"),
     api("rules"),
     api("learned"),
     api("mobile/devices").catch(() => ({ items: [] })),
     api("household/sharing"),
     api("changes?limit=6"),
+    api("calendar"),
   ]);
   if (seq !== renderSeq) return;
   const p = s.profile || {};
@@ -2315,6 +2343,8 @@ async function renderSettings(view, _params, seq) {
         <p class="small">${s.ha ? "Verbunden. Kassensturz stellt diese Sensoren bereit:" : "Keine Verbindung zu Home Assistant – Sensoren und Benachrichtigungen sind aus."}</p>
         ${s.ha ? html`<p class="small muted">sensor.kassensturz_kontostand, _frei_verfuegbar, _prognose_monatsende, _tiefster_stand, _fixkosten_monat, _ausgaben_monat, _naechste_zahlung sowie je Konto und Budget einen Sensor.</p>` : ""}
         <p class="small muted">Warnschwelle ${s.options.warn_threshold} €, täglicher Abruf um ${s.options.sync_time} Uhr, Benachrichtigung über ${s.options.notify_service || "persistente Meldungen"}. Ändern lässt sich das in der Konfiguration der App.</p>
+        <div class="section-head" style="margin-top:22px"><h2>Zahlungskalender</h2></div>
+        <div id="cal-box">${raw(calendarBox(cal))}</div>
       </section>
       <section class="section">
         <div class="section-head"><h2>Haushalt</h2><button class="link-btn" id="p-add">Person hinzufügen</button></div>
@@ -2468,6 +2498,7 @@ async function renderSettings(view, _params, seq) {
   }));
   $("#p-add").onclick = () => personSheet();
   if ($("#chg-all")) $("#chg-all").onclick = () => changesSheet();
+  bindCalendar($("#cal-box"));
   if ($("#st-add")) $("#st-add").onclick = () => settlementSheet(sharing.balances[0]);
   $$("[data-st-del]", view).forEach((button) => confirmButton(button, "Wirklich entfernen?", async () => {
     try { await api(`household/settlements/${button.dataset.stDel}`, { method: "DELETE" }); toast("Zahlung entfernt"); } catch (e) { toast(e.message); }
