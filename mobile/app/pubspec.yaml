@@ -1,7 +1,7 @@
 name: kassensturz_mobile
 description: Local-first companion app for a user's Kassensturz server.
 publish_to: none
-version: 0.3.35+1
+version: 0.3.36+1
 
 environment:
   sdk: ">=3.11.0 <4.0.0"
@@ -14,6 +14,7 @@ dependencies:
   url_launcher: ^6.3.1
   local_auth: ^3.0.0
   image_picker: ^1.1.2
+  pdfx: ^2.9.2
 
 dev_dependencies:
   flutter_lints: ^6.0.0
