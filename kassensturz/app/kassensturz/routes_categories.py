@@ -107,7 +107,10 @@ def get_budgets(month: str = "", person: int | None = None):
         own = db.part("own", person)
         return {"budgets": household.own_budgets(db, person, on), "stats": analytics.month_stats(own, on.strftime("%Y-%m")),
                 "limits": household.own_budget_limits(db, person)}
-    return {"budgets": analytics.budgets(db.part("shared"), on), "stats": analytics.month_stats(db, on.strftime("%Y-%m"))}
+    shared = db.part("shared")
+    return {"budgets": analytics.budgets(shared, on), "stats": analytics.month_stats(db, on.strftime("%Y-%m")),
+            # Vorschläge aus den letzten vollen Monaten, wie in der App
+            "suggestions": analytics.budget_suggestions(shared)}
 
 
 @router.get("/api/rules")

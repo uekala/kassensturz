@@ -86,3 +86,24 @@ def test_suggestions_endpoint(db, monkeypatch):
     with https_client() as client:
         assert client.get("/api/v1/budgets/suggestions").status_code == 401
         assert client.get("/api/v1/budgets/suggestions", headers=paired_headers(client)).json() == {"months": 0, "items": []}
+
+
+def test_web_budgets_carry_suggestions_for_shared_accounts(client, db):
+    from datetime import timedelta
+    from kassensturz import household
+
+    today = date.today()
+    last = (today.replace(day=1) - timedelta(days=1)).replace(day=15)
+    before = (last.replace(day=1) - timedelta(days=1)).replace(day=1)
+    anna = household.create_person(db, {"name": "Anna"})["id"]
+    shared = db.insert("accounts", {"name": "KS-Testgiro", "kind": "giro"})
+    own = db.insert("accounts", {"name": "KS-Annas Konto", "kind": "giro", "owner_person_id": anna})
+    _book(db, shared, [(before.isoformat(), -100, "Erfundener Start", "sonstiges"),
+                       (last.isoformat(), -23000, "Erfundener Supermarkt", "lebensmittel")])
+    _book(db, own, [(last.isoformat(), -90000, "Erfundener Privatkauf", "lebensmittel")])
+    data = client.get("/api/budgets").json()
+    assert data["suggestions"]["months"] >= 1
+    mine = [i for i in data["suggestions"]["items"] if i["category_id"] == _cat(db, "lebensmittel")]
+    # Nur die gemeinsamen Konten zählen, wie bei den Budgets des Haushalts.
+    assert mine and mine[0]["average_cents"] <= 23000 and mine[0]["current_cents"] is None
+    assert "suggestions" not in client.get(f"/api/budgets?person={anna}").json()

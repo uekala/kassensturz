@@ -47,6 +47,13 @@ export async function renderBudgets(view, params, seq) {
   const st = data.stats;
   const maxCat = Math.max(1, ...st.breakdown.map((b) => b.cents));
   const withBudget = new Set(data.budgets.map((b) => b.category_id));
+  // Vorschläge nur für die Budgets des Haushalts und nur im laufenden Monat
+  const suggest = !person && isCurrent && data.suggestions ? data.suggestions.items : [];
+  const takeSuggestions = async (items) => {
+    try { for (const s of items) await api(`categories/${s.category_id}`, { method: "PATCH", body: { budget_cents: s.suggested_cents } }); }
+    catch (e) { toast(e.message); rerender(); return; }
+    toast(items.length === 1 ? "Budget gespeichert" : `${items.length} Budgets gespeichert`); rerender();
+  };
   view.innerHTML = html`
     <div class="page-head"><h1>${fmtMonth.format(new Date(y, m - 1, 1))}</h1>
       <div class="segmented"><button id="b-prev" aria-label="Vormonat">‹ ${fmtMonth.format(prev).split(" ")[0]}</button>
@@ -63,6 +70,12 @@ export async function renderBudgets(view, params, seq) {
       <section class="section"><div class="section-head"><h2>${person ? `Budgets von ${person.name}` : "Budgets"}</h2><span class="small muted">Strich: so viel wäre bis heute im Plan</span></div>
         ${data.budgets.length ? html`<div>${data.budgets.map(budgetRow)}</div>` : html`<p class="muted">Tipp auf eine Kategorie rechts oder unten, um ein Monatsbudget festzulegen.</p>`}
       </section>
+      ${suggest.length ? html`<section class="section"><div class="section-head"><h2>Vorschläge</h2>${suggest.length > 1 ? html`<button class="link-btn" id="bs-all">Alle übernehmen</button>` : ""}</div>
+        <p class="small muted">Aus deinen Ausgaben ${data.suggestions.months === 1 ? "des letzten vollen Monats" : `der letzten ${data.suggestions.months} vollen Monate`}, je Monat und aufgerundet.</p>
+        <ul class="list">${suggest.map((s) => html`<li class="row static"><span class="title">${s.name}</span>
+          <span class="sub">Schnitt ${money(s.average_cents)}${s.current_cents ? `, bisher ${moneyRound(s.current_cents)}` : ""}</span>
+          <span class="amount">${money(s.suggested_cents)}<small><button class="link-btn tiny" data-suggest="${s.category_id}">Übernehmen</button></small></span></li>`)}</ul>
+      </section>` : ""}
       <section class="section"><div class="section-head"><h2>Sparziele</h2><button class="link-btn" id="g-add">Ziel hinzufügen</button></div>
         ${plan.goals.length ? html`<div>${plan.goals.map((g) => html`<button class="goal" data-goal="${g.id}">
           <span class="goal-head"><strong>${g.name}${g.owner_person_id ? html` <span class="chip neutral">${personName(g.owner_person_id)}</span>` : ""}</strong><span class="num">${money(g.saved_cents)} von ${money(g.target_cents)}</span></span>
@@ -104,6 +117,8 @@ export async function renderBudgets(view, params, seq) {
   on(view, "[data-goal]", "click", (_e, el) => goalSheet(plan.goals.find((g) => String(g.id) === el.dataset.goal)));
   if ($("#b-next")) $("#b-next").onclick = () => go("budgets", here({ month: key(next) }));
   bindBudgetRows(view, person, data.limits);
+  on(view, "[data-suggest]", "click", (_e, el) => takeSuggestions(suggest.filter((s) => String(s.category_id) === el.dataset.suggest)));
+  if ($("#bs-all")) $("#bs-all").onclick = () => takeSuggestions(suggest);
   on(view, "[data-setbudget]", "click", (e, el) => { e.stopPropagation(); budgetSheet(Number(el.dataset.setbudget), person, data.limits); });
   on(view, ".bar-row[data-cat]", "click", (_e, el) => { if (el.dataset.cat) go("umsaetze", { category: el.dataset.cat, month, kind: "out" }); });
   historyChart($("#hist-chart"), stats.history);
