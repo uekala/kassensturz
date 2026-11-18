@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.38
+
+- Nur Tests: Die Haushalt-Ansichten (Filter *Ich / Gemeinsam*, Konten mit Besitz, Kinderhandy, Ausgleich) und das
+  Eintragen eines Werts sind jetzt durch Widget-Tests abgedeckt.
+
 ## 0.3.37
 
 - Konten: Tipp auf Depot, Festgeld, VL oder Immobilie trägt den heutigen Wert ein. Beim Kredit steht *Restschuld
