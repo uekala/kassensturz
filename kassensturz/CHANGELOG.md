@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.37
+
+- Umstieg von Finanzguru, Nachtrag nach einem Blick auf die Kopfzeile eines echten Exports:
+  - Notizen aus Finanzguru stehen als Notiz an der Buchung; Tags hängen als Text daran („Tags: …“).
+  - Aufgeteilte Buchungen zählen nicht mehr doppelt. Finanzguru schreibt die Buchung („Original“) und darunter ihre
+    Teile („Teilbuchung“, „Restbetrag“); übernommen wird nur die Buchung selbst. Ergeben die Teile genau ihren
+    Betrag, bleibt sie aufgeteilt, sonst kommt sie ohne Aufteilung.
+- Haushalt: Das Handy eines Kindes bekommt die Budgets des Haushalts nicht mehr. Bisher standen dort die Limits und
+  was davon ausgegeben ist.
+
 ## 0.3.36
 
 - Umstieg von Finanzguru: Der Excel- oder CSV-Export lässt sich unter *Konten → Datei importieren* übernehmen.

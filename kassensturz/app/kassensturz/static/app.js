@@ -1753,6 +1753,8 @@ function finanzguruSheet(res) {
     const total = res.accounts.reduce((sum, a) => sum + a.will_add, 0);
     sh.set(html`${sheetHead("Von Finanzguru umziehen")}
       <p><strong>${res.count} Buchungen</strong> auf ${res.accounts.length} ${res.accounts.length === 1 ? "Konto" : "Konten"}${res.first ? `, vom ${dFull(res.first)} bis ${dFull(res.last)}` : ""}.${skipped ? html` <span class="muted">Übersprungen: ${skipped}.</span>` : ""}</p>
+      ${res.splits && res.splits.plain ? html`<p class="note">Bei ${res.splits.plain} aufgeteilten ${res.splits.plain === 1 ? "Buchung ergeben" : "Buchungen ergeben"} die Teile nicht den Betrag. Sie ${res.splits.plain === 1 ? "kommt" : "kommen"} ohne Aufteilung.</p>` : ""}
+      ${res.splits && res.splits.unclear ? html`<p class="note">${res.splits.unclear} ${res.splits.unclear === 1 ? "Teilbuchung steht" : "Teilbuchungen stehen"} ohne die zugehörige Buchung im Export und ${res.splits.unclear === 1 ? "wird" : "werden"} einzeln übernommen. Prüf danach, ob dort etwas doppelt zählt.</p>` : ""}
       <h3>Konten</h3>
       <p class="small muted">Hat ein Konto schon Buchungen aus Bankabruf oder Datei, füllt der Export nur die Zeit davor auf. So entsteht nichts doppelt.</p>
       ${res.accounts.map((a, i) => { const ch = accChoice.get(a.ref); return html`<div class="fg-acc">
@@ -1768,7 +1770,7 @@ function finanzguruSheet(res) {
         ${typeof ch.target === "number" && a.cutoff ? html`<p class="small muted">Dieses Konto hat Buchungen ab dem ${dFull(a.cutoff)}. Übernommen wird, was davor liegt: ${a.will_add} von ${a.count}.</p>` : ""}
       </div>`; })}
       ${res.categories.length ? html`<h3 style="margin-top:20px">Kategorien</h3>
-      <p class="small muted">Was du hier zuordnest, behält seine Kategorie. Bei „Kassensturz ordnet zu“ entscheidet Kassensturz selbst.${res.transfers ? ` ${res.transfers} Umbuchungen bleiben Umbuchungen.` : ""}</p>
+      <p class="small muted">Was du hier zuordnest, behält seine Kategorie. Bei „Kassensturz ordnet zu“ entscheidet Kassensturz selbst.${res.transfers ? ` ${res.transfers} Umbuchungen bleiben Umbuchungen.` : ""}${res.splits && res.splits.taken ? ` ${res.splits.taken} aufgeteilte ${res.splits.taken === 1 ? "Buchung bleibt" : "Buchungen bleiben"} aufgeteilt.` : ""}</p>
       <table class="map-table">${res.categories.map((c, i) => html`<tr><td>${c.main}${c.main && c.sub ? " › " : ""}${c.sub} <span class="muted">(${c.count})</span></td>
         <td><select data-fg-cat="${i}" aria-label="Kategorie für ${c.sub || c.main}">${catOptions(catChoice[i])}</select></td></tr>`)}</table>
       <label class="check"><input type="checkbox" id="fg-learn" ${learn ? raw("checked") : ""}><span>Daraus lernen: Was in Finanzguru verlässlich gleich zugeordnet war, gilt auch für künftige Buchungen.</span></label>` : ""}
