@@ -53,7 +53,12 @@ jobs:
           python -m pip install pytest httpx
 
       - name: Check dashboard JavaScript syntax
-        run: node --check kassensturz/app/kassensturz/static/app.js
+        # Die Oberfläche besteht aus ES-Modulen; als .mjs prüft Node sie unabhängig von der Version als Modul.
+        run: |
+          for f in kassensturz/app/kassensturz/static/app.js kassensturz/app/kassensturz/static/js/*.js; do
+            cp "$f" "$RUNNER_TEMP/check.mjs"
+            node --check "$RUNNER_TEMP/check.mjs" || { echo "Syntaxfehler in $f"; exit 1; }
+          done
 
       - name: Run tests
         env:

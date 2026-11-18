@@ -18,15 +18,27 @@ def tx(db, acc, cents=-2340, who="KS-Markt", day="2026-11-12"):
     return db.scalar("SELECT MAX(id) FROM transactions")
 
 
+def _all_routes(routes):
+    """Auch die Routen eingebundener Router: FastAPI führt sie verschachtelt."""
+    for route in routes:
+        inner = getattr(route, "original_router", None)
+        if inner is not None:
+            yield from _all_routes(inner.routes)
+        else:
+            yield route
+
+
 def test_every_write_route_is_labelled_or_deliberately_skipped():
-    missing = []
-    for route in main.app.routes:
+    missing, seen = [], 0
+    for route in _all_routes(main.app.routes):
         if not isinstance(route, APIRoute) or not route.path.startswith("/api/"):
             continue
         for method in route.methods & audit.WRITE_METHODS:
+            seen += 1
             if (method, route.path) not in audit.LABELS and (method, route.path) not in audit.SKIP:
                 missing.append(f"{method} {route.path}")
     assert missing == []
+    assert seen == len(audit.LABELS) + len(audit.SKIP)   # keine Route übersehen, kein Satz ohne Route
     assert not set(audit.LABELS) & audit.SKIP
 
 

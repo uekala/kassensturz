@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.47
+
+- Nach einem Update lädt die Oberfläche sicher die neue Fassung. Bisher zeigten Skript und Stil seit 0.3.22 dieselbe
+  Version in der Adresse; ein Browser konnte so eine alte Fassung behalten.
+- Technik: Die Oberfläche ist in Module aufgeteilt, die Schnittstelle des Servers in Bereiche. An Funktionen und
+  Adressen ändert sich nichts.
+
 ## 0.3.46
 
 - Zahlungskalender: Kommende Abbuchungen, Eingänge, geplante Ausgaben, letzte Tage zum Kündigen, Fälligkeiten und das
