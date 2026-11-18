@@ -97,6 +97,40 @@ Kassensturz merkt sich die Spaltenzuordnung je Dateiformat. Überlappende Zeitr�
 Bei Kreditkarten stehen Ausgaben in manchen Exporten ohne Minus. Kassensturz weist darauf hin; die Option
 „Vorzeichen umkehren“ steht in der Spaltenzuordnung.
 
+## Umstieg von Finanzguru
+
+Der Export aus Finanzguru bringt deine Historie und deine bisherigen Kategorien mit. Finanzguru schreibt alle Buchungen in
+eine Excel-Datei (Funktion von Finanzguru Plus, zu finden bei den Buchungen). Diese Datei lädst du unter *Konten → Datei
+importieren* hoch. Die CSV-Fassung desselben Exports geht genauso.
+
+Der Dialog fragt zwei Dinge:
+
+- **Konten:** Jedes Konto aus dem Export landet in einem vorhandenen Konto, in einem neuen oder gar nicht. Konten mit
+  gleicher IBAN sind vorausgewählt. Hat das Zielkonto schon Buchungen aus Bankabruf oder Datei, füllt der Export nur die
+  Zeit davor auf; ab dem ersten vorhandenen Umsatz bleibt die Bank die Quelle. So entsteht nichts doppelt, auch wenn
+  Finanzguru eine Buchung einen Tag früher oder mit anderem Text führt.
+- **Kategorien:** Zu jeder Kategorie aus Finanzguru wählst du eine von Kassensturz, legst sie neu an oder lässt
+  Kassensturz selbst zuordnen. Was du zuordnest, behält seine Kategorie; in der Buchung steht dann „aus Finanzguru
+  übernommen“. Mit *Automatisch zuordnen* gibst du eine einzelne Buchung wieder frei. Umbuchungen aus Finanzguru bleiben
+  Umbuchungen.
+
+Mit *Daraus lernen* merkt sich Kassensturz Empfänger, die in Finanzguru mindestens zweimal und fast immer in derselben
+Kategorie lagen. Das wirkt wie eine eigene Korrektur: Es gilt für vorhandene und künftige Buchungen und steht unter
+*Einstellungen → Gelernt*. Was du in Kassensturz schon selbst korrigiert hast, bleibt.
+
+Gut zu wissen:
+
+- Der Kontostand vorhandener Konten ändert sich nicht. Ein neues Konto bekommt den letzten Stand aus dem Export nur, wenn
+  die Spalte „Kontostand“ nachweislich von Buchung zu Buchung mitläuft; sonst trägst du ihn einmal ein.
+- Dieselbe Datei ein zweites Mal zu übernehmen, fügt nichts hinzu.
+- Für die alten Buchungen kommt keine Mitteilung, und der Selbsttest des Kontostands zählt sie nicht als neu.
+- Neue Konten gehören zunächst allen im Haushalt. Den Besitzer stellst du danach im Konto ein.
+- Verträge erkennt Kassensturz aus den Buchungen selbst; mit mehr Historie werden es meist mehr.
+- Buchungen in fremder Währung überspringt der Import, wie bei anderen Dateien auch.
+
+Liegt der Export im Eingangsordner, importiert Kassensturz ihn nicht von selbst. Er erscheint unter *Konten →
+Eingangsordner* mit dem Knopf *Zuordnen*, der denselben Dialog öffnet.
+
 ## Eingangsordner
 
 Damit Dateien nicht von Hand hochgeladen werden müssen, überwacht Kassensturz den Ordner `/share/kassensturz`

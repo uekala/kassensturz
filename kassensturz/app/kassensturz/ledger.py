@@ -157,19 +157,32 @@ def check_balance(db: Database, account_id: int, bank_cents: int, today: date | 
     vorgemerkter Umsatz, der sich beim nächsten Abruf wieder ausgleicht. Der erste Abruf
     eines Kontos legt nur den Ausgangspunkt fest."""
     last_tx = int(db.scalar("SELECT COALESCE(MAX(id), 0) FROM transactions WHERE account_id = ?", (account_id,)) or 0)
-    prev = db.one("SELECT bank_cents, last_tx_id FROM balance_checks WHERE account_id = ? ORDER BY id DESC LIMIT 1",
-                  (account_id,))
+    prev = db.one("SELECT bank_cents, last_tx_id, backfill_cents FROM balance_checks WHERE account_id = ? "
+                  "ORDER BY id DESC LIMIT 1", (account_id,))
     diff = 0
     if prev:
         booked = db.scalar("SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE account_id = ? AND id > ?",
                            (account_id, prev["last_tx_id"]))
-        diff = (int(bank_cents) - prev["bank_cents"]) - int(booked)
+        # Nachgetragene alte Buchungen haben den Bankstand seit dem letzten Abruf nicht verändert.
+        diff = (int(bank_cents) - prev["bank_cents"]) - (int(booked) - int(prev["backfill_cents"] or 0))
     db.insert("balance_checks", {"account_id": account_id, "checked_on": (today or date.today()).isoformat(),
                                  "bank_cents": int(bank_cents), "last_tx_id": last_tx, "diff_cents": diff})
     db.execute("DELETE FROM balance_checks WHERE account_id = ? AND id NOT IN "
                "(SELECT id FROM balance_checks WHERE account_id = ? ORDER BY id DESC LIMIT ?)",
                (account_id, account_id, DRIFT_KEEP))
     return diff
+
+
+def note_backfill(db: Database, account_id: int, cents: int) -> None:
+    """Hält fest, dass alte Buchungen nachgetragen wurden – etwa die Historie aus einer anderen App.
+
+    Sie sind neu in der Datenbank, aber nicht neu bei der Bank. Ohne diesen Vermerk hielte der
+    nächste Selbsttest ihre Summe für eine Abweichung. Ohne bisherigen Abruf ist nichts zu tun:
+    Der erste Abruf legt den Ausgangspunkt ohnehin erst fest."""
+    last = db.one("SELECT id FROM balance_checks WHERE account_id = ? ORDER BY id DESC LIMIT 1", (account_id,))
+    if last and cents:
+        db.execute("UPDATE balance_checks SET backfill_cents = COALESCE(backfill_cents, 0) + ? WHERE id = ?",
+                   (int(cents), last["id"]))
 
 
 def balance_drift(db: Database, account_id: int, today: date | None = None) -> dict | None:

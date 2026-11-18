@@ -355,6 +355,8 @@ MIGRATIONS = {
                  # Taschengeld: Betrag je Termin, Rhythmus (week, month) und nächster Termin
                  ("allowance_cents", "INTEGER"), ("allowance_interval", "TEXT"), ("allowance_next", "TEXT")],
     "cancellation_events": [("provider_confirmed_at", "TEXT"), ("aborted_at", "TEXT")],
+    # Summe nachgetragener alter Buchungen seit diesem Abruf; der Selbsttest zählt sie nicht als neu
+    "balance_checks": [("backfill_cents", "INTEGER DEFAULT 0")],
     # Kennung, mit der ein Mobilgerät eine von Hand angelegte Buchung genau einmal anlegt
     # Gläubiger-ID und IBAN hängen an dem Eintrag für den Namen, aus dem sie gelernt wurden
     "learned_categories": [("parent_id", "INTEGER")],
@@ -379,7 +381,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {

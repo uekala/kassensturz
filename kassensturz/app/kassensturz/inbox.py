@@ -17,7 +17,7 @@ from .db import Database, now_iso
 
 log = logging.getLogger("kassensturz.inbox")
 
-SUFFIXES = {".csv", ".txt", ".xml", ".zip", ".sta", ".mt940", ".940"}
+SUFFIXES = {".csv", ".txt", ".xml", ".zip", ".sta", ".mt940", ".940", ".xlsx"}
 DONE_DIR = "importiert"
 
 
@@ -134,6 +134,11 @@ def scan(db: Database) -> dict:
                     res = importers.analyze(data, f.name, json.loads(prof["mapping"]))
         except Exception as exc:  # noqa: BLE001
             _remember(db, f, st, "error", f"Datei nicht lesbar: {exc}", None, 0)
+            continue
+        if res.get("kind") == "finanzguru":
+            # Mehrere Konten in einer Datei: Das geht nur über den Dialog.
+            _remember(db, f, st, "pending", "Export aus Finanzguru – bitte Konten und Kategorien zuordnen.",
+                      res.get("format"), res.get("count"))
             continue
         if res.get("error") or not res.get("rows"):
             _remember(db, f, st, "error", res.get("error") or "Keine Buchungen gefunden.", res.get("format"), 0)

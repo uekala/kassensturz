@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (allowance, analytics, categorize, contracts, demo, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
+from . import (allowance, analytics, categorize, contracts, demo, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
                secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
@@ -810,7 +810,7 @@ def delete_account(aid: int):
 # --- Datei-Import ------------------------------------------------------------------------
 
 def _analysis_public(res: dict) -> dict:
-    out = {k: v for k, v in res.items() if k != "rows"}
+    out = {k: v for k, v in res.items() if k not in ("rows", "finanzguru")}
     out["preview"] = res["rows"][-8:][::-1]
     out["field_labels"] = importers.FIELD_LABELS
     return out
@@ -853,6 +853,8 @@ async def import_analyze(file: UploadFile = File(...)):
         _err(400, f"Die Datei ließ sich nicht lesen: {exc}")
     token = uuid.uuid4().hex
     _imports[token] = {"data": data, "filename": file.filename, "created": time.time()}
+    if res.get("kind") == "finanzguru":
+        return _finanzguru_start(db, token, res)
     out = _analysis_public(res)
     out.update({"token": token, "account_id": _match_account(db, res, res.get("signature")), "profile_used": bool(profile)})
     return out
@@ -911,6 +913,71 @@ def import_commit(body: dict = Body(...)):
     services.schedule_refresh()
     acc = db.one("SELECT * FROM accounts WHERE id = ?", (account_id,))
     return {"added": result["added"], "skipped": result["skipped"], "account_id": account_id, "balance_known": acc["balance_date"] is not None}
+
+
+# --- Umstieg von Finanzguru ----------------------------------------------------------------
+
+def _finanzguru_start(db, token: str, res: dict) -> dict:
+    """Erste Antwort auf einen Finanzguru-Export: die Vorschau für den Dialog."""
+    _imports[token]["parsed"] = res["finanzguru"]
+    return {"kind": "finanzguru", "token": token, **finanzguru.preview(db, res["finanzguru"])}
+
+
+def _finanzguru_item(body: dict) -> dict:
+    item = _imports.get(body.get("token") or "")
+    if not item:
+        _err(400, "Die Datei ist nicht mehr im Zwischenspeicher. Bitte erneut hochladen.")
+    if "parsed" not in item:
+        _err(400, "Das ist kein Export aus Finanzguru.")
+    return item
+
+
+def _finanzguru_choices(body: dict) -> list[dict]:
+    """Die Auswahl je Konto aus dem Dialog: ein vorhandenes Konto, ein neues oder keines."""
+    out = []
+    for entry in body.get("accounts") or []:
+        if not isinstance(entry, dict) or not isinstance(entry.get("ref"), str):
+            continue
+        target = entry.get("target")
+        if isinstance(target, str) and target.isdigit():
+            target = int(target)
+        if isinstance(target, bool) or not (target in ("new", "skip") or isinstance(target, int)):
+            continue
+        out.append({"ref": entry["ref"], "target": target, "name": entry.get("name"), "kind": entry.get("kind")})
+    return out
+
+
+@app.post("/api/import/finanzguru/preview")
+def finanzguru_preview(body: dict = Body(...)):
+    item = _finanzguru_item(body)
+    choices = {c["ref"]: c["target"] for c in _finanzguru_choices(body)}
+    return {"kind": "finanzguru", "token": body["token"], **finanzguru.preview(get_db(), item["parsed"], choices)}
+
+
+@app.post("/api/import/finanzguru/commit")
+def finanzguru_commit(body: dict = Body(...)):
+    db = get_db()
+    item = _finanzguru_item(body)
+    categories = [c for c in body.get("categories") or [] if isinstance(c, dict)]
+    for entry in categories:
+        if isinstance(entry.get("target"), str) and entry["target"].isdigit():
+            entry["target"] = int(entry["target"])
+    try:
+        result = finanzguru.commit(db, item["parsed"], _finanzguru_choices(body), categories,
+                                   learn=bool(body.get("learn", True)), filename=item["filename"])
+    except ValueError as exc:
+        _err(400, str(exc))
+    _imports.pop(body["token"], None)
+    if item.get("inbox_file"):
+        try:
+            _, path = inbox.read_file(item["inbox_file"])
+            inbox.move_done(path)
+        except FileNotFoundError:
+            pass
+        db.execute("DELETE FROM inbox WHERE filename = ?", (item["inbox_file"],))
+    contracts.detect(db)
+    services.schedule_refresh()
+    return result
 
 
 # --- FinTS ---------------------------------------------------------------------------------
@@ -1679,6 +1746,8 @@ def inbox_analyze(body: dict = Body(...)):
             res = importers.analyze(data, name, profile)
     token = uuid.uuid4().hex
     _imports[token] = {"data": data, "filename": name, "created": time.time(), "inbox_file": name}
+    if res.get("kind") == "finanzguru":
+        return _finanzguru_start(db, token, res)
     out = _analysis_public(res)
     out.update({"token": token, "account_id": inbox.match_account(db, res, name), "profile_used": bool(profile)})
     return out

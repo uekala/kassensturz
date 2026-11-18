@@ -354,6 +354,10 @@ details > summary { cursor: pointer; padding: 6px 0; }
 .map-table td { padding: 6px 4px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
 .map-table select { width: 100%; min-height: 34px; padding: 4px 6px; }
 .preview { font-size: .85rem; }
+.fg-acc { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.fg-acc select { width: 100%; }
+.fg-acc .field { margin: 0; }
+.fg-acc p { margin: 0; }
 
 #toast {
   position: fixed; left: 50%; bottom: calc(var(--tabbar) + 16px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
