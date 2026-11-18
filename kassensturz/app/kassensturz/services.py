@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import allowance, analytics, anomalies, backup, contracts, expected, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, planned, savings, secrets_store
+from . import allowance, analytics, anomalies, backup, contracts, expected, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, planned, projects, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -338,6 +338,7 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
     expected.prune(db)
     expected.settle(db)  # erwartete Eingänge abhaken, die angekommen sind
     planned.prune(db)
+    projects.prune(db)
     planned.settle(db)  # geplante Ausgaben abhaken, die eindeutig bezahlt sind
     summary = build_summary(db)
     opts = options.load()

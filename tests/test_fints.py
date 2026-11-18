@@ -150,3 +150,9 @@ def test_code_9210_says_what_to_check():
     assert text.startswith("Die Bank kennt diesen Zugang nicht. Antwort der Bank:") and "Code 9210" in text
     assert "Bankleitzahl" in text and "Kundennummer" in text and "system_id" not in text
     assert fints_sync._explain(fints_sync.UserFacingError("Eigene Meldung"), replies) == "Eigene Meldung"
+
+
+def test_code_9078_explains_the_waiting_time():
+    replies = [("9800", "Dialoginitialisierung abgebrochen."), ("9078", "Dialog abgebrochen - FinTS-Produkt ist nicht registriert")]
+    text = fints_sync._explain(ValueError("Could not find system_id"), replies)
+    assert text.startswith("Die Bank kennt die FinTS-Produkt-ID noch nicht (Code 9078).") and "25 Zeichen" in text

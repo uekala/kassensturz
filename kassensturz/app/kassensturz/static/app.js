@@ -543,6 +543,7 @@ function niceStep(raw_) {
 
 /* ------------------------------------------------------------------ Umsätze */
 const txState = { offset: 0, items: [] };
+const TX_FILTERS = ["q", "account", "category", "month", "kind", "contract", "project"];
 async function renderTransactions(view, params, seq) {
   const months = [];
   const now = new Date();
@@ -563,7 +564,8 @@ async function renderTransactions(view, params, seq) {
     </div>
     <div class="filters"><div class="segmented" role="group" aria-label="Art">${kinds.map(([v, l]) => html`<button data-kind="${v}" aria-pressed="${(params.kind || "") === v}">${l}</button>`)}</div></div>
     ${params.contract ? html`<p class="small">Gefiltert nach Vertrag. <a href="#/umsaetze">Filter entfernen</a></p>` : ""}
-    <p class="small muted" id="tx-summary"></p>
+    ${params.project ? html`<p class="small" id="tx-project-note">Gefiltert nach Projekt. <a href="#/umsaetze">Filter entfernen</a></p>` : ""}
+    <p class="small muted"><span id="tx-summary"></span> <button class="link-btn" id="tx-to-project" hidden>Alle Treffer einem Projekt zuordnen</button></p>
     <div id="tx-list"></div>
     <div class="actions" id="tx-more-wrap" hidden><button class="btn" id="tx-more">Weitere laden</button></div>`.s;
   const update = (patch) => {
@@ -581,18 +583,22 @@ async function renderTransactions(view, params, seq) {
   on(view, "[data-kind]", "click", (_e, el) => { $$("[data-kind]").forEach((b) => b.setAttribute("aria-pressed", b === el)); update({ kind: el.dataset.kind }); });
   $("#tx-more").onclick = () => loadTx(params, false);
   $("#tx-import").onclick = () => pickImportFile();
+  $("#tx-to-project").onclick = () => projectPickSheet(params);
+  if (params.project) api("projects/" + params.project).then((p) => { const n = $("#tx-project-note"); if (n) n.firstChild.textContent = `Projekt „${p.name}“. `; }).catch(() => {});
   await loadTx(params, true, seq);
 }
 async function loadTx(params, reset, seq) {
   if (reset) { txState.offset = 0; txState.items = []; }
   const q = new URLSearchParams({ offset: txState.offset, limit: 100 });
-  ["q", "account", "category", "month", "kind", "contract"].forEach((k) => { if (params[k]) q.set(k, params[k]); });
+  TX_FILTERS.forEach((k) => { if (params[k]) q.set(k, params[k]); });
   const res = await api("transactions?" + q);
   if (seq && seq !== renderSeq) return;
   txState.items.push(...res.items);
   txState.offset += res.items.length;
   $("#tx-summary").textContent = `${res.total} Buchungen. Einnahmen ${money(res.sum_in, { plus: true })}, Ausgaben ${money(res.sum_out)}.`;
   $("#tx-more-wrap").hidden = txState.offset >= res.total;
+  // Nur mit Suche oder Filter, sonst wären es alle Buchungen. Umbuchungen bleiben außen vor.
+  $("#tx-to-project").hidden = !res.total || params.kind === "transfer" || !TX_FILTERS.some((k) => k !== "project" && params[k]);
   const list = $("#tx-list");
   if (!txState.items.length) { list.innerHTML = '<p class="muted">Keine Buchungen gefunden.</p>'; return; }
   let out = "", day = null;
@@ -657,6 +663,7 @@ async function drawShare(box, txId) {
 
 async function txSheet(t) {
   const name = t.counterparty || t.purpose || "Buchung";
+  const projects = (await api("projects")).items.filter((p) => !p.archived || p.id === t.project_id);
   const rule = t.rule_ref || "";
   const how = rule === "finanzguru" ? "aus Finanzguru übernommen" : t.category_locked ? "von dir gesetzt" : rule.startsWith("user:") ? "durch deine Regel" : rule === "learned" ? "aus deiner Korrektur gelernt" : rule.startsWith("builtin") ? "automatisch erkannt"
     : rule === "own-iban" ? "Überweisung zwischen eigenen Konten" : rule.startsWith("settlement") ? "Ausgleich eines anderen Kontos"
@@ -679,6 +686,8 @@ async function txSheet(t) {
     ${categoryPicker(t.category_id, t.amount_cents)}
     <div id="rule-box"></div></details>
     <label class="field"><span>Notiz</span><input class="input" id="tx-note" value="${t.note || ""}" maxlength="200"></label>
+    ${projects.length && !t.is_transfer ? html`<label class="field"><span>Projekt</span><select class="input" id="tx-project">
+      <option value="">Keines</option>${projects.map((p) => html`<option value="${p.id}" ${p.id === t.project_id ? raw("selected") : ""}>${p.name}</option>`)}</select></label>` : ""}
     <h3>Steuer und Belege</h3>
     <label class="field"><span>Für die Steuererklärung</span><select class="input" id="tx-tax">
       <option value="">Nicht relevant</option>
@@ -717,6 +726,7 @@ async function txSheet(t) {
   $("#tx-save", sh.el).onclick = async () => {
     const body = { note: $("#tx-note", sh.el).value, tax_kind: $("#tx-tax", sh.el).value || null };
     if ($("#tx-warranty", sh.el)) body.warranty_until = $("#tx-warranty", sh.el).value || null;
+    if ($("#tx-project", sh.el) && Number($("#tx-project", sh.el).value || 0) !== (t.project_id || 0)) body.project_id = Number($("#tx-project", sh.el).value) || null;
     if (picked) {
       body.category_id = picked;
       if ($("#rule-on", sh.el)?.checked && $("#rule-pattern", sh.el).value.trim()) {
@@ -1265,6 +1275,79 @@ function manualContractSheet(intervals) {
   };
 }
 
+/* ------------------------------------------------------------------ Projekte */
+// Ein Projekt: Gesamtkosten, Rahmen, Verteilung auf Kategorien und Monate, jüngste Buchungen.
+async function projectSheet(id) {
+  let p;
+  try { p = await api("projects/" + id); } catch (err) { toast(err.message); return; }
+  const maxCat = Math.max(1, ...p.categories.map((c) => c.cents));
+  const used = p.budget_cents ? Math.min(100, Math.round((Math.max(0, p.cost_cents) / p.budget_cents) * 100)) : 0;
+  const sh = openSheet(html`${sheetHead(p.name)}
+    <div class="big-amount">${money(p.cost_cents)}</div>
+    <p class="small muted">${p.count ? `${p.count} ${p.count === 1 ? "Buchung" : "Buchungen"} von ${dFull(p.first)} bis ${dFull(p.last)}` : "Noch keine Buchungen. Ordne sie an der Buchung zu, oder such in den Umsätzen und nimm alle Treffer."}${p.back_cents ? `. Ausgegeben ${money(p.spent_cents)}, zurückbekommen ${money(p.back_cents)}` : ""}${p.note ? `. ${p.note}` : ""}</p>
+    ${p.budget_cents ? html`<div class="meter"><div class="fill ${p.left_cents < 0 ? "over" : ""}" style="width:${used}%"></div></div>
+      <p class="small ${p.left_cents < 0 ? "" : "muted"}">${p.left_cents >= 0 ? `Noch ${money(p.left_cents)} von ${money(p.budget_cents)} im Rahmen.` : `${money(-p.left_cents)} über dem Rahmen von ${money(p.budget_cents)}.`}</p>` : ""}
+    ${p.categories.length ? html`<h3 style="margin-top:18px">Nach Kategorie</h3><ul class="bars">${p.categories.map((c) => html`
+      <li class="bar-row" style="cursor:default"><span class="label">${c.name}</span><span class="val">${money(c.cents)}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${(c.cents / maxCat) * 100}%"></div></div></li>`)}</ul>` : ""}
+    ${p.months.length > 1 ? html`<h3 style="margin-top:18px">Nach Monat</h3><ul class="list">${p.months.map((m) => html`<li class="row static"><span class="title">${fmtMonth.format(D(m.month + "-01"))}</span><span class="amount">${money(m.cents)}</span></li>`)}</ul>` : ""}
+    ${p.transactions.length ? html`<h3 style="margin-top:18px">Buchungen</h3><ul class="list">${p.transactions.slice(0, 8).map((t) => html`<li class="row static"><span class="title">${t.counterparty || t.purpose || "Buchung"}</span>
+      <span class="sub">${dFull(t.booking_date)}, ${t.is_transfer ? "Umbuchung, zählt nicht" : t.category_name || "Ohne Kategorie"}</span><span class="amount ${t.amount_cents > 0 ? "pos" : ""}">${money(t.amount_cents, { plus: true })}</span></li>`)}</ul>` : ""}
+    <div class="actions">${p.count ? html`<button class="btn primary" id="pr-tx">Alle Buchungen ansehen</button>` : html`<button class="btn primary" id="pr-find">Buchungen suchen</button>`}
+      <button class="btn" id="pr-edit">Ändern</button><button class="btn" id="pr-arch">${p.archived ? "Wieder öffnen" : "Abschließen"}</button><button class="btn danger" id="pr-del">Löschen</button></div>`.s);
+  if ($("#pr-tx", sh.el)) $("#pr-tx", sh.el).onclick = () => { sh.close(); go("umsaetze", { project: String(p.id) }); };
+  if ($("#pr-find", sh.el)) $("#pr-find", sh.el).onclick = () => { sh.close(); go("umsaetze"); };
+  $("#pr-edit", sh.el).onclick = () => { sh.close(); projectEditSheet(p); };
+  $("#pr-arch", sh.el).onclick = async () => {
+    try { await api("projects/" + p.id, { method: "POST", body: { archived: !p.archived } }); sh.close(); toast(p.archived ? "Wieder geöffnet" : "Abgeschlossen"); rerender(); }
+    catch (err) { toast(err.message); }
+  };
+  let sure = false;
+  $("#pr-del", sh.el).onclick = async (e) => {
+    if (!sure) { sure = true; e.target.textContent = "Wirklich löschen? Die Buchungen bleiben"; return; }
+    try { await api("projects/" + p.id, { method: "DELETE" }); sh.close(); toast("Projekt gelöscht"); rerender(); } catch (err) { toast(err.message); }
+  };
+}
+
+// Legt ein Projekt an oder ändert Name, Rahmen und Notiz. done(p) bekommt das gespeicherte Projekt.
+function projectEditSheet(p, done) {
+  const sh = openSheet(html`${sheetHead(p ? "Projekt ändern" : "Projekt anlegen")}
+    <label class="field"><span>Name</span><input class="input" id="pr-name" maxlength="60" placeholder="z. B. Urlaub 2027" value="${p ? p.name : ""}" autofocus></label>
+    <label class="field"><span>Rahmen in Euro (optional)</span><input class="input" id="pr-budget" inputmode="decimal" value="${p && p.budget_cents ? toInput(p.budget_cents) : ""}"></label>
+    <label class="field"><span>Notiz</span><input class="input" id="pr-note" maxlength="200" value="${p && p.note ? p.note : ""}"></label>
+    <div class="actions"><button class="btn primary" id="pr-save">${p ? "Speichern" : "Anlegen"}</button><button class="btn" data-close>Abbrechen</button></div>`.s);
+  $("#pr-save", sh.el).onclick = async () => {
+    const raw$ = $("#pr-budget", sh.el).value.trim();
+    const budget = raw$ ? parseMoney(raw$) : 0;
+    if (raw$ && (budget === null || budget < 0)) { toast("Der Rahmen ist kein Betrag"); return; }
+    const body = { name: $("#pr-name", sh.el).value, budget_cents: budget || null, note: $("#pr-note", sh.el).value };
+    try {
+      const saved = await api(p ? "projects/" + p.id : "projects", { method: "POST", body });
+      sh.close();
+      if (done) done(saved); else { toast(p ? "Gespeichert" : "Projekt angelegt"); rerender(); }
+    } catch (err) { toast(err.message); }
+  };
+}
+
+// Alle Treffer der Buchungsliste einem Projekt zuordnen: vorhandenes wählen oder neu anlegen.
+async function projectPickSheet(params) {
+  const filter = {};
+  TX_FILTERS.forEach((k) => { if (params[k]) filter[k] = params[k]; });
+  const list = (await api("projects")).items.filter((p) => !p.archived);
+  const sh = openSheet(html`${sheetHead("Treffer einem Projekt zuordnen")}
+    <p class="small muted">Alle Buchungen, die zur Suche und den Filtern passen, kommen in das Projekt. Umbuchungen bleiben außen vor. Was schon in einem anderen Projekt liegt, wechselt.</p>
+    ${list.length ? html`<ul class="list">${list.map((p) => html`<li><button class="row" data-pick="${p.id}"><span class="title">${p.name}</span><span class="sub">${p.count} ${p.count === 1 ? "Buchung" : "Buchungen"}</span><span class="amount">${money(p.cost_cents)}</span></button></li>`)}</ul>` : ""}
+    <div class="actions"><button class="btn ${list.length ? "" : "primary"}" id="pick-new">Neues Projekt</button><button class="btn" data-close>Abbrechen</button></div>`.s);
+  const take = async (id) => {
+    try {
+      const r = await api(`projects/${id}/assign`, { method: "POST", body: { filter } });
+      sh.close(); toast(r.assigned ? `${r.assigned} ${r.assigned === 1 ? "Buchung" : "Buchungen"} zugeordnet` : "Alle Treffer waren schon im Projekt"); rerender();
+    } catch (err) { toast(err.message); }
+  };
+  on(sh.el, "[data-pick]", "click", (_e, el) => take(Number(el.dataset.pick)));
+  $("#pick-new", sh.el).onclick = () => { sh.close(); projectEditSheet(null, (saved) => take(saved.id)); };
+}
+
 /* ------------------------------------------------------------------ Budgets & Auswertung */
 function affordHtml(r, canPlan) {
   const head = { yes: "Ja, das passt.", tight: "Knapp.", no: "Nein, das reißt ein Loch." }[r.verdict];
@@ -1297,7 +1380,7 @@ async function renderBudgets(view, params, seq) {
   // Haushalt (gemeinsame Konten) oder die eigenen Budgets einer Person auf ihren eigenen Konten
   const person = store.persons.find((p) => String(p.id) === params.person) || null;
   const split = store.accounts.some((a) => a.owner_person_id);
-  const [data, stats, plan] = await Promise.all([api("budgets?month=" + month + (person ? "&person=" + person.id : "")), api("stats?month=" + month), api("goals")]);
+  const [data, stats, plan, projects] = await Promise.all([api("budgets?month=" + month + (person ? "&person=" + person.id : "")), api("stats?month=" + month), api("goals"), api("projects")]);
   if (seq !== renderSeq) return;
   const here = (extra) => ({ month, ...(person ? { person: String(person.id) } : {}), ...extra });
   const [y, m] = month.split("-").map(Number);
@@ -1331,6 +1414,13 @@ async function renderBudgets(view, params, seq) {
             : g.monthly_cents ? `${money(g.monthly_cents)} im Monat bis ${dFull(g.due_date)}` : `Es fehlen ${money(g.rest_cents)}`}${g.account_name ? ` · ${g.account_name}` : ""}</span></button>`)}</div>`
           : html`<p class="small muted">Noch keine Ziele. Lege fest, wofür du sparst, etwa einen Notgroschen oder einen Urlaub, und bis wann.</p>`}
       </section>
+      <section class="section"><div class="section-head"><h2>Projekte</h2><button class="link-btn" id="pr-add">Projekt anlegen</button></div>
+        ${projects.items.length ? html`<ul class="list">${projects.items.map((p) => html`<li><button class="row" data-project="${p.id}">
+          <span class="title">${p.name}${p.archived ? html` <span class="chip neutral">abgeschlossen</span>` : ""}</span>
+          <span class="sub">${p.count ? `${p.count} ${p.count === 1 ? "Buchung" : "Buchungen"}, ${p.first === p.last ? dFull(p.first) : `${dShort(p.first)} bis ${dFull(p.last)}`}` : "Noch keine Buchungen"}${p.budget_cents ? (p.left_cents >= 0 ? `. Noch ${money(p.left_cents)} im Rahmen` : `. ${money(-p.left_cents)} über dem Rahmen`) : ""}</span>
+          <span class="amount">${money(p.cost_cents)}</span></button></li>`)}</ul>`
+          : html`<p class="small muted">Was hat der Urlaub, das Auto oder die Renovierung insgesamt gekostet? Ein Projekt sammelt Buchungen aus allen Kategorien und Monaten.</p>`}
+      </section>
       <section class="section"><div class="section-head"><h2>Jahreskosten</h2>${plan.reserve.items.length ? html`<span class="small muted">${money(plan.reserve.monthly_cents)} im Monat</span>` : ""}</div>
         ${plan.reserve.items.length ? html`<p class="small muted">Dafür solltest du heute ${money(plan.reserve.reserved_cents)} zurückgelegt haben.${plan.reserve.deducted ? " Der Betrag ist von „frei verfügbar“ abgezogen." : ""}</p>
           <ul class="list">${plan.reserve.items.map((r) => html`<li class="row static"><span class="title">${r.name}</span>
@@ -1352,6 +1442,8 @@ async function renderBudgets(view, params, seq) {
   $("#b-prev").onclick = () => go("budgets", here({ month: key(prev) }));
   on(view, "[data-bperson]", "click", (_e, el) => go("budgets", el.dataset.bperson ? { month, person: el.dataset.bperson } : { month }));
   $("#g-add").onclick = () => goalSheet(null);
+  $("#pr-add").onclick = () => projectEditSheet(null);
+  on(view, "[data-project]", "click", (_e, el) => projectSheet(Number(el.dataset.project)));
   on(view, "[data-goal]", "click", (_e, el) => goalSheet(plan.goals.find((g) => String(g.id) === el.dataset.goal)));
   if ($("#b-next")) $("#b-next").onclick = () => go("budgets", here({ month: key(next) }));
   bindBudgetRows(view, person, data.limits);
