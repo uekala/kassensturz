@@ -10,6 +10,7 @@
     Buchungen behalten ihre Kategorie; Umbuchungen bleiben Umbuchungen.
   - Auf Wunsch lernt Kassensturz daraus: Empfänger, die in Finanzguru verlässlich in einer Kategorie lagen, gelten
     auch für vorhandene und künftige Buchungen. Eigene Korrekturen haben Vorrang.
+  - Notizen kommen mit, Tags als Text in der Notiz. Aufgeteilte Buchungen bleiben aufgeteilt.
 - Der Selbsttest des Kontostands zählt nachgetragene alte Buchungen nicht als neu.
 - Excel-Dateien werden nur als Finanzguru-Export gelesen; der Eingangsordner zeigt einen solchen Export zum Zuordnen an.
 

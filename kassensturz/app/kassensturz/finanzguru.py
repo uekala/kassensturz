@@ -46,7 +46,8 @@ COLUMNS = {
     "balance": "kontostand", "currency": "waehrung", "counterparty": "beguenstigter auftraggeber",
     "iban": "iban beguenstigter auftraggeber", "purpose": "verwendungszweck", "end_to_end": "e ref",
     "mandate_ref": "mandatsreferenz", "creditor_id": "glaeubiger id", "main": "analyse hauptkategorie",
-    "sub": "analyse unterkategorie", "transfer": "analyse umbuchung",
+    "sub": "analyse unterkategorie", "transfer": "analyse umbuchung", "id": "buchungs id",
+    "original": "referenz original id", "split": "split typ", "tags": "tags", "note": "notiz",
 }
 _MARKERS = {COLUMNS[k] for k in ("ref", "account_name", "main", "sub", "transfer")}
 _TRUE = {"ja", "true", "wahr", "yes", "1", "x"}
@@ -255,8 +256,45 @@ def parse(table: list[list[str]], start: int) -> dict:
             "balance_cents": _amount(cell(row, "balance")) if col["balance"] is not None else None,
             "main": " ".join(cell(row, "main").split()), "sub": " ".join(cell(row, "sub").split()),
             "transfer": norm(cell(row, "transfer")) in _TRUE,
+            "note": _note(cell(row, "note"), cell(row, "tags")),
+            "id": cell(row, "id"), "original": cell(row, "original"), "split": cell(row, "split"), "parts": [],
         })
-    return {"rows": rows, "skipped": dict(skipped)}
+    rows, splits = _fold_splits(rows)
+    return {"rows": rows, "skipped": dict(skipped), "splits": splits}
+
+
+def _note(note: str, tags: str) -> str | None:
+    """Notiz und Tags aus Finanzguru als Notiz der Buchung; die Tags bleiben als Text erhalten."""
+    parts = [" ".join(note.split()), f"Tags: {' '.join(tags.split())}" if tags.strip() else ""]
+    return " · ".join(p for p in parts if p)[:500] or None
+
+
+def _fold_splits(rows: list[dict]) -> tuple[list[dict], dict]:
+    """Aufgeteilte Buchungen: Die Teile hängen danach an der Buchung, statt neben ihr zu stehen.
+
+    Finanzguru schreibt zu einem Teil die Kennung der ursprünglichen Buchung. Stehen die Buchung
+    und ihre Teile im Export und ergeben die Teile zusammen genau ihren Betrag, wird daraus eine
+    Buchung mit Aufteilung – sonst zählte derselbe Betrag doppelt. Alles, was nicht so eindeutig
+    ist, bleibt unverändert stehen und wird im Dialog genannt."""
+    by_id = {r["id"]: r for r in rows if r["id"]}
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        if r["split"] and r["original"] and r["original"] != r["id"]:
+            groups[r["original"]].append(r)
+    folded: set[int] = set()
+    stats = {"taken": 0, "unclear": 0}
+    for original, parts in groups.items():
+        parent = by_id.get(original)
+        clear = (parent is not None and all(p["ref"] == parent["ref"] for p in parts)
+                 and all(p["amount_cents"] * parent["amount_cents"] > 0 for p in parts)
+                 and sum(p["amount_cents"] for p in parts) == parent["amount_cents"])
+        if clear:
+            parent["parts"] = parts
+            folded.update(id(p) for p in parts)
+            stats["taken"] += 1
+        elif parent is not None:
+            stats["unclear"] += len(parts)
+    return [r for r in rows if id(r) not in folded], stats
 
 
 def from_workbook(data: bytes) -> dict:
@@ -359,6 +397,15 @@ def suggest_category(categories: list[dict], main: str, sub: str) -> int | None:
 
 # --- Vorschau -------------------------------------------------------------------------------
 
+def _entries(rows: list[dict]):
+    """Buchungen und, wo eine aufgeteilt ist, statt ihrer die Teile."""
+    for r in rows:
+        if r.get("parts"):
+            yield from r["parts"]
+        else:
+            yield r
+
+
 def _by_account(rows: list[dict]) -> dict[str, list[dict]]:
     out: dict[str, list[dict]] = {}
     for r in rows:
@@ -420,7 +467,7 @@ def preview(db: Database, parsed: dict, choices: dict | None = None) -> dict:
         })
     categories = db.query("SELECT id, name, builtin_key FROM categories ORDER BY sort, id")
     pairs: dict[tuple[str, str], list[int]] = {}
-    for r in parsed["rows"]:
+    for r in _entries(parsed["rows"]):
         if not r["transfer"] and (r["main"] or r["sub"]):
             pairs.setdefault((r["main"], r["sub"]), []).append(r["amount_cents"])
     out_categories = [{
@@ -433,6 +480,7 @@ def preview(db: Database, parsed: dict, choices: dict | None = None) -> dict:
         "format": "Finanzguru", "count": len(parsed["rows"]), "first": min(days) if days else None,
         "last": max(days) if days else None, "skipped": parsed["skipped"], "accounts": out_accounts,
         "categories": out_categories, "transfers": sum(1 for r in parsed["rows"] if r["transfer"]),
+        "splits": parsed.get("splits") or {"taken": 0, "unclear": 0},
     }
 
 
@@ -490,7 +538,7 @@ def _learn(db: Database, rows: list[dict], target: dict) -> int:
     groups: dict[tuple[str, str], Counter] = defaultdict(Counter)
     sample: dict[tuple[str, str, int], dict] = {}
     for r in rows:
-        category = None if r["transfer"] else target.get((r["main"], r["sub"]))
+        category = None if r["transfer"] or r.get("parts") else target.get((r["main"], r["sub"]))
         if not category or kinds.get(category) == "transfer":
             continue
         keys = categorize.learn_keys(r)
@@ -571,7 +619,7 @@ def commit(db: Database, parsed: dict, accounts: list[dict], categories: list[di
             cutoff = first_bank_date(db, account_id)
             fresh = [dict(r) for r in rows if not cutoff or r["booking_date"] < cutoff]
             done = ledger.import_rows(db, account_id, fresh, SOURCE, filename)
-            _apply_categories(db, done["ids"], fresh, target, kinds, transfer_id)
+            _apply_extras(db, done["ids"], fresh, target, kinds, transfer_id)
             if done["ids"]:
                 added_sum = db.scalar(f"SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE id IN "
                                       f"({','.join('?' * len(done['ids']))})", tuple(done["ids"]))
@@ -598,25 +646,39 @@ def commit(db: Database, parsed: dict, accounts: list[dict], categories: list[di
     return result
 
 
-def _apply_categories(db: Database, ids: list[int], rows: list[dict], target: dict, kinds: dict,
-                      transfer_id: int | None) -> None:
-    """Setzt bei den neu gespeicherten Buchungen die Kategorie aus Finanzguru."""
+def _apply_extras(db: Database, ids: list[int], rows: list[dict], target: dict, kinds: dict,
+                  transfer_id: int | None) -> None:
+    """Gibt den neu gespeicherten Buchungen mit, was Finanzguru dazu wusste: Kategorie, Notiz, Aufteilung."""
     if not ids:
         return
     pool: dict[str, list[dict]] = defaultdict(list)
     for r in rows:
         pool[r["hash"]].append(r)
-    updates = []
+
+    def category_of(row: dict) -> int | None:
+        return transfer_id if row["transfer"] and transfer_id else target.get((row["main"], row["sub"]))
+
+    updates, notes, splits = [], [], []
     for tx in db.query(f"SELECT id, hash FROM transactions WHERE id IN ({','.join('?' * len(ids))})", tuple(ids)):
         candidates = pool.get(tx["hash"])
         if not candidates:
             continue
         row = candidates.pop() if len(candidates) > 1 else candidates[0]
-        if row["transfer"] and transfer_id:
-            updates.append((transfer_id, 1, RULE_REF, tx["id"]))
+        if row.get("note"):
+            notes.append((row["note"], tx["id"]))
+        parts = [(p, category_of(p)) for p in row.get("parts") or []]
+        if parts:
+            # Teile mit Kategorie werden zur Aufteilung. Für den Rest ohne Kategorie ordnet Kassensturz
+            # die Buchung selbst zu. Sind alle Teile zugeordnet, trägt sie die Kategorie des größten.
+            splits += [(tx["id"], p["amount_cents"], category, p.get("note")) for p, category in parts if category]
+            if all(category for _, category in parts):
+                largest = max(parts, key=lambda item: abs(item[0]["amount_cents"]))
+                updates.append((largest[1], 0, RULE_REF, tx["id"]))
             continue
-        category = target.get((row["main"], row["sub"]))
+        category = category_of(row)
         if category:
             updates.append((category, 1 if kinds.get(category) == "transfer" else 0, RULE_REF, tx["id"]))
     db.executemany("UPDATE transactions SET category_id = ?, is_transfer = ?, rule_ref = ?, category_locked = 1 "
                    "WHERE id = ?", updates)
+    db.executemany("UPDATE transactions SET note = ? WHERE id = ?", notes)
+    db.executemany("INSERT INTO splits(tx_id, amount_cents, category_id, note) VALUES(?, ?, ?, ?)", splits)
