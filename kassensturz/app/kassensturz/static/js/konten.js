@@ -190,7 +190,7 @@ export function ebConnectSheet(renew) {
       <div class="filters"><select id="eb-country" aria-label="Land">${EB_COUNTRIES.map(([c, l]) => html`<option value="${c}" ${c === country ? raw("selected") : ""}>${l}</option>`)}</select>
         <label class="search">${raw(ICON.search)}<input id="eb-q" placeholder="Bank suchen" aria-label="Bank suchen" autofocus></label></div>
       <div class="cat-list" id="eb-banks" style="max-height:55vh">${banks.length ? banks.map((b) => html`<button data-bank="${b.name}">${b.name}${b.beta ? html` <span class="chip neutral">Beta</span>` : ""}</button>`) : html`<p class="muted small" style="padding:10px">Keine Banken für dieses Land.</p>`}</div>
-      <p class="small muted">Nicht dabei? Manche Banken laufen unter dem Land, in dem sie ihren Sitz haben – PayPal und Advanzia etwa unter Luxemburg. Sonst bleibt der Eingangsordner.</p>`.s);
+      <p class="small muted">Nicht dabei? Manche Banken laufen unter dem Land, in dem sie ihren Sitz haben – PayPal etwa unter Luxemburg. Fehlt die Bank auch dort, bleibt der Datei-Import oder der Eingangsordner.</p>`.s);
     $("#eb-country", sh.el).onchange = (e) => { country = e.target.value; pick(); };
     $("#eb-q", sh.el).addEventListener("input", (e) => {
       const q = e.target.value.toLowerCase();
