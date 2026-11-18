@@ -50,6 +50,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const changesCapability = 'changes';
   static const partsCapability = 'parts';
   static const bankRenewCapability = 'banks.renew';
+  static const accountValueCapability = 'accounts.value';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -254,6 +255,17 @@ class MobileConnectionController extends ChangeNotifier {
   bool get bankSyncRunning => _bankSyncRunning;
 
   DateTime get now => _clock();
+
+  /// Whether values of deposits and loans can be entered on this phone.
+  bool get canEditAccountValues =>
+      _capabilities.contains(accountValueCapability) && !isReadOnly;
+
+  /// Enters today's value of a deposit or the remaining debt of a loan.
+  /// Null when it worked, otherwise the message to show.
+  Future<String?> setAccountValue(int accountId, int cents) => _write(
+    () => _apiClient.setAccountValue(accountId, cents),
+    capability: accountValueCapability,
+  );
 
   /// Whether an expiring bank consent can be renewed from this phone.
   bool get canRenewBanks =>

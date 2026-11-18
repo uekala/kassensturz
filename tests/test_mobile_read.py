@@ -75,7 +75,7 @@ def test_overview_dto_allowlists_fields_and_uses_integer_cents():
         "balance_cents": 123456, "balance_known": True,
         "balance_date": "2026-11-01", "transaction_count": 42,
         "in_forecast": True, "group": "alltag", "matures_on": None,
-        "previous_value_cents": None, "previous_value_date": None, "ownership": "shared",
+        "previous_value_cents": None, "previous_value_date": None, "value_editable": False, "ownership": "shared",
     }]
     assert dto["forecast"]["upcoming"] == [{
         "date": "2026-11-05", "name": "Miete",

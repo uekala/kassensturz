@@ -114,6 +114,7 @@ LABELS: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/sync"): "Bankabruf gestartet",
     ("POST", "/api/v1/banks/renew/complete"): "Bankfreigabe erneuert",
     ("POST", "/api/v1/accounts"): "Bargeld-Konto angelegt",
+    ("PUT", "/api/v1/accounts/{account_id}/value"): "Wert eingetragen",
     ("POST", "/api/v1/transactions"): "Buchung angelegt",
     ("PATCH", "/api/v1/transactions/{tx_id}"): "Buchung geändert",
     ("DELETE", "/api/v1/transactions/{tx_id}"): "Buchung gelöscht",

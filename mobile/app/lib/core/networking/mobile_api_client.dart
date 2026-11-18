@@ -413,6 +413,14 @@ class MobileApiClient {
     );
   }
 
+  /// Enters today's value of a deposit or the remaining debt of a loan.
+  Future<Map<String, dynamic>> setAccountValue(int accountId, int cents) =>
+      _authenticatedJson(
+        method: 'PUT',
+        path: '/api/v1/accounts/$accountId/value',
+        body: {'value_cents': cents},
+      );
+
   Future<Map<String, dynamic>> createTransaction(Map<String, dynamic> fields) {
     final requestId = fields['client_request_id'];
     if (requestId is! String || requestId.length < 16) {
