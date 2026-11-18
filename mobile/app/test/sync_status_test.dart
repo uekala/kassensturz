@@ -270,7 +270,10 @@ void main() {
 
     await tester.tap(find.text('Freigabe abschließen'));
     await tester.pumpAndSettle();
-    expect(find.text('Füge die Adresse der letzten Seite ein.'), findsOneWidget);
+    expect(
+      find.text('Füge die Adresse der letzten Seite ein.'),
+      findsOneWidget,
+    );
     expect(sent.containsKey('/api/v1/banks/renew/complete'), isFalse);
 
     await tester.enterText(find.byType(TextField), 'falsch');
