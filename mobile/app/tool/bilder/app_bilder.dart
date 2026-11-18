@@ -259,6 +259,14 @@ void main() {
       await phone.shot('13-budget-vorschlaege');
       await phone.back();
     }
+    if (await phone.open(find.text('Projekte'), 'Projekte')) {
+      await phone.shot('28-projekte');
+      if (await phone.open(find.text('Auto'), 'Projekt Auto')) {
+        await phone.shot('29-projekt');
+        await phone.back();
+      }
+      await phone.back();
+    }
     await phone.down();
     await phone.shot('12-planung-unten');
     await phone.tab('Verträge');
@@ -286,6 +294,10 @@ void main() {
     }
     await phone.down();
     await phone.shot('18-konten-unten');
+    if (await phone.open(find.text('Autokredit'), 'Tilgungsplan')) {
+      await phone.shot('30-tilgungsplan');
+      await phone.back();
+    }
     phone.done();
   });
 

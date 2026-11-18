@@ -4,6 +4,7 @@ import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../dashboard/plans.dart';
+import '../projects/project_section.dart';
 import 'receipts_section.dart';
 import 'share_section.dart';
 
@@ -550,6 +551,11 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
                 onTap: _saving ? null : _pickWarranty,
               ),
             ],
+            if (existing != null && widget.controller.canShowProjects)
+              ProjectSection(
+                controller: widget.controller,
+                transactionId: existing.id,
+              ),
             if (existing != null && widget.controller.canUseReceipts) ...[
               const SizedBox(height: 16),
               ReceiptsSection(
