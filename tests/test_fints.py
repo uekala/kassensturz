@@ -87,3 +87,44 @@ def test_missing_product_id_is_explained(db, monkeypatch):
             break
         time.sleep(0.02)
     assert job.state == "error" and "Produkt-ID" in job.error
+
+
+class FakeReply:
+    def __init__(self, code, text):
+        self.code, self.text, self.parameters = code, text, None
+
+
+def _recording(replies):
+    client = fints_sync._recording_client(replies)("12345678", "erfunden", "00000", "https://bank.invalid/fints",
+                                                   product_id="ERFUNDEN")
+    client._bootstrap_mode = True  # wie beim ersten Kontakt: Fehler brechen hier noch nicht ab
+    return client
+
+
+def test_bank_replies_are_recorded_and_explain_a_refused_login():
+    """Erfundene Antworten: Scheitert die Anmeldung, steht der Grund der Bank in der Meldung."""
+    replies = []
+    client = _recording(replies)
+    dialog = type("D", (), {"open": False})()
+    for code, text in (("0020", "Auftrag ausgeführt"), ("3050", "Erfundene Warnung"),
+                       ("9800", "Dialog   abgebrochen"), ("9800", "Dialog abgebrochen"), ("9210", "Erfundener Grund")):
+        client._process_response(dialog, None, FakeReply(code, text))
+    assert replies == [("0020", "Auftrag ausgeführt"), ("3050", "Erfundene Warnung"), ("9800", "Dialog abgebrochen"),
+                       ("9210", "Erfundener Grund")]
+    text = fints_sync._explain(ValueError("Could not find system_id"), replies)
+    assert text.startswith("Die Bank hat die Anmeldung nicht angenommen. Antwort der Bank: Dialog abgebrochen (Code 9800); "
+                           "Erfundener Grund (Code 9210).")
+    assert "system_id" not in text and "nicht mehrfach" in text
+    # Ohne Fehler der Bank zählen ihre Warnungen; ohne jede Antwort bleibt die Meldung ehrlich.
+    assert "Erfundene Warnung (Code 3050)" in fints_sync._explain(ValueError("Could not find system_id"), replies[:2])
+    assert "Einen Grund hat sie nicht genannt" in fints_sync._explain(ValueError("Could not find system_id"), [])
+    assert fints_sync._explain(RuntimeError("anderes")) == "Abruf fehlgeschlagen: anderes"
+
+
+def test_recorded_replies_stay_bounded():
+    replies = []
+    client = _recording(replies)
+    dialog = type("D", (), {"open": True})()
+    for i in range(60):
+        client._process_response(dialog, None, FakeReply(f"30{i:02d}", "x" * 500))
+    assert len(replies) == fints_sync.MAX_BANK_REPLIES and len(replies[-1][1]) == 160 and replies[-1][0] == "3059"
