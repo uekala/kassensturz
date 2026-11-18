@@ -76,10 +76,11 @@ class ServerAccountsPage extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
+          // A child only has its pocket money; groups would read as 0,00 €.
           AmountHeadline(
-            label: 'Vermögen',
+            label: controller.isReadOnly ? 'Dein Geld' : 'Vermögen',
             amount: formatEuro(total / 100),
-            note: note,
+            note: controller.isReadOnly ? null : note,
           ),
           if (split) ...[
             const SizedBox(height: 8),

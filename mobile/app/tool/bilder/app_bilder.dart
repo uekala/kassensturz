@@ -320,12 +320,16 @@ void main() {
     expect(find.textContaining('aktualisieren'), findsNothing);
     expect(find.byTooltip('Umsatz anlegen'), findsNothing);
     expect(find.text('Dein Geld'), findsOneWidget);
+    // Budgets and contracts are for the adults: no planning tab, no empty
+    // budget section, no groups of wealth that would all read 0,00 €.
+    expect(find.text('Planung'), findsNothing);
+    expect(find.text('Noch keine Budgets eingerichtet.'), findsNothing);
     await phone.shot('20-kind-heute');
     await phone.tab('Umsätze');
     await phone.shot('21-kind-umsaetze');
-    await phone.tab('Planung');
-    await phone.shot('22-kind-planung');
     await phone.tab('Konten');
+    expect(find.text('Vermögen'), findsNothing);
+    expect(find.textContaining('Rücklagen'), findsNothing);
     await phone.shot('23-kind-konten');
     phone.done();
   });

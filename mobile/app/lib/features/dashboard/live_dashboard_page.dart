@@ -192,13 +192,21 @@ class LiveDashboardPage extends StatelessWidget {
                         _AccountTile(account: accounts[index]),
                   ),
                 ),
-              const SizedBox(height: 26),
-              SectionTitle('Budgets', action: 'Alle', onAction: onOpenBudget),
-              const SizedBox(height: 8),
-              if (budgets.isEmpty)
-                const QuietMessage('Noch keine Budgets eingerichtet.')
-              else
-                for (final budget in budgets) _BudgetRow(budget: budget),
+              // A child has no planning tab; budgets only show up when
+              // there are some.
+              if (!ownOnly || budgets.isNotEmpty) ...[
+                const SizedBox(height: 26),
+                SectionTitle(
+                  'Budgets',
+                  action: ownOnly ? null : 'Alle',
+                  onAction: ownOnly ? null : onOpenBudget,
+                ),
+                const SizedBox(height: 8),
+                if (budgets.isEmpty)
+                  const QuietMessage('Noch keine Budgets eingerichtet.')
+                else
+                  for (final budget in budgets) _BudgetRow(budget: budget),
+              ],
               const SizedBox(height: 18),
               SectionTitle(
                 'Letzte Umsätze',
