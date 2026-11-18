@@ -32,6 +32,7 @@ export async function renderTransactions(view, params, seq) {
     ${params.contract ? html`<p class="small">Gefiltert nach Vertrag. <a href="#/umsaetze">Filter entfernen</a></p>` : ""}
     ${params.project ? html`<p class="small" id="tx-project-note">Gefiltert nach Projekt. <a href="#/umsaetze">Filter entfernen</a></p>` : ""}
     <p class="small muted"><span id="tx-summary"></span> <button class="link-btn" id="tx-to-project" hidden>Alle Treffer einem Projekt zuordnen</button></p>
+    <p class="small" id="tx-triage" hidden><button class="link-btn" id="tx-triage-go"></button></p>
     <div id="tx-list"></div>
     <div class="actions" id="tx-more-wrap" hidden><button class="btn" id="tx-more">Weitere laden</button></div>`.s;
   const update = (patch) => {
@@ -50,6 +51,12 @@ export async function renderTransactions(view, params, seq) {
   $("#tx-more").onclick = () => loadTx(params, false);
   $("#tx-import").onclick = () => pickImportFile();
   $("#tx-to-project").onclick = () => projectPickSheet(params);
+  $("#tx-triage-go").onclick = () => triageSheet();
+  api("triage?limit=1").then((d) => {
+    if (seq !== undefined && seq !== renderSeq || !$("#tx-triage") || !d.total) return;
+    $("#tx-triage-go").textContent = `${d.total} ${d.total === 1 ? "Buchung" : "Buchungen"} ohne Kategorie der Reihe nach zuordnen`;
+    $("#tx-triage").hidden = false;
+  }).catch(() => {});
   if (params.project) api("projects/" + params.project).then((p) => { const n = $("#tx-project-note"); if (n) n.firstChild.textContent = `Projekt „${p.name}“. `; }).catch(() => {});
   await loadTx(params, true, seq);
 }
@@ -81,6 +88,47 @@ export async function loadTx(params, reset, seq) {
   list.innerHTML = out + "</ul>";
   on(list, "[data-tx]", "click", (_e, el) => txSheet(txState.items.find((x) => x.id === Number(el.dataset.tx))));
 }
+// Zuordnen im Stapel: eine Buchung nach der anderen, die größten zuerst.
+export async function triageSheet() {
+  const skipped = new Set();
+  let done = 0, sh = null, closed = false;
+  const finish = () => { closed = true; if (done) rerender(); };
+  const show = async () => {
+    let data;
+    try { data = await api("triage?limit=100"); } catch (e) { toast(e.message); return; }
+    if (closed) return;
+    const t = data.items.find((i) => !skipped.has(i.id));
+    const body = !t
+      ? html`<p>${data.total ? `Übersprungen: ${data.total}. Der Rest ist zugeordnet.` : "Alles zugeordnet."}</p>
+          <div class="actions"><button class="btn primary" data-close>Fertig</button></div>`.s
+      : html`<p class="small muted">Noch ${data.total} ${data.total === 1 ? "Buchung" : "Buchungen"} ohne Kategorie${data.expense_cents ? `, zusammen ${money(data.expense_cents)} Ausgaben` : ""}. Die größten zuerst.</p>
+          <ul class="list"><li class="row static"><span class="title">${t.counterparty || t.purpose || "Ohne Bezeichnung"}</span>
+            <span class="sub">${[dFull(t.booking_date), store.accounts.length > 1 ? t.account_name : null, t.counterparty ? t.purpose : null].filter(Boolean).join(", ")}</span>
+            <span class="amount ${t.amount_cents > 0 ? "pos" : ""}">${money(t.amount_cents, { plus: true })}</span></li></ul>
+          <div class="actions">${t.suggestion ? html`<button class="btn primary" id="tr-hint">${t.suggestion.name}</button>` : ""}<button class="btn" id="tr-skip">Überspringen</button></div>
+          ${t.suggestion ? html`<p class="small muted">Vorschlag aus ähnlichen Buchungen. Oder wähle selbst:</p>` : ""}
+          ${categoryPicker(null, t.amount_cents)}`.s;
+    if (!sh) sh = openSheet(html`${sheetHead("Zuordnen")}<div id="tr-body"></div>`.s, { onClose: finish });
+    const box = document.createElement("div");
+    box.id = "tr-body";
+    box.innerHTML = body;
+    $("#tr-body", sh.el).replaceWith(box);
+    on(box, "[data-close]", "click", () => sh.close());
+    if (!t) return;
+    const pick = async (id) => {
+      let r;
+      try { r = await api(`transactions/${t.id}`, { method: "PATCH", body: { category_id: id } }); } catch (e) { toast(e.message); return; }
+      done += 1;
+      if (r.recategorized) toast(`${r.recategorized} weitere Buchungen gleich mit zugeordnet`);
+      show();
+    };
+    if ($("#tr-hint", box)) $("#tr-hint", box).onclick = () => pick(t.suggestion.id);
+    $("#tr-skip", box).onclick = () => { skipped.add(t.id); show(); };
+    bindCategoryPicker(box, pick);
+  };
+  await show();
+}
+
 export function txRow(t) {
   const name = t.counterparty || t.purpose || t.booking_text || "Ohne Bezeichnung";
   const cat = t.splits && t.splits.length ? "Aufgeteilt" : (t.is_transfer ? "Umbuchung" : t.category_name || "Ohne Kategorie");
