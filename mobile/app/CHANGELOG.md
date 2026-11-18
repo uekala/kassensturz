@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.36
+
+- Belege: PDF öffnet sich jetzt in der App, mit Blättern und Zoomen. Die Datei bleibt dabei in der App und wird
+  nicht an eine andere weitergegeben.
+
 ## 0.3.35
 
 - Bankabruf: Läuft eine Freigabe bald ab, steht dort *Freigabe für … erneuern*. Die Bank öffnet sich im Browser;
