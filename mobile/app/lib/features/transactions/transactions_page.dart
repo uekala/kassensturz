@@ -7,6 +7,7 @@ import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
+import '../../core/widgets/part_filter.dart';
 import 'transaction_editor_page.dart';
 
 class TransactionsPage extends StatefulWidget {
@@ -196,6 +197,10 @@ class _TransactionsPageState extends State<TransactionsPage> {
             '$total ${total == 1 ? 'Buchung' : 'Buchungen'}',
             style: textTheme.bodyMedium,
           ),
+          if (controller.canFilterParts) ...[
+            const SizedBox(height: 14),
+            PartFilter(controller: controller),
+          ],
           if (controller.canSearchTransactions) ...[
             const SizedBox(height: 14),
             TextField(

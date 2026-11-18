@@ -289,6 +289,7 @@ class MobileApiClient {
     int? categoryId,
     String? search,
     String? kind,
+    String? part,
   }) {
     if (limit < 1 || limit > 100 || offset < 0) {
       throw RangeError('Ungültige Buchungsseitenparameter.');
@@ -301,6 +302,7 @@ class MobileApiClient {
       if (categoryId != null) 'category_id': '$categoryId',
       if (search != null && search.isNotEmpty) 'q': search,
       if (kind != null && kind.isNotEmpty) 'kind': kind,
+      if (part != null && part.isNotEmpty) 'part': part,
     };
     return _authenticatedJson(
       method: 'GET',
@@ -317,11 +319,15 @@ class MobileApiClient {
 
   /// Category spending, monthly totals and the balance curve. [month] is
   /// 'YYYY-MM'; without it the server answers for the current month.
-  Future<Map<String, dynamic>> stats({String? month}) => _authenticatedJson(
-    method: 'GET',
-    path: '/api/v1/stats',
-    query: {if (month != null && month.isNotEmpty) 'month': month},
-  );
+  Future<Map<String, dynamic>> stats({String? month, String? part}) =>
+      _authenticatedJson(
+        method: 'GET',
+        path: '/api/v1/stats',
+        query: {
+          if (month != null && month.isNotEmpty) 'month': month,
+          if (part != null && part.isNotEmpty) 'part': part,
+        },
+      );
 
   /// What a purchase of [amountCents] today means until the next salary.
   Future<Map<String, dynamic>> afford(int amountCents) {

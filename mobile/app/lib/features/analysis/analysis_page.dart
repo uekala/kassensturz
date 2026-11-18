@@ -6,6 +6,7 @@ import '../../core/design/app_theme.dart';
 import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
+import '../../core/widgets/part_filter.dart';
 
 const _monthNames = [
   'Januar',
@@ -109,6 +110,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
                     ),
                   ],
                 ),
+                if (controller.canFilterParts) ...[
+                  PartFilter(controller: controller),
+                  const SizedBox(height: 10),
+                ],
                 if (controller.statsLoading)
                   const LinearProgressIndicator(minHeight: 2)
                 else

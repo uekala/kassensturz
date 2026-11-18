@@ -1,5 +1,9 @@
 # Änderungen der Mobile-App
 
+## 0.3.33
+
+- Umsätze und Auswertung: Umschalter *Alle / Ich / Gemeinsam*, wenn der Haushalt eigene Konten hat (ab Server 0.3.53).
+
 ## 0.3.32
 
 - *Konten → Wer hat was geändert?*: das Änderungsprotokoll, neueste zuerst, mit Nachladen (ab Server 0.3.50).

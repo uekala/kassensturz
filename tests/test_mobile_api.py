@@ -95,6 +95,7 @@ def test_pairing_returns_secret_once_and_me_endpoint_authenticates_device(
             "projects",
             "loans",
             "changes",
+            "parts",
         ]
 
         replay = client.post(
