@@ -220,6 +220,7 @@ void main() {
       await phone.shot('06-auswertung-unten');
       await phone.back();
     }
+    await phone.down();
     await phone.shot('02-heute-unten');
     phone.done();
   });
@@ -229,8 +230,13 @@ void main() {
     await phone.tab('Umsätze');
     await phone.shot('07-umsaetze');
     final items =
-        _body('anna', '/api/v1/transactions')['items'] as List<dynamic>;
-    final first = items.first as Map<String, dynamic>;
+        (_body('anna', '/api/v1/transactions')['items'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+    // An ordinary expense from the bank, not the pocket money on top.
+    final first = items.firstWhere(
+      (item) => (item['amount_cents'] as int) < 0,
+      orElse: () => items.first,
+    );
     final title = first['counterparty'].toString();
     if (await phone.open(find.text(title), 'Buchung $title')) {
       await phone.shot('08-buchung');
@@ -287,33 +293,31 @@ void main() {
     final phone = await _Phone.start(tester);
     if (await phone.open(find.byTooltip('Einstellungen'), 'Einstellungen')) {
       await phone.shot('19-einstellungen');
-      await phone.down();
-      await phone.shot('20-einstellungen-unten');
     }
     phone.done();
   });
 
   _scene('Handy eines Kindes', (tester) async {
     final phone = await _Phone.start(tester, view: 'mia');
-    await phone.shot('21-kind-heute');
+    await phone.shot('20-kind-heute');
     await phone.tab('Umsätze');
-    await phone.shot('22-kind-umsaetze');
+    await phone.shot('21-kind-umsaetze');
     await phone.tab('Planung');
-    await phone.shot('23-kind-planung');
+    await phone.shot('22-kind-planung');
     await phone.tab('Konten');
-    await phone.shot('24-kind-konten');
+    await phone.shot('23-kind-konten');
     phone.done();
   });
 
   _scene('Dunkel', (tester) async {
     final phone = await _Phone.start(tester, dark: true);
-    await phone.shot('25-dunkel-heute');
+    await phone.shot('24-dunkel-heute');
     await phone.tab('Umsätze');
-    await phone.shot('26-dunkel-umsaetze');
+    await phone.shot('25-dunkel-umsaetze');
     await phone.tab('Planung');
-    await phone.shot('27-dunkel-planung');
+    await phone.shot('26-dunkel-planung');
     await phone.tab('Konten');
-    await phone.shot('28-dunkel-konten');
+    await phone.shot('27-dunkel-konten');
     phone.done();
   });
 }

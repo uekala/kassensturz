@@ -111,7 +111,7 @@ def _reads(client, headers: dict) -> dict:
         out[f"GET {path}"] = {"status": response.status_code, "body": response.json()}
     # Was die App für eine einzelne Buchung nachlädt.
     listed = out["GET /api/v1/transactions"]["body"].get("items") or []
-    for tx in listed[:3]:
+    for tx in listed[:6]:
         for tail in ("receipts", "share"):
             path = f"/api/v1/transactions/{tx['id']}/{tail}"
             response = client.get(path, headers=headers)
