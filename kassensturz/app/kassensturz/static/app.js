@@ -1977,11 +1977,11 @@ async function connectionSheet(c) {
     ${isNew ? html`<label class="field"><span>Bank</span><select id="cn-preset"><option value="">Andere Bank</option>${banks.map((b, i) => html`<option value="${i}">${b.name}</option>`)}</select></label>` : ""}
     <label class="field"><span>Name</span><input class="input" id="cn-name" value="${c.name}" placeholder="z. B. Sparkasse"></label>
     <div class="field-row">
-      <label class="field"><span>Bankleitzahl</span><input class="input" id="cn-blz" value="${c.blz}" inputmode="numeric" placeholder="Stelle 5–12 der IBAN"></label>
+      <label class="field"><span>Bankleitzahl</span><input class="input" id="cn-blz" value="${c.blz}" inputmode="numeric" placeholder="meist Stelle 5–12 der IBAN"></label>
       <label class="field"><span>Abruf beim ersten Mal</span><select id="cn-days">${[[90, "90 Tage"], [365, "1 Jahr"], [730, "2 Jahre"]].map(([v, l]) => html`<option value="${v}" ${v === c.history_days ? raw("selected") : ""}>${l}</option>`)}</select></label>
     </div>
     <label class="field"><span>Anmeldename (wie im Online-Banking)</span><input class="input" id="cn-login" value="${c.login}" autocomplete="off"></label>
-    <label class="field"><span>Kundennummer, falls abweichend</span><input class="input" id="cn-cust" value="${c.customer_id || ""}" autocomplete="off"></label>
+    <label class="field"><span>Kunden-ID (fast immer leer lassen)</span><input class="input" id="cn-cust" value="${c.customer_id || ""}" autocomplete="off"></label>
     <label class="field"><span>FinTS-Serveradresse</span><input class="input" id="cn-server" value="${c.server}" placeholder="https://…"></label>
     <p class="small muted" id="cn-hint">Die Adresse steht meist auf der Website deiner Bank unter „HBCI“ oder „FinTS“. Bei Sparkassen hängt sie vom Bundesland ab.</p>
     <div class="actions"><button class="btn primary" id="cn-save">${isNew ? "Speichern und abrufen" : "Speichern"}</button>
