@@ -283,6 +283,7 @@ class _KassensturzShellState extends State<KassensturzShell>
           selectedIndex: _selectedIndex,
           onSelected: (index) => setState(() => _selectedIndex = index),
           onAdd: controller.isReadOnly ? null : _addTransaction,
+          showPlanning: !controller.isReadOnly,
         ),
       ),
     );
@@ -370,10 +371,14 @@ class _ShellNavigation extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelected,
     required this.onAdd,
+    this.showPlanning = true,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+
+  /// False on a child's phone: budgets and contracts are for the adults.
+  final bool showPlanning;
 
   /// Null on a read-only phone; the button is then left out.
   final VoidCallback? onAdd;
@@ -420,12 +425,13 @@ class _ShellNavigation extends StatelessWidget {
                       ),
                     ),
                   ),
-                _NavigationItem(
-                  label: 'Planung',
-                  icon: Icons.bar_chart_rounded,
-                  selected: selectedIndex == 2,
-                  onTap: () => onSelected(2),
-                ),
+                if (showPlanning)
+                  _NavigationItem(
+                    label: 'Planung',
+                    icon: Icons.bar_chart_rounded,
+                    selected: selectedIndex == 2,
+                    onTap: () => onSelected(2),
+                  ),
                 _NavigationItem(
                   label: 'Konten',
                   icon: Icons.account_balance_wallet_outlined,

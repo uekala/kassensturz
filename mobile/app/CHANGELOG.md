@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.34
+
+- Kinderhandy schlichter: kein Reiter *Planung*, auf *Heute* der Abschnitt Budgets nur, wenn es welche gibt, und
+  unter *Konten* „Dein Geld“ statt Vermögen mit Alltag und Rücklagen.
+
 ## 0.3.33
 
 - Umsätze und Auswertung: Umschalter *Alle / Ich / Gemeinsam*, wenn der Haushalt eigene Konten hat (ab Server 0.3.53).
