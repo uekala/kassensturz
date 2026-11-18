@@ -80,6 +80,18 @@ ScriptedTransport _server({
   if (path == '/api/v1/overview') {
     return jsonResponse(200, _overview(child: child, split: split));
   }
+  if (path == '/api/v1/me' && child) {
+    // The server tells a child's phone in its identity that it only reads.
+    return jsonResponse(200, {
+      'device': {'id': 'device-1', 'name': 'Testgerät'},
+      'server': {'name': 'Kassensturz', 'version': '0.3.57'},
+      'capabilities': ['overview', 'transactions', 'accounts', 'household'],
+      'household': {
+        'person': {'id': 1, 'name': 'Anna'},
+        'read_only': true,
+      },
+    });
+  }
   if (request.method == 'PUT' && path == '/api/v1/accounts/3/value') {
     return jsonResponse(200, {'account': <String, Object>{}});
   }
