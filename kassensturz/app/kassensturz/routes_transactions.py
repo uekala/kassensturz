@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Body, File, UploadFile
 from fastapi.responses import FileResponse, Response
 
-from . import audit, categorize, papers, projects
+from . import audit, categorize, mobile_read, papers, projects
 from .db import get_db, now_iso
 from .web import _changed, _err
 
@@ -29,6 +29,12 @@ def transactions(q: str = "", account: int | None = None, category: int | None =
         (*params, max(1, min(limit, 500)), max(0, offset)),
     )
     return _tx_page(db, items, total)
+
+
+@router.get("/api/triage")
+def triage(limit: int = 50):
+    """Buchungen ohne richtige Kategorie, die größten zuerst, mit Vorschlag aus dem eigenen Bestand."""
+    return mobile_read.triage(get_db(), limit=max(1, min(limit, 100)))
 
 
 def _tx_filter(q: str = "", account: int | None = None, category: int | None = None, month: str = "", kind: str = "",

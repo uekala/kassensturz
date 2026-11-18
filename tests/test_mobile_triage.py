@@ -107,3 +107,18 @@ def test_web_budgets_carry_suggestions_for_shared_accounts(client, db):
     # Nur die gemeinsamen Konten zählen, wie bei den Budgets des Haushalts.
     assert mine and mine[0]["average_cents"] <= 23000 and mine[0]["current_cents"] is None
     assert "suggestions" not in client.get(f"/api/budgets?person={anna}").json()
+
+
+def test_web_triage_lists_largest_first_with_totals(client, db):
+    acc = db.insert("accounts", {"name": "KS-Testgiro", "kind": "giro"})
+    _book(db, acc, [("2026-11-02", -1200, "Erfundener Kiosk", "sonstiges"),
+                    ("2026-11-03", -45000, "Erfundene Firma XY", None),
+                    ("2026-11-06", -8000, "Erfundener Supermarkt", "lebensmittel")])
+    data = client.get("/api/triage").json()
+    assert [i["counterparty"] for i in data["items"]] == ["Erfundene Firma XY", "Erfundener Kiosk"]
+    assert (data["total"], data["expense_cents"]) == (2, 46200)
+    assert all("suggestion" in i for i in data["items"])
+    assert len(client.get("/api/triage?limit=1").json()["items"]) == 1
+    first = data["items"][0]["id"]
+    assert client.patch(f"/api/transactions/{first}", json={"category_id": _cat(db, "lebensmittel")}).status_code == 200
+    assert [i["counterparty"] for i in client.get("/api/triage").json()["items"]] == ["Erfundener Kiosk"]

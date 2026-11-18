@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.55
+
+- Umsätze in Home Assistant: Buchungen ohne Kategorie lassen sich der Reihe nach zuordnen, wie in der App. Die
+  größten zuerst, mit Vorschlag aus ähnlichen Buchungen, wenn es einen gibt; überspringen geht auch. Der Link
+  steht über der Liste, solange es solche Buchungen gibt.
+
 ## 0.3.54
 
 - Budgets in Home Assistant: neuer Abschnitt *Vorschläge*, wie in der App. Aus den Ausgaben der letzten vollen Monate,
