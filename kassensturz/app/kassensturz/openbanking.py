@@ -211,6 +211,11 @@ def parse_return(text: str) -> tuple[str, str]:
     return codes[0], states[0]
 
 
+NO_ACCOUNTS = ("Die Bank hat keine Konten freigegeben, darum ist nichts gespeichert. Meist wurde bei der Freigabe "
+               "kein Konto ausgewählt, oder das Konto ist bei der Bank nicht für den Zugriff über Drittanbieter "
+               "freigeschaltet. Starte „Bank verbinden“ noch einmal und hake im Bankfenster die Konten an.")
+
+
 def complete_auth(db: Database, text: str, psu: dict | None = None) -> dict:
     code, state = parse_return(text)
     # Never associate a callback without its exact, single-use state with a pending flow.
@@ -226,6 +231,14 @@ def complete_auth(db: Database, text: str, psu: dict | None = None) -> dict:
     accounts = data.get("accounts") or []
     if accounts and isinstance(accounts[0], str):
         accounts = [dict(call("GET", f"/accounts/{uid}/details", db=db) or {}, uid=uid) for uid in accounts]
+    if not accounts:
+        # Eine Freigabe ohne Konten bringt nichts; nicht speichern und bei Enable Banking gleich wieder schließen.
+        # Eine bestehende Freigabe, die erneuert werden sollte, bleibt dabei, wie sie war.
+        try:
+            call("DELETE", f"/sessions/{session_id}", db=db)
+        except EBError:
+            pass
+        raise EBError(NO_ACCOUNTS)
     valid_until = ((data.get("access") or {}).get("valid_until")
                    or (datetime.now(timezone.utc) + timedelta(days=pend["days"])).isoformat())
     aspsp = (data.get("aspsp") or {}).get("name") or pend["aspsp"]
