@@ -129,8 +129,9 @@ Gut zu wissen:
 - Buchungen in fremder Währung überspringt der Import, wie bei anderen Dateien auch.
 - Notizen aus Finanzguru stehen danach als Notiz an der Buchung. Tags hängt der Import als Text an die Notiz an
   („Tags: …“), damit sie nicht verloren gehen.
-- Aufgeteilte Buchungen bleiben aufgeteilt, wenn der Export die Buchung und ihre Teile enthält und die Teile zusammen
-  genau ihren Betrag ergeben. Passt das nicht, übernimmt der Import die Zeilen einzeln und weist im Dialog darauf hin.
+- Aufgeteilte Buchungen: Finanzguru schreibt die Buchung („Original“) und darunter ihre Teile („Teilbuchung“,
+  „Restbetrag“). Übernommen wird nur die Buchung selbst, damit nichts doppelt zählt. Ergeben die Teile zusammen genau
+  ihren Betrag, bleibt sie aufgeteilt; sonst kommt sie ohne Aufteilung. Der Dialog nennt beides.
 
 Liegt der Export im Eingangsordner, importiert Kassensturz ihn nicht von selbst. Er erscheint unter *Konten →
 Eingangsordner* mit dem Knopf *Zuordnen*, der denselben Dialog öffnet.

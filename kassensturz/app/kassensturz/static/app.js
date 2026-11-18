@@ -1753,7 +1753,8 @@ function finanzguruSheet(res) {
     const total = res.accounts.reduce((sum, a) => sum + a.will_add, 0);
     sh.set(html`${sheetHead("Von Finanzguru umziehen")}
       <p><strong>${res.count} Buchungen</strong> auf ${res.accounts.length} ${res.accounts.length === 1 ? "Konto" : "Konten"}${res.first ? `, vom ${dFull(res.first)} bis ${dFull(res.last)}` : ""}.${skipped ? html` <span class="muted">Übersprungen: ${skipped}.</span>` : ""}</p>
-      ${res.splits && res.splits.unclear ? html`<p class="note">${res.splits.unclear} ${res.splits.unclear === 1 ? "Zeile gehört" : "Zeilen gehören"} zu aufgeteilten Buchungen, deren Teile nicht den Betrag der Buchung ergeben. Sie werden einzeln übernommen; prüf danach, ob dort etwas doppelt zählt.</p>` : ""}
+      ${res.splits && res.splits.plain ? html`<p class="note">Bei ${res.splits.plain} aufgeteilten ${res.splits.plain === 1 ? "Buchung ergeben" : "Buchungen ergeben"} die Teile nicht den Betrag. Sie ${res.splits.plain === 1 ? "kommt" : "kommen"} ohne Aufteilung.</p>` : ""}
+      ${res.splits && res.splits.unclear ? html`<p class="note">${res.splits.unclear} ${res.splits.unclear === 1 ? "Teilbuchung steht" : "Teilbuchungen stehen"} ohne die zugehörige Buchung im Export und ${res.splits.unclear === 1 ? "wird" : "werden"} einzeln übernommen. Prüf danach, ob dort etwas doppelt zählt.</p>` : ""}
       <h3>Konten</h3>
       <p class="small muted">Hat ein Konto schon Buchungen aus Bankabruf oder Datei, füllt der Export nur die Zeit davor auf. So entsteht nichts doppelt.</p>
       ${res.accounts.map((a, i) => { const ch = accChoice.get(a.ref); return html`<div class="fg-acc">

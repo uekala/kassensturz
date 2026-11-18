@@ -4,9 +4,9 @@
 
 - Umstieg von Finanzguru, Nachtrag nach einem Blick auf die Kopfzeile eines echten Exports:
   - Notizen aus Finanzguru stehen als Notiz an der Buchung; Tags hängen als Text daran („Tags: …“).
-  - Aufgeteilte Buchungen bleiben aufgeteilt, wenn der Export die Buchung und ihre Teile enthält und die Teile
-    zusammen genau ihren Betrag ergeben. So zählt derselbe Betrag nicht doppelt. Passt das nicht, werden die Zeilen
-    einzeln übernommen und der Dialog weist darauf hin.
+  - Aufgeteilte Buchungen zählen nicht mehr doppelt. Finanzguru schreibt die Buchung („Original“) und darunter ihre
+    Teile („Teilbuchung“, „Restbetrag“); übernommen wird nur die Buchung selbst. Ergeben die Teile genau ihren
+    Betrag, bleibt sie aufgeteilt, sonst kommt sie ohne Aufteilung.
 - Haushalt: Das Handy eines Kindes bekommt die Budgets des Haushalts nicht mehr. Bisher standen dort die Limits und
   was davon ausgegeben ist.
 

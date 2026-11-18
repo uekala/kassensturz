@@ -352,60 +352,87 @@ def test_note_and_tags_become_the_note(client, db):
     assert [t["note"] for t in _tx(db, "Erfundener Laden")] == ["Geschenk · Tags: Geburtstag", None]
 
 
-def _split_export(part_amounts, parent_split="Original"):
-    parts = [row("2025-09-03", GIRO_ACC, amount, "Erfundenes Kaufhaus", "Einkauf", main, sub, id=f"t-{i}", original="b-1",
-                 split="Teil", note=f"Teil {i}")
-             for i, (amount, main, sub) in enumerate(part_amounts, start=1)]
-    return workbook([row("2025-09-03", GIRO_ACC, -100, "Erfundenes Kaufhaus", "Einkauf", "Shopping", "", id="b-1", split=parent_split),
-                     *parts, row("2025-09-04", GIRO_ACC, -5, "Erfundener Kiosk", "Zeitung", "Freizeit", "Hobby", id="b-2")])
+def _split_export(members, ids=True):
+    """Ein Original über 100 € mit seinen Teilen, wie Finanzguru sie untereinander schreibt."""
+    below = [row("2025-09-03", GIRO_ACC, amount, "Erfundenes Kaufhaus", "Einkauf", main, sub, id=f"t-{i}" if ids else "",
+                 original="b-1" if ids else "", split=kind, note=f"Teil {i}" if kind == "Teilbuchung" else "")
+             for i, (kind, amount, main, sub) in enumerate(members, start=1)]
+    return workbook([row("2025-09-02", GIRO_ACC, -7, "Erfundener Bäcker", "Brot", "Lebenshaltung", "Lebensmittel", id="b-0"),
+                     row("2025-09-03", GIRO_ACC, -100, "Erfundenes Kaufhaus", "Einkauf", "Shopping", "", id="b-1" if ids else "",
+                         split="Original", note="Großeinkauf"),
+                     *below, row("2025-09-04", GIRO_ACC, -5, "Erfundener Kiosk", "Zeitung", "Freizeit", "Hobby", id="b-2")])
 
 
-def test_split_booking_becomes_one_booking_with_parts(client, db):
-    pre = _upload(client, _split_export([(-60, "Lebenshaltung", "Lebensmittel"), (-40, "Freizeit", "Hobby")]))
-    assert pre["count"] == 2 and pre["splits"] == {"taken": 1, "unclear": 0}
-    # Gezählt werden die Kategorien der Teile, nicht die der Buchung, an der sie hängen.
-    assert {(c["main"], c["sub"]): c["count"] for c in pre["categories"]} == {
-        ("Lebenshaltung", "Lebensmittel"): 1, ("Freizeit", "Hobby"): 2}
-    assert _take(client, pre).json()["added"] == 2
+def _store(db):
     store = _tx(db, "Erfundenes Kaufhaus")
-    assert len(store) == 1 and store[0]["amount_cents"] == -10000 and store[0]["cat"] == "supermarkt"
+    assert len(store) == 1 and store[0]["amount_cents"] == -10000  # nur die Buchung der Bank, nichts doppelt
     parts = db.query("SELECT s.amount_cents, s.note, c.builtin_key AS cat FROM splits s JOIN categories c ON c.id = s.category_id "
                      "WHERE s.tx_id = ? ORDER BY s.amount_cents", (store[0]["id"],))
-    assert [(p["amount_cents"], p["cat"], p["note"]) for p in parts] == [(-6000, "supermarkt", "Teil 1"), (-4000, "hobby", "Teil 2")]
-    entries = [e for e in ledger.entries(db) if e["id"] == store[0]["id"]]
-    assert sorted(e["amount_cents"] for e in entries) == [-6000, -4000]
+    counted = sorted(e["amount_cents"] for e in ledger.entries(db) if e["id"] == store[0]["id"])
+    return store[0], [(p["amount_cents"], p["cat"], p["note"]) for p in parts], counted
+
+
+@pytest.mark.parametrize("ids", [True, False])
+def test_split_with_rest_becomes_one_booking_with_parts(client, db, ids):
+    members = [("Teilbuchung", -60, "Lebenshaltung", "Lebensmittel"), ("Restbetrag", -40, "Freizeit", "Hobby")]
+    pre = _upload(client, _split_export(members, ids))
+    assert pre["count"] == 3 and pre["splits"] == {"taken": 1, "plain": 0, "unclear": 0}
+    # Gezählt werden die Kategorien der Teile und des Rests, nicht die des Originals.
+    assert {(c["main"], c["sub"]): c["count"] for c in pre["categories"]} == {
+        ("Lebenshaltung", "Lebensmittel"): 2, ("Freizeit", "Hobby"): 2}
+    assert _take(client, pre).json()["added"] == 3
+    tx, parts, counted = _store(db)
+    # Der Teil ist die Aufteilung; der Rest zählt zur Kategorie der Buchung, die vom Restbetrag kommt.
+    assert parts == [(-6000, "supermarkt", "Teil 1")] and counted == [-6000, -4000]
+    assert (tx["cat"], tx["category_locked"], tx["note"]) == ("hobby", 1, "Großeinkauf")
     assert db.scalar("SELECT COUNT(*) FROM learned_categories WHERE key LIKE '%kaufhaus%'") == 0
 
 
+def test_split_without_rest_is_covered_by_its_parts(client, db):
+    members = [("Teilbuchung", -70, "Lebenshaltung", "Lebensmittel"), ("Teilbuchung", -20, "Freizeit", "Hobby"),
+               ("Teilbuchung", -10, "Lebenshaltung", "Drogerie")]
+    pre = _upload(client, _split_export(members))
+    assert pre["splits"]["taken"] == 1
+    _take(client, pre)
+    tx, parts, counted = _store(db)
+    assert [p[:2] for p in parts] == [(-7000, "supermarkt"), (-2000, "hobby"), (-1000, "drogerie")]
+    assert counted == [-7000, -2000, -1000] and tx["cat"] == "supermarkt"
+
+
 def test_part_without_category_is_left_to_kassensturz(client, db):
-    pre = _upload(client, _split_export([(-60, "Lebenshaltung", "Lebensmittel"), (-40, "Geschäft", "Büro")]))
-    _take(client, pre)
-    store = _tx(db, "Erfundenes Kaufhaus")
+    members = [("Teilbuchung", -60, "Lebenshaltung", "Lebensmittel"), ("Teilbuchung", -40, "Geschäft", "Büro")]
+    _take(client, _upload(client, _split_export(members)))
+    tx, parts, counted = _store(db)
     # Der zugeordnete Teil bleibt aufgeteilt; den Rest ordnet Kassensturz mit der Buchung selbst zu.
-    assert len(store) == 1 and store[0]["category_locked"] == 0 and store[0]["rule_ref"] != "finanzguru"
-    parts = db.query("SELECT amount_cents FROM splits WHERE tx_id = ?", (store[0]["id"],))
-    assert [p["amount_cents"] for p in parts] == [-6000]
-    entries = sorted(e["amount_cents"] for e in ledger.entries(db) if e["id"] == store[0]["id"])
-    assert entries == [-6000, -4000]
+    assert [p[0] for p in parts] == [-6000] and counted == [-6000, -4000]
+    assert tx["category_locked"] == 0 and tx["rule_ref"] != "finanzguru"
 
 
-def test_unclear_split_is_left_as_it_is_and_named(client, db):
-    # Die Teile ergeben nicht den Betrag der Buchung: nichts zusammenfassen, aber darauf hinweisen.
-    pre = _upload(client, _split_export([(-60, "Lebenshaltung", "Lebensmittel"), (-30, "Freizeit", "Hobby")]))
-    assert pre["count"] == 4 and pre["splits"] == {"taken": 0, "unclear": 2}
+def test_parts_that_do_not_add_up_are_dropped_and_the_booking_stays(client, db):
+    members = [("Teilbuchung", -60, "Lebenshaltung", "Lebensmittel"), ("Restbetrag", -30, "Freizeit", "Hobby")]
+    pre = _upload(client, _split_export(members))
+    assert pre["count"] == 3 and pre["splits"] == {"taken": 0, "plain": 1, "unclear": 0}
     _take(client, pre)
-    assert len(_tx(db, "Erfundenes Kaufhaus")) == 3 and db.scalar("SELECT COUNT(*) FROM splits") == 0
+    tx, parts, counted = _store(db)
+    assert parts == [] and counted == [-10000] and tx["cat"] == "shopping"
 
 
-def test_reference_without_split_type_is_a_booking_of_its_own(client, db):
-    # Eine Erstattung, die auf den Kauf verweist, ist kein Teil des Kaufs.
+def test_part_without_its_booking_is_kept_and_named(client, db):
+    # Eine Erstattung, die auf den Kauf verweist, ist kein Teil des Kaufs. Eine Teilbuchung ohne Original bleibt stehen.
     data = workbook([row("2025-09-03", GIRO_ACC, -100, "Erfundenes Kaufhaus", "Einkauf", "Shopping", "", id="b-1"),
                      row("2025-09-10", GIRO_ACC, 100, "Erfundenes Kaufhaus", "Erstattung", "Shopping", "", id="b-2", original="b-1"),
-                     row("2025-09-11", GIRO_ACC, -100, "Erfundenes Kaufhaus", "Teil ohne Buchung", "Shopping", "", id="b-3",
-                         original="fehlt", split="Teil")])
+                     row("2025-09-11", GIRO_ACC, -40, "Erfundenes Kaufhaus", "Teil ohne Buchung", "Shopping", "", id="b-3",
+                         original="fehlt", split="Teilbuchung")])
     pre = _upload(client, data)
-    assert pre["count"] == 3 and pre["splits"] == {"taken": 0, "unclear": 0}
+    assert pre["count"] == 3 and pre["splits"] == {"taken": 0, "plain": 0, "unclear": 1}
     assert _take(client, pre).json()["added"] == 3
+
+
+def test_parts_of_another_account_are_not_attached(client, db):
+    data = workbook([row("2025-09-03", GIRO_ACC, -100, "Erfundenes Kaufhaus", "Einkauf", "Shopping", "", split="Original"),
+                     row("2025-09-03", PAYPAL_ACC, -100, "Erfundener Versand", "Paket", "Shopping", "", split="Teilbuchung")])
+    pre = _upload(client, data)
+    assert pre["count"] == 2 and pre["splits"] == {"taken": 0, "plain": 0, "unclear": 1}
 
 
 # --- Lernen -------------------------------------------------------------------------------

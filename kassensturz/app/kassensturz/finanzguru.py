@@ -257,7 +257,8 @@ def parse(table: list[list[str]], start: int) -> dict:
             "main": " ".join(cell(row, "main").split()), "sub": " ".join(cell(row, "sub").split()),
             "transfer": norm(cell(row, "transfer")) in _TRUE,
             "note": _note(cell(row, "note"), cell(row, "tags")),
-            "id": cell(row, "id"), "original": cell(row, "original"), "split": cell(row, "split"), "parts": [],
+            "id": cell(row, "id"), "original": cell(row, "original"), "split": cell(row, "split"),
+            "parts": [], "rest": None,
         })
     rows, splits = _fold_splits(rows)
     return {"rows": rows, "skipped": dict(skipped), "splits": splits}
@@ -269,31 +270,49 @@ def _note(note: str, tags: str) -> str | None:
     return " · ".join(p for p in parts if p)[:500] or None
 
 
-def _fold_splits(rows: list[dict]) -> tuple[list[dict], dict]:
-    """Aufgeteilte Buchungen: Die Teile hängen danach an der Buchung, statt neben ihr zu stehen.
+# So kennzeichnet Finanzguru eine aufgeteilte Buchung in der Spalte „Split-Typ“: die Buchung der Bank,
+# darunter ihre Teile und, wenn die Teile nicht alles abdecken, der Rest.
+_SPLIT_ORIGINAL = "original"
+_SPLIT_PART = "teilbuchung"
+_SPLIT_REST = "restbetrag"
 
-    Finanzguru schreibt zu einem Teil die Kennung der ursprünglichen Buchung. Stehen die Buchung
-    und ihre Teile im Export und ergeben die Teile zusammen genau ihren Betrag, wird daraus eine
-    Buchung mit Aufteilung – sonst zählte derselbe Betrag doppelt. Alles, was nicht so eindeutig
-    ist, bleibt unverändert stehen und wird im Dialog genannt."""
+
+def _fold_splits(rows: list[dict]) -> tuple[list[dict], dict]:
+    """Aufgeteilte Buchungen: Übrig bleibt die Buchung der Bank, die Teile hängen an ihr.
+
+    Im Export stehen das „Original“ und darunter seine „Teilbuchungen“ samt „Restbetrag“. Übernähme
+    man alle Zeilen, zählte derselbe Betrag doppelt. Deshalb wird nur das Original zur Buchung. Die
+    Teile werden zu ihrer Aufteilung, wenn sie zusammen genau den Betrag ergeben; sonst kommt die
+    Buchung ohne Aufteilung. Zu welchem Original ein Teil gehört, sagt seine „Referenz-Original-ID“,
+    ersatzweise die Reihenfolge der Zeilen. Teile ohne erkennbares Original bleiben eigene Zeilen
+    und werden im Dialog genannt."""
     by_id = {r["id"]: r for r in rows if r["id"]}
-    groups: dict[str, list[dict]] = defaultdict(list)
+    groups: dict[int, tuple[dict, list[dict]]] = {}
+    stats = {"taken": 0, "plain": 0, "unclear": 0}
+    above = None  # das Original, unter dem die gerade gelesenen Zeilen stehen
     for r in rows:
-        if r["split"] and r["original"] and r["original"] != r["id"]:
-            groups[r["original"]].append(r)
+        kind = norm(r["split"])
+        if kind not in (_SPLIT_PART, _SPLIT_REST):
+            above = r if kind == _SPLIT_ORIGINAL else None
+            continue
+        parent = by_id.get(r["original"]) if r["original"] and r["original"] != r["id"] else None
+        if parent is None and above is not None and above["ref"] == r["ref"]:
+            parent = above
+        if parent is None or parent["ref"] != r["ref"]:
+            stats["unclear"] += 1
+            continue
+        groups.setdefault(id(parent), (parent, []))[1].append(r)
     folded: set[int] = set()
-    stats = {"taken": 0, "unclear": 0}
-    for original, parts in groups.items():
-        parent = by_id.get(original)
-        clear = (parent is not None and all(p["ref"] == parent["ref"] for p in parts)
-                 and all(p["amount_cents"] * parent["amount_cents"] > 0 for p in parts)
-                 and sum(p["amount_cents"] for p in parts) == parent["amount_cents"])
-        if clear:
-            parent["parts"] = parts
-            folded.update(id(p) for p in parts)
-            stats["taken"] += 1
-        elif parent is not None:
-            stats["unclear"] += len(parts)
+    for parent, members in groups.values():
+        folded.update(id(m) for m in members)
+        fits = (all(m["amount_cents"] * parent["amount_cents"] > 0 for m in members)
+                and sum(m["amount_cents"] for m in members) == parent["amount_cents"])
+        if not fits:
+            stats["plain"] += 1
+            continue
+        parent["parts"] = [m for m in members if norm(m["split"]) == _SPLIT_PART]
+        parent["rest"] = next((m for m in members if norm(m["split"]) == _SPLIT_REST), None)
+        stats["taken"] += 1
     return [r for r in rows if id(r) not in folded], stats
 
 
@@ -398,10 +417,12 @@ def suggest_category(categories: list[dict], main: str, sub: str) -> int | None:
 # --- Vorschau -------------------------------------------------------------------------------
 
 def _entries(rows: list[dict]):
-    """Buchungen und, wo eine aufgeteilt ist, statt ihrer die Teile."""
+    """Buchungen und, wo eine aufgeteilt ist, statt ihrer die Teile und der Rest."""
     for r in rows:
         if r.get("parts"):
             yield from r["parts"]
+            if r.get("rest"):
+                yield r["rest"]
         else:
             yield r
 
@@ -480,7 +501,7 @@ def preview(db: Database, parsed: dict, choices: dict | None = None) -> dict:
         "format": "Finanzguru", "count": len(parsed["rows"]), "first": min(days) if days else None,
         "last": max(days) if days else None, "skipped": parsed["skipped"], "accounts": out_accounts,
         "categories": out_categories, "transfers": sum(1 for r in parsed["rows"] if r["transfer"]),
-        "splits": parsed.get("splits") or {"taken": 0, "unclear": 0},
+        "splits": parsed.get("splits") or {"taken": 0, "plain": 0, "unclear": 0},
     }
 
 
@@ -668,12 +689,18 @@ def _apply_extras(db: Database, ids: list[int], rows: list[dict], target: dict, 
             notes.append((row["note"], tx["id"]))
         parts = [(p, category_of(p)) for p in row.get("parts") or []]
         if parts:
-            # Teile mit Kategorie werden zur Aufteilung. Für den Rest ohne Kategorie ordnet Kassensturz
-            # die Buchung selbst zu. Sind alle Teile zugeordnet, trägt sie die Kategorie des größten.
+            # Teile mit Kategorie werden zur Aufteilung. Was übrig bleibt – der Rest aus Finanzguru und
+            # Teile ohne Kategorie –, zählt in Kassensturz zur Kategorie der Buchung selbst.
             splits += [(tx["id"], p["amount_cents"], category, p.get("note")) for p, category in parts if category]
-            if all(category for _, category in parts):
-                largest = max(parts, key=lambda item: abs(item[0]["amount_cents"]))
-                updates.append((largest[1], 0, RULE_REF, tx["id"]))
+            rest = row.get("rest")
+            if rest is not None:
+                own = category_of(rest) or category_of(row)
+            elif all(category for _, category in parts):
+                own = max(parts, key=lambda item: abs(item[0]["amount_cents"]))[1]
+            else:
+                own = None
+            if own:
+                updates.append((own, 1 if kinds.get(own) == "transfer" else 0, RULE_REF, tx["id"]))
             continue
         category = category_of(row)
         if category:
