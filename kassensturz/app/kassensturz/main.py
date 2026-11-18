@@ -131,10 +131,12 @@ async def only_ingress(request: Request, call_next):
 
     # Der Zahlungskalender: Home Assistant Core holt ihn aus seinem internen Netz. Nur diese eine
     # Leseadresse, nur mit Schlüssel in der Adresse; alles andere bleibt Ingress und lokal vorbehalten.
-    # Ein Proxy für das Handy kann selbst lokal verbunden sein; über ihn gibt es den Kalender nicht.
+    # Auf dem Green kommen Home Assistant Core und der Tailscale-Proxy von derselben Adresse (172.30.32.1).
+    # Unterschied: Der Proxy setzt immer X-Forwarded-*; Core holt den Kalender ohne. Mit diesen Kopfzeilen,
+    # also übers Tailnet, gibt es den Kalender nicht.
     if request.url.path.startswith("/calendar/"):
         if (request.method == "GET" and calendar_feed.peer_allowed(client)
-                and not address_in_networks(socket_peer(request), TRUSTED_PROXY_NETWORKS)):
+                and not calendar_feed.forwarded(request.headers)):
             return await call_next(request)
         return JSONResponse({"detail": "Nicht erreichbar."}, status_code=403, headers={"Cache-Control": "no-store"})
 

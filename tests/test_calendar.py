@@ -94,7 +94,7 @@ def test_feed_is_off_until_switched_on_and_a_new_address_kills_the_old(client, d
         "Zahlungskalender: neue Adresse, die alte gilt nicht mehr", "Zahlungskalender: ausgeschaltet"]
 
 
-def test_only_home_assistant_inside_reaches_the_feed(db):
+def test_only_home_assistant_inside_reaches_the_feed(db, monkeypatch):
     with TestClient(main.app, client=("127.0.0.1", 50123)) as local:
         url = local.post("/api/calendar", json={"action": "on"}).json()["url"]
         path = "/calendar/" + url.rsplit("/", 1)[1]
@@ -102,6 +102,14 @@ def test_only_home_assistant_inside_reaches_the_feed(db):
                              ("192.168.1.20", 403), ("100.64.0.5", 403), ("203.0.113.9", 403)):
             # Ohne „with“: Der zweite Client soll die Datenbank des ersten nicht schließen.
             assert TestClient(main.app, client=(peer, 40000)).get(path).status_code == status, peer
+        # Auf dem Green teilen sich Core und der Tailscale-Proxy die Adresse 172.30.32.1; der Proxy ist
+        # vertrauenswürdig eingetragen. Ohne Weiterleitungs-Kopfzeilen ist es Core: erlaubt.
+        monkeypatch.setattr(main, "TRUSTED_PROXY_NETWORKS", main.parse_trusted_proxy_networks("172.30.32.1/32"))
+        assert TestClient(main.app, client=("172.30.32.1", 40000)).get(path).status_code == 200
+        for header in ({"X-Forwarded-For": "100.64.0.9"}, {"X-Forwarded-Proto": "https"},
+                       {"Forwarded": "for=100.64.0.9"}, {"Tailscale-User-Login": "x@example.invalid"}):
+            got = TestClient(main.app, client=("172.30.32.1", 40000)).get(path, headers=header)
+            assert got.status_code == 403, header
         # Schreiben und alle anderen Adressen bleiben für das interne Netz gesperrt.
         core = TestClient(main.app, client=("172.30.32.1", 40000))
         if True:

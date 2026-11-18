@@ -6,6 +6,9 @@
   Einträge zu Konten, die sie sieht, und zum ganzen Haushalt; eigene Budgets anderer Personen stehen dort nicht.
 - Der Eintrag „Konto gelöscht“ hängt jetzt am Konto und erscheint darum am Handy nicht mehr bei Personen, die das
   Konto nie gesehen haben.
+- Zahlungskalender: Auf dem Home Assistant Green kommt Home Assistant mit derselben Adresse wie der Tailscale-Proxy.
+  Der Kalender lehnte darum auch Home Assistant ab. Jetzt entscheidet, ob ein Proxy die Anfrage weitergereicht hat;
+  übers Tailnet bleibt der Kalender gesperrt.
 
 ## 0.3.49
 
