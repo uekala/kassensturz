@@ -228,7 +228,7 @@ ohne Import anlegen" ein Konto der Art „Taschengeld" an: Betrag, Rhythmus (jed
   zwölf ausgefallene Termine nachgeholt. Eine Änderung des Betrags gilt ab dem nächsten Termin.
 - **Ausgaben:** trägst du von Hand ein, in Home Assistant oder in der App wie auf einem Bargeld-Konto.
 - **Wer es sieht:** alle Erwachsenen des Haushalts. Das Kind selbst, wenn du sein Handy koppelst und ihm zuordnest;
-  es sieht dann nur dieses Konto und kann nichts ändern.
+  es sieht dann nur dieses Konto und kann nichts ändern. Budgets und Ausgaben des Haushalts bekommt es nicht.
 - **Was es nicht ist:** Bankguthaben. Das Geld liegt weiter auf euren Konten und ist dort schon gezählt. Deshalb
   zählt das Taschengeld-Konto nicht zum Vermögen, nicht zur Prognose und nicht zur Auswertung des Haushalts, und
   seine Ausgaben lassen sich nicht teilen.

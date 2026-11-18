@@ -386,6 +386,9 @@ def overview(request: Request):
     result["household"]["balances"] = sharing.for_person(get_db(), device.person_id)
     # Budgets that only count this person's own accounts; "budgets" are the household's.
     result["own_budgets"] = mobile_read.budget_items(household.own_budgets(get_db(), device.person_id))
+    if result["household"]["read_only"]:
+        # A child sees its own money only: what the household spends against its budgets stays with the adults.
+        result["budgets"] = []
     return result
 
 
@@ -526,7 +529,12 @@ def categories(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return mobile_write.list_categories(_view(device))
+    result = mobile_write.list_categories(_view(device))
+    if household.is_child(get_db(), device.person_id):
+        # Names are needed to label the child's own transactions; the household's limits are not.
+        for item in result["items"]:
+            item["budget_cents"] = None
+    return result
 
 
 @router.get("/api/v1/contracts")

@@ -124,6 +124,26 @@ def test_pocket_money_stays_out_of_household_figures(family):
         assert aid not in [a["id"] for a in analytics._forecast_accounts(db)]
 
 
+def test_a_child_does_not_see_the_budgets_of_the_household(family):
+    db = family["db"]
+    category = db.scalar("SELECT id FROM categories WHERE builtin_key = 'supermarkt'")
+    db.execute("UPDATE categories SET budget_cents = 44400 WHERE id = ?", (category,))
+    db.execute("UPDATE transactions SET category_id = ?, category_locked = 1 WHERE counterparty = 'KS-GEMEINSAM Markt'", (category,))
+    with https_client() as client:
+        pocket(client, family)
+        anna, mia = pair(client, family["anna"]), pair(client, family["mia"])
+        # Die Erwachsenen sehen das Budget mit dem, was davon ausgegeben ist.
+        seen = client.get("/api/v1/overview", headers=anna).json()["budgets"]
+        assert [(b["limit_cents"], b["spent_cents"]) for b in seen] == [(44400, 1100)]
+        assert any(c["budget_cents"] == 44400 for c in client.get("/api/v1/categories", headers=anna).json()["items"])
+        # Das Kind bekommt weder Limit noch Ausgaben des Haushalts, auf keinem Leseweg.
+        assert client.get("/api/v1/overview", headers=mia).json()["budgets"] == []
+        names = client.get("/api/v1/categories", headers=mia).json()["items"]
+        assert names and all(c["budget_cents"] is None for c in names)
+        for path in READ_PATHS:
+            assert "44400" not in client.get(path, headers=mia).text, path
+
+
 def test_adults_see_pocket_money_and_the_child_sees_only_its_own(family):
     db, mia_id = family["db"], family["mia"]
     with https_client() as client:

@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.37
+
+- Umstieg von Finanzguru, Nachtrag nach einem Blick auf die Kopfzeile eines echten Exports:
+  - Notizen aus Finanzguru stehen als Notiz an der Buchung; Tags hängen als Text daran („Tags: …“).
+  - Aufgeteilte Buchungen bleiben aufgeteilt, wenn der Export die Buchung und ihre Teile enthält und die Teile
+    zusammen genau ihren Betrag ergeben. So zählt derselbe Betrag nicht doppelt. Passt das nicht, werden die Zeilen
+    einzeln übernommen und der Dialog weist darauf hin.
+- Haushalt: Das Handy eines Kindes bekommt die Budgets des Haushalts nicht mehr. Bisher standen dort die Limits und
+  was davon ausgegeben ist.
+
 ## 0.3.36
 
 - Umstieg von Finanzguru: Der Excel- oder CSV-Export lässt sich unter *Konten → Datei importieren* übernehmen.
@@ -10,7 +20,6 @@
     Buchungen behalten ihre Kategorie; Umbuchungen bleiben Umbuchungen.
   - Auf Wunsch lernt Kassensturz daraus: Empfänger, die in Finanzguru verlässlich in einer Kategorie lagen, gelten
     auch für vorhandene und künftige Buchungen. Eigene Korrekturen haben Vorrang.
-  - Notizen kommen mit, Tags als Text in der Notiz. Aufgeteilte Buchungen bleiben aufgeteilt.
 - Der Selbsttest des Kontostands zählt nachgetragene alte Buchungen nicht als neu.
 - Excel-Dateien werden nur als Finanzguru-Export gelesen; der Eingangsordner zeigt einen solchen Export zum Zuordnen an.
 
