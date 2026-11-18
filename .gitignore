@@ -5,3 +5,6 @@ __pycache__/
 *.sqlite-*
 secrets.json
 .venv/
+
+# Erzeugte Antworten des Servers für die Bildschirmfotos der App
+mobile/app/tool/bilder/server.json

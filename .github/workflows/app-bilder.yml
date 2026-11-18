@@ -1,0 +1,72 @@
+name: App-Bilder
+
+# Rendert jede Seite der App mit echten Antworten des Servers und legt die Bilder
+# als Artefakt an den Lauf. So lässt sich vor dem Merge ansehen, wie die App aussieht,
+# und es fällt auf, wenn Server und App nicht mehr zusammenpassen.
+
+concurrency:
+  group: app-bilder-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "mobile/**"
+      - "kassensturz/app/**"
+      - "tools/app_fixture.py"
+      - ".github/workflows/app-bilder.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bilder:
+    name: Bildschirmfotos der App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: kassensturz/app/requirements.txt
+
+      - name: Install server dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r kassensturz/app/requirements.txt
+          python -m pip install httpx
+
+      - name: Record what the server answers
+        run: python tools/app_fixture.py mobile/app/tool/bilder/server.json
+
+      - name: Set up Flutter stable
+        uses: flutter-actions/setup-flutter@v4
+        with:
+          channel: stable
+          version: 3.47.9
+          cache: true
+          cache-sdk: true
+
+      - name: Install dependencies
+        working-directory: mobile/app
+        run: flutter pub get
+
+      - name: Render the pages of the app
+        working-directory: mobile/app
+        run: flutter test tool/bilder/app_bilder.dart
+
+      - name: Upload the pictures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kassensturz-app-bilder
+          path: mobile/app/build/app-bilder
+          if-no-files-found: error
+          retention-days: 14
