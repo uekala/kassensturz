@@ -249,17 +249,40 @@ void main() {
         month: '2026-11',
         accountId: 7,
         categoryId: 3,
+        part: 'own',
       );
 
       final request = transport.requests.single;
       expect(request.uri.path, '/api/v1/transactions');
       expect(request.uri.queryParameters['month'], '2026-11');
       expect(request.uri.queryParameters['account_id'], '7');
+      expect(request.uri.queryParameters['part'], 'own');
       expect(request.headers['Authorization'], 'Bearer ${token('a')}');
       expect(request.uri.query, isNot(contains(token('a'))));
       client.close();
     },
   );
+
+  test('analysis can ask for the shared part only', () async {
+    final store = InMemoryMobileSessionStore();
+    await store.write(session());
+    final transport = FakeTransport([
+      jsonResponse(200, {'month': {}}),
+      jsonResponse(200, {'month': {}}),
+    ]);
+    final client = MobileApiClient(sessionStore: store, transport: transport);
+
+    await client.stats(month: '2026-11', part: 'shared');
+    await client.stats();
+
+    expect(transport.requests.first.uri.path, '/api/v1/stats');
+    expect(transport.requests.first.uri.queryParameters, {
+      'month': '2026-11',
+      'part': 'shared',
+    });
+    expect(transport.requests.last.uri.query, isEmpty);
+    client.close();
+  });
 
   test('logout always removes the local session', () async {
     final store = InMemoryMobileSessionStore();

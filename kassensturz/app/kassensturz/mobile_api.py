@@ -65,6 +65,8 @@ CAPABILITIES = (
     "loans",
     # Änderungsprotokoll lesen
     "changes",
+    # Umsätze und Auswertung nach „Ich“ und „Gemeinsam“ trennen
+    "parts",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -200,6 +202,22 @@ def _note_tx(tx_id: int, what: str) -> None:
 def _view(device):
     """What this device may read: its person's accounts and the shared ones."""
     return household.view(get_db(), device.person_id)
+
+
+PARTS = {"own", "shared"}
+
+
+def _part_view(device, part: str | None):
+    """Die Sicht des Geräts, auf Wunsch nur die eigenen ("own") oder nur die gemeinsamen Konten ("shared").
+
+    Ein Kind sieht ohnehin nur das Eigene; für Kinderhandys und Geräte ohne Person gibt es keine Teile.
+    ``None`` zurück heißt: ungültiger Wunsch."""
+    if not part or part == "all":
+        return _view(device)
+    db = get_db()
+    if part not in PARTS or device.person_id is None or household.profile(db, device.person_id)["read_only"]:
+        return None
+    return db.part(part, device.person_id) if part == "own" else db.part("shared")
 
 
 def _not_found(what: str) -> JSONResponse:
@@ -442,14 +460,18 @@ def transactions(
     category_id: str | None = Query(default=None),
     q: str | None = Query(default=None),
     kind: str | None = Query(default=None),
+    part: str | None = Query(default=None),
 ):
     """Return a paginated and allowlisted transaction list."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
+    view = _part_view(device, part)
+    if view is None:
+        return _error(400, "invalid_query", "Ungültige Filter- oder Seitenparameter.")
     try:
         return mobile_read.list_transactions(
-            _view(device),
+            view,
             limit=limit,
             offset=offset,
             month=month,
@@ -473,13 +495,16 @@ def _transaction_id(value: str) -> int | None:
 
 
 @router.get("/api/v1/stats")
-def stats(request: Request, month: str | None = Query(default=None)):
+def stats(request: Request, month: str | None = Query(default=None), part: str | None = Query(default=None)):
     """Return category spending, monthly totals and the balance curve."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
+    view = _part_view(device, part)
+    if view is None:
+        return _error(400, "invalid_query", "Ungültiger Monat oder Teil.")
     try:
-        return mobile_read.get_stats(_view(device), month=month)
+        return mobile_read.get_stats(view, month=month)
     except mobile_read.MobileQueryError:
         return _error(400, "invalid_query", "Ungültiger Monat.")
 

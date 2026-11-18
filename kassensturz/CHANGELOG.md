@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.53
+
+- App (ab Version 0.3.33): Umsätze und Auswertung lassen sich auf „Ich“ (nur die eigenen Konten) oder „Gemeinsam“
+  (nur die gemeinsamen) einschränken. Kinderhandys und Geräte ohne Person bekommen das nicht.
+
 ## 0.3.52
 
 - Enable Banking: Gibt die Bank bei der Freigabe keine Konten frei, wird nichts gespeichert, und die Meldung sagt,

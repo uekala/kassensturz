@@ -48,6 +48,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const projectsCapability = 'projects';
   static const loansCapability = 'loans';
   static const changesCapability = 'changes';
+  static const partsCapability = 'parts';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -82,6 +83,8 @@ class MobileConnectionController extends ChangeNotifier {
   int? _filterCategoryId;
   String _filterSearch = '';
   String? _filterKind;
+  String? _viewPart;
+  String? _statsMonth;
   Map<String, dynamic>? _stats;
   bool _statsLoading = false;
   String? _statsError;
@@ -381,6 +384,28 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// 'in' for income, 'out' for expenses, null for both.
   String? get filterKind => _filterKind;
+
+  /// 'own' shows only this person's accounts, 'shared' only the common
+  /// ones, null both. Applies to the transactions and the analysis.
+  String? get viewPart => _viewPart;
+
+  /// Whether the transactions and the analysis can be split into what
+  /// belongs to this person and what the household shares.
+  bool get canFilterParts {
+    if (!_capabilities.contains(partsCapability) || isReadOnly) return false;
+    final household = _overview?['household'];
+    return household is Map &&
+        household['private_accounts'] == true &&
+        household['person'] is Map;
+  }
+
+  Future<void> setViewPart(String? part) async {
+    if (part == _viewPart) return;
+    _viewPart = part;
+    final stats = _stats != null;
+    await refreshTransactions();
+    if (stats) await loadStats(month: _statsMonth);
+  }
   bool get hasTransactionFilter =>
       _filterAccountId != null ||
       _filterCategoryId != null ||
@@ -624,6 +649,7 @@ class MobileConnectionController extends ChangeNotifier {
       categoryId: _filterCategoryId,
       search: canSearchTransactions ? _filterSearch : null,
       kind: canSearchTransactions ? _filterKind : null,
+      part: canFilterParts ? _viewPart : null,
     );
   }
 
@@ -725,11 +751,13 @@ class MobileConnectionController extends ChangeNotifier {
   /// The previous analysis stays visible until the new one has arrived.
   Future<void> loadStats({String? month}) async {
     if (_session == null || _statsLoading || !canShowStats) return;
+    _statsMonth = month;
     _statsLoading = true;
     _statsError = null;
     _notifyIfMounted();
     try {
-      _stats = await _read(() => _apiClient.stats(month: month));
+      final part = canFilterParts ? _viewPart : null;
+      _stats = await _read(() => _apiClient.stats(month: month, part: part));
       _unreachable = false;
     } catch (error) {
       _unreachable = isConnectivityFailure(error);
@@ -1067,6 +1095,8 @@ class MobileConnectionController extends ChangeNotifier {
     _filterCategoryId = null;
     _filterSearch = '';
     _filterKind = null;
+    _viewPart = null;
+    _statsMonth = null;
     _stats = null;
     _statsError = null;
   }
