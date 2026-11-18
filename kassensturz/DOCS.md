@@ -272,6 +272,25 @@ also 300 € da sein. Die Budgetseite zeigt die Summe und jeden Vertrag einzeln.
 Unter *Einstellungen* kannst du diese Rücklage von „frei verfügbar“ abziehen lassen. Lass das aus, wenn du dafür schon Geld
 auf einem Tagesgeld- oder Sparkonto zurücklegst, sonst zählt es doppelt.
 
+## Projekte
+
+Was hat der Urlaub, das Auto oder die Renovierung insgesamt gekostet? Ein Projekt sammelt Buchungen aus allen
+Kategorien und Monaten und zeigt die Summe.
+
+- **Anlegen:** unter *Budgets → Projekte → Projekt anlegen*, mit Name und, wenn du magst, einem Rahmen in Euro.
+- **Einzeln zuordnen:** Buchung öffnen, unter *Projekt* wählen, speichern.
+- **Viele auf einmal:** in den *Umsätzen* suchen oder filtern, dann *Alle Treffer einem Projekt zuordnen*. So wird
+  aus einem Tag aus Finanzguru ein Projekt: nach dem Tag suchen (er steht in der Notiz als „Tags: …“) und alle
+  Treffer übernehmen.
+- **Ansehen:** Das Projekt zeigt die Gesamtkosten, den Rest im Rahmen, die Ausgaben je Kategorie, die Kosten je
+  Monat und die Buchungen. *Alle Buchungen ansehen* öffnet die Umsätze, gefiltert nach dem Projekt.
+- **Abschließen** legt ein Projekt ab, ohne etwas zu löschen. *Löschen* entfernt nur das Projekt; die Buchungen
+  bleiben.
+
+Eine Buchung gehört zu höchstens einem Projekt. Erstattungen im Projekt mindern die Kosten, Umbuchungen zählen nicht.
+An Kategorie, Budget und Auswertung der Buchung ändert ein Projekt nichts. Im Haushalt sieht jede Person in einem
+Projekt nur die Buchungen der Konten, die sie sehen darf; die Namen der Projekte sehen alle.
+
 ## Geplante Ausgaben
 
 Eine einmalige Ausgabe, die schon feststeht, zählt in der Prognose mit: die Handwerkerrechnung, die Anzahlung für

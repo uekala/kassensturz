@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.43
+
+- Projekte: Buchungen quer zu Kategorien bündeln und sehen, was etwas insgesamt gekostet hat.
+  - Unter *Budgets → Projekte* anlegen, auf Wunsch mit einem Rahmen in Euro.
+  - Zuordnen an der Buchung, oder in den Umsätzen suchen und *Alle Treffer einem Projekt zuordnen*. So wird aus
+    einem Tag aus Finanzguru ein Projekt.
+  - Das Projekt zeigt Gesamtkosten, Rest im Rahmen, Ausgaben je Kategorie, Kosten je Monat und die Buchungen. Die
+    Umsätze lassen sich nach Projekt filtern.
+- Bankabruf per FinTS: Kennt die Bank die Produkt-ID noch nicht (Code 9078), erklärt die Meldung die Wartezeit.
+
 ## 0.3.42
 
 - 1822direkt per FinTS: Kassensturz meldet sich jetzt so an, wie die Bank es erwartet.

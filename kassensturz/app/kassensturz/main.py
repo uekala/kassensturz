@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (allowance, analytics, anomalies, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, planned, savings,
+from . import (allowance, analytics, anomalies, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, planned, projects, savings,
                secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
@@ -322,6 +322,81 @@ def expected_reopen(item_id: int):
     return _expected(expected.reopen, item_id)
 
 
+def _projects(call, *args):
+    try:
+        result = call(get_db(), *args)
+    except projects.ProjectError as error:
+        _err(error.status, error.message)
+    _changed()
+    return result
+
+
+@app.get("/api/projects")
+def project_list():
+    return projects.overview(get_db())
+
+
+@app.post("/api/projects")
+def project_create(body: dict = Body(...)):
+    return _projects(projects.create, body)
+
+
+# Vor den Routen mit Nummer, sonst gälte „unassign“ als Nummer.
+@app.post("/api/projects/unassign")
+def project_unassign(body: dict = Body(...)):
+    return _projects(projects.unassign, body.get("tx_ids"))
+
+
+@app.get("/api/projects/{project_id}")
+def project_detail(project_id: int):
+    try:
+        return projects.detail(get_db(), project_id)
+    except projects.ProjectError as error:
+        _err(error.status, error.message)
+
+
+@app.post("/api/projects/{project_id}")
+def project_change(project_id: int, body: dict = Body(...)):
+    return _projects(projects.change, project_id, body)
+
+
+@app.delete("/api/projects/{project_id}")
+def project_delete(project_id: int):
+    _projects(projects.delete, project_id)
+    return {"ok": True}
+
+
+@app.post("/api/projects/{project_id}/assign")
+def project_assign(project_id: int, body: dict = Body(...)):
+    """Ordnet Buchungen zu: einzeln genannte (``tx_ids``) oder alle Treffer eines Filters der Buchungsliste (``filter``)."""
+    flt = body.get("filter")
+    if flt is None:
+        return _projects(projects.assign, project_id, body.get("tx_ids"))
+    if not isinstance(flt, dict) or not any(flt.get(k) for k in ("q", "account", "category", "month", "kind", "contract", "project")):
+        _err(400, "Ohne Suche oder Filter wären das alle Buchungen. Bitte erst eingrenzen.")
+
+    def number(key):
+        value = flt.get(key)
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            _err(400, "Der Filter ist ungültig.")
+
+    sql_where, params = _tx_filter(str(flt.get("q") or ""), number("account"), number("category"), str(flt.get("month") or ""),
+                                   str(flt.get("kind") or ""), str(flt.get("contract") or ""), number("project"))
+    db = get_db()
+    ids = [r["id"] for r in db.query(
+        f"SELECT t.id FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
+        f"WHERE {sql_where} AND t.is_transfer = 0 ORDER BY t.id LIMIT ?", (*params, projects.MAX_ASSIGN + 1))]
+    if not ids:
+        _err(404, "Zu diesem Filter gibt es keine Buchungen.")
+    if len(ids) > projects.MAX_ASSIGN:
+        _err(400, f"Das sind mehr als {projects.MAX_ASSIGN} Buchungen. Bitte enger eingrenzen.")
+    return _projects(projects.assign, project_id, ids)
+
+
 def _planned(call, *args):
     try:
         result = call(get_db(), *args)
@@ -374,8 +449,25 @@ def anomaly_ack(body: dict = Body(...)):
 
 @app.get("/api/transactions")
 def transactions(q: str = "", account: int | None = None, category: int | None = None, month: str = "", kind: str = "",
-                 contract: str = "", offset: int = 0, limit: int = 100):
+                 contract: str = "", project: int | None = None, offset: int = 0, limit: int = 100):
     db = get_db()
+    sql_where, params = _tx_filter(q, account, category, month, kind, contract, project)
+    base = (f"FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
+            f"WHERE {sql_where}")
+    total = db.one(f"SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN t.amount_cents > 0 AND t.is_transfer = 0 THEN t.amount_cents END), 0) AS sin, "
+                   f"COALESCE(SUM(CASE WHEN t.amount_cents < 0 AND t.is_transfer = 0 THEN t.amount_cents END), 0) AS sout {base}", tuple(params))
+    items = db.query(
+        f"SELECT t.*, a.name AS account_name, a.kind AS account_kind, c.name AS category_name, c.kind AS category_kind, "
+        f"(SELECT project_id FROM project_tx WHERE tx_id = t.id) AS project_id {base} "
+        f"ORDER BY t.booking_date DESC, t.id DESC LIMIT ? OFFSET ?",
+        (*params, max(1, min(limit, 500)), max(0, offset)),
+    )
+    return _tx_page(db, items, total)
+
+
+def _tx_filter(q: str = "", account: int | None = None, category: int | None = None, month: str = "", kind: str = "",
+               contract: str = "", project: int | None = None) -> tuple[str, list]:
+    """Die Bedingung der Buchungsliste; „Alle Treffer zuordnen“ nutzt dieselbe."""
     where = ["a.archived = 0"]
     params: list = []
     if q:
@@ -403,16 +495,13 @@ def transactions(q: str = "", account: int | None = None, category: int | None =
         where.append("t.is_transfer = 1")
     elif kind == "uncat":
         where.append("c.builtin_key IN ('sonstiges', 'sonstige_einnahmen') AND t.category_locked = 0")
-    sql_where = " AND ".join(where)
-    base = (f"FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
-            f"WHERE {sql_where}")
-    total = db.one(f"SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN t.amount_cents > 0 AND t.is_transfer = 0 THEN t.amount_cents END), 0) AS sin, "
-                   f"COALESCE(SUM(CASE WHEN t.amount_cents < 0 AND t.is_transfer = 0 THEN t.amount_cents END), 0) AS sout {base}", tuple(params))
-    items = db.query(
-        f"SELECT t.*, a.name AS account_name, a.kind AS account_kind, c.name AS category_name, c.kind AS category_kind {base} "
-        f"ORDER BY t.booking_date DESC, t.id DESC LIMIT ? OFFSET ?",
-        (*params, max(1, min(limit, 500)), max(0, offset)),
-    )
+    if project:
+        where.append("t.id IN (SELECT tx_id FROM project_tx WHERE project_id = ?)")
+        params.append(project)
+    return " AND ".join(where), params
+
+
+def _tx_page(db, items: list[dict], total: dict) -> dict:
     if items:
         ids = [i["id"] for i in items]
         splits = db.query(f"SELECT s.*, c.name AS category_name FROM splits s LEFT JOIN categories c ON c.id = s.category_id "
@@ -463,6 +552,11 @@ def update_transaction(tx_id: int, body: dict = Body(...)):
     learned = None
     if "category_id" in data and not body.get("rule") and body.get("learn", True):
         learned = categorize.learn(db, tx, data["category_id"])
+    if "project_id" in body:
+        try:
+            projects.set_for(db, tx_id, body.get("project_id"))
+        except projects.ProjectError as error:
+            _err(error.status, error.message)
     db.update("transactions", "id", tx_id, data)
     if body.get("rule") or learned:
         changed = categorize.recategorize(db)

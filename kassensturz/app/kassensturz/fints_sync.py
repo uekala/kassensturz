@@ -214,6 +214,11 @@ def _explain(exc: Exception, replies: list | None = None) -> str:
     if isinstance(exc, UserFacingError):
         return str(exc)
     said = _bank_said(replies)
+    if any(code == "9078" for code, _text in replies or []) and not isinstance(exc, UserFacingError):
+        return ("Die Bank kennt die FinTS-Produkt-ID noch nicht (Code 9078). Neue Registrierungen erreichen die Banken einmal "
+                "pro Woche, und jede Bank übernimmt sie nach eigenem Zeitplan: wenige Tage bis mehrere Wochen. Prüfe, ob die "
+                "ID in der Konfiguration der App genau die 25 Zeichen aus der Mail hat, und versuch es in einigen Tagen "
+                "wieder. An PIN und Anmeldename liegt es nicht.")
     if any(code == "9210" for code, _text in replies or []) and not isinstance(exc, UserFacingError):
         # 9210 heißt bei der Anmeldung: Diese Bank kennt den Anmeldenamen so nicht.
         return ("Die Bank kennt diesen Zugang nicht." + said + " Prüfe im Bankzugang Bankleitzahl, Anmeldename und "
