@@ -194,7 +194,8 @@ Gut zu wissen:
 - Sparziele gehören wie Konten einer Person oder allen. Ein eigenes Ziel sieht in der App nur diese Person.
 - Kategorien sind gemeinsam. Budgets gibt es zweifach: Die Budgets des Haushalts zählen die Ausgaben von den
   gemeinsamen Konten. Zusätzlich kann jede Person eigene Budgets setzen, die nur ihre eigenen Konten zählen – in der
-  App unter „Nur für dich", in Home Assistant unter *Budgets* über die Auswahl der Person.
+  App unter „Nur für dich", in Home Assistant unter *Budgets* über die Auswahl der Person. Ist ein eigenes Budget überschritten,
+  geht der Hinweis an diese Person.
 - Eine Person lässt sich erst entfernen, wenn ihr keine Konten und Handys mehr zugeordnet sind. So wird ein
   eigenes Konto nicht versehentlich zu einem gemeinsamen.
 
@@ -543,7 +544,7 @@ Mit `events: true` feuert Kassensturz Ereignisse, auf die Automationen reagieren
 | `kassensturz_neue_buchungen` | der automatische Abruf oder der Eingangsordner hat Buchungen geliefert | `anzahl`, `konten`, `summe` |
 | `kassensturz_gehalt_eingegangen` | eine neue Buchung der Kategorie Gehalt ab 200 € | `betrag`, `konto`, `von`, `datum` |
 | `kassensturz_grosse_abbuchung` | eine neue Abbuchung ab `large_transaction` Euro, Umbuchungen ausgenommen | `betrag`, `konto`, `an`, `datum` |
-| `kassensturz_budget_schwelle` | ein Budget erreicht 80 % oder 100 %, je Schwelle einmal im Monat | `kategorie`, `schwelle`, `prozent`, `budget`, `ausgegeben`, `rest`, `monat` |
+| `kassensturz_budget_schwelle` | ein Budget erreicht 80 % oder 100 %, je Schwelle einmal im Monat | `kategorie`, `schwelle`, `prozent`, `budget`, `ausgegeben`, `rest`, `monat`; bei eigenen Budgets dazu `person` und `person_id` |
 | `kassensturz_auffaelligkeit` | eine Auffälligkeit, je Buchung einmal | `art` (`doppelt`, `erste_lastschrift`, `hoher_betrag`), `empfaenger`, `betrag`, `konto`, `datum`, `rueckgabe_bis` |
 
 Wie bei den Mitteilungen zählen nur Buchungen, die ohne dein Zutun ankommen. Je Abruf gibt es höchstens zehn
