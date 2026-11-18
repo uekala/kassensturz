@@ -172,7 +172,10 @@ class LiveDashboardPage extends StatelessWidget {
                   ),
               ],
               if (!ownOnly)
-                PlansSection(controller: controller, plans: _asMap(data['plans'])),
+                PlansSection(
+                  controller: controller,
+                  plans: _asMap(data['plans']),
+                ),
               const SizedBox(height: 24),
               if (accounts.isEmpty)
                 const QuietMessage(

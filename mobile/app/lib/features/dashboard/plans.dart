@@ -112,7 +112,9 @@ class _PlanRow extends StatelessWidget {
     final overdue = item['overdue'] == true;
     final day = expense ? item['due_date'] : item['since'];
     final when = day is String
-        ? (expense ? 'am ${formatShortDate(day)}' : 'seit ${formatShortDate(day)}')
+        ? (expense
+              ? 'am ${formatShortDate(day)}'
+              : 'seit ${formatShortDate(day)}')
         : '';
     return InkWell(
       onTap: controller.canManagePlans
@@ -158,7 +160,9 @@ class _PlanRow extends StatelessWidget {
   Future<void> _openActions(BuildContext context, String label) async {
     final kind = expense ? 'planned' : 'expected';
     final id = item['id'] is int ? item['id'] as int : 0;
-    final actions = expense ? const ['paid', 'drop'] : const ['received', 'drop'];
+    final actions = expense
+        ? const ['paid', 'drop']
+        : const ['received', 'drop'];
     final chosen = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -236,12 +240,16 @@ class _PlanExpenseSheetState extends State<PlanExpenseSheet> {
     super.initState();
     final cents = widget.cents;
     _amount = TextEditingController(
-      text: cents == null ? '' : (cents / 100).toStringAsFixed(2).replaceAll('.', ','),
+      text: cents == null
+          ? ''
+          : (cents / 100).toStringAsFixed(2).replaceAll('.', ','),
     );
     _day = DateUtils.dateOnly(DateTime.now()).add(const Duration(days: 7));
     final accounts = _accounts;
     final first =
-        accounts.where((account) => account['in_forecast'] == true).firstOrNull ??
+        accounts
+            .where((account) => account['in_forecast'] == true)
+            .firstOrNull ??
         accounts.firstOrNull;
     final id = first?['id'];
     _accountId = id is int ? id : null;
@@ -304,7 +312,9 @@ class _PlanExpenseSheetState extends State<PlanExpenseSheet> {
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
     messenger.showSnackBar(
-      const SnackBar(content: Text('Eingeplant. Zählt jetzt in der Prognose mit')),
+      const SnackBar(
+        content: Text('Eingeplant. Zählt jetzt in der Prognose mit'),
+      ),
     );
   }
 
@@ -357,7 +367,9 @@ class _PlanExpenseSheetState extends State<PlanExpenseSheet> {
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
               initialValue: _accountId,
-              decoration: const InputDecoration(labelText: 'Von welchem Konto?'),
+              decoration: const InputDecoration(
+                labelText: 'Von welchem Konto?',
+              ),
               items: [
                 for (final account in accounts)
                   if (account['id'] is int)
@@ -366,11 +378,16 @@ class _PlanExpenseSheetState extends State<PlanExpenseSheet> {
                       child: Text(account['name']?.toString() ?? 'Konto'),
                     ),
               ],
-              onChanged: _saving ? null : (value) => setState(() => _accountId = value),
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _accountId = value),
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
-              Text(_error!, style: textTheme.bodySmall?.copyWith(color: klar.warn)),
+              Text(
+                _error!,
+                style: textTheme.bodySmall?.copyWith(color: klar.warn),
+              ),
             ],
             const SizedBox(height: 16),
             FilledButton(

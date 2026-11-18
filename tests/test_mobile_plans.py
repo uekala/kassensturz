@@ -43,9 +43,10 @@ def test_overview_lists_open_plans_and_alert_actions(db, monkeypatch):
         assert [p["label"] for p in plans["planned"]] == ["KS-Kaution", "KS-Handwerker"]
         assert plans["planned_cents"] == 145000 and plans["expected"][0]["label"] == "KS-Auslagen"
         assert plans["expected"][0]["overdue"] is True and plans["planned"][0]["overdue"] is True
-        by_key = {a["key"]: a for a in seen["alerts"]}
+        by_key = {a["key"]: a for a in seen["alerts"] if "key" in a}
         assert by_key[f"planned-due:{late['id']}:{d(-3)}"]["actions"] == ["paid", "drop"]
-        assert any(a["actions"] == ["received", "drop"] for a in seen["alerts"])
+        assert any(a.get("actions") == ["received", "drop"] for a in seen["alerts"])
+        assert all("key" not in a for a in seen["alerts"] if not a.get("actions"))
         assert "plans" in client.get("/api/v1/me", headers=anna).json()["capabilities"]
 
 
@@ -110,9 +111,9 @@ def test_anomaly_alert_can_be_acknowledged_from_the_phone(db, monkeypatch):
     with https_client() as client:
         anna = pair(client, h["anna"], "Annas Handy")
         alerts = client.get("/api/v1/overview", headers=anna).json()["alerts"]
-        double = next(a for a in alerts if a["actions"] == ["ack"])
+        double = next(a for a in alerts if a.get("actions") == ["ack"])
         assert client.post("/api/v1/alerts/ack", headers=anna, json={"key": "anomaly:erfunden:1"}).status_code == 404
         assert client.post("/api/v1/alerts/ack", headers=anna, json={"key": double["key"], "x": 1}).status_code == 400
         assert client.post("/api/v1/alerts/ack", headers=anna, json={"key": double["key"]}).status_code == 200
-        keys = {a["key"] for a in client.get("/api/v1/overview", headers=anna).json()["alerts"]}
+        keys = {a.get("key") for a in client.get("/api/v1/overview", headers=anna).json()["alerts"]}
         assert double["key"] not in keys
