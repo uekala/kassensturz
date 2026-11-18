@@ -381,6 +381,23 @@ class MobileApiClient {
   Future<Map<String, dynamic>> startSync() =>
       _authenticatedJson(method: 'POST', path: '/api/v1/sync');
 
+  /// Starts renewing an expiring bank consent; the answer carries the bank's
+  /// page to open. Nothing changes on the server yet.
+  Future<Map<String, dynamic>> startBankRenewal(int id) => _authenticatedJson(
+    method: 'POST',
+    path: '/api/v1/banks/renew',
+    body: {'id': id},
+  );
+
+  /// Finishes a renewal with the address the browser ended up on. The code in
+  /// it works once, so this is never repeated automatically.
+  Future<Map<String, dynamic>> completeBankRenewal(String address) =>
+      _authenticatedJson(
+        method: 'POST',
+        path: '/api/v1/banks/renew/complete',
+        body: {'text': address},
+      );
+
   /// Creates an account without bank feed for entries made by hand.
   Future<Map<String, dynamic>> createCashAccount(
     String name, {

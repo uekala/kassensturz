@@ -25,6 +25,8 @@ log = logging.getLogger("kassensturz.openbanking")
 API = os.environ.get("KASSENSTURZ_EB_API", "https://api.enablebanking.com")
 DEFAULT_REDIRECT = "https://enablebanking.com/"
 MAX_CONSENT_DAYS = 180
+# Ab so vielen Tagen vor dem Ablauf lässt sich eine Freigabe auch vom Handy erneuern.
+RENEW_DAYS = 14
 KEY_NAME = "eb_private_key"
 
 
@@ -214,6 +216,20 @@ def parse_return(text: str) -> tuple[str, str]:
 NO_ACCOUNTS = ("Die Bank hat keine Konten freigegeben, darum ist nichts gespeichert. Meist wurde bei der Freigabe "
                "kein Konto ausgewählt, oder das Konto ist bei der Bank nicht für den Zugriff über Drittanbieter "
                "freigeschaltet. Starte „Bank verbinden“ noch einmal und hake im Bankfenster die Konten an.")
+
+
+def pending_renewal(text: str) -> int | None:
+    """Welche bestehende Freigabe ein offener Vorgang erneuert; ``None`` bei einer neuen Bank oder unbekanntem Vorgang."""
+    _code, state = parse_return(text)
+    return (_pending.get(state) or {}).get("renew")
+
+
+def renewable(db: Database, eb_id: int) -> dict | None:
+    """Die Freigabe, wenn sie abgelaufen ist oder in den nächsten Tagen abläuft."""
+    for s in list_sessions(db):
+        if s["id"] == eb_id and (s["status"] != "active" or (s["days_left"] is not None and s["days_left"] <= RENEW_DAYS)):
+            return s
+    return None
 
 
 def complete_auth(db: Database, text: str, psu: dict | None = None) -> dict:

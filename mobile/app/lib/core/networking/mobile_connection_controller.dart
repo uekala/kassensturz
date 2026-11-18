@@ -49,6 +49,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const loansCapability = 'loans';
   static const changesCapability = 'changes';
   static const partsCapability = 'parts';
+  static const bankRenewCapability = 'banks.renew';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -253,6 +254,31 @@ class MobileConnectionController extends ChangeNotifier {
   bool get bankSyncRunning => _bankSyncRunning;
 
   DateTime get now => _clock();
+
+  /// Whether an expiring bank consent can be renewed from this phone.
+  bool get canRenewBanks =>
+      _capabilities.contains(bankRenewCapability) && !isReadOnly;
+
+  /// Asks the server for the bank's page that renews a consent.
+  Future<({String? url, String? error})> startBankRenewal(int id) async {
+    try {
+      final data = await _apiClient.startBankRenewal(id);
+      final url = data['url'];
+      if (url is String && url.startsWith('https://')) {
+        return (url: url, error: null);
+      }
+      return (url: null, error: 'Der Server hat keinen Link geliefert.');
+    } catch (error) {
+      return (url: null, error: await _describeFailure(error));
+    }
+  }
+
+  /// Hands the address from the browser to the server. Null when the consent
+  /// is renewed, otherwise the message to show.
+  Future<String?> completeBankRenewal(String address) => _write(
+    () => _apiClient.completeBankRenewal(address),
+    capability: bankRenewCapability,
+  );
 
   /// Fetches from the banks and reloads everything afterwards. Returns the
   /// sentence to show: what arrived, or why nothing happened.

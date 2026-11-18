@@ -36,6 +36,7 @@ String describeMobileError(Object error) {
       case 'not_deletable':
       case 'invalid_request':
       case 'pairing_rejected':
+      case 'bank_refused':
         return error.message;
     }
     if (error.statusCode == 404 || error.statusCode == 405) {

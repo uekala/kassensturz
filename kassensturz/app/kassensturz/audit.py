@@ -112,6 +112,7 @@ LABELS: dict[tuple[str, str], str] = {
     ("PATCH", "/api/mobile/devices/{device_id}"): "Handy einer Person zugeordnet",
     # Vom Handy
     ("POST", "/api/v1/sync"): "Bankabruf gestartet",
+    ("POST", "/api/v1/banks/renew/complete"): "Bankfreigabe erneuert",
     ("POST", "/api/v1/accounts"): "Bargeld-Konto angelegt",
     ("POST", "/api/v1/transactions"): "Buchung angelegt",
     ("PATCH", "/api/v1/transactions/{tx_id}"): "Buchung geändert",
@@ -141,7 +142,7 @@ SKIP: frozenset[tuple[str, str]] = frozenset({
     ("POST", "/api/inbox/analyze"), ("POST", "/api/inbox/scan"), ("POST", "/api/health/backup-check"),
     ("POST", "/api/contracts/{key:path}/cancellation-research"),
     ("POST", "/api/contracts/{key:path}/cancellation-source-check"),
-    ("POST", "/api/letter"), ("POST", "/api/eb/auth"),
+    ("POST", "/api/letter"), ("POST", "/api/eb/auth"), ("POST", "/api/v1/banks/renew"),
 })
 
 _REQUEST: ContextVar[dict | None] = ContextVar("kassensturz_audit", default=None)

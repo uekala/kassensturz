@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
+import 'bank_renew_sheet.dart';
 
 /// Says how old the bank data is and fetches on request. Pulling the page
 /// down only reloads from the server; this is the way to ask the banks.
@@ -60,6 +61,20 @@ class SyncStatusCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(problem, style: TextStyle(color: klar.warn, fontSize: 13)),
           ],
+          if (controller.canRenewBanks)
+            for (final renewal in status.renewals)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => showBankRenewSheet(
+                    context,
+                    controller: controller,
+                    id: renewal.id,
+                    name: renewal.name,
+                  ),
+                  child: Text('Freigabe für ${renewal.name} erneuern'),
+                ),
+              ),
           const SizedBox(height: 12),
           if (running)
             Row(

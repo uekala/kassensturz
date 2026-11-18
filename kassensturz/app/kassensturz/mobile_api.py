@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import analytics, anomalies, audit, banksync, expected, household, ledger, loans, mobile_read, mobile_write, options, papers, planned, projects, services, sharing
+from . import analytics, anomalies, audit, banksync, expected, household, ledger, loans, mobile_read, mobile_write, openbanking, options, papers, planned, projects, services, sharing
 from .db import get_db
 from .util import euro
 from .mobile_auth import (
@@ -67,6 +67,8 @@ CAPABILITIES = (
     "changes",
     # Umsätze und Auswertung nach „Ich“ und „Gemeinsam“ trennen
     "parts",
+    # Eine ablaufende Bankfreigabe (Enable Banking) erneuern
+    "banks.renew",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -530,12 +532,13 @@ def accounts(request: Request):
     return mobile_write.list_accounts(_view(device))
 
 
-def _sync_public(state: dict) -> dict:
-    """Bank names and times only; no identifiers of sessions or connections."""
+def _sync_public(state: dict, renew: bool = False) -> dict:
+    """Bank names and times only. ``renew`` is the local number of a consent
+    that may be renewed from this phone; never the session at the bank."""
     return {
         "sources": [
             {"name": s["name"], "last_sync": s["last_sync"], "state": s["state"], "days_left": s["days_left"],
-             "accounts": s["accounts"]}
+             "accounts": s["accounts"], "renew": s.get("renew") if renew else None}
             for s in state["sources"]
         ],
         "last_sync": state["last_sync"],
@@ -552,7 +555,59 @@ def sync_status(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    return _sync_public(banksync.status(_view(device)))
+    return _sync_public(banksync.status(_view(device)), renew=not household.is_child(get_db(), device.person_id))
+
+
+def _psu(request: Request) -> dict:
+    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    return {"ip": forwarded or (request.client.host if request.client else ""),
+            "ua": request.headers.get("user-agent") or ""}
+
+
+@router.post("/api/v1/banks/renew")
+async def bank_renew_start(request: Request):
+    """Start renewing an expiring consent. Returns the bank's page to open; nothing changes yet."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    eb_id = (payload or {}).get("id")
+    if not isinstance(eb_id, int) or isinstance(eb_id, bool):
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    db = get_db()
+    session = openbanking.renewable(db, eb_id)
+    if session is None:
+        return _error(409, "bank_refused", "Diese Freigabe muss gerade nicht erneuert werden.")
+    try:
+        started = openbanking.start_auth(db, session["aspsp_name"], session["aspsp_country"] or "DE", eb_id, _psu(request))
+    except openbanking.EBError as error:
+        return _error(409, "bank_refused", str(error))
+    return {"name": session["aspsp_name"], "url": started["url"], "days": started["days"]}
+
+
+@router.post("/api/v1/banks/renew/complete")
+async def bank_renew_complete(request: Request):
+    """Finish a renewal with the address the bank sent the browser back to.
+
+    Only a renewal started above is accepted, never a new bank. No fetch is
+    started here: the next regular one uses the new consent."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    payload = await _json_object(request)
+    text = (payload or {}).get("text")
+    if not isinstance(text, str) or not text.strip() or len(text) > 4000:
+        return _error(400, "invalid_request", "Bitte die vollständige Adresse einfügen.")
+    db = get_db()
+    try:
+        if openbanking.pending_renewal(text) is None:
+            return _error(409, "bank_refused", "Diese Freigabe gehört zu keinem offenen Vorgang. Starte das Erneuern bitte noch einmal.")
+        done = openbanking.complete_auth(db, text, _psu(request))
+    except openbanking.EBError as error:
+        return _error(409, "bank_refused", str(error))
+    audit.subject(done["aspsp"])
+    services.schedule_refresh()
+    return {"name": done["aspsp"], "valid_until": done["valid_until"], "accounts": len(done["accounts"])}
 
 
 @router.post("/api/v1/sync")
@@ -561,11 +616,8 @@ def sync_start(request: Request):
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
-    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
-    psu = {"ip": forwarded or (request.client.host if request.client else ""),
-           "ua": request.headers.get("user-agent") or ""}
     try:
-        state = banksync.start(_view(device), psu=psu, on_done=services.schedule_refresh)
+        state = banksync.start(_view(device), psu=_psu(request), on_done=services.schedule_refresh)
     except banksync.SyncRefused as refused:
         return _error(409, refused.code, refused.message)
     return JSONResponse(_sync_public(state), status_code=202)

@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.35
+
+- Bankabruf: Läuft eine Freigabe bald ab, steht dort *Freigabe für … erneuern*. Die Bank öffnet sich im Browser;
+  danach fügst du die Adresse der letzten Seite ein (ab Server 0.3.56).
+
 ## 0.3.34
 
 - Kinderhandy schlichter: kein Reiter *Planung*, auf *Heute* der Abschnitt Budgets nur, wenn es welche gibt, und

@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kassensturz_mobile/core/design/app_theme.dart';
 import 'package:kassensturz_mobile/core/networking/mobile_api_client.dart';
 import 'package:kassensturz_mobile/core/networking/mobile_connection_controller.dart';
 import 'package:kassensturz_mobile/core/networking/mobile_models.dart';
+import 'package:kassensturz_mobile/features/dashboard/bank_renew_sheet.dart';
 import 'package:kassensturz_mobile/features/dashboard/sync_status_card.dart';
 
 import 'support/fake_server.dart';
@@ -18,6 +21,7 @@ Map<String, dynamic> _status({
   int wait = 0,
   String state = 'ok',
   int? daysLeft = 99,
+  int? renew,
   List<Map<String, dynamic>> errors = const [],
 }) => {
   'sources': [
@@ -27,6 +31,7 @@ Map<String, dynamic> _status({
       'state': state,
       'days_left': daysLeft,
       'accounts': 1,
+      'renew': renew,
     },
   ],
   'last_sync': '2026-11-15T06:30:05',
@@ -155,6 +160,138 @@ void main() {
     expect(find.text('Abgerufen: 3 neue Buchungen.'), findsOneWidget);
     expect(find.text('Jetzt abrufen'), findsNothing);
     expect(find.textContaining('geht in 30 Minuten'), findsOneWidget);
+  });
+
+  test('a consent that can be renewed is read from the status', () {
+    expect(ServerSyncStatus.fromJson(_status()).renewals, isEmpty);
+    final due = ServerSyncStatus.fromJson(_status(daysLeft: 5, renew: 1));
+    expect(due.renewals.single, (id: 1, name: 'Erfundene Bank'));
+  });
+
+  testWidgets('the card offers renewing only with the capability', (
+    tester,
+  ) async {
+    for (final capabilities in [
+      _capabilities,
+      [..._capabilities, 'banks.renew'],
+    ]) {
+      final transport = ScriptedTransport((request) {
+        if (request.uri.path == '/api/v1/sync') {
+          return jsonResponse(200, _status(daysLeft: 5, renew: 1));
+        }
+        return serverAnswer(request, capabilities: capabilities);
+      });
+      final controller = (await tester.runAsync(() => _controller(transport)))!;
+      await _pump(tester, controller);
+      expect(
+        find.text('Freigabe für Erfundene Bank erneuern'),
+        capabilities.contains('banks.renew') ? findsOneWidget : findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+    }
+  });
+
+  testWidgets('renewing opens the bank and hands the address back', (
+    tester,
+  ) async {
+    final sent = <String, Map<String, dynamic>>{};
+    var renewed = false;
+    final transport = ScriptedTransport((request) {
+      final path = request.uri.path;
+      if (path == '/api/v1/sync') {
+        return jsonResponse(
+          200,
+          renewed ? _status() : _status(daysLeft: 5, renew: 1),
+        );
+      }
+      if (path.startsWith('/api/v1/banks/renew')) {
+        sent[path] = jsonDecode(request.body!) as Map<String, dynamic>;
+        if (path.endsWith('/complete')) {
+          if (sent[path]!['text'] == 'falsch') {
+            return jsonResponse(409, {
+              'error': {
+                'code': 'bank_refused',
+                'message': 'In der Adresse fehlt ein eindeutiger Code.',
+              },
+            });
+          }
+          renewed = true;
+          return jsonResponse(200, {'name': 'Erfundene Bank', 'accounts': 1});
+        }
+        return jsonResponse(200, {
+          'name': 'Erfundene Bank',
+          'url': 'https://bank.example.invalid/freigabe',
+          'days': 180,
+        });
+      }
+      return serverAnswer(
+        request,
+        capabilities: [..._capabilities, 'banks.renew'],
+      );
+    });
+    final controller = (await tester.runAsync(() => _controller(transport)))!;
+    addTearDown(controller.dispose);
+    Uri? opened;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => BankRenewSheet(
+                  controller: controller,
+                  id: 1,
+                  name: 'Erfundene Bank',
+                  openUrl: (url) async {
+                    opened = url;
+                    return true;
+                  },
+                ),
+              ),
+              child: const Text('auf'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('auf'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Bank öffnen'));
+    await tester.pumpAndSettle();
+    expect(sent['/api/v1/banks/renew'], {'id': 1});
+    expect(opened, Uri.parse('https://bank.example.invalid/freigabe'));
+    expect(find.text('Noch einmal öffnen'), findsOneWidget);
+
+    await tester.tap(find.text('Freigabe abschließen'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Füge die Adresse der letzten Seite ein.'),
+      findsOneWidget,
+    );
+    expect(sent.containsKey('/api/v1/banks/renew/complete'), isFalse);
+
+    await tester.enterText(find.byType(TextField), 'falsch');
+    await tester.tap(find.text('Freigabe abschließen'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('In der Adresse fehlt ein eindeutiger Code.'),
+      findsOneWidget,
+    );
+
+    const address = 'https://enablebanking.com/?code=ks-test&state=ks-state';
+    await tester.enterText(find.byType(TextField), address);
+    await tester.tap(find.text('Freigabe abschließen'));
+    await tester.pumpAndSettle();
+    expect(sent['/api/v1/banks/renew/complete'], {'text': address});
+    expect(find.text('Freigabe abschließen'), findsNothing);
+    expect(find.text('Freigabe für Erfundene Bank erneuert.'), findsOneWidget);
+    expect(controller.syncStatus!.renewals, isEmpty);
   });
 
   testWidgets('a refusal of the server is shown as it is', (tester) async {
