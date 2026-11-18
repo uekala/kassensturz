@@ -310,6 +310,9 @@ Unter *Einstellungen → Änderungen* steht, wer wann was geändert hat: in Home
 
 Einträge bleiben gut ein Jahr, höchstens 20.000 Stück; Ältere löscht Kassensturz von selbst.
 
+In der App (ab 0.3.32) steht das Protokoll unter *Konten → Wer hat was geändert?*. Dort sieht jede Person nur
+Einträge zu Konten, die sie sieht, und zum ganzen Haushalt; eigene Budgets anderer Personen stehen dort nicht.
+
 ## Kredite mit Tilgungsplan
 
 Ein Kredit ist ein Konto der Art *Kredit* mit einer von Hand eingetragenen Restschuld. Trägst du am Konto auch

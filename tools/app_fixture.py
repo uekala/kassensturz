@@ -41,6 +41,7 @@ READS = {
     "/api/v1/household/sharing": {},
     "/api/v1/afford": {"amount_cents": 30000},
     "/api/v1/projects": {},
+    "/api/v1/changes": {},
 }
 
 

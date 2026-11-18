@@ -63,6 +63,8 @@ CAPABILITIES = (
     # Projekte ansehen und Buchungen zuordnen; Tilgungsplan der Kredite
     "projects",
     "loans",
+    # Änderungsprotokoll lesen
+    "changes",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -1099,6 +1101,26 @@ async def set_transaction_project(tx_id: str, request: Request):
         name = db.scalar("SELECT name FROM projects WHERE id = ?", (payload["project_id"],)) if payload["project_id"] else None
         audit.note(f"{audit.tx_label(row)}: " + (f"Projekt „{name}“" if name else "aus dem Projekt genommen"), row["account_id"])
     return {"project_id": payload["project_id"]}
+
+
+# Eigene Budgets einer anderen Person stehen nicht im Protokoll am Handy.
+_OWN_BUDGET_ROUTES = ("PUT /api/v1/budgets/own/{category_id}", "PUT /api/persons/{pid}/budgets/{cid}")
+
+
+@router.get("/api/v1/changes")
+def list_changes(request: Request, offset: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=100)):
+    """Who changed what, newest first: only entries about accounts the person sees or about the whole household."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    view = _view(device)
+    where = "WHERE NOT (route IN (?, ?) AND COALESCE(person_id, -1) != ?)"
+    params = (*_OWN_BUDGET_ROUTES, device.person_id if device.person_id is not None else -1)
+    rows = view.query(f"SELECT at, actor, actor_kind, text FROM audit_log {where} ORDER BY id DESC LIMIT ? OFFSET ?",
+                      (*params, limit, offset))
+    total = view.scalar(f"SELECT COUNT(*) FROM audit_log {where}", params)
+    return {"items": [{"at": r["at"], "actor": r["actor"], "phone": r["actor_kind"] == "phone", "text": r["text"]}
+                      for r in rows], "total": int(total or 0)}
 
 
 @router.get("/api/v1/accounts/{account_id}/loan")

@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.50
+
+- App (ab Version 0.3.32): *Konten → Wer hat was geändert?* zeigt das Änderungsprotokoll. Jede Person sieht nur
+  Einträge zu Konten, die sie sieht, und zum ganzen Haushalt; eigene Budgets anderer Personen stehen dort nicht.
+- Der Eintrag „Konto gelöscht“ hängt jetzt am Konto und erscheint darum am Handy nicht mehr bei Personen, die das
+  Konto nie gesehen haben.
+
 ## 0.3.49
 
 - App (ab Version 0.3.31): Projekte ansehen, mit Gesamtkosten, Rest im Rahmen, Kosten je Kategorie und Monat und den

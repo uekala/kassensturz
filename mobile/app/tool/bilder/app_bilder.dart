@@ -294,6 +294,10 @@ void main() {
     }
     await phone.down();
     await phone.shot('18-konten-unten');
+    if (await phone.open(find.text('Wer hat was geändert?'), 'Änderungen')) {
+      await phone.shot('31-aenderungen');
+      await phone.back();
+    }
     if (await phone.open(find.text('Autokredit'), 'Tilgungsplan')) {
       await phone.shot('30-tilgungsplan');
       await phone.back();

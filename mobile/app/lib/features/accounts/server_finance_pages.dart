@@ -6,6 +6,7 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 import '../budget/budget_editor_sheet.dart';
 import '../budget/triage_page.dart';
+import '../more/changes_page.dart';
 import '../more/household_page.dart';
 import '../projects/projects_page.dart';
 import 'loan_sheet.dart';
@@ -97,6 +98,18 @@ class ServerAccountsPage extends StatelessWidget {
                 ),
               ),
           ],
+          if (controller.canShowChanges)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => ChangesPage(controller: controller),
+                  ),
+                ),
+                child: const Text('Wer hat was geändert?'),
+              ),
+            ),
           const SizedBox(height: 22),
           if (controller.canShowNetWorthHistory && data != null)
             NetWorthTrend(controller: controller),
