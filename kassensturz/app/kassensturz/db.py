@@ -408,7 +408,9 @@ MIGRATIONS = {
                  # Besitzer im Haushalt; leer heißt gemeinsam
                  ("owner_person_id", "INTEGER"),
                  # Taschengeld: Betrag je Termin, Rhythmus (week, month) und nächster Termin
-                 ("allowance_cents", "INTEGER"), ("allowance_interval", "TEXT"), ("allowance_next", "TEXT")],
+                 ("allowance_cents", "INTEGER"), ("allowance_interval", "TEXT"), ("allowance_next", "TEXT"),
+                 # Kredit: Sollzins in Tausendstel Prozent pro Jahr und Monatsrate, für den Tilgungsplan
+                 ("loan_rate_milli", "INTEGER"), ("loan_payment_cents", "INTEGER")],
     "cancellation_events": [("provider_confirmed_at", "TEXT"), ("aborted_at", "TEXT")],
     # Summe nachgetragener alter Buchungen seit diesem Abruf; der Selbsttest zählt sie nicht als neu
     "balance_checks": [("backfill_cents", "INTEGER DEFAULT 0")],
@@ -436,7 +438,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {
