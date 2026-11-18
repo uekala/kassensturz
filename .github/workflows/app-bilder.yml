@@ -70,3 +70,81 @@ jobs:
           path: mobile/app/build/app-bilder
           if-no-files-found: error
           retention-days: 14
+
+  vorschau:
+    name: Bilder zum Ansehen ablegen
+    # Legt die Bilder auf den Zweig vorschau/app-bilder, in einen Ordner je Pull Request. Dort
+    # lassen sie sich im Browser und in der GitHub-App ansehen, ohne ein ZIP zu laden.
+    # Eigener Job: Nur er darf schreiben, und er führt keinen Code aus dem Pull Request aus.
+    # Bei Pull Requests aus fremden Forks läuft er nicht.
+    needs: bilder
+    if: >-
+      always() && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    concurrency:
+      group: app-bilder-vorschau
+      cancel-in-progress: false
+    steps:
+      - name: Download the pictures
+        uses: actions/download-artifact@v8
+        with:
+          name: kassensturz-app-bilder
+          path: bilder
+
+      - name: Put them on the preview branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BRANCH: vorschau/app-bilder
+        run: |
+          set -euo pipefail
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git init -q seite
+          cd seite
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Was schon da ist, übernehmen. Der Zweig besteht immer nur aus einem Commit,
+          # damit alte Bilder das Repository nicht aufblähen.
+          if git fetch -q --depth 1 "$REMOTE" "$BRANCH" 2>/dev/null; then
+            git read-tree FETCH_HEAD
+            git checkout-index -a -f
+          fi
+          rm -rf "pr-$PR"
+          mkdir -p "pr-$PR"
+          cp ../bilder/*.png "pr-$PR/"
+          {
+            echo "# App-Bilder zu Pull Request #$PR"
+            echo
+            echo "Gerendert mit den Beispieldaten und einem kleinen Haushalt. Stand: $(date -u +'%d.%m.%Y %H:%M') UTC, Commit ${GITHUB_SHA::7}."
+            echo
+            for file in "pr-$PR"/*.png; do
+              name=$(basename "$file" .png)
+              echo "### $name"
+              echo
+              echo "<img src=\"$name.png\" width=\"390\" alt=\"$name\">"
+              echo
+            done
+          } > "pr-$PR/README.md"
+          # Ordner geschlossener Pull Requests entfernen.
+          offen=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 200 --json number --jq '.[].number')
+          for ordner in pr-*; do
+            nummer="${ordner#pr-}"
+            if ! grep -qx "$nummer" <<< "$offen"; then rm -rf "$ordner"; fi
+          done
+          {
+            echo "# App-Bilder"
+            echo
+            echo "Bildschirmfotos der App aus der CI, ein Ordner je offenem Pull Request. Nur Beispieldaten."
+            echo
+            for ordner in pr-*; do
+              [ -d "$ordner" ] && echo "- [Pull Request #${ordner#pr-}]($ordner/README.md)"
+            done
+          } > README.md
+          git add -A
+          git commit -q -m "Bilder der App für offene Pull Requests"
+          git push -q -f "$REMOTE" "HEAD:refs/heads/$BRANCH"
+          echo "Bilder: https://github.com/${GITHUB_REPOSITORY}/tree/${BRANCH}/pr-$PR" >> "$GITHUB_STEP_SUMMARY"

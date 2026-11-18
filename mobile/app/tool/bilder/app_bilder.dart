@@ -131,16 +131,19 @@ class _Phone {
     await tester.pumpAndSettle();
   }
 
-  /// Scrolls until [target] can be tapped, then taps it.
+  /// Scrolls until [target] can be tapped, then taps it. Looks further down
+  /// first and then back up, so it does not matter where the page stands.
   Future<bool> open(Finder target, String what) async {
-    for (var step = 0; step < 14; step++) {
-      final visible = target.hitTestable();
-      if (visible.evaluate().isNotEmpty) {
-        await tester.tap(visible.first);
-        await tester.pumpAndSettle();
-        return true;
+    for (final distance in [300.0, -300.0]) {
+      for (var step = 0; step < 14; step++) {
+        final visible = target.hitTestable();
+        if (visible.evaluate().isNotEmpty) {
+          await tester.tap(visible.first);
+          await tester.pumpAndSettle();
+          return true;
+        }
+        await down(distance);
       }
-      await down(300);
     }
     missing.add(what);
     return false;
@@ -182,6 +185,8 @@ void _scene(String name, Future<void> Function(WidgetTester tester) body) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // This file is a test, it only lives outside test/ (see the note on top).
+  // ignore: invalid_use_of_visible_for_testing_member
   FlutterSecureStorage.setMockInitialValues({});
 
   setUpAll(() async {
@@ -199,8 +204,6 @@ void main() {
   _scene('Heute, Leisten, Papierkram, Auswertung', (tester) async {
     final phone = await _Phone.start(tester);
     await phone.shot('01-heute');
-    await phone.down();
-    await phone.shot('02-heute-unten');
     if (await phone.open(find.text('Kann ich mir das leisten?'), 'Leisten')) {
       await tester.enterText(find.byType(TextField).hitTestable(), '300');
       await tester.tap(find.text('Prüfen').hitTestable());
@@ -217,6 +220,7 @@ void main() {
       await phone.shot('06-auswertung-unten');
       await phone.back();
     }
+    await phone.shot('02-heute-unten');
     phone.done();
   });
 
@@ -245,12 +249,12 @@ void main() {
     final phone = await _Phone.start(tester);
     await phone.tab('Planung');
     await phone.shot('11-planung');
-    await phone.down();
-    await phone.shot('12-planung-unten');
     if (await phone.open(find.text('Budgets vorschlagen'), 'Vorschläge')) {
       await phone.shot('13-budget-vorschlaege');
       await phone.back();
     }
+    await phone.down();
+    await phone.shot('12-planung-unten');
     await phone.tab('Verträge');
     await phone.shot('14-vertraege');
     final contracts =
