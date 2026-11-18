@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.56
+
+- App (ab Version 0.3.35): Eine Bankfreigabe über Enable Banking lässt sich am Handy erneuern, sobald sie in
+  höchstens 14 Tagen abläuft oder abgelaufen ist. Über diesen Weg lässt sich nur eine bestehende Freigabe erneuern,
+  keine neue Bank verbinden. Kinderhandys können das nicht. Das Erneuern löst keinen Bankabruf aus.
+
 ## 0.3.55
 
 - Umsätze in Home Assistant: Buchungen ohne Kategorie lassen sich der Reihe nach zuordnen, wie in der App. Die

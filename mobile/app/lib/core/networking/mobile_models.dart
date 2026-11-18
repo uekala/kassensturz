@@ -413,6 +413,7 @@ class ServerSyncStatus {
     required this.errors,
     required this.problems,
     required this.sources,
+    this.renewals = const [],
     this.lastSync,
     this.nextSync,
   });
@@ -432,6 +433,7 @@ class ServerSyncStatus {
       }
     }
     final problems = <String>[];
+    final renewals = <({int id, String name})>[];
     var count = 0;
     final sources = json['sources'];
     if (sources is List) {
@@ -439,6 +441,8 @@ class ServerSyncStatus {
         count += 1;
         final name = entry['name'] is String ? entry['name'] as String : 'Bank';
         final days = entry['days_left'];
+        final renew = entry['renew'];
+        if (renew is int) renewals.add((id: renew, name: name));
         switch (entry['state']) {
           case 'expired':
             problems.add('$name: Freigabe abgelaufen');
@@ -468,6 +472,7 @@ class ServerSyncStatus {
       added: added is int ? added : 0,
       errors: errors,
       problems: problems,
+      renewals: renewals,
       sources: count,
       lastSync: DateTime.tryParse(_optionalString(json, 'last_sync') ?? ''),
       nextSync: DateTime.tryParse(_optionalString(json, 'next_sync') ?? ''),
@@ -484,6 +489,10 @@ class ServerSyncStatus {
 
   /// Banks that need attention, ready to show.
   final List<String> problems;
+
+  /// Bank consents that are about to end or have ended and can be renewed
+  /// from the phone.
+  final List<({int id, String name})> renewals;
   final int sources;
 
   /// Oldest state among all banks; null until every bank was fetched once.

@@ -39,7 +39,7 @@ def test_status_names_banks_and_times_but_no_identifiers(db, bank, monkeypatch):
         assert client.get("/api/v1/sync").status_code == 401
         data = client.get("/api/v1/sync", headers=paired_headers(client)).json()
     assert data["sources"] == [{"name": "Erfundene Bank", "last_sync": "2026-11-14T06:30:05", "state": "ok",
-                                "days_left": 99, "accounts": 1}]
+                                "days_left": 99, "accounts": 1, "renew": None}]
     assert data["last_sync"] == data["newest_sync"] == "2026-11-14T06:30:05"
     assert data["next_sync"][11:16] == "06:30"
     assert data["run"] == {"state": "idle", "added": 0, "errors": []}
@@ -122,3 +122,76 @@ def test_start_is_rate_limited(db, bank, monkeypatch):
         headers = paired_headers(client)
         codes = [client.post("/api/v1/sync", headers=headers).status_code for _ in range(7)]
     assert codes == [202, 409, 409, 409, 409, 409, 429]
+
+
+def _expiring(db, days):
+    until = (datetime.now(timezone.utc) + timedelta(days=days, hours=1)).isoformat()
+    db.execute("UPDATE eb_sessions SET valid_until = ?", (until,))
+
+
+def test_renewing_an_expiring_consent_from_the_phone(db, bank, monkeypatch):
+    from kassensturz import household
+    reset_mobile_guards(monkeypatch)
+    calls = []
+
+    def fake(method, path, **kwargs):
+        calls.append((method, path))
+        if (method, path) == ("POST", "/auth"):
+            return {"url": "https://bank.example.invalid/freigabe?state=" + kwargs["body"]["state"]}
+        if (method, path) == ("POST", "/sessions"):
+            return {"session_id": "geheim-neu-erfunden", "aspsp": {"name": "Erfundene Bank"},
+                    "accounts": [{"uid": "ks-test-uid", "account_id": {"iban": "DE00KSTEST0000000000"}, "name": "Testgiro"}]}
+        return {}
+    monkeypatch.setattr(openbanking, "call", fake)
+    monkeypatch.setattr(openbanking, "aspsps", lambda _db, _country="DE": [])
+    with https_client() as client:
+        headers = paired_headers(client)
+        assert "banks.renew" in client.get("/api/v1/me", headers=headers).json()["capabilities"]
+        # Läuft die Freigabe noch lange, gibt es nichts zu erneuern.
+        assert client.get("/api/v1/sync", headers=headers).json()["sources"][0]["renew"] is None
+        assert client.post("/api/v1/banks/renew", json={"id": 1}, headers=headers).status_code == 409
+        _expiring(db, 5)
+        assert client.get("/api/v1/sync", headers=headers).json()["sources"][0]["renew"] == 1
+        assert client.post("/api/v1/banks/renew", json={"id": 1}).status_code == 401
+        for bad in ({}, {"id": "1"}, {"id": True}):
+            assert client.post("/api/v1/banks/renew", json=bad, headers=headers).status_code == 400
+        assert client.post("/api/v1/banks/renew", json={"id": 99}, headers=headers).status_code == 409
+
+        started = client.post("/api/v1/banks/renew", json={"id": 1}, headers=headers)
+        assert started.status_code == 200, started.text
+        assert ("POST", "/auth") in calls
+        assert set(started.json()) == {"name", "url", "days"} and started.json()["name"] == "Erfundene Bank"
+        state = started.json()["url"].split("state=")[1]
+
+        # Fremde oder unvollständige Rückgaben ändern nichts.
+        for text in ("", "https://enablebanking.com/?code=ks", "https://enablebanking.com/?code=ks&state=fremd"):
+            got = client.post("/api/v1/banks/renew/complete", json={"text": text}, headers=headers)
+            assert got.status_code in (400, 409), text
+        assert db.scalar("SELECT session_id FROM eb_sessions WHERE id = 1") == "geheim-erfunden"
+        # Eine neue Bank lässt sich über diesen Weg nicht verbinden.
+        new_bank = openbanking.start_auth(db, "Andere erfundene Bank", "DE")
+        got = client.post("/api/v1/banks/renew/complete", headers=headers,
+                          json={"text": f"https://enablebanking.com/?code=ks&state={new_bank['state']}"})
+        assert got.status_code == 409 and db.scalar("SELECT COUNT(*) FROM eb_sessions") == 1
+
+        done = client.post("/api/v1/banks/renew/complete", headers=headers,
+                           json={"text": f"https://enablebanking.com/?code=ks-test-code&state={state}"})
+        assert done.status_code == 200, done.text
+        assert done.json()["name"] == "Erfundene Bank" and done.json()["accounts"] == 1
+        assert "geheim" not in done.text and "geheim" not in started.text
+        assert db.scalar("SELECT session_id FROM eb_sessions WHERE id = 1") == "geheim-neu-erfunden"
+        assert ("DELETE", "/sessions/geheim-erfunden") in calls
+        assert client.get("/api/v1/sync", headers=headers).json()["sources"][0]["renew"] is None
+        # Das Erneuern ruft keine Umsätze ab.
+        assert bank == []
+        assert db.scalar("SELECT text FROM audit_log ORDER BY id DESC LIMIT 1").startswith("Bankfreigabe erneuert")
+
+        # Ein Kinderhandy sieht und darf das nicht.
+        child = household.create_person(db, {"name": "Kim", "is_child": True})["id"]
+        _expiring(db, 2)
+        secret = client.post("/api/mobile/pairings", json={"person_id": child}).json()["pairing_secret"]
+        token = client.post("/api/v1/pair", json={"pairing_secret": secret, "device_name": "Kims Handy"}).json()["access_token"]
+        kid = {"Authorization": f"Bearer {token}"}
+        assert "banks.renew" not in client.get("/api/v1/me", headers=kid).json()["capabilities"]
+        assert client.get("/api/v1/sync", headers=kid).json()["sources"][0]["renew"] is None
+        assert client.post("/api/v1/banks/renew", json={"id": 1}, headers=kid).status_code == 403
