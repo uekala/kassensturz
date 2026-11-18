@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (allowance, analytics, categorize, contracts, demo, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
+from . import (allowance, analytics, anomalies, categorize, contracts, demo, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
                secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
@@ -284,6 +284,15 @@ def overview():
         "price_changes": sum(1 for c in cons if c.get("price_change_cents") and c["kind"] == "expense" and c["price_change_cents"] < 0
                              and c["status"] != "ignored"),
     }
+
+
+@app.post("/api/anomalies/ack")
+def anomaly_ack(body: dict = Body(...)):
+    """Blendet eine Auffälligkeit aus: Die Buchung gilt als geprüft."""
+    if not anomalies.acknowledge(get_db(), body.get("key")):
+        _err(400, "Diesen Hinweis gibt es nicht.")
+    _changed()
+    return {"ok": True}
 
 
 # --- Buchungen ---------------------------------------------------------------------

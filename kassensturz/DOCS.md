@@ -272,6 +272,33 @@ also 300 € da sein. Die Budgetseite zeigt die Summe und jeden Vertrag einzeln.
 Unter *Einstellungen* kannst du diese Rücklage von „frei verfügbar“ abziehen lassen. Lass das aus, wenn du dafür schon Geld
 auf einem Tagesgeld- oder Sparkonto zurücklegst, sonst zählt es doppelt.
 
+## Auffälligkeiten
+
+Kassensturz weist auf Buchungen der letzten zwei Wochen hin, auf die sich ein zweiter Blick lohnt:
+
+- **Doppelt abgebucht?** Derselbe Empfänger bucht denselben Betrag vom selben Konto, höchstens drei Tage auseinander.
+  Beträge unter 10 € zählen nicht; Brötchen kauft man öfter.
+- **Erste Lastschrift von …** Jemand bucht zum ersten Mal per Lastschrift ab. Eine Lastschrift kannst du acht Wochen
+  lang bei deiner Bank zurückgeben; der Hinweis nennt den letzten Tag. Erkannt wird der Gläubiger an seiner
+  Gläubiger-ID, sonst am Namen. Auf einem Konto, das erst seit weniger als 60 Tagen Buchungen hat, bleibt der Hinweis
+  aus, weil dort jede Lastschrift die erste wäre.
+- **Ungewöhnlich hoher Betrag.** Mindestens dreimal so viel wie je zuvor bei diesem Empfänger im letzten Jahr und
+  mindestens 50 € mehr, bei wenigstens vier früheren Buchungen. Bei Verträgen meldet sich stattdessen die
+  Preisänderung.
+
+Die Hinweise stehen in der Übersicht und in der App und kommen einmal als Benachrichtigung; bei einem eigenen Konto
+geht sie an die Person, der es gehört. In der Übersicht öffnet ein Hinweis die Einzelheiten. *Passt, ausblenden*
+markiert die Buchung als geprüft, danach kommt zu ihr kein Hinweis mehr. Ohne dein Zutun verschwindet er nach zwei
+Wochen.
+
+Nicht gemeldet wird, was du selbst angelegt oder aus Finanzguru nachgetragen hast, und Lastschriften, deren Kategorie
+du schon von Hand gesetzt hast. Die nachgetragene Historie zählt aber mit: Wer dort schon abgebucht hat, gilt als
+bekannt.
+
+Eine Grenze: Bucht ein Händler am selben Tag zweimal denselben Betrag ab und liefert die Bank die zweite Buchung erst
+mit einem späteren Abruf, hält Kassensturz sie für schon vorhanden. Dann meldet sich nach drei Tagen der Selbsttest
+des Kontostands.
+
 ## Selbsttest des Kontostands
 
 Nach jedem Abruf per FinTS oder Open Banking vergleicht Kassensturz, ob sich der Kontostand der Bank genau um die neu
@@ -386,6 +413,7 @@ Mit `events: true` feuert Kassensturz Ereignisse, auf die Automationen reagieren
 | `kassensturz_gehalt_eingegangen` | eine neue Buchung der Kategorie Gehalt ab 200 € | `betrag`, `konto`, `von`, `datum` |
 | `kassensturz_grosse_abbuchung` | eine neue Abbuchung ab `large_transaction` Euro, Umbuchungen ausgenommen | `betrag`, `konto`, `an`, `datum` |
 | `kassensturz_budget_schwelle` | ein Budget erreicht 80 % oder 100 %, je Schwelle einmal im Monat | `kategorie`, `schwelle`, `prozent`, `budget`, `ausgegeben`, `rest`, `monat` |
+| `kassensturz_auffaelligkeit` | eine Auffälligkeit, je Buchung einmal | `art` (`doppelt`, `erste_lastschrift`, `hoher_betrag`), `empfaenger`, `betrag`, `konto`, `datum`, `rueckgabe_bis` |
 
 Wie bei den Mitteilungen zählen nur Buchungen, die ohne dein Zutun ankommen. Je Abruf gibt es höchstens zehn
 Gehalts- und zehn Abbuchungs-Ereignisse.

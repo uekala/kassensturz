@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import allowance, analytics, backup, contracts, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
+from . import allowance, analytics, anomalies, backup, contracts, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -169,6 +169,7 @@ def alerts(db: Database, summary: dict) -> list[dict]:
                         "title": f"Freigabe für {s['aspsp_name']} läuft ab",
                         "text": f"{left} Danach kommen keine neuen Umsätze mehr. Erneuern dauert eine Minute "
                                 "in Kassensturz in Home Assistant unter Konten."})
+    out += anomalies.alerts(db, today)
     pending = db.scalar("SELECT COUNT(*) FROM inbox")
     if pending:
         out.append({"key": f"inbox:{pending}", "level": "info", "inbox": True,
@@ -284,6 +285,16 @@ def budget_events(summary: dict, today: date | None = None) -> list[tuple[str, s
     return out
 
 
+ANOMALY_NAMES = {"double": "doppelt", "debit": "erste_lastschrift", "high": "hoher_betrag"}
+
+
+def anomaly_event(found: dict) -> dict:
+    """Eine Auffälligkeit als Ereignis für Automationen."""
+    return {"art": ANOMALY_NAMES[found["kind"]], "empfaenger": _tx_label(found),
+            "betrag": round(-found["amount_cents"] / 100, 2), "konto": found["account"], "datum": found["booking_date"],
+            "rueckgabe_bis": found.get("return_until")}
+
+
 def large_transaction_cents(opts: dict) -> int:
     try:
         return max(0, int(opts.get("large_transaction", 500))) * 100
@@ -309,6 +320,15 @@ def month_review_notice(db: Database, today: date | None = None) -> dict | None:
             "message": analytics.review_message(review)}
 
 
+def _alert_service(db: Database, alert: dict, default: str | None) -> str | None:
+    """Wohin ein Hinweis geht: zu einem eigenen Konto an die Person, der es gehört, sonst an alle."""
+    owner = alert.get("owner_person_id")
+    if owner is None:
+        return default
+    own = (db.scalar("SELECT notify_service FROM persons WHERE id = ?", (owner,)) or "").strip()
+    return own or default
+
+
 def refresh(db: Database | None = None, notify: bool = True) -> dict:
     db = db or get_db()
     contracts.detect(db)
@@ -320,7 +340,8 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
     if notify:
         for a in alerts(db, summary):
             if a["level"] in ("critical", "warning"):
-                ha.notify(db, a["key"], f"Kassensturz: {a['title']}", a["text"], opts.get("notify_service"))
+                ha.notify(db, a["key"], f"Kassensturz: {a['title']}", a["text"],
+                          _alert_service(db, a, opts.get("notify_service")))
         review = month_review_notice(db)
         if review and opts.get("notify_month_review", True):
             ha.notify(db, review["key"], review["title"], review["message"], opts.get("notify_service"))
@@ -337,6 +358,8 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
             # Erst die höhere Schwelle: Wer in einem Schritt über 100 % springt, bekommt beide Ereignisse.
             for key, event, data in budget_events(summary):
                 ha.fire_once(db, key, event, data)
+            for found in anomalies.find(db):
+                ha.fire_once(db, f"ev-{found['key']}", "auffaelligkeit", anomaly_event(found))
     return summary
 
 

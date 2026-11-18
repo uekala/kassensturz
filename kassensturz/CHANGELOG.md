@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.38
+
+- Auffälligkeiten: Kassensturz weist auf Buchungen der letzten zwei Wochen hin, die einen zweiten Blick lohnen.
+  - Doppelt abgebucht: derselbe Empfänger, derselbe Betrag, höchstens drei Tage auseinander.
+  - Erste Lastschrift eines Gläubigers, mit dem letzten Tag, an dem du sie bei der Bank zurückgeben kannst.
+  - Ungewöhnlich hoher Betrag: mindestens dreimal so viel wie je zuvor bei diesem Empfänger.
+- Die Hinweise stehen in der Übersicht und in der App und kommen einmal als Benachrichtigung. In der Übersicht lässt
+  sich eine Buchung als geprüft ausblenden.
+- Neues Ereignis `kassensturz_auffaelligkeit` für Automationen.
+
 ## 0.3.37
 
 - Umstieg von Finanzguru, Nachtrag nach einem Blick auf die Kopfzeile eines echten Exports:
