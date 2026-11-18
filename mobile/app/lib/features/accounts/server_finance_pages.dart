@@ -7,6 +7,8 @@ import '../../core/widgets/klar_widgets.dart';
 import '../budget/budget_editor_sheet.dart';
 import '../budget/triage_page.dart';
 import '../more/household_page.dart';
+import '../projects/projects_page.dart';
+import 'loan_sheet.dart';
 import 'net_worth_trend.dart';
 
 /// Accounts as the server reports them; they are managed in Home Assistant.
@@ -109,7 +111,18 @@ class ServerAccountsPage extends StatelessWidget {
             const QuietMessage('Der Server liefert noch keine Konten.')
           else
             for (final account in accounts)
-              _AccountPanel(account: account, showOwnership: split),
+              _AccountPanel(
+                account: account,
+                showOwnership: split,
+                onTap: controller.canShowLoans && account['type'] == 'kredit'
+                    ? () => showLoanSheet(
+                        context,
+                        controller: controller,
+                        accountId: _integer(account['id']),
+                        name: _string(account['name'], 'Kredit'),
+                      )
+                    : null,
+              ),
           if (controller.financeError != null && data != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -134,9 +147,16 @@ class ServerAccountsPage extends StatelessWidget {
 }
 
 class _AccountPanel extends StatelessWidget {
-  const _AccountPanel({required this.account, this.showOwnership = false});
+  const _AccountPanel({
+    required this.account,
+    this.showOwnership = false,
+    this.onTap,
+  });
 
   final Map<String, dynamic> account;
+
+  /// Opens more about the account, for a loan its repayment plan.
+  final VoidCallback? onTap;
 
   /// Only with a household: say whether the account is private or shared.
   final bool showOwnership;
@@ -170,34 +190,45 @@ class _AccountPanel extends StatelessWidget {
             : 'Saldo nicht bestätigt',
     ].join(' · ');
 
+    final panel = OutlinedPanel(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _string(account['name'], 'Konto'),
+                  style: textTheme.titleMedium,
+                ),
+                const SizedBox(height: 3),
+                Text(detail, style: textTheme.bodySmall),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            known ? formatEuro(balance / 100) : '–',
+            style: textTheme.titleMedium?.copyWith(
+              color: balance < 0 ? klar.warn : klar.ink,
+            ),
+          ),
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded, color: klar.mutedInk),
+          ],
+        ],
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: OutlinedPanel(
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _string(account['name'], 'Konto'),
-                    style: textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(detail, style: textTheme.bodySmall),
-                ],
-              ),
+      child: onTap == null
+          ? panel
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(14),
+              child: panel,
             ),
-            const SizedBox(width: 10),
-            Text(
-              known ? formatEuro(balance / 100) : '–',
-              style: textTheme.titleMedium?.copyWith(
-                color: balance < 0 ? klar.warn : klar.ink,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -265,6 +296,19 @@ class ServerBudgetPage extends StatelessWidget {
               onTap: () => Navigator.of(context).push<void>(
                 MaterialPageRoute(
                   builder: (_) => TriagePage(controller: controller),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (controller.canShowProjects && !controller.isReadOnly) ...[
+            LinkTile(
+              icon: Icons.folder_open_rounded,
+              title: 'Projekte',
+              subtitle: 'Was etwas insgesamt gekostet hat',
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => ProjectsPage(controller: controller),
                 ),
               ),
             ),

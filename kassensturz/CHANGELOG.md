@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.49
+
+- App (ab Version 0.3.31): Projekte ansehen, mit Gesamtkosten, Rest im Rahmen, Kosten je Kategorie und Monat und den
+  Buchungen; an einer Buchung das Projekt wählen.
+- App: Tilgungsplan eines Kredits mit Restschuld, Enddatum, Zinsen, Plan je Jahr und Sondertilgung.
+- Die App sieht in einem Projekt nur die Buchungen der Konten, die die Person sieht.
+
 ## 0.3.48
 
 - App (ab Version 0.3.30): Hinweise lassen sich am Handy erledigen. Eine Auffälligkeit als geprüft ausblenden, eine

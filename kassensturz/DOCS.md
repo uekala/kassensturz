@@ -328,6 +328,9 @@ bleibt. Das ist eine Schätzung. Die Bank rechnet taggenau und kennt Zinsbindung
 hier nicht vorkommen; verbindlich ist ihr Auszug. Trag deshalb ab und zu die Restschuld aus dem Jahresauszug ein.
 Deckt die Rate die Zinsen nicht, sagt Kassensturz das, statt ein Enddatum zu nennen.
 
+In der App (ab 0.3.31) öffnet ein Tipp auf den Kredit unter *Konten* den Tilgungsplan, mit Sondertilgung.
+Zins, Rate und Restschuld trägst du hier ein.
+
 ## Projekte
 
 Was hat der Urlaub, das Auto oder die Renovierung insgesamt gekostet? Ein Projekt sammelt Buchungen aus allen
@@ -342,6 +345,9 @@ Kategorien und Monaten und zeigt die Summe.
   Monat und die Buchungen. *Alle Buchungen ansehen* öffnet die Umsätze, gefiltert nach dem Projekt.
 - **Abschließen** legt ein Projekt ab, ohne etwas zu löschen. *Löschen* entfernt nur das Projekt; die Buchungen
   bleiben.
+
+In der App (ab 0.3.31) stehen die Projekte unter *Planung → Projekte*; an einer Buchung lässt sich dort das
+Projekt wählen. Anlegen und Ändern von Projekten geht nur hier.
 
 Eine Buchung gehört zu höchstens einem Projekt. Erstattungen im Projekt mindern die Kosten, Umbuchungen zählen nicht.
 An Kategorie, Budget und Auswertung der Buchung ändert ein Projekt nichts. Im Haushalt sieht jede Person in einem

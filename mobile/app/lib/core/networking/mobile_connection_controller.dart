@@ -45,6 +45,8 @@ class MobileConnectionController extends ChangeNotifier {
   static const papersCapability = 'papers';
   static const suggestCapability = 'budgets.suggest';
   static const plansCapability = 'plans';
+  static const projectsCapability = 'projects';
+  static const loansCapability = 'loans';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -290,6 +292,12 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when expenses can be shared with the household.
   bool get canShareExpenses => _capabilities.contains(sharingCapability);
+
+  /// Whether the server shows projects to this phone.
+  bool get canShowProjects => _capabilities.contains(projectsCapability);
+
+  /// Whether the server computes repayment plans of loans for this phone.
+  bool get canShowLoans => _capabilities.contains(loansCapability);
 
   /// Whether this phone can tick alerts off and plan expenses and incomes.
   bool get canManagePlans =>
@@ -943,6 +951,25 @@ class MobileConnectionController extends ChangeNotifier {
     () => _apiClient.setBudget(categoryId, limitCents, own: own),
     capability: own ? ownBudgetCapability : budgetCapability,
   );
+
+  /// Reads something once with one retry on a network hiccup; the error is
+  /// the message to show.
+  Future<({Map<String, dynamic>? data, String? error})> readOnce(
+    Future<Map<String, dynamic>> Function(MobileApiClient api) call,
+  ) async {
+    try {
+      return (data: await _read(() => call(_apiClient)), error: null);
+    } catch (error) {
+      return (data: null, error: await _describeFailure(error));
+    }
+  }
+
+  /// Puts a transaction into a project or takes it out. Null when it worked.
+  Future<String?> setTransactionProject(int transactionId, int? projectId) =>
+      _write(
+        () => _apiClient.setTransactionProject(transactionId, projectId),
+        capability: projectsCapability,
+      );
 
   /// Hides a checked anomaly. Null when it worked, otherwise the message.
   Future<String?> acknowledgeAlert(String key) => _write(

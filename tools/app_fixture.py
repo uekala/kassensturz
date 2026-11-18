@@ -40,6 +40,7 @@ READS = {
     "/api/v1/sync": {},
     "/api/v1/household/sharing": {},
     "/api/v1/afford": {"amount_cents": 30000},
+    "/api/v1/projects": {},
 }
 
 
@@ -67,7 +68,8 @@ def _household(admin) -> dict:
     before = (date.today() - timedelta(days=40)).isoformat()
     _ok(admin.post(f"/api/accounts/{depot['id']}/balance", json={"balance_cents": 1840000, "date": before}), "Wert")
     _ok(admin.post(f"/api/accounts/{depot['id']}/balance", json={"balance_cents": 1912000, "date": today}), "Wert")
-    loan = _ok(admin.post("/api/accounts", json={"name": "Autokredit", "kind": "kredit",
+    loan = _ok(admin.post("/api/accounts", json={"name": "Autokredit", "kind": "kredit", "loan_rate_milli": 4490,
+                                                 "loan_payment_cents": 35000,
                                                  "matures_on": (date.today() + timedelta(days=900)).isoformat()}), "Kredit")
     _ok(admin.post(f"/api/accounts/{loan['id']}/balance", json={"balance_cents": 1150000, "date": today}), "Wert")
     _ok(admin.post("/api/accounts", json={"name": "Taschengeld Mia", "kind": "taschengeld", "owner_person_id": mia,
@@ -95,6 +97,9 @@ def _household(admin) -> dict:
         _ok(admin.patch(f"/api/transactions/{out[0]['id']}", json={"tax_kind": "handwerker"}), "Steuerart")
         until = (date.today() + timedelta(days=400)).isoformat()
         _ok(admin.patch(f"/api/transactions/{out[1]['id']}", json={"warranty_until": until}), "Garantie")
+    # Ein Projekt quer zu den Kategorien: alles fürs Auto.
+    car = _ok(admin.post("/api/projects", json={"name": "Auto", "budget_cents": 60000}), "Projekt")
+    _ok(admin.post(f"/api/projects/{car['id']}/assign", json={"filter": {"q": "TESLA"}}), "Projekt zuordnen")
     # Geplant und erwartet: eine Ausgabe in zehn Tagen, Geld, das von einer Ausgabe zurückkommt.
     soon = (date.today() + timedelta(days=10)).isoformat()
     _ok(admin.post("/api/planned", json={"label": "Handwerkerrechnung", "cents": 85000, "due_date": soon,
@@ -118,8 +123,18 @@ def _reads(client, headers: dict) -> dict:
     # Was die App für eine einzelne Buchung nachlädt.
     listed = out["GET /api/v1/transactions"]["body"].get("items") or []
     for tx in listed[:6]:
-        for tail in ("receipts", "share"):
+        for tail in ("receipts", "share", "project"):
             path = f"/api/v1/transactions/{tx['id']}/{tail}"
+            response = client.get(path, headers=headers)
+            out[f"GET {path}"] = {"status": response.status_code, "body": response.json()}
+    # Einzelne Projekte und die Tilgungspläne der Kredite, die die App beim Antippen lädt.
+    for item in out["GET /api/v1/projects"]["body"].get("items") or []:
+        path = f"/api/v1/projects/{item['id']}"
+        response = client.get(path, headers=headers)
+        out[f"GET {path}"] = {"status": response.status_code, "body": response.json()}
+    for account in out["GET /api/v1/accounts"]["body"].get("items") or []:
+        if account.get("type") == "kredit":
+            path = f"/api/v1/accounts/{account['id']}/loan"
             response = client.get(path, headers=headers)
             out[f"GET {path}"] = {"status": response.status_code, "body": response.json()}
     return out

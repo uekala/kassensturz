@@ -1,5 +1,12 @@
 # Änderungen der Mobile-App
 
+## 0.3.31
+
+- Planung → *Projekte*: was etwas insgesamt gekostet hat, mit Rahmen, Kategorien, Monaten und Buchungen (ab Server
+  0.3.49).
+- An einer Buchung lässt sich das Projekt wählen.
+- Konten: Ein Tipp auf einen Kredit öffnet den Tilgungsplan mit Restschuld, Enddatum, Zinsen und Sondertilgung.
+
 ## 0.3.30
 
 - Hinweise auf der Startseite haben Knöpfe: Auffälligkeit *Geprüft*, geplante Ausgabe *Bezahlt* oder *Entfällt*,

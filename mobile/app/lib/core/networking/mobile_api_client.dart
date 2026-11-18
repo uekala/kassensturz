@@ -577,6 +577,55 @@ class MobileApiClient {
     );
   }
 
+  /// Projects with their costs, as far as this person sees the bookings.
+  Future<Map<String, dynamic>> projects() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/projects');
+
+  /// One project with costs by category and month and its bookings.
+  Future<Map<String, dynamic>> project(int id) {
+    if (id <= 0) throw const FormatException('Das Projekt ist ungültig.');
+    return _authenticatedJson(method: 'GET', path: '/api/v1/projects/$id');
+  }
+
+  /// The project of a transaction and the projects it can go into.
+  Future<Map<String, dynamic>> transactionProject(int transactionId) {
+    if (transactionId <= 0) {
+      throw const FormatException('Die Buchung ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'GET',
+      path: '/api/v1/transactions/$transactionId/project',
+    );
+  }
+
+  /// Puts a transaction into a project or, with null, takes it out.
+  Future<Map<String, dynamic>> setTransactionProject(
+    int transactionId,
+    int? projectId,
+  ) {
+    if (transactionId <= 0 || (projectId != null && projectId <= 0)) {
+      throw const FormatException('Das Projekt ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'PUT',
+      path: '/api/v1/transactions/$transactionId/project',
+      body: {'project_id': projectId},
+    );
+  }
+
+  /// Repayment plan of a loan; with [extraCents] the effect of paying that
+  /// much off today.
+  Future<Map<String, dynamic>> loanPlan(int accountId, {int extraCents = 0}) {
+    if (accountId <= 0 || extraCents < 0) {
+      throw const FormatException('Der Kredit ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'GET',
+      path: '/api/v1/accounts/$accountId/loan',
+      query: extraCents > 0 ? {'extra_cents': '$extraCents'} : null,
+    );
+  }
+
   /// Hides an anomaly the person has checked.
   Future<Map<String, dynamic>> acknowledgeAlert(String key) {
     if (key.isEmpty) throw const FormatException('Der Hinweis fehlt.');

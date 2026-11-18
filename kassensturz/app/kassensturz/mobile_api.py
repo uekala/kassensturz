@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import analytics, anomalies, audit, banksync, expected, household, ledger, mobile_read, mobile_write, options, papers, planned, services, sharing
+from . import analytics, anomalies, audit, banksync, expected, household, ledger, loans, mobile_read, mobile_write, options, papers, planned, projects, services, sharing
 from .db import get_db
 from .util import euro
 from .mobile_auth import (
@@ -60,6 +60,9 @@ CAPABILITIES = (
     "budgets.own",
     # Hinweise erledigen, geplante Ausgaben und erwartete Eingänge anlegen und abhaken
     "plans",
+    # Projekte ansehen und Buchungen zuordnen; Tilgungsplan der Kredite
+    "projects",
+    "loans",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -1016,6 +1019,103 @@ def settle_expected(item_id: str, action: str, request: Request):
     audit.note(f"Erwarteten Eingang {'abgehakt' if action == 'received' else 'abgelegt'}: {item['label']}", item["account_id"])
     services.schedule_refresh()
     return {"ok": True}
+
+
+# --- Projekte und Kredite ---------------------------------------------------------------------
+# Projektnamen sieht der ganze Haushalt; Buchungen und Summen nur aus den Konten, die die Person sieht.
+
+def _project_item(p: dict) -> dict:
+    return {"id": int(p["id"]), "name": p["name"], "note": p.get("note"), "budget_cents": p.get("budget_cents"),
+            "left_cents": p.get("left_cents"), "archived": bool(p.get("archived")), "cost_cents": int(p["cost_cents"]),
+            "spent_cents": int(p["spent_cents"]), "back_cents": int(p["back_cents"]), "count": int(p["count"]),
+            "first": p.get("first"), "last": p.get("last")}
+
+
+@router.get("/api/v1/projects")
+def list_projects(request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    return {"items": [_project_item(p) for p in projects.overview(_view(device))["items"]]}
+
+
+@router.get("/api/v1/projects/{project_id}")
+def project_detail(project_id: str, request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed = _transaction_id(project_id)
+    if parsed is None:
+        return _not_found("Projekt")
+    try:
+        p = projects.detail(_view(device), parsed)
+    except projects.ProjectError:
+        return _not_found("Projekt")
+    return {**_project_item(p),
+            "categories": [{"name": c["name"], "cents": int(c["cents"])} for c in p["categories"]],
+            "months": [{"month": m["month"], "cents": int(m["cents"])} for m in p["months"]],
+            "transactions": [{"id": int(t["id"]), "booking_date": t["booking_date"], "amount_cents": int(t["amount_cents"]),
+                              "counterparty": t["counterparty"] or t["purpose"], "category": t["category_name"],
+                              "account": t["account_name"], "transfer": bool(t["is_transfer"])}
+                             for t in p["transactions"][:100]]}
+
+
+@router.get("/api/v1/transactions/{tx_id}/project")
+def transaction_project(tx_id: str, request: Request):
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed = _transaction_id(tx_id)
+    if parsed is None or not household.sees_transaction(get_db(), device.person_id, parsed):
+        return _not_found("Buchung")
+    current = get_db().scalar("SELECT project_id FROM project_tx WHERE tx_id = ?", (parsed,))
+    options_ = [{"id": int(p["id"]), "name": p["name"]} for p in projects.overview(get_db())["items"]
+                if not p["archived"] or p["id"] == current]
+    return {"project_id": current, "projects": options_}
+
+
+@router.put("/api/v1/transactions/{tx_id}/project")
+async def set_transaction_project(tx_id: str, request: Request):
+    """Put a transaction the person sees into a project, or take it out (null)."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed = _transaction_id(tx_id)
+    if parsed is None or not household.sees_transaction(get_db(), device.person_id, parsed):
+        return _not_found("Buchung")
+    payload = await _json_object(request)
+    if payload is None or set(payload) != {"project_id"}:
+        return _error(400, "invalid_request", "Erwartet wird genau das Feld project_id.")
+    db = get_db()
+    before = db.scalar("SELECT project_id FROM project_tx WHERE tx_id = ?", (parsed,))
+    try:
+        projects.set_for(db, parsed, payload["project_id"])
+    except projects.ProjectError as error:
+        return _plan_error(error)
+    if payload["project_id"] == before:
+        audit.skip()
+    else:
+        row = db.one("SELECT * FROM transactions WHERE id = ?", (parsed,))
+        name = db.scalar("SELECT name FROM projects WHERE id = ?", (payload["project_id"],)) if payload["project_id"] else None
+        audit.note(f"{audit.tx_label(row)}: " + (f"Projekt „{name}“" if name else "aus dem Projekt genommen"), row["account_id"])
+    return {"project_id": payload["project_id"]}
+
+
+@router.get("/api/v1/accounts/{account_id}/loan")
+def loan_plan(account_id: str, request: Request, extra_cents: int = Query(default=0)):
+    """Repayment plan of a loan the person sees; with extra_cents, the effect of a special repayment today."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed = _transaction_id(account_id)
+    if parsed is None or not household.sees_account(get_db(), device.person_id, parsed):
+        return _not_found("Konto")
+    try:
+        plan = loans.overview(get_db(), parsed, extra_cents)
+    except loans.LoanError as error:
+        return _plan_error(error)
+    plan.pop("account_id", None)
+    return plan
 
 
 @router.put("/api/v1/budgets/{category_id}")

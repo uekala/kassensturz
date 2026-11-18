@@ -125,6 +125,7 @@ LABELS: dict[tuple[str, str], str] = {
     ("PUT", "/api/v1/budgets/own/{category_id}"): "Eigenes Budget geändert",
     ("PATCH", "/api/v1/contracts/{key:path}"): "Vertrag geändert",
     ("POST", "/api/v1/alerts/ack"): "Auffälligkeit als geprüft ausgeblendet",
+    ("PUT", "/api/v1/transactions/{tx_id}/project"): "Projekt einer Buchung geändert",
     ("POST", "/api/v1/planned"): "Geplante Ausgabe angelegt",
     ("POST", "/api/v1/planned/{item_id}/{action}"): "Geplante Ausgabe abgehakt oder gestrichen",
     ("POST", "/api/v1/expected"): "Erwarteten Eingang angelegt",
