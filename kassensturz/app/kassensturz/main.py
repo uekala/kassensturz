@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import (allowance, analytics, anomalies, categorize, contracts, demo, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
+from . import (allowance, analytics, anomalies, categorize, contracts, demo, expected, finanzguru, fints_sync, ha, importers, inbox, ledger, health, household, letters, openbanking, options, papers, savings,
                secrets_store, services, sharing, umzug)
 from . import db as dbmod
 from .db import close_db, get_db, now_iso
@@ -281,9 +281,44 @@ def overview():
         "contract_count": s["contract_count"],
         "upcoming": soon,
         "alerts": services.alerts(db, s),
+        "expected": expected.overview(db),
         "price_changes": sum(1 for c in cons if c.get("price_change_cents") and c["kind"] == "expense" and c["price_change_cents"] < 0
                              and c["status"] != "ignored"),
     }
+
+
+def _expected(call, *args):
+    try:
+        result = call(get_db(), *args)
+    except expected.ExpectedError as error:
+        _err(error.status, error.message)
+    _changed()
+    return result
+
+
+@app.get("/api/expected")
+def expected_list():
+    return expected.overview(get_db())
+
+
+@app.post("/api/expected")
+def expected_create(body: dict = Body(...)):
+    return _expected(expected.create, body)
+
+
+@app.post("/api/expected/{item_id}/received")
+def expected_received(item_id: int, body: dict = Body(default={})):
+    return _expected(expected.close, item_id, body)
+
+
+@app.post("/api/expected/{item_id}/drop")
+def expected_drop(item_id: int):
+    return _expected(expected.drop, item_id)
+
+
+@app.post("/api/expected/{item_id}/reopen")
+def expected_reopen(item_id: int):
+    return _expected(expected.reopen, item_id)
 
 
 @app.post("/api/anomalies/ack")

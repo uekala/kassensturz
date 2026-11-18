@@ -274,6 +274,15 @@ async function renderOverview(view, _params, seq) {
           ${o.upcoming.length ? html`<ul class="list">${upcoming}</ul>` : html`<p class="muted">In den nächsten zwei Wochen ist nichts Festes fällig.</p>`}
         </section>
         <section class="section">
+          <div class="section-head"><h2>Erwartete Eingänge</h2><button class="link-btn" id="exp-add">Hinzufügen</button></div>
+          ${o.expected.open.length ? html`<ul class="list">${o.expected.open.map((e) => html`<li><button class="row" data-exp="${e.id}">
+              <span class="title">${e.label}${e.overdue ? html` <span class="chip warn">steht aus</span>` : ""}</span>
+              <span class="sub">seit ${dShort(e.since)}, ${e.account}${e.candidates.length ? ". Eingang gefunden?" : ""}</span>
+              <span class="amount pos">${money(e.cents, { plus: true })}</span></button></li>`)}</ul>
+            ${o.expected.open.length > 1 ? html`<p class="small muted">Zusammen stehen ${money(o.expected.open_cents)} aus.</p>` : ""}`
+            : html`<p class="muted">Nichts offen. Kommt Geld zurück, etwa nach einer Retoure, merk es an der Ausgabe an.</p>`}
+        </section>
+        <section class="section">
           <div class="section-head"><h2>Budgets im ${fmtMonth.format(new Date()).split(" ")[0]}</h2><a href="#/budgets">Alle Budgets</a></div>
           ${o.budgets.length ? html`<div>${budgets}</div>` : html`<p class="muted">Noch keine Budgets. <a href="#/budgets">Budget festlegen</a></p>`}
         </section>
@@ -296,14 +305,67 @@ async function renderOverview(view, _params, seq) {
   on(view, "[data-alert]", "click", async (_e, el) => {
     const d = JSON.parse(el.dataset.alert);
     const found = o.alerts.find((x) => x.key === d.k);
+    const waiting = found && found.expected ? o.expected.open.find((x) => x.id === found.expected) : null;
     if (found && found.anomaly) anomalySheet(found);
+    else if (waiting) expectedSheet(waiting);
     else if (d.c) { const list = await api("contracts"); const c = list.items.find((x) => x.key === d.c); if (c) contractSheet(c); }
     else if (d.a) { const acc = store.accounts.find((x) => x.id === d.a); if (acc) balanceSheet(acc); }
     else if (d.e) { const eb = await api("eb"); const s = eb.sessions.find((x) => x.id === d.e); if (s) ebConnectSheet(s); }
     else if (d.i) go("konten");
     else if (d.k.startsWith("budget")) go("budgets");
   });
+  $("#exp-add").onclick = () => expectedNewSheet(null);
+  on(view, "[data-exp]", "click", (_e, el) => expectedSheet(o.expected.open.find((x) => x.id === Number(el.dataset.exp))));
   bindBudgetRows(view);
+}
+
+// Ein erwarteter Eingang: was aussteht, welcher Eingang es sein könnte, und das Abhaken von Hand.
+function expectedSheet(e) {
+  const sh = openSheet(html`${sheetHead(e.label)}
+    <div class="big-amount pos">${money(e.cents, { plus: true })}</div>
+    <dl class="facts">
+      <dt>Offen seit</dt><dd>${dFull(e.since)}</dd>
+      <dt>Konto</dt><dd>${e.account}</dd>
+      ${e.due_date ? html`<dt>Erinnerung ab</dt><dd>${dFull(e.due_date)}</dd>` : ""}
+      ${e.note ? html`<dt>Notiz</dt><dd>${e.note}</dd>` : ""}
+    </dl>
+    ${e.candidates.length ? html`<h3>Ist es einer dieser Eingänge?</h3>
+      <ul class="list">${e.candidates.map((c) => html`<li><button class="row" data-exp-take="${c.tx_id}">
+        <span class="title">${c.counterparty || "Eingang"}</span><span class="sub">${dFull(c.booking_date)}</span>
+        <span class="amount pos">${money(c.amount_cents, { plus: true })}</span></button></li>`)}</ul>` : ""}
+    <div class="actions"><button class="btn primary" id="exp-done">${e.candidates.length ? "Anders angekommen" : "Ist angekommen"}</button><button class="btn" id="exp-drop">Kommt nicht mehr</button></div>`.s);
+  const act = async (path, body, text) => {
+    try { await api(`expected/${e.id}/${path}`, { method: "POST", body: body || {} }); sh.close(); toast(text); rerender(); }
+    catch (err) { toast(err.message); }
+  };
+  on(sh.el, "[data-exp-take]", "click", (_e, el) => act("received", { tx_id: Number(el.dataset.expTake) }, "Abgehakt"));
+  $("#exp-done", sh.el).onclick = () => act("received", {}, "Abgehakt");
+  $("#exp-drop", sh.el).onclick = () => act("drop", null, "Abgelegt");
+}
+
+// Legt einen erwarteten Eingang an: zu einer Ausgabe (t) oder für sich allein.
+function expectedNewSheet(t) {
+  const accs = store.accounts.filter((a) => !a.archived && !VALUE_KINDS.has(a.kind) && a.kind !== "taschengeld");
+  const due = new Date(Date.now() + 21 * 86400000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const sh = openSheet(html`${sheetHead(t ? "Geld kommt zurück" : "Erwarteter Eingang")}
+    ${t ? html`<p class="small muted">${t.counterparty || t.purpose || "Ausgabe"} vom ${dFull(t.booking_date)}, ${money(t.amount_cents)}. Geht derselbe Betrag vom selben Absender auf diesem Konto ein, hakt Kassensturz ihn von selbst ab.</p>`
+      : html`<label class="field"><span>Wofür kommt das Geld?</span><input class="input" id="exp-label" maxlength="80" placeholder="z. B. Auslagen Dienstreise" autofocus></label>`}
+    <div class="field-row">
+      <label class="field"><span>Betrag in Euro</span><input class="input" id="exp-amt" inputmode="decimal" value="${t ? toInput(-t.amount_cents) : ""}"></label>
+      <label class="field"><span>Erinnern ab</span><input class="input" id="exp-due" type="date" value="${due}"></label>
+    </div>
+    ${t ? "" : html`<label class="field"><span>Auf welchem Konto kommt es an?</span><select class="input" id="exp-acc">${accs.map((a) => html`<option value="${a.id}">${a.name}</option>`)}</select></label>`}
+    <label class="field"><span>Notiz</span><input class="input" id="exp-note" maxlength="200"></label>
+    <div class="actions"><button class="btn primary" id="exp-save">Merken</button><button class="btn" data-close>Abbrechen</button></div>`.s);
+  $("#exp-save", sh.el).onclick = async () => {
+    const cents = parseMoney($("#exp-amt", sh.el).value);
+    if (!cents || cents < 0) { toast("Bitte einen Betrag eintragen"); return; }
+    const body = { cents, due_date: $("#exp-due", sh.el).value || null, note: $("#exp-note", sh.el).value };
+    if (t) body.tx_id = t.id;
+    else { body.label = $("#exp-label", sh.el).value; body.account_id = Number($("#exp-acc", sh.el).value); }
+    try { await api("expected", { method: "POST", body }); sh.close(); toast("Gemerkt. Bleibt offen, bis das Geld da ist"); rerender(); }
+    catch (err) { toast(err.message); }
+  };
 }
 
 // Eine Auffälligkeit: was aufgefallen ist, und die Wahl, sie als geprüft auszublenden.
@@ -567,6 +629,7 @@ async function txSheet(t) {
     <div class="actions">
       <button class="btn primary" id="tx-save">Speichern</button>
       <button class="btn" id="tx-split">Aufteilen</button>
+      ${t.amount_cents < 0 && !t.is_transfer ? html`<button class="btn" id="tx-expect">Geld kommt zurück</button>` : ""}
       ${t.category_locked ? html`<button class="btn" id="tx-reset">Automatisch zuordnen</button>` : ""}
     </div>`.s);
   let picked = null;
@@ -608,6 +671,7 @@ async function txSheet(t) {
   });
   bindReceipts($("#tx-receipts", sh.el), t.id);
   $("#tx-split", sh.el).onclick = () => { sh.close(); splitSheet(t); };
+  if ($("#tx-expect", sh.el)) $("#tx-expect", sh.el).onclick = () => { sh.close(); expectedNewSheet(t); };
   if ($("#tx-reset", sh.el)) $("#tx-reset", sh.el).onclick = async () => { await api(`transactions/${t.id}/reset`, { method: "POST" }); sh.close(); toast("Wieder automatisch zugeordnet"); rerender(); };
   if ($("#tx-contract", sh.el)) $("#tx-contract", sh.el).onclick = async () => {
     const list = await api("contracts");

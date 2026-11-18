@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.3.39
+
+- Erwartete Eingänge: Geld, das zurückkommen soll, bleibt offen, bis es da ist.
+  - An einer Ausgabe mit *Geld kommt zurück* anmerken, etwa bei einer Retoure. Oder für sich allein anlegen, etwa
+    für Auslagen.
+  - Die Übersicht zeigt, was aussteht. Nach drei Wochen erinnert Kassensturz einmal.
+  - Geht derselbe Betrag vom selben Absender auf demselben Konto ein, hakt Kassensturz den Eingang von selbst ab und
+    meldet „Geld ist da“. Was nicht eindeutig ist, steht zur Auswahl.
+
 ## 0.3.38
 
 - Auffälligkeiten: Kassensturz weist auf Buchungen der letzten zwei Wochen hin, die einen zweiten Blick lohnen.
