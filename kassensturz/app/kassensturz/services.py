@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import allowance, analytics, anomalies, backup, contracts, expected, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, savings, secrets_store
+from . import allowance, analytics, anomalies, backup, contracts, expected, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, planned, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -171,6 +171,7 @@ def alerts(db: Database, summary: dict) -> list[dict]:
                                 "in Kassensturz in Home Assistant unter Konten."})
     out += anomalies.alerts(db, today)
     out += expected.alerts(db, today)
+    out += planned.alerts(db, today)
     pending = db.scalar("SELECT COUNT(*) FROM inbox")
     if pending:
         out.append({"key": f"inbox:{pending}", "level": "info", "inbox": True,
@@ -336,6 +337,8 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
     papers.prune(db)  # Belege gelöschter Buchungen und Konten
     expected.prune(db)
     expected.settle(db)  # erwartete Eingänge abhaken, die angekommen sind
+    planned.prune(db)
+    planned.settle(db)  # geplante Ausgaben abhaken, die eindeutig bezahlt sind
     summary = build_summary(db)
     opts = options.load()
     if opts.get("sensors", True):

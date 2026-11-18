@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from . import contracts as contracts_mod
-from . import ledger, savings, sharing
+from . import ledger, planned, savings, sharing
 from .db import Database
 from .util import add_months, euro, month_end, month_start
 
@@ -26,6 +26,10 @@ def variable_daily_rate(db: Database, account_ids: list[int]) -> int:
     start = month_start(add_months(today, -3))
     es = [e for e in ledger.entries(db, start.isoformat(), today.isoformat(), account_ids)
           if e["amount_cents"] < 0 and not e["is_transfer"] and not e["contract_key"]]
+    # Was als einmalige Ausgabe geplant war, ist kein Alltag und soll die Tagesrate nicht heben.
+    once = planned.paid_tx_ids(db)
+    if once:
+        es = [e for e in es if e["id"] not in once]
     if not es:
         return 0
     first_s = db.scalar(f"SELECT MIN(booking_date) FROM transactions WHERE account_id IN ({','.join('?' * len(account_ids))})",
@@ -54,6 +58,8 @@ def forecast(db: Database, horizon_days: int = HORIZON_DAYS) -> dict:
     cons = contracts_mod.list_contracts(db)
     end = today + timedelta(days=horizon_days)
     upcoming = [u for u in contracts_mod.upcoming(db, today + timedelta(days=1), end, cons) if u["account_id"] in ids or u["account_id"] is None]
+    # Geplante Einmalausgaben: stehen fest wie eine Abbuchung, gehören aber zu keinem Vertrag.
+    plans = planned.upcoming(db, ids, today + timedelta(days=1), end)
     rate = variable_daily_rate(db, ids)
 
     # Zeitraum bis zum nächsten Gehaltseingang (oder Monatsende)
@@ -70,17 +76,19 @@ def forecast(db: Database, horizon_days: int = HORIZON_DAYS) -> dict:
     in_period = [u for u in upcoming if u["date"] <= period_end.isoformat()]
     fixed_out = sum(u["amount_cents"] for u in in_period if u["amount_cents"] < 0)
     fixed_in = sum(u["amount_cents"] for u in in_period if u["amount_cents"] > 0)
+    planned_out = sum(p["amount_cents"] for p in plans if p["date"] <= period_end.isoformat())
     buffer = int(db.get_setting("buffer_cents", 0) or 0)
     days_left = (period_end - today).days + 1
     # Rücklage für seltene Kosten: immer ausgewiesen, abgezogen nur auf Wunsch. Wer sie auf
     # einem Tagesgeldkonto hält, hat sie schon aus dem Alltag herausgenommen.
     rsv = savings.reserve(cons, today, period_end)
     deduct = bool(db.get_setting("deduct_reserve", False))
-    free = balance_now + fixed_in + fixed_out - buffer - (rsv["reserved_cents"] if deduct else 0)
+    free = balance_now + fixed_in + fixed_out + planned_out - buffer - (rsv["reserved_cents"] if deduct else 0)
 
     # Tagesverlauf: Vergangenheit + Prognose
     past = ledger.balance_series(db, ids, today - timedelta(days=60), today)
     by_day = defaultdict(int)
+    upcoming = sorted(upcoming + plans, key=lambda x: (x["date"], x["amount_cents"]))
     for u in upcoming:
         by_day[u["date"]] += u["amount_cents"]
     future = []
@@ -103,6 +111,7 @@ def forecast(db: Database, horizon_days: int = HORIZON_DAYS) -> dict:
         "days_left": days_left,
         "fixed_out_cents": fixed_out,
         "fixed_in_cents": fixed_in,
+        "planned_out_cents": planned_out,
         "variable_daily_cents": rate,
         "variable_expected_cents": rate * days_left,
         "buffer_cents": buffer,

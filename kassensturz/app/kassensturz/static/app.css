@@ -1156,6 +1156,9 @@ a.row:hover .title, button.row:hover .title { color: var(--accent-text); }
 .worth-spark polyline { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .afford { display: flex; gap: 8px; }
 .afford .input { flex: 1; min-width: 0; }
+/* Das Ergebnis hat kein Symbol; ohne diese Regel landete der Text in der schmalen Symbolspalte. */
+#afford-out .alert { display: block; cursor: default; }
+#afford-out .link-btn { margin-top: 6px; }
 .review { max-width: 60ch; margin: 14px 0 4px; color: var(--muted); }
 /* Summenzeile in einer Rechnung (Budgetseite): ohne die Überschrift der Hauptkarte. */
 .tally-lines > .tally-sum::before { content: none; }

@@ -1,5 +1,16 @@
 # Änderungen
 
+## 0.3.40
+
+- Geplante Ausgaben: Eine einmalige Ausgabe, die schon feststeht, zählt in der Prognose mit.
+  - In der Übersicht mit Bezeichnung, Betrag, Tag und Konto eintragen, oder nach *Kann ich mir das leisten?* vormerken.
+  - Bis sie bezahlt ist, mindert sie „frei verfügbar“ und den Verlauf der Prognose ab dem geplanten Tag. Sie steht
+    unter *Als Nächstes*, auch in der App.
+  - Kommt genau eine Abbuchung über genau den Betrag, hakt Kassensturz sie von selbst ab. Was nicht eindeutig ist,
+    steht zur Auswahl. Ist der Tag vorbei und nichts gebucht, fragt Kassensturz einmal nach.
+  - Eine abgehakte Ausgabe hebt die übliche Tagesrate für den Alltag nicht.
+- Behoben: Das Ergebnis von *Kann ich mir das leisten?* brach auf schmalen Bildschirmen nach jedem Wort um.
+
 ## 0.3.39
 
 - Erwartete Eingänge: Geld, das zurückkommen soll, bleibt offen, bis es da ist.

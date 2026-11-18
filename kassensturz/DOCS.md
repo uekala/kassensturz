@@ -272,6 +272,28 @@ also 300 € da sein. Die Budgetseite zeigt die Summe und jeden Vertrag einzeln.
 Unter *Einstellungen* kannst du diese Rücklage von „frei verfügbar“ abziehen lassen. Lass das aus, wenn du dafür schon Geld
 auf einem Tagesgeld- oder Sparkonto zurücklegst, sonst zählt es doppelt.
 
+## Geplante Ausgaben
+
+Eine einmalige Ausgabe, die schon feststeht, zählt in der Prognose mit: die Handwerkerrechnung, die Anzahlung für
+den Urlaub, die neue Waschmaschine.
+
+- **Anlegen:** in der Übersicht unter *Geplante Ausgaben → Hinzufügen*, mit Bezeichnung, Betrag, Tag und Konto. Oder
+  nach *Kann ich mir das leisten?* über *Als geplante Ausgabe vormerken*; der Betrag ist dann vorbelegt.
+- **Wirkung:** Liegt der Tag vor dem nächsten Gehalt (oder Monatsende), zieht Kassensturz den Betrag von „frei
+  verfügbar“ ab und weist ihn in der Rechnung als *geplante Ausgaben* aus. Der Verlauf der Prognose fällt ab dem
+  geplanten Tag um den Betrag; damit stimmen auch der tiefste Stand und die Warnschwelle. Unter *Als Nächstes* und in
+  der App steht die Ausgabe zwischen den festen Zahlungen.
+- **Ändern:** Betrag, Tag, Konto und Notiz lassen sich ändern, solange die Ausgabe offen ist.
+
+**Von selbst abgehakt** wird nur, was eindeutig ist: genau eine Abbuchung über genau den geplanten Betrag auf diesem
+Konto, gebucht nach dem Eintragen und frühestens zehn Tage vor dem geplanten Tag. Abbuchungen aus Verträgen und
+Umbuchungen zählen nie. Alles andere schlägt Kassensturz nur vor: In der geplanten Ausgabe stehen Abbuchungen in der
+Größenordnung des Betrags zur Auswahl. *Ist bezahlt* hakt ohne Buchung ab, etwa bei Bargeld; *Entfällt* streicht sie.
+
+Ist der geplante Tag vorbei und nichts Passendes gebucht, fragt Kassensturz einmal nach. Bis du antwortest, zählt die
+Ausgabe weiter mit. Eine Ausgabe auf einem Konto, das nicht in der Prognose zählt (Tagesgeld, Depot), ist nur ein
+Merkzettel. Eine abgehakte Ausgabe zählt nicht zu den üblichen Alltagsausgaben, hebt also die Tagesrate nicht.
+
 ## Erwartete Eingänge
 
 Geld, das zurückkommen soll, bleibt offen, bis es da ist: eine Retoure, eine Erstattung, Auslagen für die Firma oder

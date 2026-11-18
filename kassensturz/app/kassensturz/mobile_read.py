@@ -114,6 +114,7 @@ def _forecast_dto(source: dict) -> dict:
         "days_left": int(source.get("days_left") or 0),
         "fixed_out_cents": int(source.get("fixed_out_cents") or 0),
         "fixed_in_cents": int(source.get("fixed_in_cents") or 0),
+        "planned_out_cents": int(source.get("planned_out_cents") or 0),
         "variable_daily_cents": int(source.get("variable_daily_cents") or 0),
         "variable_expected_cents": int(source.get("variable_expected_cents") or 0),
         "buffer_cents": int(source.get("buffer_cents") or 0),
