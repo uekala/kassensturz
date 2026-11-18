@@ -71,14 +71,11 @@ class _BankQuestionPanelState extends State<BankQuestionPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          switch (question.kind) {
-            'tan' => '${question.bank} verlangt eine TAN',
-            'decoupled' => '${question.bank}: Freigabe in der Banking-App',
-            _ => question.bank,
-          },
-          style: textTheme.titleMedium,
-        ),
+        Text(switch (question.kind) {
+          'tan' => '${question.bank} verlangt eine TAN',
+          'decoupled' => '${question.bank}: Freigabe in der Banking-App',
+          _ => question.bank,
+        }, style: textTheme.titleMedium),
         const SizedBox(height: 4),
         if (question.kind == 'choice') ...[
           Text(question.title, style: textTheme.bodyMedium),

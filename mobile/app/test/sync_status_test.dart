@@ -326,7 +326,10 @@ void main() {
 
     expect(read({'qid': 'q3', 'kind': 'neu', 'bank': 'X'}), isNull);
     expect(read({'qid': '', 'kind': 'tan'}), isNull);
-    expect(read({'qid': 'q4', 'kind': 'choice', 'options': <Object>[]}), isNull);
+    expect(
+      read({'qid': 'q4', 'kind': 'choice', 'options': <Object>[]}),
+      isNull,
+    );
     expect(ServerSyncStatus.fromJson(_status()).question, isNull);
   });
 
