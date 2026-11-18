@@ -308,6 +308,19 @@ CREATE TABLE IF NOT EXISTS expected_incomes(
 );
 CREATE INDEX IF NOT EXISTS expected_incomes_status ON expected_incomes(status, since);
 
+-- Änderungsprotokoll: wer wann was geändert hat. Ohne Inhalte von Formularen.
+CREATE TABLE IF NOT EXISTS audit_log(
+  id INTEGER PRIMARY KEY,
+  at TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  actor_kind TEXT NOT NULL,
+  person_id INTEGER,
+  text TEXT NOT NULL,
+  account_id INTEGER,
+  route TEXT
+);
+CREATE INDEX IF NOT EXISTS audit_log_actor ON audit_log(actor, id);
+
 -- Projekte bündeln Buchungen quer zu Kategorien; eine Buchung gehört zu höchstens einem Projekt.
 CREATE TABLE IF NOT EXISTS projects(
   id INTEGER PRIMARY KEY,
@@ -438,7 +451,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {
@@ -460,6 +473,7 @@ _SCOPED_VIEWS = {
     "balance_checks": "SELECT * FROM main.balance_checks WHERE account_id IN ({accounts})",
     "expected_incomes": "SELECT * FROM main.expected_incomes WHERE account_id IN ({accounts})",
     "planned_expenses": "SELECT * FROM main.planned_expenses WHERE account_id IN ({accounts})",
+    "audit_log": "SELECT * FROM main.audit_log WHERE account_id IS NULL OR account_id IN ({accounts})",
     "project_tx": "SELECT * FROM main.project_tx WHERE tx_id IN "
                   "(SELECT id FROM main.transactions WHERE account_id IN ({accounts}))",
     "imports": "SELECT * FROM main.imports WHERE account_id IS NULL OR account_id IN ({accounts})",

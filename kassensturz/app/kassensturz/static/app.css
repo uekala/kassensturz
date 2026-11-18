@@ -1182,3 +1182,6 @@ a.row:hover .title, button.row:hover .title { color: var(--accent-text); }
 .plan th, .plan td { padding: 6px 4px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
 .plan th { font-weight: 600; color: var(--muted); }
 .plan th:first-child, .plan td:first-child { text-align: left; }
+
+/* Änderungsprotokoll: ganze Sätze, nicht abgeschnitten */
+.changes .title { white-space: normal; overflow: visible; text-overflow: clip; }

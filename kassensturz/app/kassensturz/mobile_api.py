@@ -17,8 +17,9 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import analytics, banksync, household, ledger, mobile_read, mobile_write, options, papers, services, sharing
+from . import analytics, audit, banksync, household, ledger, mobile_read, mobile_write, options, papers, services, sharing
 from .db import get_db
+from .util import euro
 from .mobile_auth import (
     InvalidCredential,
     MobileAuthService,
@@ -158,6 +159,37 @@ def _local_admin_allowed(request: Request) -> bool:
     return peer.is_loopback
 
 
+# Was die App an einer Buchung ändern kann, in Worten fürs Änderungsprotokoll.
+_TX_FIELDS = {"category_id": "Kategorie", "note": "Notiz", "amount_cents": "Betrag", "booking_date": "Datum",
+              "counterparty": "Empfänger", "purpose": "Zweck", "account_id": "Konto"}
+
+
+def _note_tx_change(before: dict | None, payload: dict) -> None:
+    if not before:
+        return
+    after = get_db().one("SELECT * FROM transactions WHERE id = ?", (before["id"],)) or before
+    parts = []
+    for field, word in _TX_FIELDS.items():
+        if field not in payload or after.get(field) == before.get(field):
+            continue
+        if field == "category_id":
+            parts.append(f"Kategorie „{get_db().scalar('SELECT name FROM categories WHERE id = ?', (after['category_id'],))}“")
+        elif field == "note":
+            parts.append("Notiz geändert" if after.get("note") else "Notiz gelöscht")
+        else:
+            parts.append(f"{word} geändert")
+    if parts:
+        audit.note(f"{audit.tx_label(before)}: {', '.join(parts)}", before["account_id"])
+    else:
+        audit.skip()
+
+
+def _note_tx(tx_id: int, what: str) -> None:
+    row = get_db().one("SELECT * FROM transactions WHERE id = ?", (tx_id,))
+    if row:
+        audit.note(f"{audit.tx_label(row)}: {what}", row["account_id"])
+
+
 def _view(device):
     """What this device may read: its person's accounts and the shared ones."""
     return household.view(get_db(), device.person_id)
@@ -199,6 +231,7 @@ def _authenticated_device(request: Request):
     if (request.method.upper() != "GET" and request.url.path not in READ_ONLY_ALLOWED
             and household.is_child(get_db(), device.person_id)):
         return _error(403, "read_only", "Mit diesem Handy lässt sich nichts ändern.")
+    audit.set_device(get_db(), device)
     return device
 
 
@@ -564,7 +597,12 @@ async def create_transaction(request: Request):
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
     if created:
+        row = get_db().one("SELECT * FROM transactions WHERE id = ?", (transaction["id"],))
+        if row:
+            audit.note(f"Buchung angelegt: {audit.tx_label(row)}", row["account_id"])
         services.schedule_refresh()
+    else:
+        audit.skip()  # dieselbe Anfrage noch einmal: nichts Neues
     return JSONResponse(
         {"transaction": transaction, "created": created},
         status_code=201 if created else 200,
@@ -585,10 +623,12 @@ async def update_transaction(tx_id: str, request: Request):
         return _error(400, "invalid_request", "Ungültige Anfrage.")
     if not household.sees_transaction(get_db(), device.person_id, parsed_id):
         return _not_found("Buchung")
+    before = get_db().one("SELECT * FROM transactions WHERE id = ?", (parsed_id,))
     try:
         transaction = mobile_write.update_transaction(get_db(), parsed_id, payload)
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
+    _note_tx_change(before, payload)
     services.schedule_refresh()
     return {
         "learned": transaction.pop("learned", False),
@@ -608,10 +648,13 @@ def delete_transaction(tx_id: str, request: Request):
         return _error(404, "not_found", "Buchung nicht gefunden.")
     if not household.sees_transaction(get_db(), device.person_id, parsed_id):
         return _not_found("Buchung")
+    before = get_db().one("SELECT * FROM transactions WHERE id = ?", (parsed_id,))
     try:
         mobile_write.delete_transaction(get_db(), parsed_id)
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
+    if before:
+        audit.note(f"Buchung gelöscht: {audit.tx_label(before)}", before["account_id"])
     services.schedule_refresh()
     return {"ok": True}
 
@@ -753,9 +796,11 @@ async def share_transaction(tx_id: str, request: Request):
     if payload is None or set(payload) - {"parts"}:
         return _error(400, "invalid_request", "Ungültige Anfrage.")
     try:
-        return sharing.set_share(get_db(), parsed_id, payload.get("parts"))
+        result = sharing.set_share(get_db(), parsed_id, payload.get("parts"))
     except sharing.SharingError as error:
         return _sharing_error(error)
+    _note_tx(parsed_id, "mit dem Haushalt geteilt")
+    return result
 
 
 @router.delete("/api/v1/transactions/{tx_id}/share")
@@ -767,9 +812,11 @@ def unshare_transaction(tx_id: str, request: Request):
     if parsed_id is None or not _own_payment(device, parsed_id):
         return _not_found("Buchung")
     try:
-        return sharing.clear_share(get_db(), parsed_id)
+        result = sharing.clear_share(get_db(), parsed_id)
     except sharing.SharingError as error:
         return _sharing_error(error)
+    _note_tx(parsed_id, "Teilen aufgehoben")
+    return result
 
 
 @router.post("/api/v1/household/settlements")
@@ -785,6 +832,7 @@ async def add_settlement(request: Request):
         settlement = sharing.add_settlement(get_db(), {**payload, "from_person_id": device.person_id})
     except sharing.SharingError as error:
         return _sharing_error(error)
+    audit.note(f"Ausgleichszahlung: {settlement.get('from')} an {settlement.get('to')}, {euro(settlement.get('cents'))}")
     return JSONResponse({"settlement": settlement}, status_code=201)
 
 
@@ -861,10 +909,18 @@ async def set_budget(category_id: str, request: Request):
     payload = await _json_object(request)
     if payload is None:
         return _error(400, "invalid_request", "Ungültige Anfrage.")
+    old = get_db().scalar("SELECT budget_cents FROM categories WHERE id = ?", (parsed_id,))
     try:
         budget = mobile_write.set_budget(get_db(), parsed_id, payload)
     except mobile_write.MobileWriteError as error:
         return _write_error(error)
+    new = budget["limit_cents"]
+    if new == old:
+        audit.skip()
+    elif new is None:
+        audit.note(f"Budget „{budget['name']}“ entfernt (vorher {euro(old)})")
+    else:
+        audit.note(f"Budget „{budget['name']}“: {euro(new)}" + (f" statt {euro(old)}" if old else ""))
     services.schedule_refresh()
     return {"budget": budget}
 
@@ -886,6 +942,7 @@ async def set_own_budget(category_id: str, request: Request):
     except household.HouseholdError as error:
         code = {400: "invalid_request", 404: "not_found"}.get(error.status, "not_possible")
         return _error(error.status, code, error.message)
+    audit.note(f"Eigenes Budget für „{budget['name']}“: " + (euro(budget["limit_cents"]) if budget["limit_cents"] else "entfernt"))
     services.schedule_refresh()
     return {"budget": budget}
 

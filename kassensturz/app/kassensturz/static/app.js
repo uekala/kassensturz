@@ -2251,13 +2251,45 @@ function syncSheet(conn) {
 }
 
 /* ------------------------------------------------------------------ Einstellungen */
+// Änderungsprotokoll: jüngste zuerst, mit Uhrzeit und wer es war.
+const fmtStamp = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+function changeList(items) {
+  return html`<ul class="list changes">${items.map((c) => html`<li class="row static"><span class="title">${c.text}</span>
+    <span class="sub">${c.actor}${c.actor_kind === "phone" ? " (Handy)" : ""}, ${fmtStamp.format(new Date(c.at))}</span></li>`)}</ul>`;
+}
+async function changesSheet() {
+  const state = { offset: 0, actor: "", items: [] };
+  const sh = openSheet(html`${sheetHead("Änderungen")}
+    <label class="field"><span>Von</span><select class="input" id="chg-actor"><option value="">Allen</option></select></label>
+    <p class="small muted" id="chg-count"></p><div id="chg-list"></div>
+    <div class="actions"><button class="btn" id="chg-more" style="display:none">Weitere laden</button></div>`.s);
+  const load = async (reset) => {
+    if (reset) { state.offset = 0; state.items = []; }
+    const q = new URLSearchParams({ offset: state.offset, limit: 100 });
+    if (state.actor) q.set("actor", state.actor);
+    let r;
+    try { r = await api("changes?" + q); } catch (err) { toast(err.message); return; }
+    state.items.push(...r.items);
+    state.offset += r.items.length;
+    const sel = $("#chg-actor", sh.el);
+    if (sel.options.length === 1) r.actors.forEach((a) => sel.add(new Option(a, a)));
+    $("#chg-count", sh.el).textContent = `${r.total} ${r.total === 1 ? "Eintrag" : "Einträge"}`;
+    $("#chg-list", sh.el).innerHTML = state.items.length ? changeList(state.items).s : '<p class="muted">Keine Einträge.</p>';
+    $("#chg-more", sh.el).style.display = state.offset >= r.total ? "none" : "";
+  };
+  $("#chg-actor", sh.el).onchange = (e) => { state.actor = e.target.value; load(true); };
+  $("#chg-more", sh.el).onclick = () => load(false);
+  await load(true);
+}
+
 async function renderSettings(view, _params, seq) {
-  const [s, rules, learned, devices, sharing] = await Promise.all([
+  const [s, rules, learned, devices, sharing, changes] = await Promise.all([
     api("settings"),
     api("rules"),
     api("learned"),
     api("mobile/devices").catch(() => ({ items: [] })),
     api("household/sharing"),
+    api("changes?limit=6"),
   ]);
   if (seq !== renderSeq) return;
   const p = s.profile || {};
@@ -2322,6 +2354,11 @@ async function renderSettings(view, _params, seq) {
               <span class="amount" style="display:flex;gap:6px;align-items:center">${!d.revoked_at && store.persons.length ? html`<select data-mobile-person="${d.id}" aria-label="Person für ${d.name}"><option value="">Niemand</option>${store.persons.map((p) => html`<option value="${p.id}" ${p.id === d.person_id ? raw("selected") : ""}>${p.name}</option>`)}</select>` : ""}${!d.revoked_at ? html`<button class="btn small danger" data-mobile-revoke="${d.id}">Widerrufen</button>` : html`<span class="small muted">Gesperrt</span>`}</span>
             </li>` )}</ul>` : html`<p class="small muted">Noch keine gekoppelten Geräte.</p>`}
         </div>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>Änderungen</h2>${changes.total > changes.items.length ? html`<button class="link-btn" id="chg-all">Alle ${changes.total} ansehen</button>` : ""}</div>
+        ${changes.items.length ? changeList(changes.items) : html`<p class="small muted">Noch nichts geändert.</p>`}
+        <p class="small muted">Wer wann was geändert hat, in Home Assistant oder am Handy. Bankabrufe und was Kassensturz von selbst erledigt, stehen nicht darin. Einträge bleiben gut ein Jahr.</p>
       </section>
     </div><div>
       <section class="section" style="border-top:0">
@@ -2430,6 +2467,7 @@ async function renderSettings(view, _params, seq) {
     }
   }));
   $("#p-add").onclick = () => personSheet();
+  if ($("#chg-all")) $("#chg-all").onclick = () => changesSheet();
   if ($("#st-add")) $("#st-add").onclick = () => settlementSheet(sharing.balances[0]);
   $$("[data-st-del]", view).forEach((button) => confirmButton(button, "Wirklich entfernen?", async () => {
     try { await api(`household/settlements/${button.dataset.stDel}`, { method: "DELETE" }); toast("Zahlung entfernt"); } catch (e) { toast(e.message); }
