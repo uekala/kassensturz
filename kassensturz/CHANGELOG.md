@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.3.58
+
+- App (ab Version 0.3.39): Verlangt eine FinTS-Bank beim Abruf aus der App eine TAN, eine Freigabe in der
+  Banking-App oder die Wahl des TAN-Verfahrens, zeigt die App die Rückfrage und gibt die Antwort zurück. Bisher
+  endete der Abruf dann mit einem Hinweis auf Home Assistant.
+- Die PIN kommt weiterhin nie vom Handy: Das geht nur für Bankzugänge, deren PIN in Home Assistant gespeichert ist.
+  Kinderhandys sehen keine Rückfragen. Der Abstand von 30 Minuten zwischen Abrufen aus der App bleibt; der tägliche
+  Abruf läuft unverändert ohne Rückfragen. Im Änderungsprotokoll steht, dass geantwortet wurde, nie die TAN.
+
 ## 0.3.57
 
 - App (ab Version 0.3.37): Der heutige Wert von Depot, Festgeld, VL und Immobilie und die Restschuld eines Kredits

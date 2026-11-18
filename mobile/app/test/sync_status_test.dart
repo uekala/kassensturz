@@ -22,6 +22,7 @@ Map<String, dynamic> _status({
   String state = 'ok',
   int? daysLeft = 99,
   int? renew,
+  Map<String, dynamic>? question,
   List<Map<String, dynamic>> errors = const [],
 }) => {
   'sources': [
@@ -40,6 +41,7 @@ Map<String, dynamic> _status({
   'run': {'state': run, 'added': added, 'errors': errors},
   'can_start': canStart,
   'wait_minutes': wait,
+  'question': question,
 };
 
 Future<MobileConnectionController> _controller(
@@ -292,6 +294,187 @@ void main() {
     expect(find.text('Freigabe abschließen'), findsNothing);
     expect(find.text('Freigabe für Erfundene Bank erneuert.'), findsOneWidget);
     expect(controller.syncStatus!.renewals, isEmpty);
+  });
+
+  test('questions of a bank are read, unknown ones are left alone', () {
+    BankQuestion? read(Map<String, dynamic> question) =>
+        ServerSyncStatus.fromJson(_status(question: question)).question;
+
+    final tan = read({
+      'qid': 'q1',
+      'kind': 'tan',
+      'bank': 'Erfundene Bank',
+      'text': 'Bitte TAN eingeben.',
+      'image': 'data:image/png;base64,AAEC',
+      'flicker': ['10101', '0101', 7],
+    })!;
+    expect((tan.qid, tan.kind, tan.text), ('q1', 'tan', 'Bitte TAN eingeben.'));
+    expect(tan.image, [0, 1, 2]);
+    expect(tan.flicker, ['10101']);
+
+    final choice = read({
+      'qid': 'q2',
+      'kind': 'choice',
+      'bank': 'Erfundene Bank',
+      'title': 'Welches Verfahren?',
+      'options': [
+        {'value': '921', 'label': 'pushTAN', 'hint': 'App-Freigabe'},
+        {'value': '', 'label': 'leer'},
+      ],
+    })!;
+    expect(choice.options.single.value, '921');
+
+    expect(read({'qid': 'q3', 'kind': 'neu', 'bank': 'X'}), isNull);
+    expect(read({'qid': '', 'kind': 'tan'}), isNull);
+    expect(read({'qid': 'q4', 'kind': 'choice', 'options': <Object>[]}), isNull);
+    expect(ServerSyncStatus.fromJson(_status()).question, isNull);
+  });
+
+  testWidgets('a TAN asked by the bank is entered in the card', (tester) async {
+    const question = {
+      'qid': 'ks-frage-1',
+      'kind': 'tan',
+      'bank': 'Erfundene Bank',
+      'text': 'Bitte TAN aus der erfundenen App eingeben.',
+    };
+    final sent = <Map<String, dynamic>>[];
+    Map<String, dynamic>? startBody;
+    var answered = false;
+    final transport = ScriptedTransport((request) {
+      final path = request.uri.path;
+      if (path == '/api/v1/sync/answer') {
+        final body = jsonDecode(request.body!) as Map<String, dynamic>;
+        sent.add(body);
+        if (body['value'] == '000000') {
+          return jsonResponse(409, {
+            'error': {
+              'code': 'bank_refused',
+              'message': 'Diese Rückfrage ist nicht mehr offen.',
+            },
+          });
+        }
+        answered = true;
+        return jsonResponse(200, _status(run: 'running', canStart: false));
+      }
+      if (path == '/api/v1/sync') {
+        if (request.method == 'POST') {
+          startBody = jsonDecode(request.body!) as Map<String, dynamic>;
+        }
+        return jsonResponse(
+          200,
+          answered
+              ? _status(run: 'done', added: 1, canStart: false, wait: 30)
+              : _status(run: 'running', canStart: false, question: question),
+        );
+      }
+      return serverAnswer(
+        request,
+        capabilities: [..._capabilities, 'sync.tan'],
+      );
+    });
+    final controller = (await tester.runAsync(() => _controller(transport)))!;
+    addTearDown(controller.dispose);
+
+    await _pump(tester, controller);
+    expect(find.text('Erfundene Bank verlangt eine TAN'), findsOneWidget);
+    expect(
+      find.text('Bitte TAN aus der erfundenen App eingeben.'),
+      findsOneWidget,
+    );
+    expect(find.text('Jetzt abrufen'), findsNothing);
+
+    await tester.tap(find.text('TAN senden'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bitte gib die TAN ein.'), findsOneWidget);
+    expect(sent, isEmpty);
+
+    await tester.enterText(find.byType(TextField), '000000');
+    await tester.tap(find.text('TAN senden'));
+    await tester.pumpAndSettle();
+    expect(find.text('Diese Rückfrage ist nicht mehr offen.'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), ' 123456 ');
+    await tester.tap(find.text('TAN senden'));
+    await tester.pumpAndSettle();
+    expect(sent.last, {'qid': 'ks-frage-1', 'value': '123456'});
+    expect(find.text('Erfundene Bank verlangt eine TAN'), findsNothing);
+    expect(controller.bankQuestion, isNull);
+    expect(controller.syncStatus!.running, isFalse);
+    // Nothing was started from here: the fetch was already waiting.
+    expect(startBody, isNull);
+  });
+
+  testWidgets('starting from the app allows the bank to ask back', (
+    tester,
+  ) async {
+    Map<String, dynamic>? startBody;
+    final cancelled = <Map<String, dynamic>>[];
+    var open = true;
+    final transport = ScriptedTransport((request) {
+      final path = request.uri.path;
+      if (path == '/api/v1/sync/answer') {
+        cancelled.add(jsonDecode(request.body!) as Map<String, dynamic>);
+        open = false;
+        return jsonResponse(200, _status(run: 'done', canStart: false));
+      }
+      if (path == '/api/v1/sync') {
+        if (request.method == 'POST') {
+          startBody = jsonDecode(request.body!) as Map<String, dynamic>;
+          return jsonResponse(
+            202,
+            _status(
+              run: 'running',
+              canStart: false,
+              question: {
+                'qid': 'ks-frage-2',
+                'kind': 'decoupled',
+                'bank': 'Erfundene Bank',
+                'text': 'Bitte bestätige den Zugriff in deiner Banking-App.',
+              },
+            ),
+          );
+        }
+        if (startBody == null) return jsonResponse(200, _status());
+        return jsonResponse(
+          200,
+          open
+              ? _status(
+                  run: 'running',
+                  canStart: false,
+                  question: {
+                    'qid': 'ks-frage-2',
+                    'kind': 'decoupled',
+                    'bank': 'Erfundene Bank',
+                    'text':
+                        'Bitte bestätige den Zugriff in deiner Banking-App.',
+                  },
+                )
+              : _status(run: 'done', canStart: false, wait: 30),
+        );
+      }
+      return serverAnswer(
+        request,
+        capabilities: [..._capabilities, 'sync.tan'],
+      );
+    });
+    final controller = (await tester.runAsync(() => _controller(transport)))!;
+    addTearDown(controller.dispose);
+    await _pump(tester, controller);
+
+    await tester.tap(find.text('Jetzt abrufen'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 10));
+    expect(startBody, {'interactive': true});
+    expect(
+      find.text('Erfundene Bank: Freigabe in der Banking-App'),
+      findsOneWidget,
+    );
+    expect(find.text('Ich habe freigegeben'), findsOneWidget);
+
+    await tester.tap(find.text('Abruf abbrechen'));
+    await tester.pumpAndSettle();
+    expect(cancelled.single, {'qid': 'ks-frage-2', 'cancel': true});
+    expect(find.text('Abruf abbrechen'), findsNothing);
   });
 
   testWidgets('a refusal of the server is shown as it is', (tester) async {

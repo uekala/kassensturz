@@ -195,3 +195,109 @@ def test_renewing_an_expiring_consent_from_the_phone(db, bank, monkeypatch):
         assert "banks.renew" not in client.get("/api/v1/me", headers=kid).json()["capabilities"]
         assert client.get("/api/v1/sync", headers=kid).json()["sources"][0]["renew"] is None
         assert client.post("/api/v1/banks/renew", json={"id": 1}, headers=kid).status_code == 403
+
+
+def _asking_job(kind, payload):
+    """Ein FinTS-Auftrag, der wie bei einer echten Bank auf eine Antwort wartet; ohne Verbindung."""
+    import threading
+    job = fints_sync.Job(1, "Erfundene Bank")
+    got = {}
+
+    def run():
+        try:
+            got["answer"] = job.ask(kind, payload, timeout=5)
+            job.state = "done"
+            job.result = {"added": 2}
+        except fints_sync.JobCancelled:
+            job.state = "cancelled"
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if job.state == "waiting" and job.question:
+            break
+        threading.Event().wait(0.01)
+    return job, got, thread
+
+
+def test_bank_question_is_answered_from_the_phone(db, bank, monkeypatch):
+    from kassensturz import household
+    reset_mobile_guards(monkeypatch)
+    started = []
+    monkeypatch.setattr(fints_sync, "start", lambda *a, **k: started.append(k) or FakeJob("Testbank"))
+    monkeypatch.setattr(secrets_store, "has_pin", lambda _cid: True)
+    db.insert("connections", {"name": "Testbank", "blz": "00000000", "login": "erfunden", "server": "https://example.invalid"})
+    with https_client() as client:
+        headers = paired_headers(client)
+        assert "sync.tan" in client.get("/api/v1/me", headers=headers).json()["capabilities"]
+        # Nur wer es ausdrücklich verlangt, startet FinTS mit Rückfragen; ältere Apps bleiben beim Hintergrundlauf.
+        assert client.post("/api/v1/sync", headers=headers).status_code == 202
+        assert started[-1]["background"] is True
+        db.set_setting(banksync.LAST_START_KEY, None)
+        assert client.post("/api/v1/sync", json={"interactive": True}, headers=headers).status_code == 202
+        assert started[-1]["background"] is False
+        assert client.get("/api/v1/sync", headers=headers).json()["question"] is None
+
+        job, got, thread = _asking_job("tan", {"text": "Bitte TAN aus der erfundenen App eingeben.",
+                                               "html": "<b>nicht fürs Handy</b>", "image": "data:text/html;base64,AAAA",
+                                               "flicker": ["10101", "01010"]})
+        banksync._jobs[:] = [job]
+        status = client.get("/api/v1/sync", headers=headers).json()
+        q = status["question"]
+        assert status["run"]["state"] == "running"
+        assert q == {"qid": job.question["qid"], "kind": "tan", "bank": "Erfundene Bank",
+                     "text": "Bitte TAN aus der erfundenen App eingeben.", "flicker": ["10101", "01010"]}
+        assert job.id not in str(status)
+
+        assert client.post("/api/v1/sync/answer", json={"qid": q["qid"], "value": "123456"}).status_code == 401
+        for bad in ({}, {"qid": ""}, {"qid": q["qid"], "value": "1", "extra": 1}):
+            assert client.post("/api/v1/sync/answer", json=bad, headers=headers).status_code == 400
+        for refused in ({"qid": "fremd", "value": "123456"}, {"qid": q["qid"], "value": ""},
+                        {"qid": q["qid"], "value": 123456}, {"qid": q["qid"], "value": "9" * 65}):
+            assert client.post("/api/v1/sync/answer", json=refused, headers=headers).status_code == 409, refused
+        assert job.state == "waiting"
+
+        # Ein Kinderhandy sieht die Rückfrage nicht und kann nicht antworten.
+        child = household.create_person(db, {"name": "Kim", "is_child": True})["id"]
+        secret = client.post("/api/mobile/pairings", json={"person_id": child}).json()["pairing_secret"]
+        token = client.post("/api/v1/pair", json={"pairing_secret": secret, "device_name": "Kims Handy"}).json()["access_token"]
+        kid = {"Authorization": f"Bearer {token}"}
+        assert "sync.tan" not in client.get("/api/v1/me", headers=kid).json()["capabilities"]
+        assert client.get("/api/v1/sync", headers=kid).json()["question"] is None
+        assert client.post("/api/v1/sync/answer", json={"qid": q["qid"], "value": "1"}, headers=kid).status_code == 403
+
+        done = client.post("/api/v1/sync/answer", json={"qid": q["qid"], "value": " 123456 "}, headers=headers)
+        assert done.status_code == 200
+        thread.join(2)
+        assert got["answer"] == "123456"
+        after = client.get("/api/v1/sync", headers=headers).json()
+        assert after["question"] is None and after["run"] == {"state": "done", "added": 2, "errors": []}
+        # Dieselbe Antwort ein zweites Mal trifft keine offene Rückfrage mehr.
+        assert client.post("/api/v1/sync/answer", json={"qid": q["qid"], "value": "123456"}, headers=headers).status_code == 409
+        # Im Protokoll steht, dass geantwortet wurde, aber nie die TAN.
+        logged = " ".join(r["text"] for r in db.query("SELECT text FROM audit_log"))
+        assert "Rückfrage der Bank" in logged and "123456" not in logged
+
+
+def test_choice_approval_and_cancel(db, bank, monkeypatch):
+    reset_mobile_guards(monkeypatch)
+    with https_client() as client:
+        headers = paired_headers(client)
+
+        job, got, thread = _asking_job("choice", {"title": "Welches TAN-Verfahren nutzt du?", "options": [
+            {"value": "921", "label": "Erfundene pushTAN", "hint": "App-Freigabe"}, {"value": "910", "label": "Erfundene chipTAN", "hint": ""}]})
+        banksync._jobs[:] = [job]
+        q = client.get("/api/v1/sync", headers=headers).json()["question"]
+        assert q["kind"] == "choice" and [o["value"] for o in q["options"]] == ["921", "910"]
+        assert client.post("/api/v1/sync/answer", json={"qid": q["qid"], "value": "999"}, headers=headers).status_code == 409
+        assert client.post("/api/v1/sync/answer", json={"qid": q["qid"], "value": "910"}, headers=headers).status_code == 200
+        thread.join(2)
+        assert got["answer"] == "910"
+
+        job, got, thread = _asking_job("tan", {"text": "Erfundene Rückfrage"})
+        banksync._jobs[:] = [job]
+        q = client.get("/api/v1/sync", headers=headers).json()["question"]
+        assert client.post("/api/v1/sync/answer", json={"qid": q["qid"], "cancel": True}, headers=headers).status_code == 200
+        thread.join(2)
+        assert "answer" not in got and job.state == "cancelled"
+        assert client.get("/api/v1/sync", headers=headers).json()["question"] is None
