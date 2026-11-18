@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.37
+
+- Konten: Tipp auf Depot, Festgeld, VL oder Immobilie trägt den heutigen Wert ein. Beim Kredit steht *Restschuld
+  eintragen* im Tilgungsplan (ab Server 0.3.57).
+
 ## 0.3.36
 
 - Belege: PDF öffnet sich jetzt in der App, mit Blättern und Zoomen. Die Datei bleibt dabei in der App und wird

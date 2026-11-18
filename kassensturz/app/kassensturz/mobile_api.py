@@ -69,6 +69,8 @@ CAPABILITIES = (
     "parts",
     # Eine ablaufende Bankfreigabe (Enable Banking) erneuern
     "banks.renew",
+    # Wert eines Depots oder Restschuld eines Kredits eintragen
+    "accounts.value",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -638,6 +640,29 @@ async def create_account(request: Request):
         return _write_error(error)
     services.schedule_refresh()
     return JSONResponse({"account": account}, status_code=201)
+
+
+@router.put("/api/v1/accounts/{account_id}/value")
+async def set_account_value(account_id: str, request: Request):
+    """Enter today's value of a deposit or the remaining debt of a loan the person sees."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed = _transaction_id(account_id)
+    payload = await _json_object(request)
+    if payload is None:
+        return _error(400, "invalid_request", "Ungültige Anfrage.")
+    db = get_db()
+    if parsed is None or not household.sees_account(db, device.person_id, parsed):
+        return _not_found("Konto")
+    try:
+        _account, sentence = mobile_write.set_account_value(db, parsed, payload)
+    except mobile_write.MobileWriteError as error:
+        return _write_error(error)
+    audit.note(sentence, parsed)
+    services.schedule_refresh()
+    account = next((a for a in mobile_write.list_accounts(_view(device))["items"] if a["id"] == parsed), None)
+    return {"account": account}
 
 
 @router.get("/api/v1/categories")

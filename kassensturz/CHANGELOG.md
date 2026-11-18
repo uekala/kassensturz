@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.57
+
+- App (ab Version 0.3.37): Der heutige Wert von Depot, Festgeld, VL und Immobilie und die Restschuld eines Kredits
+  lassen sich am Handy eintragen. Nur für Konten ohne Bankabruf, die die Person sieht; nicht für Kinderhandys. Der
+  Eintrag steht im Änderungsprotokoll.
+
 ## 0.3.56
 
 - App (ab Version 0.3.35): Eine Bankfreigabe über Enable Banking lässt sich am Handy erneuern, sobald sie in

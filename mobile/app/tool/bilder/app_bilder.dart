@@ -302,6 +302,11 @@ void main() {
       await phone.shot('30-tilgungsplan');
       await phone.back();
     }
+    if (await phone.open(find.text('Depot'), 'Wert eintragen')) {
+      expect(find.text('Wert eintragen'), findsOneWidget);
+      await phone.shot('32-wert-eintragen');
+      await phone.back();
+    }
     phone.done();
   });
 

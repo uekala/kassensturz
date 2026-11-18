@@ -204,6 +204,8 @@ async def only_ingress(request: Request, call_next):
             "/api/v1/transactions/"
         ):
             policy = ("transaction-write", 60, 60)
+        if policy is None and request.method.upper() == "PUT" and request.url.path.startswith("/api/v1/accounts/"):
+            policy = ("account-value", 20, 60)
         if policy is None and request.method.upper() == "PUT" and request.url.path.startswith("/api/v1/budgets/"):
             policy = ("budget-write", 60, 60)
         if policy is None and request.method.upper() in ("PATCH", "POST") and request.url.path.startswith("/api/v1/contracts/"):

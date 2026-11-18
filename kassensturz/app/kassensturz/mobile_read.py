@@ -202,6 +202,8 @@ def serialize_overview(
                 if account.get("value_prev_cents") is None
                 else int(account["value_prev_cents"]),
                 "previous_value_date": account.get("value_prev_date"),
+                # Depot, Kredit und Ähnliches ohne Bankabruf: Der Wert lässt sich am Handy eintragen.
+                "value_editable": mobile_write.value_editable(account),
                 # Fremde eigene Konten kommen hier gar nicht an.
                 "ownership": mobile_write.ownership(account, viewer),
             }

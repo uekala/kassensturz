@@ -20,7 +20,7 @@ from typing import Any
 
 from . import categorize, contracts, ledger, letters, papers
 from .db import Database, now_iso
-from .util import tx_hash
+from .util import euro, tx_hash
 
 
 MANUAL_SOURCE = "manual"
@@ -403,6 +403,40 @@ def create_cash_account(db: Database, payload: dict, *, today: date | None = Non
     return next(a for a in list_accounts(db)["items"] if a["id"] == account_id)
 
 
+MAX_VALUE_CENTS = 10_000_000_000  # 100 Mio. €
+
+
+def value_editable(account: dict) -> bool:
+    """Depot, Festgeld, VL, Immobilie und Kredit ohne Bankabruf: Ihr Wert wird von Hand eingetragen."""
+    return (account.get("kind") in ledger.VALUE_KINDS and not account.get("archived")
+            and account.get("connection_id") is None and account.get("eb_session_id") is None)
+
+
+def set_account_value(db: Database, account_id: int, payload: dict, *, today: date | None = None) -> tuple[dict, str]:
+    """Trägt den heutigen Wert eines Depots oder die Restschuld eines Kredits ein.
+
+    Gibt das Konto und den Satz fürs Änderungsprotokoll zurück. Ein Wert je Tag; der letzte gilt.
+    """
+    if set(payload) != {"value_cents"}:
+        raise _invalid("Erwartet wird genau das Feld value_cents.")
+    value = payload["value_cents"]
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= MAX_VALUE_CENTS:
+        raise _invalid("Der Betrag ist ungültig.")
+    on = (today or date.today()).isoformat()
+    with db.tx(immediate=True):
+        account = db.one("SELECT * FROM accounts WHERE id = ?", (account_id,))
+        if account is None or account.get("archived"):
+            raise unknown_account()
+        if not value_editable(account):
+            raise MobileWriteError(409, "not_editable", "Für dieses Konto lässt sich kein Wert eintragen.")
+        cents = ledger.signed_value(account["kind"], value)
+        ledger.set_balance_anchor(db, account_id, cents, on)
+        ledger.record_valuation(db, account_id, cents, on)
+    word = "Restschuld" if account["kind"] == "kredit" else "Wert"
+    return (next(a for a in list_accounts(db)["items"] if a["id"] == account_id),
+            f"{word} von „{account['name']}“ eingetragen: {euro(value)}")
+
+
 def list_accounts(db: Database) -> dict:
     """Active accounts with current balance; no IBAN or bank reference."""
     items = []
@@ -418,6 +452,7 @@ def list_accounts(db: Database) -> dict:
                 "balance_date": account.get("balance_date"),
                 "transaction_count": int(account.get("tx_count") or 0),
                 "manual_entries": account_accepts_manual_entries(account),
+                "value_editable": value_editable(account),
                 # "mine" oder "shared"; fremde private Konten kommen hier gar nicht an
                 "ownership": ownership(account, getattr(db, "person_id", None)),
             }

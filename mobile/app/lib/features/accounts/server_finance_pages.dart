@@ -9,6 +9,7 @@ import '../budget/triage_page.dart';
 import '../more/changes_page.dart';
 import '../more/household_page.dart';
 import '../projects/projects_page.dart';
+import 'account_value_sheet.dart';
 import 'loan_sheet.dart';
 import 'net_worth_trend.dart';
 
@@ -128,14 +129,7 @@ class ServerAccountsPage extends StatelessWidget {
               _AccountPanel(
                 account: account,
                 showOwnership: split,
-                onTap: controller.canShowLoans && account['type'] == 'kredit'
-                    ? () => showLoanSheet(
-                        context,
-                        controller: controller,
-                        accountId: _integer(account['id']),
-                        name: _string(account['name'], 'Kredit'),
-                      )
-                    : null,
+                onTap: _accountTap(context, controller, account),
               ),
           if (controller.financeError != null && data != null) ...[
             const SizedBox(height: 8),
@@ -147,11 +141,9 @@ class ServerAccountsPage extends StatelessWidget {
           const SizedBox(height: 10),
           if (!controller.isReadOnly)
             Text(
-              'Konten legst du in Kassensturz in Home Assistant an, dort '
-              'trägst du auch Werte für Depot, Festgeld, Immobilie und '
-              'Kredit ein. Umsätze von Hand gehen nur auf Konten ohne '
-              'Bankabruf; ein Konto für Bargeld legt die App über das Plus '
-              'selbst an.',
+              controller.canEditAccountValues
+                  ? _valuesInApp
+                  : _valuesInHomeAssistant,
               style: textTheme.bodySmall,
             ),
         ],
@@ -159,6 +151,49 @@ class ServerAccountsPage extends StatelessWidget {
     );
   }
 }
+
+/// A loan opens its repayment plan, a deposit the form for its value.
+VoidCallback? _accountTap(
+  BuildContext context,
+  MobileConnectionController controller,
+  Map<String, dynamic> account,
+) {
+  final id = _integer(account['id']);
+  final loan = account['type'] == 'kredit';
+  final editable =
+      controller.canEditAccountValues && account['value_editable'] == true;
+  void editValue() => showAccountValueSheet(
+    context,
+    controller: controller,
+    accountId: id,
+    name: _string(account['name'], loan ? 'Kredit' : 'Konto'),
+    loan: loan,
+    currentCents: account['balance_known'] == true
+        ? _integer(account['balance_cents'])
+        : null,
+  );
+  if (loan && controller.canShowLoans) {
+    return () => showLoanSheet(
+      context,
+      controller: controller,
+      accountId: id,
+      name: _string(account['name'], 'Kredit'),
+      onEditValue: editable ? editValue : null,
+    );
+  }
+  return editable ? editValue : null;
+}
+
+const _valuesInApp =
+    'Konten legst du in Kassensturz in Home Assistant an. Tipp auf Depot, '
+    'Festgeld, Immobilie oder Kredit, um den heutigen Wert einzutragen. '
+    'Umsätze von Hand gehen nur auf Konten ohne Bankabruf; ein Konto für '
+    'Bargeld legt die App über das Plus selbst an.';
+const _valuesInHomeAssistant =
+    'Konten legst du in Kassensturz in Home Assistant an, dort trägst du '
+    'auch Werte für Depot, Festgeld, Immobilie und Kredit ein. Umsätze von '
+    'Hand gehen nur auf Konten ohne Bankabruf; ein Konto für Bargeld legt '
+    'die App über das Plus selbst an.';
 
 class _AccountPanel extends StatelessWidget {
   const _AccountPanel({

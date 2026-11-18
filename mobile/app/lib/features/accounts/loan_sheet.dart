@@ -12,13 +12,19 @@ Future<void> showLoanSheet(
   required MobileConnectionController controller,
   required int accountId,
   required String name,
+  VoidCallback? onEditValue,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
   showDragHandle: true,
   builder: (context) => Padding(
     padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: LoanSheet(controller: controller, accountId: accountId, name: name),
+    child: LoanSheet(
+      controller: controller,
+      accountId: accountId,
+      name: name,
+      onEditValue: onEditValue,
+    ),
   ),
 );
 
@@ -51,12 +57,16 @@ class LoanSheet extends StatefulWidget {
     required this.controller,
     required this.accountId,
     required this.name,
+    this.onEditValue,
     super.key,
   });
 
   final MobileConnectionController controller;
   final int accountId;
   final String name;
+
+  /// Opens the form for the remaining debt; the plan closes first.
+  final VoidCallback? onEditValue;
 
   @override
   State<LoanSheet> createState() => _LoanSheetState();
@@ -128,6 +138,17 @@ class _LoanSheetState extends State<LoanSheet> {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           children: [
             Text('Tilgungsplan ${widget.name}', style: textTheme.titleLarge),
+            if (widget.onEditValue != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    widget.onEditValue!();
+                  },
+                  child: const Text('Restschuld eintragen'),
+                ),
+              ),
             const SizedBox(height: 12),
             if (plan == null && _error == null)
               const Center(child: CircularProgressIndicator())
