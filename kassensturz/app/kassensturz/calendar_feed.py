@@ -66,6 +66,15 @@ def peer_allowed(host: str | None) -> bool:
     return ip.is_loopback or ip in HASSIO_NETWORK
 
 
+FORWARD_HEADERS = ("x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "forwarded", "x-real-ip")
+
+
+def forwarded(headers) -> bool:
+    """Ob ein Proxy die Anfrage weitergereicht hat. Home Assistant Core fragt direkt, der Tailscale-Proxy nicht."""
+    return any(headers.get(name) for name in FORWARD_HEADERS) or any(
+        key.lower().startswith("tailscale-") for key in headers.keys())
+
+
 def address(value: str | None) -> str | None:
     """Die Adresse, wie Home Assistant sie im internen Netz erreicht: Name des Containers und Port."""
     if not value:

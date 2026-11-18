@@ -47,6 +47,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const plansCapability = 'plans';
   static const projectsCapability = 'projects';
   static const loansCapability = 'loans';
+  static const changesCapability = 'changes';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -292,6 +293,10 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// True when expenses can be shared with the household.
   bool get canShareExpenses => _capabilities.contains(sharingCapability);
+
+  /// Whether the server shows the log of changes to this phone.
+  bool get canShowChanges =>
+      _capabilities.contains(changesCapability) && !isReadOnly;
 
   /// Whether the server shows projects to this phone.
   bool get canShowProjects => _capabilities.contains(projectsCapability);

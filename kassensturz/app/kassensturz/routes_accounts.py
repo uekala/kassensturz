@@ -237,7 +237,8 @@ def delete_account(aid: int):
     db = get_db()
     gone = db.one("SELECT name, (SELECT COUNT(*) FROM transactions WHERE account_id = ?) AS n FROM accounts WHERE id = ?", (aid, aid))
     if gone:
-        audit.note(f"Konto „{gone['name']}“ gelöscht, mit {gone['n']} Buchungen")
+        # Mit Konto: So sieht den Eintrag am Handy nur, wer das Konto sehen durfte; nach dem Löschen niemand.
+        audit.note(f"Konto „{gone['name']}“ gelöscht, mit {gone['n']} Buchungen", aid)
     ledger.delete_account(db, aid)
     categorize.recategorize(db)
     _changed()

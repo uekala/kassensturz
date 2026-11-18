@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.50
+
+- App (ab Version 0.3.32): *Konten → Wer hat was geändert?* zeigt das Änderungsprotokoll. Jede Person sieht nur
+  Einträge zu Konten, die sie sieht, und zum ganzen Haushalt; eigene Budgets anderer Personen stehen dort nicht.
+- Der Eintrag „Konto gelöscht“ hängt jetzt am Konto und erscheint darum am Handy nicht mehr bei Personen, die das
+  Konto nie gesehen haben.
+- Zahlungskalender: Auf dem Home Assistant Green kommt Home Assistant mit derselben Adresse wie der Tailscale-Proxy.
+  Der Kalender lehnte darum auch Home Assistant ab. Jetzt entscheidet, ob ein Proxy die Anfrage weitergereicht hat;
+  übers Tailnet bleibt der Kalender gesperrt.
+
 ## 0.3.49
 
 - App (ab Version 0.3.31): Projekte ansehen, mit Gesamtkosten, Rest im Rahmen, Kosten je Kategorie und Monat und den

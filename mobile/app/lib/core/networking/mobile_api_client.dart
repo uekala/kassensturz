@@ -577,6 +577,16 @@ class MobileApiClient {
     );
   }
 
+  /// Who changed what, newest first, as far as this person may see it.
+  Future<Map<String, dynamic>> changes({int offset = 0}) {
+    if (offset < 0) throw const FormatException('Ungültige Seite.');
+    return _authenticatedJson(
+      method: 'GET',
+      path: '/api/v1/changes',
+      query: {'offset': '$offset', 'limit': '50'},
+    );
+  }
+
   /// Projects with their costs, as far as this person sees the bookings.
   Future<Map<String, dynamic>> projects() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/projects');

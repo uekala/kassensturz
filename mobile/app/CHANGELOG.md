@@ -1,5 +1,9 @@
 # Änderungen der Mobile-App
 
+## 0.3.32
+
+- *Konten → Wer hat was geändert?*: das Änderungsprotokoll, neueste zuerst, mit Nachladen (ab Server 0.3.50).
+
 ## 0.3.31
 
 - Planung → *Projekte*: was etwas insgesamt gekostet hat, mit Rahmen, Kategorien, Monaten und Buchungen (ab Server
