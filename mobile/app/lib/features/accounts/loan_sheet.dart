@@ -212,10 +212,7 @@ class _LoanSheetState extends State<LoanSheet> {
             ? '${_monthYear(end)}, in ${_span(_int(plan['months']))}'
             : 'in mehr als 60 Jahren',
       ),
-      _Fact(
-        'Noch Zinsen',
-        formatEuro(_int(plan['interest_cents']) / 100),
-      ),
+      _Fact('Noch Zinsen', formatEuro(_int(plan['interest_cents']) / 100)),
       const SizedBox(height: 18),
       Text('Sondertilgung', style: textTheme.titleMedium),
       const SizedBox(height: 8),
@@ -305,10 +302,7 @@ class _Fact extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 110,
-            child: Text(label, style: textTheme.bodySmall),
-          ),
+          SizedBox(width: 110, child: Text(label, style: textTheme.bodySmall)),
           Expanded(child: Text(value, style: textTheme.bodyMedium)),
         ],
       ),
