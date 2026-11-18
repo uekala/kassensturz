@@ -1,5 +1,21 @@
 # Änderungen
 
+## 0.3.47
+
+- Nach einem Update lädt die Oberfläche sicher die neue Fassung. Bisher zeigten Skript und Stil seit 0.3.22 dieselbe
+  Version in der Adresse; ein Browser konnte so eine alte Fassung behalten.
+- Technik: Die Oberfläche ist in Module aufgeteilt, die Schnittstelle des Servers in Bereiche. An Funktionen und
+  Adressen ändert sich nichts.
+
+## 0.3.46
+
+- Zahlungskalender: Kommende Abbuchungen, Eingänge, geplante Ausgaben, letzte Tage zum Kündigen, Fälligkeiten und das
+  Ende der Bankfreigaben als Kalender in Home Assistant, ein Jahr im Voraus.
+  - Unter *Einstellungen → Zahlungskalender* die Adresse erstellen und in Home Assistant mit der Integration
+    *Remote Calendar* eintragen.
+  - Der Kalender ist aus, bis du die Adresse erstellst. Die Adresse ist nur im internen Netz von Home Assistant
+    erreichbar und lässt sich jederzeit ersetzen oder abschalten.
+
 ## 0.3.45
 
 - Änderungsprotokoll: Unter *Einstellungen → Änderungen* steht, wer im Haushalt wann was geändert hat, in Home
