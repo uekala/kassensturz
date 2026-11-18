@@ -1,5 +1,13 @@
 # Änderungen der Mobile-App
 
+## 0.3.29
+
+- Handy eines Kindes: Der Hinweis „Kassensturz in Home Assistant aktualisieren“ erscheint dort nicht mehr, das Plus
+  zum Anlegen fehlt, und die Startseite zeigt „Dein Geld“ statt der Zahlen des Haushalts. Die Hinweise auf den Seiten
+  Planung und Konten passen jetzt zu einem Kind.
+- Knöpfe und Meldungen stehen in der Schrift der App statt in der Schrift des Systems.
+- Die Gutschrift des Taschengelds heißt nicht mehr „Bankumsatz“; im Hinweis steht, dass Kassensturz sie angelegt hat.
+
 ## 0.3.28
 
 - Haushalt: Taschengeld-Konten der Kinder erscheinen bei den Erwachsenen als „Taschengeld … für ein Kind“ und

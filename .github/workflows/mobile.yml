@@ -58,7 +58,13 @@ jobs:
         run: flutter pub get
 
       - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: |
+          if ! dart format --output=none --set-exit-if-changed lib test; then
+            # Zeigen, was der Formatierer ändern würde, statt nur die Datei zu nennen.
+            dart format lib test > /dev/null
+            git --no-pager diff
+            exit 1
+          fi
 
 
 

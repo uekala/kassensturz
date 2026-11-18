@@ -235,7 +235,12 @@ abstract final class AppTheme {
       dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 1),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: c.ink,
-        contentTextStyle: TextStyle(color: c.surface, fontSize: 14),
+        contentTextStyle: TextStyle(
+          fontFamily: textFamily,
+          fontFamilyFallback: textFallback,
+          color: c.surface,
+          fontSize: 14,
+        ),
         behavior: SnackBarBehavior.floating,
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -247,7 +252,12 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(
+            fontFamily: textFamily,
+            fontFamilyFallback: textFallback,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -259,7 +269,12 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(
+            fontFamily: textFamily,
+            fontFamilyFallback: textFallback,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(

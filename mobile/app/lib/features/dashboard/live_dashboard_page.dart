@@ -50,6 +50,13 @@ class LiveDashboardPage extends StatelessWidget {
         final expense = _asInt(month['expense_cents']).abs();
         final transactions = controller.transactionItems;
         final textTheme = Theme.of(context).textTheme;
+        // A child's phone shows the child's own money. The month and the
+        // forecast of the household are not sent to it.
+        final ownOnly = controller.isReadOnly;
+        var own = 0;
+        for (final account in accounts) {
+          own += _asInt(account['balance_cents']);
+        }
 
         return RefreshIndicator(
           onRefresh: controller.loadFinancialData,
@@ -58,54 +65,56 @@ class LiveDashboardPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
               AmountHeadline(
-                label: 'Frei verfügbar',
-                amount: formatEuro(free / 100),
+                label: ownOnly ? 'Dein Geld' : 'Frei verfügbar',
+                amount: formatEuro((ownOnly ? own : free) / 100),
                 size: 48,
               ),
-              const SizedBox(height: 14),
-              ThickBar(
-                value: income <= 0
-                    ? 0.0
-                    : (expense / income).clamp(0.0, 1.0).toDouble(),
-                over: income > 0 && expense > income,
-                height: 14,
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Figure(
-                      label: 'Ausgaben',
-                      value: formatEuro(expense / 100),
+              if (!ownOnly) ...[
+                const SizedBox(height: 14),
+                ThickBar(
+                  value: income <= 0
+                      ? 0.0
+                      : (expense / income).clamp(0.0, 1.0).toDouble(),
+                  over: income > 0 && expense > income,
+                  height: 14,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _Figure(
+                        label: 'Ausgaben',
+                        value: formatEuro(expense / 100),
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: _Figure(
-                      label: 'Einnahmen',
-                      value: formatEuro(income / 100),
+                    Expanded(
+                      child: _Figure(
+                        label: 'Einnahmen',
+                        value: formatEuro(income / 100),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Figure(
-                      label: 'Kontostand',
-                      value: formatEuro(balance / 100),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _Figure(
+                        label: 'Kontostand',
+                        value: formatEuro(balance / 100),
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: _Figure(
-                      label: 'Prognose Monatsende',
-                      value: monthEnd is int
-                          ? formatEuro(monthEnd / 100)
-                          : 'Nicht verfügbar',
+                    Expanded(
+                      child: _Figure(
+                        label: 'Prognose Monatsende',
+                        value: monthEnd is int
+                            ? formatEuro(monthEnd / 100)
+                            : 'Nicht verfügbar',
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               if (controller.news != null) ...[
                 const SizedBox(height: 18),
                 NewsCard(controller: controller),
