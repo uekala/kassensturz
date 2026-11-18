@@ -61,6 +61,8 @@ class Job:
         self._event = threading.Event()
         self._answer = None
         self.cancelled = False
+        # Was die Bank zuletzt geantwortet hat: (Code, Text). Für die Fehlermeldung, wenn die Anmeldung scheitert.
+        self.bank_replies: list[tuple[str, str]] = []
 
     def public(self) -> dict:
         return {"id": self.id, "connection_id": self.connection_id, "name": self.name, "state": self.state, "step": self.step,
@@ -145,8 +147,10 @@ def start(connection_id: int, pin: str | None, save_pin: bool = False, history_d
             job.step = "Abgebrochen"
         except Exception as exc:  # noqa: BLE001 – alles in eine verständliche Meldung übersetzen
             job.state = "error"
-            job.error = _explain(exc)
+            job.error = _explain(exc, job.bank_replies)
             log.warning("FinTS-Abruf fehlgeschlagen: %s", exc, exc_info=not isinstance(exc, UserFacingError))
+            if job.bank_replies:
+                log.warning("Antworten der Bank: %s", "; ".join(f"{code} {text}" for code, text in job.bank_replies))
             db.update("connections", "id", connection_id, {"last_status": job.error[:200]})
         finally:
             job.question = None
@@ -155,14 +159,46 @@ def start(connection_id: int, pin: str | None, save_pin: bool = False, history_d
     return job
 
 
-def _explain(exc: Exception) -> str:
+MAX_BANK_REPLIES = 20
+
+
+def _recording_client(replies: list):
+    """Der FinTS-Client, der sich merkt, was die Bank antwortet.
+
+    python-fints protokolliert die Antworten beim Anmelden und Synchronisieren nicht und meldet dann nur
+    „Could not find system_id“. Der Grund steht aber in der Antwort der Bank (Code und Text)."""
+    from fints.client import FinTS3PinTanClient
+
+    class RecordingClient(FinTS3PinTanClient):
+        def _process_response(self, dialog, segment, response):
+            code, text = str(getattr(response, "code", "") or ""), " ".join(str(getattr(response, "text", "") or "").split())
+            if code and (code, text[:160]) not in replies:
+                replies.append((code, text[:160]))
+                del replies[:-MAX_BANK_REPLIES]
+            return super()._process_response(dialog, segment, response)
+
+    return RecordingClient
+
+
+def _bank_said(replies: list | None) -> str:
+    """Die Fehler der Bank (Codes ab 9000) als Satz, sonst ihre Warnungen (ab 3000)."""
+    replies = replies or []
+    picked = [r for r in replies if r[0].startswith("9")] or [r for r in replies if r[0].startswith("3")]
+    if not picked:
+        return ""
+    return " Antwort der Bank: " + "; ".join(f"{text or 'ohne Text'} (Code {code})" for code, text in picked[-4:]) + "."
+
+
+def _explain(exc: Exception, replies: list | None = None) -> str:
     from fints.exceptions import (FinTSClientPINError, FinTSClientTemporaryAuthError, FinTSConnectionError,
                                   FinTSDialogInitError, FinTSSCARequiredError)
 
     if isinstance(exc, UserFacingError):
         return str(exc)
+    said = _bank_said(replies)
     if isinstance(exc, FinTSClientPINError):
-        return "Die Bank hat die PIN abgelehnt. Prüfe PIN und Anmeldenamen – nach mehreren Fehlversuchen sperrt die Bank den Zugang."
+        return ("Die Bank hat die PIN abgelehnt. Prüfe PIN und Anmeldenamen – nach mehreren Fehlversuchen sperrt die Bank "
+                "den Zugang." + said)
     if isinstance(exc, FinTSClientTemporaryAuthError):
         return "Der Zugang ist vorübergehend gesperrt. Entsperre ihn im Online-Banking und versuche es dann erneut."
     if isinstance(exc, FinTSSCARequiredError):
@@ -170,9 +206,13 @@ def _explain(exc: Exception) -> str:
     if isinstance(exc, FinTSConnectionError):
         return "Der FinTS-Server ist nicht erreichbar. Prüfe die Serveradresse in den Einstellungen des Bankzugangs."
     if isinstance(exc, FinTSDialogInitError):
-        return "Die Bank hat die Anmeldung abgelehnt. Oft fehlt die Freischaltung für FinTS/HBCI im Online-Banking."
+        return "Die Bank hat die Anmeldung abgelehnt. Oft fehlt die Freischaltung für FinTS/HBCI im Online-Banking." + said
+    if isinstance(exc, ValueError) and "system_id" in str(exc):
+        # Die Bank hat beim ersten Kontakt keine Kennung für dieses Gerät vergeben, also die Anmeldung nicht angenommen.
+        return ("Die Bank hat die Anmeldung nicht angenommen." + (said or " Einen Grund hat sie nicht genannt.")
+                + " Bitte nicht mehrfach wiederholen: Bei falschen Zugangsdaten sperrt die Bank den Zugang.")
     text = str(exc) or exc.__class__.__name__
-    return f"Abruf fehlgeschlagen: {text[:300]}"
+    return f"Abruf fehlgeschlagen: {text[:300]}" + (f".{said}" if said else "")
 
 
 def _challenge_payload(res) -> dict:
@@ -220,7 +260,7 @@ def _resolve(client, res, job: Job, background: bool):
 
 
 def _sync(job: Job, conn: dict, pin: str, history_days: int | None, background: bool) -> dict:
-    from fints.client import FinTS3PinTanClient, FinTSOperations
+    from fints.client import FinTSOperations
 
     _patch_mt940()
     db = get_db()
@@ -228,7 +268,7 @@ def _sync(job: Job, conn: dict, pin: str, history_days: int | None, background: 
     if not product_id:
         raise UserFacingError("Für den Bankabruf fehlt die FinTS-Produkt-ID. Trage sie in der Konfiguration der App ein "
                               "(Registrierung kostenlos über fints.org).")
-    client = FinTS3PinTanClient(
+    client = _recording_client(job.bank_replies)(
         conn["blz"].strip(), conn["login"].strip(), pin, conn["server"].strip(),
         customer_id=(conn["customer_id"] or None), product_id=product_id, product_version=options.VERSION[:5],
         from_data=conn["client_state"] or None,

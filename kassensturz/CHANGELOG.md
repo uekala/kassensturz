@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.41
+
+- Bankabruf per FinTS: Nimmt die Bank die Anmeldung nicht an, steht jetzt ihr Grund in der Meldung (Text und Code der
+  Bank). Bisher hieß es nur „Could not find system_id“. Die Antworten der Bank stehen auch im Protokoll der App.
+
 ## 0.3.40
 
 - Geplante Ausgaben: Eine einmalige Ausgabe, die schon feststeht, zählt in der Prognose mit.
