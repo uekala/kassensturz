@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.65
+
+- *Einstellungen → Zustand → Wiederherstellung proben*: Kassensturz öffnet die jüngste Sicherungskopie in einem
+  getrennten Ordner so wie beim Start, bringt sie auf das aktuelle Schema, rechnet Salden und Übersicht und vergleicht
+  Konten und Buchungen mit dem laufenden Bestand. Dazu der Hinweis, was nicht in der Kopie steckt (Belegdateien,
+  gespeicherte PINs, Enable-Banking-Schlüssel). Der laufende Bestand bleibt unverändert, die Probe-Kopie wird gelöscht.
+
 ## 0.3.64
 
 - Laden, Fehler aus 0.3.62 behoben: Kassensturz nahm beim Import die Spalte „Netto“ als abgebuchten Betrag. Das ist

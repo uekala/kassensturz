@@ -83,3 +83,94 @@ def alerts(db: Database) -> list[dict]:
                     "text": f"Zu {missing} {'Beleg' if missing == 1 else 'Belegen'} fehlt die Datei. Das passiert nach einem "
                             "Umzug nur mit der Datenbank; nimm für den Umzug die vollständige Sicherung."})
     return out
+
+
+def rehearse_restore(db: Database, latest=None) -> dict:
+    """Probt die Wiederherstellung aus der jüngsten Sicherungskopie, ohne den laufenden Bestand anzufassen.
+
+    Die Kopie wird in einen privaten Ordner außerhalb von /data kopiert und dort so geöffnet wie beim Start:
+    Kassensturz bringt sie auf das aktuelle Schema, prüft sie und rechnet Salden und Übersicht. Dann werden
+    Konten und Buchungen mit dem laufenden Bestand verglichen. Der Ordner wird am Ende gelöscht.
+    """
+    import shutil
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+
+    from . import ledger, services
+
+    latest = latest or backup.newest()
+    if latest is None:
+        return {"found": False, "ok": False}
+    out = {"found": True, "name": latest.name, "ok": False, "steps": []}
+
+    def step(name: str, ok: bool, text: str) -> bool:
+        out["steps"].append({"name": name, "ok": ok, "text": text})
+        return ok
+
+    work = Path(tempfile.mkdtemp(prefix="kassensturz-probe-"))
+    copy = None
+    try:
+        # 1. Kopieren wie bei einer echten Wiederherstellung, über SQLite statt Dateikopie
+        target = work / "kassensturz.sqlite"
+        src = sqlite3.connect(f"file:{latest}?mode=ro", uri=True)
+        try:
+            dst = sqlite3.connect(str(target))
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+        # 2. Öffnen wie beim Start: Schema, Umstellungen, Prüfung
+        copy = dbmod.Database(target)
+        if not step("open", copy.integrity == "ok" and not copy.newer_schema,
+                    f"Geöffnet und auf Schema {dbmod.SCHEMA_VERSION} gebracht (war {copy.schema_before}), "
+                    f"Prüfung: {copy.integrity}." if not copy.newer_schema else
+                    "Die Kopie stammt von einer neueren Version von Kassensturz."):
+            return out
+        # 3. Rechnen: Salden je Konto und die Übersicht
+        accounts = ledger.accounts_with_balance(copy, include_archived=True)
+        services.build_summary(copy)
+        tx_backup = int(copy.scalar("SELECT COUNT(*) FROM transactions") or 0)
+        step("compute", True, f"{len(accounts)} Konten und {tx_backup} Buchungen gelesen, Salden und Übersicht berechnet.")
+        # 4. Vergleich mit dem laufenden Bestand: was in der Kopie steht, muss auch jetzt da sein
+        live_accounts = {a["id"]: a for a in db.query("SELECT id, name FROM accounts")}
+        missing_accounts = [a["name"] for a in accounts if a["id"] not in live_accounts]
+        top = int(copy.scalar("SELECT COALESCE(MAX(id), 0) FROM transactions") or 0)
+        b = copy.one("SELECT COUNT(*) AS n FROM transactions")
+        live_new = int(db.scalar("SELECT COUNT(*) FROM transactions WHERE id > ?", (top,)) or 0)
+        same_hashes = int(db.scalar(
+            "SELECT COUNT(*) FROM transactions WHERE id <= ? AND hash IN (SELECT value FROM json_each(?))",
+            (top, __import__("json").dumps([r["hash"] for r in copy.query("SELECT hash FROM transactions")]))) or 0)
+        gone = b["n"] - same_hashes
+        out.update({"backup_transactions": b["n"], "live_new": live_new, "gone": gone,
+                    "accounts": len(accounts), "missing_accounts": missing_accounts})
+        text = f"Alle {b['n']} Buchungen der Kopie sind auch im laufenden Bestand." if gone == 0 else \
+            f"{gone} Buchungen der Kopie fehlen im laufenden Bestand; sie wurden seither gelöscht oder zusammengeführt."
+        if live_new:
+            text += f" Seit der Kopie sind {live_new} Buchungen dazugekommen; die fehlten nach einer Wiederherstellung."
+        if missing_accounts:
+            text += f" Konten nur in der Kopie: {', '.join(missing_accounts[:5])}."
+        # Gelöschtes und Neues seit der Kopie ist normal. Falsch wäre eine leere Kopie neben einem vollen Bestand.
+        live_total = int(db.scalar("SELECT COUNT(*) FROM transactions") or 0)
+        step("compare", b["n"] > 0 or live_total == 0, text if b["n"] or not live_total else
+             f"Die Kopie enthält keine Buchungen, der laufende Bestand {live_total}.")
+        # 5. Was die Kopie nicht enthält
+        receipts = receipts_state(db)
+        step("outside", True,
+             "Nicht in der Kopie: Belegdateien" + (f" ({receipts['count']})" if receipts["count"] else "") +
+             ", gespeicherte PINs und der Enable-Banking-Schlüssel. Belege kommen mit dem Home-Assistant-Backup "
+             "oder der vollständigen Sicherung zurück; Bankzugänge gibst du nach einer Wiederherstellung neu frei.")
+        out["ok"] = all(s["ok"] for s in out["steps"])
+        return out
+    except (OSError, sqlite3.Error) as error:
+        step("error", False, f"Abgebrochen: {error}")
+        return out
+    finally:
+        if copy is not None:
+            try:
+                copy.close()
+            except sqlite3.Error:
+                pass
+        shutil.rmtree(work, ignore_errors=True)

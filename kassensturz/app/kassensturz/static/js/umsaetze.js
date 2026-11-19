@@ -339,8 +339,19 @@ export async function drawHealth(box) {
     ${h.receipts.count ? line("Belege", `${h.receipts.count} ${h.receipts.count === 1 ? "Datei" : "Dateien"}, ${fileSize(h.receipts.bytes)}`, h.receipts.missing ? `${h.receipts.missing} fehlen` : "vollständig", h.receipts.missing > 0) : ""}
     ${h.newer_schema ? line("Version der Daten", "stammen von einer neueren Version von Kassensturz", "App aktualisieren", true) : ""}
   </ul>
-  <div class="actions"><button class="btn small" id="health-check">Jüngste Sicherung prüfen</button></div>
+  <div class="actions"><button class="btn small" id="health-check">Jüngste Sicherung prüfen</button>
+    <button class="btn small" id="health-rehearse">Wiederherstellung proben</button></div>
   <p class="small muted" id="health-result">Die Prüfung öffnet die jüngste Kopie und kontrolliert sie vollständig, ohne etwas zu ändern.</p>`.s;
+  $("#health-rehearse", box).onclick = async () => {
+    const out = $("#health-result", box);
+    out.textContent = "Die Kopie wird in einem getrennten Ordner geöffnet und durchgerechnet …";
+    let r;
+    try { r = await api("health/restore-rehearsal", { method: "POST" }); } catch (e) { out.textContent = e.message; return; }
+    if (!r.found) { out.textContent = "Es gibt noch keine Sicherungskopie. Die erste entsteht innerhalb eines Tages von selbst."; return; }
+    out.innerHTML = html`<b>${r.ok ? `Wiederherstellung aus ${r.name} klappt.` : `Wiederherstellung aus ${r.name} klappt nicht.`}</b>
+      <ul class="plain">${r.steps.map((s) => html`<li>${s.ok ? "✓" : "✗"} ${s.text}</li>`)}</ul>
+      Dein laufender Bestand wurde dabei nicht verändert; die Probe-Kopie ist wieder gelöscht.`.s;
+  };
   $("#health-check", box).onclick = async () => {
     const out = $("#health-result", box);
     out.textContent = "Wird geprüft …";
