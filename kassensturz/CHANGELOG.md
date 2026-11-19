@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.64
+
+- Laden, Fehler aus 0.3.62 behoben: Kassensturz nahm beim Import die Spalte „Netto“ als abgebuchten Betrag. Das ist
+  in Ladecockpit der Betrag ohne Mehrwertsteuer, darum passte keine Abbuchung, und der Preis je kWh war zu niedrig.
+  Jetzt zählt wieder „Summe“. Importiere den Export einmal neu: Bekannte Ladevorgänge bekommen dann den richtigen
+  Betrag und werden neu zugeordnet.
+
 ## 0.3.63
 
 - Laden: Die Zuordnung findet mehr. Mit „Tesla“ oder dem Namen eines Ladenetzes (IONITY, EnBW und andere) im Text
@@ -15,7 +22,6 @@
   sonst teils aus. Was die Datei ist, prüft der Server.
 - Ist die Datei eine gespeicherte Webseite oder Fehlermeldung statt eines Exports (etwa nach dem Herunterladen in
   der Home-Assistant-App), sagt die Meldung das und was zu tun ist.
-- Zugeordnet wird der Betrag nach Gutschriften (Spalte „Netto“), denn den bucht die Bank ab.
 - Der Export lässt sich auch in den Eingangsordner legen.
 
 ## 0.3.61
