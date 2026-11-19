@@ -632,8 +632,11 @@ actions:
 
 Unter *Einstellungen → Zustand* steht, ob die Datenbank in Ordnung ist, wie alt die jüngste Sicherungskopie ist und ob
 alle Belegdateien da sind. „Jüngste Sicherung prüfen“ öffnet die Kopie nur lesend, prüft sie vollständig und nennt,
-wie viele Buchungen sie enthält. Kassensturz prüft die Datenbank außerdem bei jedem Start und meldet einen Fehler in
-der Übersicht.
+wie viele Buchungen sie enthält. „Wiederherstellung proben“ geht einen Schritt weiter: Kassensturz kopiert die
+jüngste Kopie in einen getrennten Ordner, öffnet sie dort wie beim Start, bringt sie auf das aktuelle Schema, rechnet
+Salden und Übersicht und vergleicht Konten und Buchungen mit dem laufenden Bestand. Der laufende Bestand bleibt dabei
+unverändert, der Ordner wird danach gelöscht. Kassensturz prüft die Datenbank außerdem bei jedem Start und meldet
+einen Fehler in der Übersicht.
 
 Drei Wege zurück, vom einfachsten zum aufwendigsten:
 

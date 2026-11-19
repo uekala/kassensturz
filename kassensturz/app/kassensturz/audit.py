@@ -143,7 +143,7 @@ SKIP: frozenset[tuple[str, str]] = frozenset({
     ("POST", "/api/v1/news/seen"), ("POST", "/api/v1/contracts/{key:path}/letter"),
     ("POST", "/api/jobs/{job_id}/answer"), ("POST", "/api/jobs/{job_id}/cancel"),
     ("POST", "/api/import/analyze"), ("POST", "/api/import/remap"), ("POST", "/api/import/finanzguru/preview"),
-    ("POST", "/api/inbox/analyze"), ("POST", "/api/inbox/scan"), ("POST", "/api/health/backup-check"),
+    ("POST", "/api/inbox/analyze"), ("POST", "/api/inbox/scan"), ("POST", "/api/health/backup-check"), ("POST", "/api/health/restore-rehearsal"),
     ("POST", "/api/contracts/{key:path}/cancellation-research"),
     ("POST", "/api/contracts/{key:path}/cancellation-source-check"),
     ("POST", "/api/letter"), ("POST", "/api/eb/auth"), ("POST", "/api/v1/banks/renew"),

@@ -166,6 +166,12 @@ def health_status():
     return health.status(get_db())
 
 
+@router.post("/api/health/restore-rehearsal")
+def health_restore_rehearsal():
+    """Probt die Wiederherstellung aus der jüngsten Kopie in einem getrennten Ordner; der Bestand bleibt unberührt."""
+    return health.rehearse_restore(get_db())
+
+
 @router.post("/api/health/backup-check")
 def health_backup_check():
     return health.check_newest_backup(get_db())
