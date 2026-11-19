@@ -380,3 +380,108 @@ def budget_suggestions(db: Database, today: date | None = None) -> dict:
                       "suggested_cents": suggested, "current_cents": current})
     items.sort(key=lambda i: -i["average_cents"])
     return {"months": len(months), "items": items}
+
+
+def _year_period(db: Database, start: date, end: date) -> dict:
+    """Summen eines Zeitraums für den Jahresrückblick, ohne Umbuchungen."""
+    _cats, top = category_tree(db)
+    inc = exp = fixed = count = 0
+    by_top: dict = defaultdict(int)
+    months: dict = defaultdict(lambda: [0, 0])
+    singles = []
+    for e in sharing.spending(db, start.isoformat(), end.isoformat()):
+        if e["is_transfer"]:
+            continue
+        count += 1
+        cents = e["amount_cents"]
+        k = e["booking_date"][:7]
+        if cents > 0:
+            inc += cents
+            months[k][0] += cents
+            continue
+        exp += -cents
+        months[k][1] += -cents
+        by_top[top.get(e["category_id"]) if e["category_id"] else None] += -cents
+        if e["contract_key"]:
+            fixed += -cents
+        else:
+            singles.append(e)
+    singles.sort(key=lambda e: e["amount_cents"])
+    return {"income_cents": inc, "expense_cents": exp, "fixed_cents": fixed, "count": count, "by_top": by_top,
+            "months": months, "singles": singles[:5]}
+
+
+def year_review(db: Database, year: int, today: date | None = None) -> dict:
+    """Jahresrückblick: Einnahmen, Ausgaben, Sparquote, Monate, Kategorien und große Einzelausgaben.
+
+    Verglichen wird mit dem Vorjahr. Im laufenden Jahr nur bis zum selben Tag, damit ein halbes Jahr nicht
+    gegen ein ganzes steht."""
+    today = today or date.today()
+    if not 2000 <= year <= today.year:
+        raise ValueError("year")
+    start = date(year, 1, 1)
+    running = year == today.year
+    end = today if running else date(year, 12, 31)
+    cur = _year_period(db, start, end)
+    prev_end = end.replace(year=year - 1) if not (end.month == 2 and end.day == 29) else date(year - 1, 2, 28)
+    prev = _year_period(db, date(year - 1, 1, 1), prev_end)
+    has_prev = bool(prev["income_cents"] or prev["expense_cents"])
+    cats, _top = category_tree(db)
+
+    def name(cid):
+        return cats[cid]["name"] if cid in cats else "Ohne Kategorie"
+
+    categories = []
+    for cid, cents in sorted(cur["by_top"].items(), key=lambda x: -x[1])[:8]:
+        before = prev["by_top"].get(cid, 0) if has_prev else None
+        categories.append({"category_id": cid, "name": name(cid), "cents": cents,
+                           "share": round(cents / cur["expense_cents"], 4) if cur["expense_cents"] else 0,
+                           "previous_cents": before, "change_cents": None if before is None else cents - before})
+    # Was im Vergleich zum Vorjahr am stärksten gestiegen oder gefallen ist, ab 100 €
+    moved = []
+    if has_prev:
+        for cid in set(cur["by_top"]) | set(prev["by_top"]):
+            change = cur["by_top"].get(cid, 0) - prev["by_top"].get(cid, 0)
+            if abs(change) >= 10000:
+                moved.append({"category_id": cid, "name": name(cid), "change_cents": change,
+                              "cents": cur["by_top"].get(cid, 0), "previous_cents": prev["by_top"].get(cid, 0)})
+        moved.sort(key=lambda c: -abs(c["change_cents"]))
+    months = []
+    last_month = end.month
+    for m in range(1, 13):
+        k = f"{year}-{m:02d}"
+        inc, exp = cur["months"].get(k, [0, 0])
+        months.append({"month": k, "label": MONTH_NAMES[m - 1], "income_cents": inc, "expense_cents": exp,
+                       "saldo_cents": inc - exp, "future": m > last_month})
+    # Bester und schwächster Monat nur unter ganzen Monaten mit Buchungen
+    full = [mo for mo in months if not mo["future"] and (mo["income_cents"] or mo["expense_cents"])
+            and not (running and mo["month"] == today.strftime("%Y-%m"))]
+    best = max(full, key=lambda mo: mo["saldo_cents"]) if len(full) >= 2 else None
+    worst = min(full, key=lambda mo: mo["saldo_cents"]) if len(full) >= 2 else None
+    income, expense = cur["income_cents"], cur["expense_cents"]
+    first = db.scalar("SELECT MIN(booking_date) FROM transactions")
+    years = list(range(int(first[:4]), today.year + 1)) if first else [today.year]
+    return {
+        "year": year,
+        "running": running,
+        "until": end.isoformat(),
+        "has_data": bool(income or expense),
+        "years": years,
+        "income_cents": income,
+        "expense_cents": expense,
+        "saved_cents": income - expense,
+        "savings_rate": round((income - expense) / income, 4) if income > 0 else None,
+        "fixed_cents": cur["fixed_cents"],
+        "count": cur["count"],
+        "previous": {
+            "income_cents": prev["income_cents"], "expense_cents": prev["expense_cents"],
+            "saved_cents": prev["income_cents"] - prev["expense_cents"], "until": prev_end.isoformat(),
+        } if has_prev else None,
+        "months": months,
+        "best_month": best and {"month": best["month"], "label": best["label"], "saldo_cents": best["saldo_cents"]},
+        "worst_month": worst and {"month": worst["month"], "label": worst["label"], "saldo_cents": worst["saldo_cents"]},
+        "categories": categories,
+        "moved": moved[:4],
+        "biggest": [{"name": (e.get("counterparty") or e.get("purpose") or "Ohne Empfänger")[:60],
+                     "amount_cents": e["amount_cents"], "date": e["booking_date"]} for e in cur["singles"]],
+    }

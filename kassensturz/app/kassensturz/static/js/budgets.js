@@ -57,7 +57,8 @@ export async function renderBudgets(view, params, seq) {
   view.innerHTML = html`
     <div class="page-head"><h1>${fmtMonth.format(new Date(y, m - 1, 1))}</h1>
       <div class="segmented"><button id="b-prev" aria-label="Vormonat">‹ ${fmtMonth.format(prev).split(" ")[0]}</button>
-      ${!isCurrent ? html`<button id="b-next" aria-label="Folgemonat">${fmtMonth.format(next).split(" ")[0]} ›</button>` : ""}</div></div>
+      ${!isCurrent ? html`<button id="b-next" aria-label="Folgemonat">${fmtMonth.format(next).split(" ")[0]} ›</button>` : ""}</div>
+      <button class="link-btn" id="b-year">Jahresrückblick ${y}</button></div>
     <ul class="tally-lines" style="max-width:420px;font-size:1rem">
       <li><span class="op"></span><span>Einnahmen</span><span class="amount pos">${money(st.income_cents, { plus: true })}</span></li>
       <li><span class="op">−</span><span>Ausgaben</span><span class="amount">${money(st.expense_cents)}</span></li>
@@ -111,6 +112,7 @@ export async function renderBudgets(view, params, seq) {
     </div></div>`.s;
   $("#b-prev").onclick = () => go("budgets", here({ month: key(prev) }));
   on(view, "[data-bperson]", "click", (_e, el) => go("budgets", el.dataset.bperson ? { month, person: el.dataset.bperson } : { month }));
+  $("#b-year").onclick = () => yearSheet(y);
   $("#g-add").onclick = () => goalSheet(null);
   $("#pr-add").onclick = () => projectEditSheet(null);
   on(view, "[data-project]", "click", (_e, el) => projectSheet(Number(el.dataset.project)));
@@ -122,6 +124,53 @@ export async function renderBudgets(view, params, seq) {
   on(view, "[data-setbudget]", "click", (e, el) => { e.stopPropagation(); budgetSheet(Number(el.dataset.setbudget), person, data.limits); });
   on(view, ".bar-row[data-cat]", "click", (_e, el) => { if (el.dataset.cat) go("umsaetze", { category: el.dataset.cat, month, kind: "out" }); });
   historyChart($("#hist-chart"), stats.history);
+}
+
+function changeText(cents, prev) {
+  if (prev === null || prev === undefined) return "";
+  if (!prev) return cents ? "neu" : "";
+  const pct = Math.round(((cents - prev) / prev) * 100);
+  return pct === 0 ? "wie im Vorjahr" : `${pct > 0 ? "+" : "−"}${Math.abs(pct)} % zum Vorjahr`;
+}
+
+export async function yearSheet(year) {
+  let r;
+  try { r = await api("year?year=" + year); } catch (e) { toast(e.message); return; }
+  const p = r.previous;
+  const until = r.running ? ` bis ${dFull(r.until)}` : "";
+  const lines = [];
+  if (r.saved_cents > 0 && r.savings_rate !== null) lines.push(`Gespart ${money(r.saved_cents)}, Sparquote ${Math.round(r.savings_rate * 100)} %.`);
+  else if (r.saved_cents < 0) lines.push(`${money(-r.saved_cents)} mehr ausgegeben als eingenommen.`);
+  if (p) {
+    const d = r.expense_cents - p.expense_cents;
+    lines.push(Math.abs(d) < 5000 ? `Ausgaben etwa wie im Vorjahr${r.running ? " bis zum selben Tag" : ""}.`
+      : `Ausgaben ${money(Math.abs(d))} ${d > 0 ? "höher" : "niedriger"} als im Vorjahr${r.running ? " bis zum selben Tag" : ""}.`);
+  }
+  if (r.expense_cents && r.fixed_cents) lines.push(`${Math.round((r.fixed_cents / r.expense_cents) * 100)} % der Ausgaben waren feste Zahlungen aus Verträgen.`);
+  if (r.best_month && r.worst_month && r.best_month.month !== r.worst_month.month) lines.push(`Bester Monat: ${r.best_month.label} (${money(r.best_month.saldo_cents)}), schwächster: ${r.worst_month.label} (${money(r.worst_month.saldo_cents)}).`);
+  const sh = openSheet(html`${sheetHead(`Jahresrückblick ${r.year}`)}
+    ${r.years.length > 1 ? html`<div class="segmented" style="margin-bottom:12px">${r.years.map((yy) => html`<button data-year="${yy}" ${yy === r.year ? raw('aria-pressed="true"') : ""}>${yy}</button>`)}</div>` : ""}
+    ${!r.has_data ? html`<p class="muted">Für ${r.year} gibt es keine Buchungen.</p>` : html`
+    <ul class="tally-lines" style="max-width:460px">
+      <li><span class="op"></span><span>Einnahmen${until}</span><span class="amount pos">${money(r.income_cents, { plus: true })}${p ? html`<small> Vorjahr ${moneyRound(p.income_cents)}</small>` : ""}</span></li>
+      <li><span class="op">−</span><span>Ausgaben</span><span class="amount">${money(r.expense_cents)}${p ? html`<small> Vorjahr ${moneyRound(p.expense_cents)}</small>` : ""}</span></li>
+      <li class="tally-sum" style="font-weight:650"><span class="op">=</span><span>${r.saved_cents >= 0 ? "Überschuss" : "Fehlbetrag"}</span><span class="amount">${money(r.saved_cents)}${p ? html`<small> Vorjahr ${moneyRound(p.saved_cents)}</small>` : ""}</span></li>
+    </ul>
+    ${lines.length ? html`<p class="review">${lines.join(" ")}</p>` : ""}
+    <section class="section"><div class="section-head"><h2>Überschuss je Monat</h2></div><div class="chart" id="y-chart"></div></section>
+    <section class="section"><div class="section-head"><h2>Wofür das Geld ging</h2>${p ? html`<span class="small muted">Vergleich mit dem Vorjahr${r.running ? " bis zum selben Tag" : ""}</span>` : ""}</div>
+      <ul class="list">${r.categories.map((c) => html`<li class="row static"><span class="title">${c.name}</span>
+        <span class="sub">${c.share < 0.005 ? "unter 1 %" : `${Math.round(c.share * 100)} %`} der Ausgaben${c.previous_cents !== null ? ` · ${changeText(c.cents, c.previous_cents)}` : ""}</span>
+        <span class="amount">${money(c.cents)}</span></li>`)}</ul></section>
+    ${r.moved.length ? html`<section class="section"><div class="section-head"><h2>Größte Veränderungen</h2></div>
+      <ul class="list">${r.moved.map((c) => html`<li class="row static"><span class="title">${c.name}</span>
+        <span class="sub">${money(c.previous_cents)} im Vorjahr</span>
+        <span class="amount">${c.change_cents > 0 ? "+" : "−"}${money(Math.abs(c.change_cents))}</span></li>`)}</ul></section>` : ""}
+    ${r.biggest.length ? html`<section class="section"><div class="section-head"><h2>Größte Einzelausgaben</h2><span class="small muted">ohne Verträge</span></div>
+      <ul class="list">${r.biggest.map((b) => html`<li class="row static"><span class="title">${b.name}</span><span class="sub">${dFull(b.date)}</span><span class="amount">${money(-b.amount_cents)}</span></li>`)}</ul></section>` : ""}
+    <p class="small muted">${r.count} Buchungen, ohne Umbuchungen zwischen eigenen Konten.</p>`}`.s, { wide: true });
+  on(sh.el, "[data-year]", "click", (_e, el) => { sh.close(); yearSheet(Number(el.dataset.year)); });
+  if (r.has_data) historyChart($("#y-chart", sh.el), r.months.filter((m) => !m.future));
 }
 
 export function historyChart(el, hist) {
