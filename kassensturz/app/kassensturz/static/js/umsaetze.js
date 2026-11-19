@@ -175,6 +175,16 @@ export async function drawShare(box, txId) {
   if ($("#share-off", box)) $("#share-off", box).onclick = () => change("DELETE");
 }
 
+const KWH = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/** Ein Ladevorgang aus Ladecockpit in einer Zeile: kWh, Preis je kWh, Ort, Zeit. */
+export function chargingLine(c) {
+  const when = c.started ? `${dFull(c.started.slice(0, 10))}, ${c.started.slice(11, 16)}` : "";
+  const price = c.price_per_kwh_cents != null ? `${money(Math.round(c.price_per_kwh_cents))}/kWh` : "";
+  return [`${KWH.format(c.kwh)} kWh`, price, c.network === "multipass" ? "MultiPass" : null, c.site, when,
+    c.idle_cents ? `davon Blockiergebühr ${money(c.idle_cents)}` : null].filter(Boolean).join(" · ");
+}
+
 export async function txSheet(t) {
   const name = t.counterparty || t.purpose || "Buchung";
   const projects = (await api("projects")).items.filter((p) => !p.archived || p.id === t.project_id);
@@ -192,6 +202,7 @@ export async function txSheet(t) {
       ${t.booking_text ? html`<dt>Art</dt><dd>${t.booking_text}</dd>` : ""}
       ${t.counterparty_iban ? html`<dt>IBAN</dt><dd>${t.counterparty_iban}</dd>` : ""}
       ${t.creditor_id ? html`<dt>Gläubiger-ID</dt><dd>${t.creditor_id}${t.mandate_ref ? `, Mandat ${t.mandate_ref}` : ""}</dd>` : ""}
+      ${t.charging ? html`<dt>Laden</dt><dd>${chargingLine(t.charging)}</dd>` : ""}
       ${t.contract_key ? html`<dt>Vertrag</dt><dd><button class="link-btn" id="tx-contract">Vertrag ansehen</button></dd>` : ""}
     </dl>
     <h3>Kategorie</h3>

@@ -321,6 +321,22 @@ CREATE TABLE IF NOT EXISTS audit_log(
 );
 CREATE INDEX IF NOT EXISTS audit_log_actor ON audit_log(actor, id);
 
+-- Ladevorgänge aus der App Ladecockpit; tx_id ist die Buchung, mit der die Bank sie abgerechnet hat.
+CREATE TABLE IF NOT EXISTS charging_sessions(
+  id INTEGER PRIMARY KEY,
+  session_id TEXT NOT NULL UNIQUE,
+  started TEXT NOT NULL,
+  site TEXT,
+  network TEXT,
+  kwh_wh INTEGER NOT NULL,
+  total_cents INTEGER NOT NULL,
+  idle_cents INTEGER NOT NULL DEFAULT 0,
+  tx_id INTEGER,
+  source TEXT NOT NULL,
+  created TEXT
+);
+CREATE INDEX IF NOT EXISTS charging_sessions_tx ON charging_sessions(tx_id);
+
 -- Projekte bündeln Buchungen quer zu Kategorien; eine Buchung gehört zu höchstens einem Projekt.
 CREATE TABLE IF NOT EXISTS projects(
   id INTEGER PRIMARY KEY,
@@ -451,7 +467,7 @@ def now_iso() -> str:
 
 
 # Steigt mit jeder Änderung am Aufbau der Datenbank. Steht als user_version in der Datei.
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 # Erst nach dem Umbau der Mobile-Tabellen ergänzt, weil der nur die alten Spalten übernimmt.
 MOBILE_MIGRATIONS = {
@@ -474,6 +490,9 @@ _SCOPED_VIEWS = {
     "expected_incomes": "SELECT * FROM main.expected_incomes WHERE account_id IN ({accounts})",
     "planned_expenses": "SELECT * FROM main.planned_expenses WHERE account_id IN ({accounts})",
     "audit_log": "SELECT * FROM main.audit_log WHERE account_id IS NULL OR account_id IN ({accounts})",
+    # Ladevorgänge ohne Buchung gehören dem Haushalt; mit Buchung nur, wenn die sichtbar ist
+    "charging_sessions": "SELECT * FROM main.charging_sessions WHERE tx_id IS NULL OR tx_id IN "
+                         "(SELECT id FROM main.transactions WHERE account_id IN ({accounts}))",
     "project_tx": "SELECT * FROM main.project_tx WHERE tx_id IN "
                   "(SELECT id FROM main.transactions WHERE account_id IN ({accounts}))",
     "imports": "SELECT * FROM main.imports WHERE account_id IS NULL OR account_id IN ({accounts})",

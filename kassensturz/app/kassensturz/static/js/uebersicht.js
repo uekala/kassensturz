@@ -7,8 +7,38 @@ import { go, renderSeq, rerender } from "./router.js";
 import { contractSheet } from "./vertraege.js";
 
 /* ------------------------------------------------------------------ Übersicht */
+const KWH1 = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const perKwh = (cents) => (cents == null ? "–" : `${money(Math.round(cents))}/kWh`);
+
+// Laden mit Ladecockpit: dieser Monat im Vergleich zum vorigen
+function chargingSection(ch) {
+  const now = todayIso().slice(0, 7);
+  const cur = ch.months.find((m) => m.month === now);
+  const prev = ch.months.find((m) => m.month < now);
+  const line = (m) => `${m.sessions} ${m.sessions === 1 ? "Ladevorgang" : "Ladevorgänge"}, ${KWH1.format(m.kwh)} kWh, ${money(m.total_cents)}, ${perKwh(m.price_per_kwh_cents)}`;
+  return html`<section class="section">
+    <div class="section-head"><h2>Laden</h2><button class="link-btn" id="ch-all">Alle Monate</button></div>
+    <p>${cur ? html`Diesen Monat: ${line(cur)}.` : "Diesen Monat noch nicht geladen."}</p>
+    ${prev ? html`<p class="small muted">${fmtMonth.format(D(prev.month + "-01"))}: ${line(prev)}.</p>` : ""}
+    ${ch.unlinked_count ? html`<p class="small muted">${ch.unlinked_count} ${ch.unlinked_count === 1 ? "Ladevorgang hat" : "Ladevorgänge haben"} noch keine passende Abbuchung.</p>` : ""}
+  </section>`;
+}
+
+function chargingSheet(ch) {
+  openSheet(html`${sheetHead("Laden mit Ladecockpit")}
+    <ul class="list">${ch.months.map((m) => html`<li class="row static"><span class="title">${fmtMonth.format(D(m.month + "-01"))}</span>
+      <span class="sub">${m.sessions} × geladen, ${KWH1.format(m.kwh)} kWh, ${perKwh(m.price_per_kwh_cents)}${m.idle_cents ? `, Blockiergebühr ${money(m.idle_cents)}` : ""}</span>
+      <span class="amount">${money(-m.total_cents)}</span></li>`)}</ul>
+    ${ch.unlinked.length ? html`<h3>Noch ohne Abbuchung</h3>
+      <p class="small muted">Gesucht wird eine Buchung mit genau diesem Betrag, einen Tag vor bis sieben Tage nach dem Laden. Rechnet die Bank mehrere Ladevorgänge zusammen ab, passt keine.</p>
+      <ul class="list">${ch.unlinked.map((c) => html`<li class="row static"><span class="title">${c.site || "Ladevorgang"}</span>
+        <span class="sub">${dFull(c.started.slice(0, 10))}, ${KWH1.format(c.kwh)} kWh</span><span class="amount">${money(-c.total_cents)}</span></li>`)}</ul>` : ""}
+    <p class="small muted">Neue Ladevorgänge liest Kassensturz aus dem Sensor von Ladecockpit. Ältere kommen über den Export „Ladevorgänge als CSV“ aus Ladecockpit, importiert unter <i>Konten → Datei importieren</i>.</p>
+    <div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
+}
+
 export async function renderOverview(view, _params, seq) {
-  const o = await api("overview");
+  const [o, ch] = await Promise.all([api("overview"), api("charging").catch(() => null)]);
   if (seq !== renderSeq) return;
   const fc = o.forecast;
   const free = fc.free_cents;
@@ -87,6 +117,7 @@ export async function renderOverview(view, _params, seq) {
           <div class="section-head"><h2>Budgets im ${fmtMonth.format(new Date()).split(" ")[0]}</h2><a href="#/budgets">Alle Budgets</a></div>
           ${o.budgets.length ? html`<div>${budgets}</div>` : html`<p class="muted">Noch keine Budgets. <a href="#/budgets">Budget festlegen</a></p>`}
         </section>
+        ${ch && ch.count ? chargingSection(ch) : ""}
         <section class="section">
           <div class="section-head"><h2>Konten</h2><a href="#/konten">Verwalten</a></div>
           <div class="accounts-strip">${accounts}</div>
@@ -96,6 +127,7 @@ export async function renderOverview(view, _params, seq) {
       </div>
     </div>`.s;
   forecastChart($("#fc-chart"), fc);
+  if ($("#ch-all")) $("#ch-all").onclick = () => chargingSheet(ch);
   $("#afford-form").onsubmit = async (e) => {
     e.preventDefault();
     const cents = parseMoney($("#afford-amt").value);

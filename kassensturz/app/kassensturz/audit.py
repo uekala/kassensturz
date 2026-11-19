@@ -75,6 +75,7 @@ LABELS: dict[tuple[str, str], str] = {
     ("DELETE", "/api/accounts/{aid}"): "Konto gelöscht",
     ("POST", "/api/import/commit"): "Datei importiert",
     ("POST", "/api/import/finanzguru/commit"): "Finanzguru-Export übernommen",
+    ("POST", "/api/charging/import"): "Ladevorgänge aus Ladecockpit übernommen",
     ("POST", "/api/connections"): "Bankzugang angelegt",
     ("PATCH", "/api/connections/{cid}"): "Bankzugang geändert",
     ("POST", "/api/connections/{cid}/reset-tan"): "TAN-Verfahren eines Bankzugangs zurückgesetzt",

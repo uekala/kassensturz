@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Body, File, UploadFile
 from fastapi.responses import FileResponse, Response
 
-from . import audit, categorize, mobile_read, papers, projects
+from . import audit, categorize, charging, mobile_read, papers, projects
 from .db import get_db, now_iso
 from .web import _changed, _err
 
@@ -83,9 +83,11 @@ def _tx_page(db, items: list[dict], total: dict) -> dict:
             by.setdefault(sp["tx_id"], []).append(sp)
         counts = {r["tx_id"]: r["n"] for r in db.query(
             f"SELECT tx_id, COUNT(*) AS n FROM receipts WHERE tx_id IN ({','.join('?' * len(ids))}) GROUP BY tx_id", tuple(ids))}
+        charges = charging.for_transactions(db, ids)
         for i in items:
             i["splits"] = by.get(i["id"], [])
             i["receipt_count"] = counts.get(i["id"], 0)
+            i["charging"] = charges.get(i["id"])
             i.pop("hash", None)
     return {"items": items, "total": total["n"], "sum_in": total["sin"], "sum_out": total["sout"]}
 

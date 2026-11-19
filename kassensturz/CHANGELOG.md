@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.3.61
+
+- Laden mit Ladecockpit: Kassensturz liest Ladevorgänge aus dem Sensor von Ladecockpit und aus dessen CSV-Export und
+  hängt kWh, Preis je kWh und Ort an die passende Abbuchung der Bank. Neue Buchungen entstehen dabei nicht.
+- Übersicht: Abschnitt *Laden* mit diesem und dem vorigen Monat, unter *Alle Monate* jeder Monat mit kWh, Kosten und
+  Preis je kWh, dazu Ladevorgänge ohne passende Abbuchung.
+- Datenbank: neue Tabelle für Ladevorgänge (Schema 15); bestehende Daten bleiben unverändert.
+
 ## 0.3.60
 
 - FinTS: Lehnt die Bank die Anmeldung ab (etwa Code 9900, falsche PIN, Zugang gesperrt), ruft Kassensturz für

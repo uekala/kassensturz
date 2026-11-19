@@ -407,6 +407,21 @@ In der App (ab 0.3.30) stehen offene erwartete Eingänge und geplante Ausgaben a
 sie ab. *Geld kommt zurück* gibt es dort an jeder Ausgabe, *Als geplante Ausgabe vormerken* unter *Kann ich mir das
 leisten?*. Auffälligkeiten lassen sich in der App als geprüft ausblenden.
 
+## Laden mit Ladecockpit
+
+Läuft die App Ladecockpit in Home Assistant, hängt Kassensturz an jede Abbuchung eines Ladevorgangs die Daten dazu:
+kWh, Preis je kWh, Ort und Zeit. In der Übersicht steht dann ein Abschnitt *Laden* mit diesem und dem vorigen Monat,
+unter *Alle Monate* die Monate einzeln.
+
+- **Neue Ladevorgänge** liest Kassensturz aus dem Sensor `sensor.ladecockpit_last_charge`, höchstens alle fünf
+  Minuten. Dafür muss in Ladecockpit „Entitäten veröffentlichen“ an sein.
+- **Ältere Ladevorgänge** kommen über den Export *Ladevorgänge als CSV* aus Ladecockpit. Importiere die Datei unter
+  *Konten → Datei importieren*; Kassensturz erkennt sie.
+- **Keine neuen Buchungen:** Die Abbuchung kommt von deiner Bank. Ein Ladevorgang wird der Buchung mit genau diesem
+  Betrag zugeordnet, gebucht einen Tag vor bis sieben Tage nach dem Laden. Passen mehrere, gewinnt die mit „Tesla“
+  oder „Supercharger“ im Namen; bleibt es unklar, ordnet Kassensturz nichts zu. Rechnet die Bank mehrere Ladevorgänge
+  zusammen ab, bleiben sie ohne Abbuchung und zählen trotzdem im Abschnitt *Laden*.
+
 ## Auffälligkeiten
 
 Kassensturz weist auf Buchungen der letzten zwei Wochen hin, auf die sich ein zweiter Blick lohnt:
