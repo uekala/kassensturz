@@ -262,6 +262,14 @@ Die Budgetseite fasst jeden Monat in Worten zusammen: wie viel du gespart hast, 
 unter dem Schnitt der letzten drei Monate lagen, welche Kategorien auffallen und was die größte Einzelausgabe war. In der
 ersten Woche des neuen Monats kommt der Abschluss des Vormonats als Benachrichtigung.
 
+## Jahresrückblick
+
+„Jahresrückblick“ oben auf der Budgetseite zeigt ein ganzes Jahr: Einnahmen, Ausgaben, Überschuss und Sparquote, den
+Überschuss je Monat mit bestem und schwächstem Monat, wofür das Geld ging (die acht größten Hauptkategorien), wie viel
+davon feste Zahlungen aus Verträgen waren, und die fünf größten Einzelausgaben ohne Verträge. Gibt es Buchungen aus dem
+Vorjahr, steht jeder Wert neben dem Vorjahr, dazu die Kategorien, die sich um mindestens 100 € verändert haben. Im
+laufenden Jahr wird nur bis zum selben Tag des Vorjahres verglichen. Umbuchungen zwischen eigenen Konten zählen nicht.
+
 ## Sparziele und Jahreskosten
 
 **Sparziele** legst du auf der Budgetseite an: wofür, wie viel, optional bis wann und auf welchem Konto das Geld liegt. Mit

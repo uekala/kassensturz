@@ -27,6 +27,14 @@ def stats(month: str = ""):
             "review": analytics.month_review(db, month)}
 
 
+@router.get("/api/year")
+def year_review(year: int = 0):
+    try:
+        return analytics.year_review(get_db(), year or date.today().year)
+    except ValueError:
+        _err(400, "Für dieses Jahr gibt es keinen Rückblick.")
+
+
 @router.get("/api/afford")
 def afford(amount_cents: int = 0):
     if not 0 < amount_cents <= analytics.MAX_AFFORD_CENTS:

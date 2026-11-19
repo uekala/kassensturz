@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.66
+
+- *Budgets → Jahresrückblick*: Einnahmen, Ausgaben, Sparquote, Überschuss je Monat, bester und schwächster Monat,
+  Ausgaben nach Hauptkategorie, Anteil fester Zahlungen und die größten Einzelausgaben eines Jahres. Mit Vergleich zum
+  Vorjahr, im laufenden Jahr bis zum selben Tag. Neue Leseadresse `GET /api/year?year=JJJJ`.
+
 ## 0.3.65
 
 - *Einstellungen → Zustand → Wiederherstellung proben*: Kassensturz öffnet die jüngste Sicherungskopie in einem
