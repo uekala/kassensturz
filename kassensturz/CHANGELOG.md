@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.3.63
+
+- Laden: Die Zuordnung findet mehr. Mit „Tesla“ oder dem Namen eines Ladenetzes (IONITY, EnBW und andere) im Text
+  sucht sie bis fünf Wochen nach dem Laden, für Kreditkarten. Fasst die Bank mehrere Ladevorgänge zu einer Abbuchung
+  zusammen, erkennt sie das an der Summe.
+- Offene Ladevorgänge lassen sich unter *Übersicht → Laden → Alle Monate* antippen und von Hand einer Abbuchung
+  zuordnen. Ein Hinweis sagt, ob es überhaupt freie Abbuchungen mit passendem Text gibt.
+
 ## 0.3.62
 
 - Ladecockpit-Import: Der Server erkennt den Export jetzt selbst, auch wenn die Oberfläche ihn nicht vorab erkennt.

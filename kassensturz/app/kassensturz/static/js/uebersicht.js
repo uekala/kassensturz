@@ -24,17 +24,47 @@ function chargingSection(ch) {
   </section>`;
 }
 
+function chargingHint(ch) {
+  if (!ch.unlinked_count) return "";
+  if (!ch.free_tesla_bookings) {
+    return "Kassensturz findet keine freie Abbuchung mit „Tesla“ im Text. Vielleicht bezahlst du die Ladevorgänge über ein Konto, das Kassensturz nicht kennt, oder die Bank schreibt etwas anderes. Tipp auf einen Ladevorgang, um ihn von Hand zuzuordnen.";
+  }
+  const n = ch.free_tesla_bookings;
+  return `${n} ${n === 1 ? "Abbuchung" : "Abbuchungen"} mit „Tesla“ im Text ${n === 1 ? "hat" : "haben"} noch keinen Ladevorgang, die Beträge passen aber nicht eindeutig. Tipp auf einen Ladevorgang, um ihn von Hand zuzuordnen.`;
+}
+
+async function linkSheet(c, parent) {
+  let data;
+  try { data = await api(`charging/${c.id}/suggestions`); } catch (e) { toast(e.message); return; }
+  const rows = data.items.map((t) => html`<li class="row" data-tx="${t.id}"><span class="title">${t.counterparty || t.purpose || "Ohne Bezeichnung"}</span>
+      <span class="sub">${dFull(t.booking_date)}, ${t.account_name}${t.amount_cents === -c.total_cents ? ", gleicher Betrag" : ""}</span>
+      <span class="amount">${money(t.amount_cents)}</span></li>`);
+  const sh = openSheet(html`${sheetHead("Abbuchung wählen")}
+    <p class="small muted">${c.site || "Ladevorgang"}, ${dFull(c.started.slice(0, 10))}, ${KWH1.format(c.kwh)} kWh, ${money(-c.total_cents)}</p>
+    ${rows.length ? html`<ul class="list">${rows}</ul>` : html`<p>Keine Abbuchung mit gleichem Betrag oder „Tesla“ im Text, 40 Tage vor oder nach dem Laden.</p>`}
+    <div class="actions"><button class="btn" data-close>Abbrechen</button></div>`.s);
+  on(sh.el, "[data-tx]", "click", async (_e, el) => {
+    let fresh;
+    try { fresh = await api(`charging/${c.id}/link`, { method: "POST", body: { tx_id: Number(el.dataset.tx) } }); }
+    catch (e) { toast(e.message); return; }
+    toast("Zugeordnet");
+    sh.close(); parent.close(); chargingSheet(fresh); rerender();
+  });
+}
+
 function chargingSheet(ch) {
-  openSheet(html`${sheetHead("Laden mit Ladecockpit")}
+  const sh = openSheet(html`${sheetHead("Laden mit Ladecockpit")}
     <ul class="list">${ch.months.map((m) => html`<li class="row static"><span class="title">${fmtMonth.format(D(m.month + "-01"))}</span>
       <span class="sub">${m.sessions} × geladen, ${KWH1.format(m.kwh)} kWh, ${perKwh(m.price_per_kwh_cents)}${m.idle_cents ? `, Blockiergebühr ${money(m.idle_cents)}` : ""}</span>
       <span class="amount">${money(-m.total_cents)}</span></li>`)}</ul>
     ${ch.unlinked.length ? html`<h3>Noch ohne Abbuchung</h3>
-      <p class="small muted">Gesucht wird eine Buchung mit genau diesem Betrag, einen Tag vor bis sieben Tage nach dem Laden. Rechnet die Bank mehrere Ladevorgänge zusammen ab, passt keine.</p>
-      <ul class="list">${ch.unlinked.map((c) => html`<li class="row static"><span class="title">${c.site || "Ladevorgang"}</span>
+      <p class="small muted">Gesucht wird eine Abbuchung mit genau diesem Betrag bis eine Woche nach dem Laden, mit „Tesla“ oder dem Namen des Ladenetzes im Text bis fünf Wochen danach. Fasst die Bank mehrere Ladevorgänge zusammen, passt die Summe.</p>
+      <p class="small">${chargingHint(ch)}</p>
+      <ul class="list">${ch.unlinked.map((c) => html`<li class="row" data-charge="${c.id}"><span class="title">${c.site || "Ladevorgang"}</span>
         <span class="sub">${dFull(c.started.slice(0, 10))}, ${KWH1.format(c.kwh)} kWh</span><span class="amount">${money(-c.total_cents)}</span></li>`)}</ul>` : ""}
     <p class="small muted">Neue Ladevorgänge liest Kassensturz aus dem Sensor von Ladecockpit. Ältere kommen über den Export „CSV – alle Ladungen“ aus Ladecockpit, importiert unter <i>Konten → Datei importieren</i>.</p>
     <div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
+  on(sh.el, "[data-charge]", "click", (_e, el) => linkSheet(ch.unlinked.find((c) => String(c.id) === el.dataset.charge), sh));
 }
 
 export async function renderOverview(view, _params, seq) {

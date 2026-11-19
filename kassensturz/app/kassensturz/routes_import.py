@@ -41,6 +41,26 @@ def charging_summary():
     return charging.summary(get_db())
 
 
+@router.get("/api/charging/{session_id}/suggestions")
+def charging_suggestions(session_id: int):
+    """Buchungen, zu denen ein offener Ladevorgang passen könnte."""
+    return {"items": charging.suggestions(get_db(), session_id)}
+
+
+@router.post("/api/charging/{session_id}/link")
+def charging_link(session_id: int, payload: dict = Body(...)):
+    """Ordnet einen Ladevorgang von Hand zu; ``tx_id: null`` löst die Zuordnung."""
+    tx = payload.get("tx_id")
+    if tx is not None and (isinstance(tx, bool) or not isinstance(tx, int)):
+        _err(400, "Ungültige Buchung.")
+    try:
+        charging.link(get_db(), session_id, tx)
+    except ValueError as exc:
+        _err(404, str(exc))
+    services.schedule_refresh()
+    return charging.summary(get_db())
+
+
 @router.post("/api/charging/import")
 async def charging_import(file: UploadFile = File(...)):
     """Liest den CSV-Export von Ladecockpit. Legt keine Buchungen an, ordnet nur zu."""

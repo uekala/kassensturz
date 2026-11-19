@@ -159,25 +159,110 @@ def import_csv(db: Database, raw: bytes) -> dict:
     return {"added": added, "known": known, "skipped": skipped, "linked": linked}
 
 
-_TESLA = re.compile(r"tesla|supercharg", re.I)
+# Wer Ladestrom abrechnet: Tesla selbst und die großen Netze, die in Ladecockpit auftauchen
+_TESLA = re.compile(r"tesla|supercharg|ionity|enbw|fastned|allego|aral ?pulse|ewe ?go|maingau|elli\b", re.I)
+# Kreditkarten buchen teils erst Wochen später; mit „Tesla“ im Text wird darum weiter gesucht.
+NAMED_DAYS = 35
+# Fasst die Bank mehrere Ladevorgänge zu einer Abbuchung zusammen, liegen sie höchstens so lange davor.
+GROUP_DAYS = 40
+
+
+def _named(t: dict) -> bool:
+    return bool(_TESLA.search(f"{t.get('counterparty') or ''} {t.get('purpose') or ''}"))
+
+
+def _used() -> str:
+    return "SELECT tx_id FROM charging_sessions WHERE tx_id IS NOT NULL"
+
+
+def _candidates(db: Database, cents: int, start: date, days: int) -> list[dict]:
+    return db.query(
+        "SELECT t.id, t.counterparty, t.purpose, t.booking_date FROM transactions t JOIN accounts a ON a.id = t.account_id "
+        f"WHERE a.archived = 0 AND t.amount_cents = ? AND t.booking_date BETWEEN ? AND ? AND t.id NOT IN ({_used()}) "
+        "ORDER BY t.booking_date",
+        (-cents, (start - timedelta(days=1)).isoformat(), (start + timedelta(days=days)).isoformat()))
 
 
 def match(db: Database) -> int:
-    """Ordnet offene Ladevorgänge eindeutig passenden Abbuchungen zu. Gibt zurück, wie viele neu zugeordnet sind."""
+    """Ordnet offene Ladevorgänge eindeutig passenden Abbuchungen zu. Gibt zurück, wie viele neu zugeordnet sind.
+
+    1. Gleicher Betrag, gebucht bis 7 Tage danach; bei mehreren gewinnt die mit „Tesla“ im Text.
+    2. Gleicher Betrag mit „Tesla“ im Text, bis 35 Tage danach.
+    3. Eine Abbuchung mit „Tesla“ im Text, deren Betrag genau die Summe aufeinanderfolgender Ladevorgänge der
+       40 Tage davor ist: Dann hat die Bank sie zusammengefasst.
+    Ist etwas nicht eindeutig, bleibt es offen."""
     linked = 0
     for s in db.query("SELECT * FROM charging_sessions WHERE tx_id IS NULL ORDER BY started"):
         day = date.fromisoformat(s["started"][:10])
-        candidates = db.query(
-            "SELECT t.id, t.counterparty, t.purpose FROM transactions t JOIN accounts a ON a.id = t.account_id "
-            "WHERE a.archived = 0 AND t.amount_cents = ? AND t.booking_date BETWEEN ? AND ? "
-            "AND t.id NOT IN (SELECT tx_id FROM charging_sessions WHERE tx_id IS NOT NULL) ORDER BY t.booking_date",
-            (-s["total_cents"], (day - timedelta(days=1)).isoformat(), (day + timedelta(days=7)).isoformat()))
-        named = [c for c in candidates if _TESLA.search(f"{c['counterparty'] or ''} {c['purpose'] or ''}")]
-        pick = named if named else candidates
+        found = _candidates(db, s["total_cents"], day, 7)
+        named = [c for c in found if _named(c)]
+        pick = named if named else found
+        if len(pick) != 1:
+            pick = [c for c in _candidates(db, s["total_cents"], day, NAMED_DAYS) if _named(c)]
         if len(pick) == 1:
             db.execute("UPDATE charging_sessions SET tx_id = ? WHERE id = ?", (pick[0]["id"], s["id"]))
             linked += 1
+    linked += _match_groups(db)
     return linked
+
+
+def _match_groups(db: Database) -> int:
+    open_rows = db.query("SELECT id, started, total_cents FROM charging_sessions WHERE tx_id IS NULL ORDER BY started")
+    if len(open_rows) < 2:
+        return 0
+    first = date.fromisoformat(open_rows[0]["started"][:10])
+    bookings = [t for t in db.query(
+        "SELECT t.id, t.counterparty, t.purpose, t.booking_date, t.amount_cents FROM transactions t "
+        "JOIN accounts a ON a.id = t.account_id WHERE a.archived = 0 AND t.amount_cents < 0 AND t.booking_date >= ? "
+        f"AND t.id NOT IN ({_used()}) ORDER BY t.booking_date", (first.isoformat(),)) if _named(t)]
+    linked = 0
+    taken: set[int] = set()
+    for t in bookings:
+        booked = date.fromisoformat(t["booking_date"])
+        window = [s for s in open_rows if s["id"] not in taken
+                  and booked - timedelta(days=GROUP_DAYS) <= date.fromisoformat(s["started"][:10]) <= booked + timedelta(days=1)]
+        target = -t["amount_cents"]
+        # Rückwärts vom jüngsten Ladevorgang vor der Buchung aufsummieren
+        hits = []
+        for end in range(len(window) - 1, -1, -1):
+            total, run = 0, []
+            for s in reversed(window[:end + 1]):
+                total += s["total_cents"]
+                run.append(s)
+                if total >= target:
+                    break
+            if total == target and len(run) >= 2:
+                hits.append(run)
+        if len(hits) == 1:
+            for s in hits[0]:
+                db.execute("UPDATE charging_sessions SET tx_id = ? WHERE id = ?", (t["id"], s["id"]))
+                taken.add(s["id"])
+            linked += len(hits[0])
+    return linked
+
+
+def link(db: Database, session_id: int, tx_id: int | None) -> None:
+    """Ordnet einen Ladevorgang von Hand einer Buchung zu oder löst die Zuordnung (``None``)."""
+    if not db.scalar("SELECT 1 FROM charging_sessions WHERE id = ?", (session_id,)):
+        raise ValueError("Ladevorgang nicht gefunden.")
+    if tx_id is not None and not db.scalar("SELECT 1 FROM transactions WHERE id = ? AND amount_cents < 0", (tx_id,)):
+        raise ValueError("Buchung nicht gefunden.")
+    db.execute("UPDATE charging_sessions SET tx_id = ? WHERE id = ?", (tx_id, session_id))
+
+
+def suggestions(db: Database, session_id: int) -> list[dict]:
+    """Buchungen, die zu einem offenen Ladevorgang passen könnten: gleicher Betrag oder „Tesla“ im Text, ±40 Tage."""
+    s = db.one("SELECT * FROM charging_sessions WHERE id = ?", (session_id,))
+    if not s:
+        return []
+    day = date.fromisoformat(s["started"][:10])
+    rows = db.query(
+        "SELECT t.id, t.booking_date, t.amount_cents, t.counterparty, t.purpose, a.name AS account_name FROM transactions t "
+        "JOIN accounts a ON a.id = t.account_id WHERE a.archived = 0 AND t.amount_cents < 0 AND t.booking_date BETWEEN ? AND ? "
+        "ORDER BY ABS(julianday(t.booking_date) - julianday(?)), t.id",
+        ((day - timedelta(days=GROUP_DAYS)).isoformat(), (day + timedelta(days=GROUP_DAYS)).isoformat(), day.isoformat()))
+    out = [r for r in rows if r["amount_cents"] == -s["total_cents"] or _named(r)]
+    return out[:15]
 
 
 def prune(db: Database) -> None:
@@ -197,8 +282,21 @@ def for_transactions(db: Database, tx_ids: list[int]) -> dict[int, dict]:
     if not tx_ids:
         return {}
     marks = ",".join("?" * len(tx_ids))
-    rows = db.query(f"SELECT * FROM charging_sessions WHERE tx_id IN ({marks})", tuple(tx_ids))
-    return {r["tx_id"]: public(r) for r in rows}
+    rows = db.query(f"SELECT * FROM charging_sessions WHERE tx_id IN ({marks}) ORDER BY started", tuple(tx_ids))
+    grouped: dict[int, list[dict]] = {}
+    for r in rows:
+        grouped.setdefault(r["tx_id"], []).append(r)
+    out = {}
+    for tx, group in grouped.items():
+        if len(group) == 1:
+            out[tx] = {**public(group[0]), "count": 1}
+            continue
+        wh, cents = sum(g["kwh_wh"] for g in group), sum(g["total_cents"] for g in group)
+        out[tx] = {"id": group[0]["id"], "started": group[0]["started"], "site": f"{len(group)} Ladevorgänge",
+                   "network": group[0]["network"], "kwh": round(wh / 1000, 2), "total_cents": cents,
+                   "idle_cents": sum(g["idle_cents"] for g in group),
+                   "price_per_kwh_cents": round(cents * 1000 / wh, 1) if wh else None, "tx_id": tx, "count": len(group)}
+    return out
 
 
 def summary(db: Database, months: int = 12) -> dict:
@@ -211,5 +309,10 @@ def summary(db: Database, months: int = 12) -> dict:
            for r in rows]
     open_rows = db.query("SELECT * FROM charging_sessions WHERE tx_id IS NULL ORDER BY started DESC LIMIT 20")
     count = int(db.scalar("SELECT COUNT(*) FROM charging_sessions") or 0)
+    first = db.scalar("SELECT MIN(started) FROM charging_sessions")
+    named = [t for t in db.query(
+        "SELECT t.id, t.counterparty, t.purpose FROM transactions t WHERE t.amount_cents < 0 AND t.booking_date >= ? "
+        f"AND t.id NOT IN ({_used()})", ((first or "9999")[:10],)) if _named(t)] if first else []
     return {"months": out, "count": count, "unlinked": [public(r) for r in open_rows],
+            "free_tesla_bookings": len(named),
             "unlinked_count": int(db.scalar("SELECT COUNT(*) FROM charging_sessions WHERE tx_id IS NULL") or 0)}

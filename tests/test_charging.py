@@ -158,3 +158,46 @@ def test_inbox_takes_the_export(db, tmp_path, monkeypatch):
     inbox.scan(db)
     assert db.scalar("SELECT COUNT(*) FROM charging_sessions") == 3
     assert not f.exists()
+
+
+def _session(db, sid, started, cents, wh=20000):
+    db.insert("charging_sessions", {"session_id": sid, "started": started, "site": "Erfundenhausen", "network": "supercharger",
+                                    "kwh_wh": wh, "total_cents": cents, "idle_cents": 0, "source": "test"})
+
+
+def test_late_card_booking_and_grouped_billing(db):
+    acc = _giro(db)
+    # Kreditkarte bucht 20 Tage später; ohne „Tesla“ im Text würde das nicht zugeordnet.
+    late = _book(db, acc, "2026-10-21", -1500, "TESLA MOTORS")
+    _book(db, acc, "2026-10-21", -1700, "Erfundener Laden")
+    _session(db, "ks-g0", "2026-10-01T10:00:00", 1500)
+    _session(db, "ks-g9", "2026-10-01T11:00:00", 1700)
+    # Drei Ladevorgänge, eine Abbuchung über die Summe
+    for n, (day, cents) in enumerate([("2026-11-02", 1000), ("2026-11-09", 1234), ("2026-11-16", 2266)]):
+        _session(db, f"ks-g{n + 1}", f"{day}T18:00:00", cents)
+    sum_tx = _book(db, acc, "2026-11-30", -4500, "Tesla Germany")
+    linked = charging.match(db)
+    got = {r["session_id"]: r["tx_id"] for r in db.query("SELECT session_id, tx_id FROM charging_sessions")}
+    assert got["ks-g0"] == late and got["ks-g9"] is None
+    assert [got[f"ks-g{n}"] for n in (1, 2, 3)] == [sum_tx] * 3 and linked == 4
+    line = charging.for_transactions(db, [sum_tx])[sum_tx]
+    assert (line["count"], line["site"], line["total_cents"], line["kwh"]) == (3, "3 Ladevorgänge", 4500, 60.0)
+    assert charging.summary(db)["free_tesla_bookings"] == 0
+
+
+def test_manual_link_with_suggestions(client, db):
+    acc = _giro(db)
+    _session(db, "ks-m1", "2026-11-05T18:00:00", 2000)
+    other = _book(db, acc, "2026-11-06", -2100, "PayPal *Tesla")
+    _book(db, acc, "2026-11-06", -999, "Erfundener Bäcker")
+    sid = db.scalar("SELECT id FROM charging_sessions WHERE session_id = 'ks-m1'")
+    assert charging.summary(db)["free_tesla_bookings"] == 1
+    items = client.get(f"/api/charging/{sid}/suggestions").json()["items"]
+    assert [i["id"] for i in items] == [other]
+    assert client.post(f"/api/charging/{sid}/link", json={"tx_id": "x"}).status_code == 400
+    assert client.post(f"/api/charging/{sid}/link", json={"tx_id": 9999}).status_code == 404
+    got = client.post(f"/api/charging/{sid}/link", json={"tx_id": other})
+    assert got.status_code == 200 and got.json()["unlinked_count"] == 0
+    assert db.scalar("SELECT text FROM audit_log ORDER BY id DESC LIMIT 1").startswith("Ladevorgang einer Buchung zugeordnet")
+    client.post(f"/api/charging/{sid}/link", json={"tx_id": None})
+    assert db.scalar("SELECT tx_id FROM charging_sessions WHERE id = ?", (sid,)) is None
