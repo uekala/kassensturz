@@ -63,6 +63,14 @@ async def import_analyze(file: UploadFile = File(...)):
     data = await file.read(importers.MAX_IMPORT_BYTES + 1)
     if len(data) > importers.MAX_IMPORT_BYTES:
         _err(400, "Die Datei ist größer als 25 MB.")
+    head = data[:200].lstrip(b"\xef\xbb\xbf \t\r\n").lower()
+    if head.startswith((b"<!doctype", b"<html", b"{\"detail\"", b"{\"error\"")):
+        _err(400, "Das ist keine Exportdatei, sondern eine Webseite oder Fehlermeldung. Beim Herunterladen wurde wohl "
+                  "die Anmeldeseite gespeichert. Lade die Datei noch einmal in einem Browser herunter, nicht in der "
+                  "Home-Assistant-App, und importiere sie dann.")
+    if charging.looks_like_export(data):
+        # Der Export von Ladecockpit enthält Ladevorgänge, keine Buchungen; die Oberfläche schickt ihn weiter.
+        return {"kind": "ladecockpit"}
     db = get_db()
     for tok in [t for t, v in _imports.items() if time.time() - v["created"] > 1800]:
         _imports.pop(tok, None)

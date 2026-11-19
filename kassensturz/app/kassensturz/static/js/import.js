@@ -8,7 +8,10 @@ import { go, rerender } from "./router.js";
 export function pickImportFile() {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = ".csv,.txt,.xml,.zip,.sta,.mt940,.940,.xlsx";
+  // Neben den Endungen auch die Dateiarten: Android führt CSV oft als text/comma-separated-values
+  // und blendet sie sonst in der Dateiauswahl aus.
+  input.accept = ".csv,.txt,.xml,.zip,.sta,.mt940,.940,.xlsx,text/csv,text/comma-separated-values,application/csv,"
+    + "text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,text/xml,application/xml";
   input.onchange = async () => {
     const f = input.files[0];
     if (!f) return;
@@ -21,7 +24,8 @@ export function pickImportFile() {
     try {
       const res = await api("import/analyze", { method: "POST", form });
       sh.close();
-      if (res.kind === "finanzguru") finanzguruSheet(res); else importSheet(res);
+      if (res.kind === "ladecockpit") chargingImport(form);
+      else if (res.kind === "finanzguru") finanzguruSheet(res); else importSheet(res);
     } catch (e) {
       sh.set(html`${sheetHead("Datei nicht lesbar")}<p>${e.message}</p><div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
     }

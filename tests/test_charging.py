@@ -125,3 +125,36 @@ def test_mobile_routes(db, monkeypatch):
         bens = pair(household.create_person(db, {"name": "Ben"})["id"])
         assert client.get(f"/api/v1/transactions/{annas_tx}/charging", headers=bens).status_code == 404
         assert client.get("/api/v1/charging", headers=bens).json()["count"] == 2
+
+
+def test_net_amount_after_credit_is_matched(db):
+    acc = _giro(db)
+    tx = _book(db, acc, "2026-10-25", -1021, "Tesla")
+    export = ("\ufeffDatum;Start;Ende;Standort;kWh;Preis pro kWh;Ladekosten;Blockiergebühr;Summe;Währung;Ø kW;Ladung-ID;Netz;"
+              "Listenpreis pro kWh;Gutschrift;Netto;Betreiber;Adresse\r\n"
+              "24.10.2026;19:40;20:11;Erfundenhausen;41,800;0,2907;12,15;0,00;12,15;EUR;81;ks-n1;Supercharger;0,5300;1,94;10,21;;\r\n")
+    assert charging.import_csv(db, export.encode())["linked"] == 1
+    assert db.scalar("SELECT tx_id FROM charging_sessions WHERE session_id = 'ks-n1'") == tx
+
+
+def test_analyze_recognises_export_and_web_pages(client, db):
+    got = client.post("/api/import/analyze", files={"file": ("ladecockpit-sessions.csv", EXPORT_DE, "text/csv")})
+    assert got.json() == {"kind": "ladecockpit"}
+    assert db.scalar("SELECT COUNT(*) FROM charging_sessions") == 0
+    for page in (b"<!DOCTYPE html><html><body>Anmelden</body></html>", b'{"detail":"Unauthorized"}'):
+        bad = client.post("/api/import/analyze", files={"file": ("ladecockpit-sessions.csv", page, "text/csv")})
+        assert bad.status_code == 400 and "Webseite" in bad.json()["detail"]
+
+
+def test_inbox_takes_the_export(db, tmp_path, monkeypatch):
+    import os
+    import time as _time
+    from kassensturz import inbox
+    monkeypatch.setattr(inbox, "ensure_folder", lambda: tmp_path)
+    f = tmp_path / "ladecockpit-sessions.csv"
+    f.write_bytes(EXPORT_DE)
+    old = _time.time() - 60
+    os.utime(f, (old, old))
+    inbox.scan(db)
+    assert db.scalar("SELECT COUNT(*) FROM charging_sessions") == 3
+    assert not f.exists()

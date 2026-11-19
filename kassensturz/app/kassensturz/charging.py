@@ -28,8 +28,16 @@ _last_poll = 0.0
 _COLUMNS = {
     "date": ("Datum", "Date"), "start": ("Start",), "site": ("Standort", "Site"), "kwh": ("kWh",),
     "idle": ("Blockiergebühr", "Idle fee"), "total": ("Summe", "Total"), "currency": ("Währung", "Currency"),
-    "id": ("Ladung-ID", "Session ID"), "network": ("Netz", "Network"),
+    "id": ("Ladung-ID", "Session ID"), "network": ("Netz", "Network"), "net": ("Netto", "Net"),
 }
+
+_HEADERS = ("Datum;Start;Ende;Standort;kWh", "Date,Start,End,Site,kWh")
+
+
+def looks_like_export(raw: bytes) -> bool:
+    """Ob eine Datei der CSV-Export von Ladecockpit ist, an der Kopfzeile erkannt."""
+    head = raw[:400].decode("utf-8", errors="replace").lstrip("\ufeff").lstrip()
+    return head.startswith(_HEADERS)
 
 
 class ImportError_(ValueError):
@@ -131,6 +139,10 @@ def import_csv(db: Database, raw: bytes) -> dict:
             continue
         start = cell("start") if re.fullmatch(r"\d{1,2}:\d{2}", cell("start")) else "00:00"
         kwh, total, idle = _number(cell("kwh")), _number(cell("total")), _number(cell("idle"))
+        # Abgebucht wird der Betrag nach Gutschriften (Netto), sonst die Summe.
+        net = _number(cell("net"))
+        if net is not None and net > 0:
+            total = net
         wh = _wh(kwh)
         if not cell("id") or not wh or total is None or total <= 0 or cell("currency") not in ("", "EUR"):
             skipped += 1

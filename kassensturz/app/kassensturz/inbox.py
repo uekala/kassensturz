@@ -12,7 +12,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from . import importers, ledger, options
+from . import charging, importers, ledger, options
 from .db import Database, now_iso
 
 log = logging.getLogger("kassensturz.inbox")
@@ -126,6 +126,13 @@ def scan(db: Database) -> dict:
             continue  # unverändert und schon bewertet
         try:
             data = f.read_bytes()
+            if charging.looks_like_export(data):
+                # Ladevorgänge aus Ladecockpit: keine Buchungen, nur Zuordnung zu den Abbuchungen
+                got = charging.import_csv(db, data)
+                move_done(f)
+                db.execute("DELETE FROM inbox WHERE filename = ?", (f.name,))
+                log.info("Eingangsordner: %s → %s Ladevorgänge neu, %s zugeordnet", f.name, got["added"], got["linked"])
+                continue
             res = importers.analyze(data, f.name)
             if res.get("signature"):
                 prof = db.one("SELECT mapping FROM csv_profiles WHERE signature = ?", (res["signature"],))
