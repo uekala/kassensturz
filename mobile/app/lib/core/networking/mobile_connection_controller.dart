@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'mobile_api_client.dart';
@@ -51,11 +53,13 @@ class MobileConnectionController extends ChangeNotifier {
   static const partsCapability = 'parts';
   static const bankRenewCapability = 'banks.renew';
   static const accountValueCapability = 'accounts.value';
+  static const syncTanCapability = 'sync.tan';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
   final Duration _syncPollInterval;
   ServerSyncStatus? _syncStatus;
+  String? _answeredQid;
   int _triageTotal = 0;
   ServerNews? _news;
   int _triageExpenseCents = 0;
@@ -296,12 +300,61 @@ class MobileConnectionController extends ChangeNotifier {
   /// sentence to show: what arrived, or why nothing happened.
   Future<String> startBankSync() async {
     if (_bankSyncRunning) return 'Der Abruf läuft schon.';
+    return _followBankSync(
+      () => _apiClient.startSync(interactive: canAnswerBanks),
+    );
+  }
+
+  /// Whether this phone can answer what a bank asks during a fetch.
+  bool get canAnswerBanks =>
+      _capabilities.contains(syncTanCapability) && !isReadOnly;
+
+  /// What a bank asks right now; null once it was answered from here.
+  BankQuestion? get bankQuestion {
+    final question = canAnswerBanks ? _syncStatus?.question : null;
+    return question?.qid == _answeredQid ? null : question;
+  }
+
+  /// Answers the bank's question, or gives the fetch up with [cancel]. Null
+  /// when the server took it, otherwise the message to show.
+  Future<String?> answerBankQuestion(
+    String qid, {
+    String? value,
+    bool cancel = false,
+  }) async {
+    try {
+      final answered = await _apiClient.answerSync(
+        qid,
+        value: value,
+        cancel: cancel,
+      );
+      _answeredQid = qid;
+      _syncStatus = ServerSyncStatus.fromJson(answered);
+      _notifyIfMounted();
+    } catch (error) {
+      return _describeFailure(error);
+    }
+    // After a restart of the app nothing is watching the fetch yet.
+    if (!_bankSyncRunning) {
+      unawaited(_followBankSync(() => _read(_apiClient.syncStatus)));
+    }
+    return null;
+  }
+
+  Future<String> _followBankSync(
+    Future<Map<String, dynamic>> Function() first,
+  ) async {
     _bankSyncRunning = true;
     _notifyIfMounted();
     try {
-      var state = ServerSyncStatus.fromJson(await _apiClient.startSync());
+      var state = ServerSyncStatus.fromJson(await first());
       // Up to two minutes; a bank that takes longer finishes on the server.
-      for (var round = 0; state.running && round < 40; round += 1) {
+      // A question of the bank stays open for five minutes, so wait longer.
+      var rounds = 40;
+      for (var round = 0; state.running && round < rounds; round += 1) {
+        if (state.question != null) rounds = 140;
+        _syncStatus = state;
+        _notifyIfMounted();
         await Future<void>.delayed(_syncPollInterval);
         if (_disposed) return '';
         state = ServerSyncStatus.fromJson(await _read(_apiClient.syncStatus));

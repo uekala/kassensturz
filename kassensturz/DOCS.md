@@ -69,6 +69,9 @@ Volksbanken ist die Adresse vorbelegt. Sparkassen nennen sie auf ihrer Website u
 Banking to go, DKB-App, photoTAN-Push) bestätigst du einfach in der App; Kassensturz wartet darauf. chipTAN mit Flickercode
 und photoTAN-Grafiken werden direkt angezeigt.
 
+Startest du den Abruf in der Mobile-App, erscheinen dieselben Rückfragen dort in der Karte *Bankabruf*. Die PIN gibst du
+nie am Handy ein; das geht nur für Zugänge mit gespeicherter PIN.
+
 **Automatischer Abruf:** Wenn du beim Abruf „PIN speichern“ wählst, ruft Kassensturz täglich zur eingestellten Uhrzeit ab.
 Die PIN liegt dann in `/data/secrets.json` auf dem Gerät – nicht verschlüsselt, aber von Home-Assistant-Backups ausgenommen.
 Die meisten Banken verlangen alle 90 bis 180 Tage eine neue TAN-Freigabe; dann meldet sich Kassensturz per Benachrichtigung

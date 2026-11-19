@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 /// Typed views of the server responses used by forms and pickers. Every
 /// factory validates the fields it needs and throws a [FormatException]
@@ -403,6 +405,94 @@ class BudgetSuggestion {
   final int? currentCents;
 }
 
+/// What a bank asks during a fetch: a TAN, which method or device to use, or
+/// to approve the access in its own app.
+class BankQuestion {
+  const BankQuestion({
+    required this.qid,
+    required this.kind,
+    required this.bank,
+    this.text = '',
+    this.title = '',
+    this.options = const [],
+    this.image,
+    this.flicker = const [],
+  });
+
+  /// Null for anything this app cannot show, so it is never answered blindly.
+  static BankQuestion? tryParse(dynamic json) {
+    if (json is! Map) return null;
+    final qid = json['qid'];
+    final kind = json['kind'];
+    if (qid is! String || qid.isEmpty) return null;
+    if (kind != 'tan' && kind != 'decoupled' && kind != 'choice') return null;
+    final options = <({String value, String label, String hint})>[];
+    final rawOptions = json['options'];
+    if (rawOptions is List) {
+      for (final entry in rawOptions.whereType<Map>()) {
+        final value = entry['value'];
+        final label = entry['label'];
+        final hint = entry['hint'];
+        if (value is String && value.isNotEmpty) {
+          options.add((
+            value: value,
+            label: label is String && label.isNotEmpty ? label : value,
+            hint: hint is String ? hint : '',
+          ));
+        }
+      }
+    }
+    if (kind == 'choice' && options.isEmpty) return null;
+    Uint8List? image;
+    final rawImage = json['image'];
+    if (rawImage is String && rawImage.startsWith('data:image/')) {
+      final comma = rawImage.indexOf(',');
+      if (comma > 0) {
+        try {
+          image = base64Decode(rawImage.substring(comma + 1));
+        } on FormatException {
+          image = null;
+        }
+      }
+    }
+    final rawFlicker = json['flicker'];
+    final text = json['text'];
+    final title = json['title'];
+    final bank = json['bank'];
+    return BankQuestion(
+      qid: qid,
+      kind: kind as String,
+      bank: bank is String && bank.isNotEmpty ? bank : 'Bank',
+      text: text is String ? text : '',
+      title: title is String ? title : '',
+      options: options,
+      image: image,
+      flicker: rawFlicker is List
+          ? rawFlicker
+                .whereType<String>()
+                .where((frame) => frame.length == 5)
+                .toList()
+          : const [],
+    );
+  }
+
+  /// Names this one question; the answer goes back with it.
+  final String qid;
+
+  /// 'tan', 'decoupled' (approve in the banking app) or 'choice'.
+  final String kind;
+  final String bank;
+  final String text;
+  final String title;
+  final List<({String value, String label, String hint})> options;
+
+  /// The picture of a photoTAN, if the bank sent one.
+  final Uint8List? image;
+
+  /// Frames of a flicker code, five bars each, '1' for a white bar.
+  final List<String> flicker;
+}
+
 /// What the server knows about fetching from the banks.
 class ServerSyncStatus {
   const ServerSyncStatus({
@@ -414,6 +504,7 @@ class ServerSyncStatus {
     required this.problems,
     required this.sources,
     this.renewals = const [],
+    this.question,
     this.lastSync,
     this.nextSync,
   });
@@ -473,6 +564,7 @@ class ServerSyncStatus {
       errors: errors,
       problems: problems,
       renewals: renewals,
+      question: BankQuestion.tryParse(json['question']),
       sources: count,
       lastSync: DateTime.tryParse(_optionalString(json, 'last_sync') ?? ''),
       nextSync: DateTime.tryParse(_optionalString(json, 'next_sync') ?? ''),
@@ -493,6 +585,9 @@ class ServerSyncStatus {
   /// Bank consents that are about to end or have ended and can be renewed
   /// from the phone.
   final List<({int id, String name})> renewals;
+
+  /// What a bank is asking right now, if a fetch waits for an answer.
+  final BankQuestion? question;
   final int sources;
 
   /// Oldest state among all banks; null until every bank was fetched once.

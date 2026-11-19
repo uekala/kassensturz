@@ -112,6 +112,7 @@ LABELS: dict[tuple[str, str], str] = {
     ("PATCH", "/api/mobile/devices/{device_id}"): "Handy einer Person zugeordnet",
     # Vom Handy
     ("POST", "/api/v1/sync"): "Bankabruf gestartet",
+    ("POST", "/api/v1/sync/answer"): "Rückfrage der Bank beim Abruf beantwortet",
     ("POST", "/api/v1/banks/renew/complete"): "Bankfreigabe erneuert",
     ("POST", "/api/v1/accounts"): "Bargeld-Konto angelegt",
     ("PUT", "/api/v1/accounts/{account_id}/value"): "Wert eingetragen",
