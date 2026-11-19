@@ -8,7 +8,8 @@ import { go, rerender } from "./router.js";
 export function pickImportFile() {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = ".csv,.txt,.xml,.zip,.sta,.mt940,.940,.xlsx";
+  // Bewusst ohne Filter: Android ordnet heruntergeladenen Dateien oft keinen passenden Dateityp zu und graut
+  // CSV und XLSX dann aus. Was die Datei ist, prüft der Server.
   input.onchange = async () => {
     const f = input.files[0];
     if (!f) return;
@@ -21,7 +22,8 @@ export function pickImportFile() {
     try {
       const res = await api("import/analyze", { method: "POST", form });
       sh.close();
-      if (res.kind === "finanzguru") finanzguruSheet(res); else importSheet(res);
+      if (res.kind === "ladecockpit") chargingImport(form);
+      else if (res.kind === "finanzguru") finanzguruSheet(res); else importSheet(res);
     } catch (e) {
       sh.set(html`${sheetHead("Datei nicht lesbar")}<p>${e.message}</p><div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
     }

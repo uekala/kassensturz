@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.62
+
+- Ladecockpit-Import: Der Server erkennt den Export jetzt selbst, auch wenn die Oberfläche ihn nicht vorab erkennt.
+  Die Dateiauswahl filtert nicht mehr nach Dateiart: Android graute heruntergeladene CSV- und XLSX-Dateien
+  sonst teils aus. Was die Datei ist, prüft der Server.
+- Ist die Datei eine gespeicherte Webseite oder Fehlermeldung statt eines Exports (etwa nach dem Herunterladen in
+  der Home-Assistant-App), sagt die Meldung das und was zu tun ist.
+- Zugeordnet wird der Betrag nach Gutschriften (Spalte „Netto“), denn den bucht die Bank ab.
+- Der Export lässt sich auch in den Eingangsordner legen.
+
 ## 0.3.61
 
 - Laden mit Ladecockpit: Kassensturz liest Ladevorgänge aus dem Sensor von Ladecockpit und aus dessen CSV-Export und

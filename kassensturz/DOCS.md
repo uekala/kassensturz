@@ -416,7 +416,8 @@ unter *Alle Monate* die Monate einzeln.
 - **Neue Ladevorgänge** liest Kassensturz aus dem Sensor `sensor.ladecockpit_last_charge`, höchstens alle fünf
   Minuten. Dafür muss in Ladecockpit „Sensoren in Home Assistant anlegen“ an sein.
 - **Ältere Ladevorgänge** kommen über den Export *CSV – alle Ladungen* aus Ladecockpit. Importiere die Datei unter
-  *Konten → Datei importieren*; Kassensturz erkennt sie.
+  *Konten → Datei importieren* oder leg sie in den Eingangsordner; Kassensturz erkennt sie. Lade den Export in einem
+  Browser herunter: Die Home-Assistant-App speichert beim Herunterladen teils nur die Anmeldeseite.
 - **Keine neuen Buchungen:** Die Abbuchung kommt von deiner Bank. Ein Ladevorgang wird der Buchung mit genau diesem
   Betrag zugeordnet, gebucht einen Tag vor bis sieben Tage nach dem Laden. Passen mehrere, gewinnt die mit „Tesla“
   oder „Supercharger“ im Namen; bleibt es unklar, ordnet Kassensturz nichts zu. Rechnet die Bank mehrere Ladevorgänge
