@@ -270,6 +270,18 @@ davon feste Zahlungen aus Verträgen waren, und die fünf größten Einzelausgab
 Vorjahr, steht jeder Wert neben dem Vorjahr, dazu die Kategorien, die sich um mindestens 100 € verändert haben. Im
 laufenden Jahr wird nur bis zum selben Tag des Vorjahres verglichen. Umbuchungen zwischen eigenen Konten zählen nicht.
 
+## Berichte als PDF
+
+Zum Ablegen oder Ausdrucken gibt es zwei Berichte als PDF-Datei (A4):
+
+- **Monatsbericht** (*Budgets → Monatsbericht als PDF*, für den angezeigten Monat): Einnahmen, Ausgaben, Saldo und
+  Sparquote, der Vergleich mit den Monaten davor, alle Kategorien mit dem üblichen Betrag, die zehn größten
+  Einzelausgaben ohne Verträge und die Kontostände am Monatsende.
+- **Jahresrückblick** (*Budgets → Jahresrückblick → Als PDF*): alles aus dem Jahresrückblick, dazu eine Tabelle je
+  Monat.
+
+Die Berichte umfassen den ganzen Haushalt. Kassensturz schreibt die Datei selbst, ohne Dienst im Internet.
+
 ## Sparziele und Jahreskosten
 
 **Sparziele** legst du auf der Budgetseite an: wofür, wie viel, optional bis wann und auf welchem Konto das Geld liegt. Mit
