@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.60
+
+- FinTS: Lehnt die Bank die Anmeldung ab (etwa Code 9900, falsche PIN, Zugang gesperrt), ruft Kassensturz für
+  diesen Bankzugang nicht mehr von selbst ab, weder täglich noch über die App. Bisher hätte der tägliche Abruf es mit
+  der gespeicherten PIN jeden Tag erneut versucht, und nach wenigen Fehlversuchen sperrt die Bank den Zugang.
+  Weiter geht es mit einem Abruf in Home Assistant mit eingegebener PIN, die gespeichert wird, oder nach einer
+  Änderung von Anmeldename, Bankleitzahl oder Server. Unter *Konten* steht dann „automatischer Abruf angehalten“.
+- Code 9900 bekommt eine eigene Meldung: Die Produkt-ID hat die Bank dann angenommen, abgelehnt hat sie
+  Anmeldename oder PIN.
+
 ## 0.3.59
 
 - Bank verbinden: Der Hinweis unter der Bankliste nannte Advanzia als Beispiel für Luxemburg. Enable Banking führt

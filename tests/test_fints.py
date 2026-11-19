@@ -156,3 +156,78 @@ def test_code_9078_explains_the_waiting_time():
     replies = [("9800", "Dialoginitialisierung abgebrochen."), ("9078", "Dialog abgebrochen - FinTS-Produkt ist nicht registriert")]
     text = fints_sync._explain(ValueError("Could not find system_id"), replies)
     assert text.startswith("Die Bank kennt die FinTS-Produkt-ID noch nicht (Code 9078).") and "25 Zeichen" in text
+
+
+def test_code_9900_names_login_data_not_the_product():
+    replies = [("9800", "Dialoginitialisierung abgebrochen."), ("9900", "Es ist ein Fehler bei der Anmeldung aufgetreten.")]
+    text = fints_sync._explain(ValueError("Could not find system_id"), replies)
+    assert text.startswith("Die Bank hat die Anmeldung abgelehnt. Antwort der Bank:") and "Code 9900" in text
+    assert "Anmeldename oder PIN" in text and "nicht mehr von selbst" in text and "9078" not in text
+
+
+def _fail_with(monkeypatch, exc, replies):
+    def fake_sync(job, conn, pin, history_days, background):
+        job.bank_replies.extend(replies)
+        raise exc
+    monkeypatch.setattr(fints_sync, "_sync", fake_sync)
+
+
+def _wait(job):
+    for _ in range(200):
+        if job.state not in ("running", "waiting"):
+            return job
+        time.sleep(0.01)
+    raise AssertionError("Auftrag läuft noch")
+
+
+def test_rejected_login_stops_automatic_fetches(db, monkeypatch, tmp_path):
+    import pytest
+    from kassensturz import banksync, secrets_store, services
+
+    cid = db.insert("connections", {"name": "KS-Testbank", "blz": "00000000", "login": "erfunden",
+                                    "server": "https://example.invalid/fints", "created": "2026-01-01"})
+    pins = {cid: "erfundene-pin"}
+    monkeypatch.setattr(secrets_store, "has_pin", lambda c: c in pins)
+    monkeypatch.setattr(secrets_store, "get_pin", lambda c: pins.get(c))
+    monkeypatch.setattr(secrets_store, "set_pin", lambda c, p: pins.__setitem__(c, p))
+    _fail_with(monkeypatch, ValueError("Could not find system_id"),
+               [("9800", "Dialoginitialisierung abgebrochen."), ("9900", "Fehler bei der Anmeldung.")])
+
+    _wait(fints_sync.start(cid, None, background=True))
+    assert fints_sync.login_rejected(db, cid)
+    source = [s for s in banksync.status(db)["sources"] if s["id"] == f"fints:{cid}"][0]
+    assert (source["automatic"], source["state"]) == (False, "error")
+
+    # Weder der tägliche Abruf noch ein Abruf mit der gespeicherten PIN versucht es noch einmal.
+    started = []
+    real_start = fints_sync.start
+    monkeypatch.setattr(fints_sync, "start", lambda *a, **k: started.append(a) or real_start(*a, **k))
+    services.run_daily_sync()
+    assert started == []
+    with pytest.raises(fints_sync.UserFacingError, match="letzte Anmeldung abgelehnt"):
+        real_start(cid, None)
+
+    # Ein Erfolg mit eingegebener, aber nicht gespeicherter PIN hebt die Sperre nicht auf.
+    monkeypatch.setattr(fints_sync, "_sync", lambda job, conn, pin, h, b: {"added": 0})
+    _wait(real_start(cid, "andere-erfundene-pin"))
+    assert fints_sync.login_rejected(db, cid)
+    # Gespeichert und erfolgreich: wieder automatisch.
+    _wait(real_start(cid, "andere-erfundene-pin", save_pin=True))
+    assert fints_sync.login_rejected(db, cid) is None
+
+    # Andere Fehler (Produkt-ID unbekannt, Server weg) halten nichts an.
+    _fail_with(monkeypatch, ValueError("Could not find system_id"), [("9078", "FinTS-Produkt ist nicht registriert")])
+    _wait(real_start(cid, None))
+    assert fints_sync.login_rejected(db, cid) is None
+
+
+def test_changing_login_data_lifts_the_stop(client, db):
+    cid = db.insert("connections", {"name": "KS-Testbank", "blz": "00000000", "login": "erfunden",
+                                    "server": "https://example.invalid/fints", "created": "2026-01-01"})
+    db.set_setting(f"fints_login_rejected:{cid}", "2026-11-18T20:47:59")
+    listed = [c for c in client.get("/api/connections").json() if c["id"] == cid][0]
+    assert listed["login_rejected"] is True
+    client.patch(f"/api/connections/{cid}", json={"name": "KS-Umbenannt"})
+    assert fints_sync.login_rejected(db, cid)
+    client.patch(f"/api/connections/{cid}", json={"login": "erfunden2"})
+    assert fints_sync.login_rejected(db, cid) is None

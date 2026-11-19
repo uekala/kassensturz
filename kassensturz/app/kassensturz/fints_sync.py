@@ -113,12 +113,44 @@ _running: dict[int, str] = {}
 _lock = threading.Lock()
 
 
+# Codes, mit denen eine Bank die Anmeldung selbst ablehnt: falscher Anmeldename oder falsche PIN,
+# unbekannter Zugang, gesperrt. Ein weiterer Versuch mit denselben Daten zählt als Fehlversuch.
+LOGIN_REJECTED = {"9900", "9910", "9931", "9942", "9210"}
+
+
+def _rejected_key(connection_id: int) -> str:
+    return f"fints_login_rejected:{connection_id}"
+
+
+def login_rejected(db, connection_id: int) -> str | None:
+    """Wann die Bank die Anmeldung mit den gespeicherten Daten zuletzt abgelehnt hat; sonst ``None``."""
+    value = db.get_setting(_rejected_key(connection_id))
+    return value if isinstance(value, str) and value else None
+
+
+def clear_login_rejected(db, connection_id: int) -> None:
+    if login_rejected(db, connection_id):
+        db.set_setting(_rejected_key(connection_id), None)
+
+
+def _is_login_rejection(exc: Exception, replies: list | None) -> bool:
+    from fints.exceptions import FinTSClientPINError, FinTSClientTemporaryAuthError
+    if isinstance(exc, (FinTSClientPINError, FinTSClientTemporaryAuthError)):
+        return True
+    return any(code in LOGIN_REJECTED for code, _text in replies or [])
+
+
 def start(connection_id: int, pin: str | None, save_pin: bool = False, history_days: int | None = None,
           on_done=None, background: bool = False) -> Job:
     db = get_db()
     conn = db.one("SELECT * FROM connections WHERE id = ?", (connection_id,))
     if not conn:
         raise UserFacingError("Bankzugang nicht gefunden.")
+    if not pin and login_rejected(db, connection_id):
+        # Mit der gespeicherten PIN nicht noch einmal: Nach wenigen Fehlversuchen sperrt die Bank den Zugang.
+        raise UserFacingError("Die Bank hat die letzte Anmeldung abgelehnt. Damit sie den Zugang nicht sperrt, ruft "
+                              "Kassensturz hier nicht mehr von selbst ab. Prüfe Anmeldename und PIN und starte den "
+                              "Abruf einmal in Home Assistant mit eingegebener PIN.")
     with _lock:
         running = _running.get(connection_id)
         if running and JOBS.get(running) and JOBS[running].state in ("running", "waiting"):
@@ -137,23 +169,32 @@ def start(connection_id: int, pin: str | None, save_pin: bool = False, history_d
             job.result = _sync(job, conn, pin, history_days, background)
             if save_pin:
                 secrets_store.set_pin(connection_id, pin)
-            job.state = "done"
-            job.step = "Fertig"
+            # Nur freigeben, wenn die gespeicherte PIN jetzt stimmt; sonst scheitert der nächste Abruf von selbst wieder.
+            if secrets_store.get_pin(connection_id) == pin:
+                clear_login_rejected(db, connection_id)
             db.update("connections", "id", connection_id, {"last_sync": now_iso(), "last_status": "ok"})
+            job.step = "Fertig"
+            job.state = "done"
             if on_done:
                 on_done()
         except JobCancelled:
             job.state = "cancelled"
             job.step = "Abgebrochen"
         except Exception as exc:  # noqa: BLE001 – alles in eine verständliche Meldung übersetzen
-            job.state = "error"
             job.error = _explain(exc, job.bank_replies)
             log.warning("FinTS-Abruf fehlgeschlagen: %s", exc, exc_info=not isinstance(exc, UserFacingError))
             if job.bank_replies:
                 log.warning("Antworten der Bank: %s", "; ".join(f"{code} {text}" for code, text in job.bank_replies))
+            if _is_login_rejection(exc, job.bank_replies):
+                db.set_setting(_rejected_key(connection_id), now_iso())
             db.update("connections", "id", connection_id, {"last_status": job.error[:200]})
+            # Zuletzt: Wer auf den Zustand wartet, sieht dann schon die Sperre.
+            job.state = "error"
         finally:
             job.question = None
+            if job.state in ("running", "waiting"):
+                job.state = "error"
+                job.error = job.error or "Abruf fehlgeschlagen."
 
     threading.Thread(target=worker, name=f"fints-{job.id}", daemon=True).start()
     return job
@@ -224,6 +265,12 @@ def _explain(exc: Exception, replies: list | None = None) -> str:
         return ("Die Bank kennt diesen Zugang nicht." + said + " Prüfe im Bankzugang Bankleitzahl, Anmeldename und "
                 "Kundennummer: Manche Banken erwarten für FinTS eine andere Bankleitzahl als die in der IBAN, und das Feld "
                 "Kundennummer bleibt meist leer. Bitte nicht mehrfach wiederholen, sonst sperrt die Bank den Zugang.")
+    if any(code in ("9900", "9910", "9942") for code, _text in replies or []) and not isinstance(exc, UserFacingError):
+        # Die Produkt-ID hat die Bank dann angenommen; abgelehnt hat sie die Zugangsdaten.
+        return ("Die Bank hat die Anmeldung abgelehnt." + said + " Meist stimmen Anmeldename oder PIN nicht. Prüfe sie "
+                "zuerst auf der Webseite der Bank: Klappt die Anmeldung dort mit genau diesen Daten? Bis du den Abruf "
+                "einmal mit eingegebener PIN startest, ruft Kassensturz hier nicht mehr von selbst ab. Bitte nicht "
+                "mehrfach wiederholen: Nach wenigen Fehlversuchen sperrt die Bank den Zugang.")
     if isinstance(exc, FinTSClientPINError):
         return ("Die Bank hat die PIN abgelehnt. Prüfe PIN und Anmeldenamen – nach mehreren Fehlversuchen sperrt die Bank "
                 "den Zugang." + said)

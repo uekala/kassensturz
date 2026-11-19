@@ -93,7 +93,7 @@ export async function renderAccounts(view, _params, seq) {
           <a href="https://www.fints.org/de/hersteller/produktregistrierung" target="_blank" rel="noopener">fints.org</a>. Danach die ID in der Konfiguration der App eintragen.</p>` : ""}
         ${conns.length ? html`<ul class="list">${conns.map((c) => html`<li class="row static" style="grid-template-columns:1fr auto">
           <span class="title">${c.name}</span>
-          <span class="sub">${c.last_sync ? `Zuletzt ${dFull(c.last_sync.slice(0, 10))} ${c.last_sync.slice(11, 16)}` : "Noch nicht abgerufen"}${c.has_pin ? ", täglich automatisch" : ""}${c.last_status && c.last_status !== "ok" ? html`<br><span style="color:var(--crit)">${c.last_status}</span>` : ""}</span>
+          <span class="sub">${c.last_sync ? `Zuletzt ${dFull(c.last_sync.slice(0, 10))} ${c.last_sync.slice(11, 16)}` : "Noch nicht abgerufen"}${c.has_pin ? (c.login_rejected ? ", automatischer Abruf angehalten" : ", täglich automatisch") : ""}${c.last_status && c.last_status !== "ok" ? html`<br><span style="color:var(--crit)">${c.last_status}</span>` : ""}</span>
           <span style="grid-row:1/span 2;grid-column:2;display:flex;gap:6px"><button class="btn small primary" data-sync="${c.id}">${raw(ICON.sync)}Abrufen</button>
           <button class="btn small" data-conn="${c.id}" aria-label="Bankzugang ${c.name} bearbeiten">Bearbeiten</button></span></li>`)}</ul>`
           : html`<p class="muted small">Noch kein FinTS-Zugang. Sparkassen, Volksbanken, ING, DKB, comdirect und viele andere unterstützen FinTS, Neobanken und PayPal nicht.</p>

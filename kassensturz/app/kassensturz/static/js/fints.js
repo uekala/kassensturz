@@ -120,9 +120,12 @@ export function syncSheet(conn) {
       askPin(j.error);
     } else {
       sh.set(html`${sheetHead("Abruf fehlgeschlagen")}<p>${j.error || "Abgebrochen."}</p><div class="actions"><button class="btn primary" id="sy-retry">Erneut versuchen</button><button class="btn" data-close>Schließen</button></div>`.s);
-      $("#sy-retry", sh.el).onclick = () => (conn.has_pin ? start({}) : askPin());
+      // Hat die Bank die Anmeldung abgelehnt, nie mit der gespeicherten PIN wiederholen.
+      if (/Anmeldung abgelehnt/.test(j.error || "")) conn.login_rejected = true;
+      $("#sy-retry", sh.el).onclick = () => (conn.has_pin && !conn.login_rejected ? start({}) : askPin());
     }
     if ($("#sy-cancel", sh.el)) $("#sy-cancel", sh.el).onclick = async () => { await api(`jobs/${j.id}/cancel`, { method: "POST" }); sh.close(); };
   };
-  if (conn.has_pin) start({}); else askPin();
+  if (conn.has_pin && !conn.login_rejected) start({});
+  else askPin(conn.login_rejected ? "Die Bank hat die letzte Anmeldung abgelehnt. Prüfe Anmeldename und PIN zuerst auf der Webseite der Bank. Stimmt die PIN, setz den Haken, damit sie die gespeicherte ersetzt." : "");
 }
