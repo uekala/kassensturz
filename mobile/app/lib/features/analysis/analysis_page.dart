@@ -8,6 +8,7 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 import '../../core/widgets/part_filter.dart';
 import '../charging/charging_widgets.dart';
+import 'year_review_page.dart';
 
 const _monthNames = [
   'Januar',
@@ -138,6 +139,22 @@ class _AnalysisPageState extends State<AnalysisPage> {
                 if (_reviewText(stats?['review']) case final review?) ...[
                   const SizedBox(height: 12),
                   Text(review, style: textTheme.bodyMedium),
+                ],
+                if (controller.canShowYear) ...[
+                  const SizedBox(height: 16),
+                  LinkTile(
+                    icon: Icons.calendar_month_rounded,
+                    title: 'Jahresrückblick ${_month.year}',
+                    subtitle: 'Das ganze Jahr im Vergleich zum Vorjahr',
+                    onTap: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => YearReviewPage(
+                          controller: controller,
+                          year: _month.year,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 24),
                 const SectionTitle('Nach Kategorie'),
