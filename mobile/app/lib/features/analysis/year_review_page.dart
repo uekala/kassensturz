@@ -6,6 +6,7 @@ import '../../core/design/app_theme.dart';
 import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
+import '../reports/report_page.dart';
 
 const _monthInitials = [
   'J',
@@ -150,7 +151,25 @@ class _YearReviewPageState extends State<YearReviewPage> {
     final text = shown ? yearReviewText(data) : '';
 
     return Scaffold(
-      appBar: AppBar(title: Text('Jahresrückblick $_year')),
+      appBar: AppBar(
+        title: Text('Jahresrückblick $_year'),
+        actions: [
+          if (widget.controller.canShowReport)
+            IconButton(
+              tooltip: 'Als PDF',
+              icon: const Icon(Icons.picture_as_pdf_rounded),
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => ReportPage(
+                    controller: widget.controller,
+                    kind: 'year',
+                    period: '$_year',
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(

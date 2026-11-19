@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import base64
 import json
+import re
+from datetime import date
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -17,7 +19,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import analytics, anomalies, audit, banksync, expected, household, charging, ledger, loans, mobile_read, mobile_write, openbanking, options, papers, planned, projects, services, sharing
+from . import analytics, anomalies, audit, banksync, expected, household, charging, ledger, loans, mobile_read, mobile_write, openbanking, options, papers, planned, projects, report, services, sharing
 from .db import get_db
 from .util import euro
 from .mobile_auth import (
@@ -77,6 +79,8 @@ CAPABILITIES = (
     "charging",
     # Jahresrückblick mit Vergleich zum Vorjahr
     "year",
+    # Monatsbericht und Jahresrückblick als PDF
+    "report",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -532,6 +536,38 @@ def year_review(request: Request, year: str | None = Query(default=None), part: 
         return mobile_read.get_year(view, year)
     except mobile_read.MobileQueryError:
         return _error(400, "invalid_query", "Für dieses Jahr gibt es keinen Rückblick.")
+
+
+@router.get("/api/v1/report/{kind}")
+def report_pdf(request: Request, kind: str, period: str | None = Query(default=None),
+               part: str | None = Query(default=None)):
+    """Monatsbericht (period=JJJJ-MM) oder Jahresrückblick (period=JJJJ) als PDF, aus der Sicht des Geräts."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    if kind not in ("month", "year") or household.profile(get_db(), device.person_id)["read_only"]:
+        return _error(404, "not_found", "Diesen Bericht gibt es nicht.")
+    view = _part_view(device, part)
+    if view is None:
+        return _error(400, "invalid_query", "Ungültiger Teil.")
+    today = date.today()
+    try:
+        if kind == "month":
+            month = period or today.strftime("%Y-%m")
+            if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", month):
+                raise ValueError("month")
+            data = report.month_pdf(view, month)
+            name = f"kassensturz-{month}.pdf"
+        else:
+            year = period or str(today.year)
+            if not re.fullmatch(r"\d{4}", year):
+                raise ValueError("year")
+            data = report.year_pdf(view, int(year))
+            name = f"kassensturz-{year}.pdf"
+    except ValueError:
+        return _error(400, "invalid_query", "Für diesen Zeitraum gibt es keinen Bericht.")
+    return Response(data, media_type="application/pdf", headers={
+        "Content-Disposition": f'inline; filename="{name}"', "Cache-Control": "no-store"})
 
 
 @router.get("/api/v1/afford")
