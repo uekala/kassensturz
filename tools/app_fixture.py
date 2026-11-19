@@ -42,6 +42,7 @@ READS = {
     "/api/v1/afford": {"amount_cents": 30000},
     "/api/v1/projects": {},
     "/api/v1/changes": {},
+    "/api/v1/charging": {},
 }
 
 
@@ -101,6 +102,17 @@ def _household(admin) -> dict:
     # Ein Projekt quer zu den Kategorien: alles fürs Auto.
     car = _ok(admin.post("/api/projects", json={"name": "Auto", "budget_cents": 60000}), "Projekt")
     _ok(admin.post(f"/api/projects/{car['id']}/assign", json={"filter": {"q": "TESLA"}}), "Projekt zuordnen")
+    # Ladevorgänge aus Ladecockpit zu den Supercharger-Abbuchungen, je einen Tag vorher geladen.
+    tesla = _ok(admin.get("/api/transactions", params={"q": "TESLA", "limit": 20}), "Tesla")["items"]
+    lines = ["Datum;Start;Ende;Standort;kWh;Preis pro kWh;Ladekosten;Blockiergebühr;Summe;Währung;Ø kW;Ladung-ID;Netz"]
+    for n, t in enumerate(tesla):
+        day = date.fromisoformat(t["booking_date"]) - timedelta(days=1)
+        cents = -t["amount_cents"]
+        kwh = round(cents / 42, 3)
+        lines.append(f"{day:%d.%m.%Y};18:{n % 60:02d};18:50;Erfundenhausen;{str(kwh).replace('.', ',')};0,4200;"
+                     f"{cents // 100},{cents % 100:02d};0,00;{cents // 100},{cents % 100:02d};EUR;60;ks-bild-{n};Supercharger")
+    export = ("\r\n".join(lines) + "\r\n").encode()
+    _ok(admin.post("/api/charging/import", files={"file": ("ladecockpit.csv", export, "text/csv")}), "Ladevorgänge")
     # Geplant und erwartet: eine Ausgabe in zehn Tagen, Geld, das von einer Ausgabe zurückkommt.
     soon = (date.today() + timedelta(days=10)).isoformat()
     _ok(admin.post("/api/planned", json={"label": "Handwerkerrechnung", "cents": 85000, "due_date": soon,
@@ -123,8 +135,8 @@ def _reads(client, headers: dict) -> dict:
         out[f"GET {path}"] = {"status": response.status_code, "body": response.json()}
     # Was die App für eine einzelne Buchung nachlädt.
     listed = out["GET /api/v1/transactions"]["body"].get("items") or []
-    for tx in listed[:6]:
-        for tail in ("receipts", "share", "project"):
+    for tx in listed[:6] + [t for t in listed[6:] if "TESLA" in str(t.get("counterparty"))]:
+        for tail in ("receipts", "share", "project", "charging"):
             path = f"/api/v1/transactions/{tx['id']}/{tail}"
             response = client.get(path, headers=headers)
             out[f"GET {path}"] = {"status": response.status_code, "body": response.json()}

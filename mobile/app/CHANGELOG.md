@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.40
+
+- Laden mit Ladecockpit: An einer Supercharger-Abbuchung steht *Laden* mit kWh, Preis je kWh, Ort und Zeit. Die
+  Auswertung zeigt für den Monat Ladevorgänge, kWh, Kosten und Preis je kWh (ab Server 0.3.61).
+
 ## 0.3.39
 
 - Bankabruf: Fragt die Bank nach einer TAN, einer Freigabe in ihrer App oder dem TAN-Verfahren, erscheint die

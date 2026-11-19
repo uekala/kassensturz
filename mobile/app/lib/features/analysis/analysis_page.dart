@@ -7,6 +7,7 @@ import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 import '../../core/widgets/part_filter.dart';
+import '../charging/charging_widgets.dart';
 
 const _monthNames = [
   'Januar',
@@ -158,6 +159,12 @@ class _AnalysisPageState extends State<AnalysisPage> {
                 else
                   _HistoryBars(history: history, selected: _key(_month)),
                 const SizedBox(height: 26),
+                if (controller.canShowCharging)
+                  ChargingMonthCard(
+                    key: ValueKey('charging-${_key(_month)}'),
+                    controller: controller,
+                    month: _key(_month),
+                  ),
                 const SectionTitle('Kontostand'),
                 const SizedBox(height: 4),
                 Text(

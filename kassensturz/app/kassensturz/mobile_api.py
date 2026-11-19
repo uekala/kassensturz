@@ -17,7 +17,7 @@ from qrcode.image.svg import SvgPathImage
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from . import analytics, anomalies, audit, banksync, expected, household, ledger, loans, mobile_read, mobile_write, openbanking, options, papers, planned, projects, services, sharing
+from . import analytics, anomalies, audit, banksync, expected, household, charging, ledger, loans, mobile_read, mobile_write, openbanking, options, papers, planned, projects, services, sharing
 from .db import get_db
 from .util import euro
 from .mobile_auth import (
@@ -73,6 +73,8 @@ CAPABILITIES = (
     "accounts.value",
     # Rückfragen der Bank beim Abruf (TAN, Freigabe, Verfahren) am Handy beantworten
     "sync.tan",
+    # Ladevorgänge aus Ladecockpit an Buchungen und in der Auswertung
+    "charging",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -1201,6 +1203,37 @@ def project_detail(project_id: str, request: Request):
                               "counterparty": t["counterparty"] or t["purpose"], "category": t["category_name"],
                               "account": t["account_name"], "transfer": bool(t["is_transfer"])}
                              for t in p["transactions"][:100]]}
+
+
+def _charge_item(c: dict) -> dict:
+    return {"started": c["started"], "site": c["site"], "network": c["network"], "kwh": c["kwh"],
+            "total_cents": c["total_cents"], "idle_cents": c["idle_cents"],
+            "price_per_kwh_cents": c["price_per_kwh_cents"]}
+
+
+@router.get("/api/v1/charging")
+def charging_months(request: Request):
+    """Charging per month from Ladecockpit, as far as this person sees the bookings."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    data = charging.summary(_view(device))
+    return {"months": [{k: m[k] for k in ("month", "sessions", "kwh", "total_cents", "idle_cents", "price_per_kwh_cents")}
+                       for m in data["months"]],
+            "count": data["count"], "unlinked_count": data["unlinked_count"]}
+
+
+@router.get("/api/v1/transactions/{tx_id}/charging")
+def transaction_charging(tx_id: str, request: Request):
+    """The charging session a booking paid for, or null."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    parsed = _transaction_id(tx_id)
+    if parsed is None or not household.sees_transaction(get_db(), device.person_id, parsed):
+        return _not_found("Buchung")
+    found = charging.for_transactions(get_db(), [parsed]).get(parsed)
+    return {"charging": _charge_item(found) if found else None}
 
 
 @router.get("/api/v1/transactions/{tx_id}/project")

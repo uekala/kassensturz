@@ -89,3 +89,39 @@ def test_web_routes(client, db):
     bad = client.post("/api/charging/import", files={"file": ("x.csv", b"a;b\r\n1;2\r\n", "text/csv")})
     assert bad.status_code == 400
     assert db.scalar("SELECT text FROM audit_log ORDER BY id DESC LIMIT 1").startswith("Ladevorgänge aus Ladecockpit übernommen")
+
+
+def test_mobile_routes(db, monkeypatch):
+    from kassensturz import household
+    from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+    reset_mobile_guards(monkeypatch)
+    acc = _giro(db)
+    anna = household.create_person(db, {"name": "Anna"})["id"]
+    own = db.insert("accounts", {"name": "KS-Annas Konto", "kind": "giro", "owner_person_id": anna})
+    shared_tx = _book(db, acc, "2026-10-22", -666, "Tesla")
+    annas_tx = _book(db, own, "2026-11-04", -1351, "Tesla")
+    charging.import_csv(db, EXPORT_DE)
+    with https_client() as client:
+        assert client.get("/api/v1/charging").status_code == 401
+        headers = paired_headers(client)
+        assert "charging" in client.get("/api/v1/me", headers=headers).json()["capabilities"]
+        months = client.get("/api/v1/charging", headers=headers).json()
+        # Ein Gerät ohne Person sieht Annas eigenes Konto nicht, also auch nicht ihren Ladevorgang.
+        assert months["count"] == 2 and set(months["months"][0]) == {
+            "month", "sessions", "kwh", "total_cents", "idle_cents", "price_per_kwh_cents"}
+        got = client.get(f"/api/v1/transactions/{shared_tx}/charging", headers=headers).json()["charging"]
+        assert got["site"] == "Erfundenhausen" and got["kwh"] == 18.0 and "tx_id" not in got and "id" not in got
+        assert client.get("/api/v1/transactions/999/charging", headers=headers).status_code == 404
+
+        def pair(person):
+            secret = client.post("/api/mobile/pairings", json={"person_id": person}).json()["pairing_secret"]
+            token = client.post("/api/v1/pair", json={"pairing_secret": secret, "device_name": "KS-Handy"}).json()["access_token"]
+            return {"Authorization": f"Bearer {token}"}
+
+        annas = pair(anna)
+        assert client.get("/api/v1/charging", headers=annas).json()["count"] == 3
+        assert client.get(f"/api/v1/transactions/{annas_tx}/charging", headers=annas).json()["charging"]["kwh"] == 30.5
+        # Ben sieht Annas Konto nicht: weder die Buchung noch ihren Ladevorgang in den Monaten.
+        bens = pair(household.create_person(db, {"name": "Ben"})["id"])
+        assert client.get(f"/api/v1/transactions/{annas_tx}/charging", headers=bens).status_code == 404
+        assert client.get("/api/v1/charging", headers=bens).json()["count"] == 2

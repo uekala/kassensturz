@@ -7,6 +7,8 @@
 - Übersicht: Abschnitt *Laden* mit diesem und dem vorigen Monat, unter *Alle Monate* jeder Monat mit kWh, Kosten und
   Preis je kWh, dazu Ladevorgänge ohne passende Abbuchung.
 - Datenbank: neue Tabelle für Ladevorgänge (Schema 15); bestehende Daten bleiben unverändert.
+- App (ab Version 0.3.40): Die Ladedaten stehen an der Buchung und in der Auswertung. Neue Schnittstellen
+  `/api/v1/charging` und `/api/v1/transactions/{id}/charging`, Fähigkeit `charging`.
 
 ## 0.3.60
 

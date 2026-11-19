@@ -247,6 +247,19 @@ void main() {
       await phone.shot('09-buchung-unten');
       await phone.back();
     }
+    // A Supercharger booking carries what Ladecockpit knows about it.
+    final charged = items.where(
+      (item) => item['counterparty'].toString().contains('TESLA'),
+    );
+    if (charged.isNotEmpty &&
+        await phone.open(
+          find.text(charged.first['counterparty'].toString()).first,
+          'Buchung mit Ladevorgang',
+        )) {
+      expect(find.text('Laden'), findsOneWidget);
+      await phone.shot('36-buchung-laden');
+      await phone.back();
+    }
     if (await phone.open(find.byTooltip('Umsatz anlegen'), 'Umsatz anlegen')) {
       await phone.shot('10-neuer-umsatz');
       await phone.back();
