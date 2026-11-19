@@ -418,10 +418,13 @@ unter *Alle Monate* die Monate einzeln.
 - **Ältere Ladevorgänge** kommen über den Export *CSV – alle Ladungen* aus Ladecockpit. Importiere die Datei unter
   *Konten → Datei importieren* oder leg sie in den Eingangsordner; Kassensturz erkennt sie. Lade den Export in einem
   Browser herunter: Die Home-Assistant-App speichert beim Herunterladen teils nur die Anmeldeseite.
-- **Keine neuen Buchungen:** Die Abbuchung kommt von deiner Bank. Ein Ladevorgang wird der Buchung mit genau diesem
-  Betrag zugeordnet, gebucht einen Tag vor bis sieben Tage nach dem Laden. Passen mehrere, gewinnt die mit „Tesla“
-  oder „Supercharger“ im Namen; bleibt es unklar, ordnet Kassensturz nichts zu. Rechnet die Bank mehrere Ladevorgänge
-  zusammen ab, bleiben sie ohne Abbuchung und zählen trotzdem im Abschnitt *Laden*.
+- **Keine neuen Buchungen:** Die Abbuchung kommt von deiner Bank. Kassensturz sucht
+  - eine Buchung mit genau diesem Betrag, gebucht einen Tag vor bis sieben Tage nach dem Laden (bei mehreren gewinnt
+    die mit „Tesla“ oder dem Namen des Ladenetzes im Text),
+  - mit „Tesla“ oder dem Ladenetz im Text auch bis fünf Wochen danach, für Kreditkarten,
+  - eine solche Buchung, deren Betrag genau die Summe aufeinanderfolgender Ladevorgänge der 40 Tage davor ist.
+  Bleibt es unklar, ordnet Kassensturz nichts zu. Dann tippst du unter *Übersicht → Laden → Alle Monate* auf den
+  Ladevorgang und wählst die Abbuchung selbst; Vorschläge sind Buchungen mit gleichem Betrag oder passendem Text.
 
 ## Auffälligkeiten
 
