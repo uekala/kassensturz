@@ -25,7 +25,8 @@ String chargingLine(Map<String, dynamic> c) {
     if (c['network'] == 'multipass') 'MultiPass',
     if (site is String) site,
     when,
-    if (idle is int && idle > 0) 'davon Blockiergebühr ${formatEuro(idle / 100)}',
+    if (idle is int && idle > 0)
+      'davon Blockiergebühr ${formatEuro(idle / 100)}',
   ].where((part) => part.isNotEmpty).join(' · ');
 }
 
