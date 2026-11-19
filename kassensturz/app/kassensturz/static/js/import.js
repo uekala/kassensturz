@@ -8,10 +8,8 @@ import { go, rerender } from "./router.js";
 export function pickImportFile() {
   const input = document.createElement("input");
   input.type = "file";
-  // Neben den Endungen auch die Dateiarten: Android führt CSV oft als text/comma-separated-values
-  // und blendet sie sonst in der Dateiauswahl aus.
-  input.accept = ".csv,.txt,.xml,.zip,.sta,.mt940,.940,.xlsx,text/csv,text/comma-separated-values,application/csv,"
-    + "text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,text/xml,application/xml";
+  // Bewusst ohne Filter: Android ordnet heruntergeladenen Dateien oft keinen passenden Dateityp zu und graut
+  // CSV und XLSX dann aus. Was die Datei ist, prüft der Server.
   input.onchange = async () => {
     const f = input.files[0];
     if (!f) return;
