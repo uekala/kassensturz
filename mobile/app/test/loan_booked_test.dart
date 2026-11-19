@@ -38,7 +38,9 @@ void main() {
         'counterparty': 'Erfundene Kreditbank',
         'missing': ['2026-10'],
         'rest_cents': 1389584,
-        'other': [{'date': '2026-09-20', 'cents': 100000}],
+        'other': [
+          {'date': '2026-09-20', 'cents': 100000},
+        ],
       }),
     )!;
     expect(missing, isTrue);
@@ -52,7 +54,11 @@ void main() {
 
   test('no booked rate at all', () {
     final (text, missing) = bookedRatesText(
-      _plan({'expected': 2, 'count': 0, 'missing': ['2026-10', '2026-11']}),
+      _plan({
+        'expected': 2,
+        'count': 0,
+        'missing': ['2026-10', '2026-11'],
+      }),
     )!;
     expect(missing, isFalse);
     expect(text, startsWith('Keine Abbuchung über genau 350,00 €'));
