@@ -257,6 +257,12 @@ void main() {
           'Buchung mit Ladevorgang',
         )) {
       expect(find.text('Laden'), findsOneWidget);
+      final line = find.textContaining('kWh');
+      for (var step = 0; step < 6; step++) {
+        if (line.hitTestable().evaluate().isNotEmpty) break;
+        await phone.down(300);
+      }
+      expect(line.hitTestable(), findsOneWidget);
       await phone.shot('36-buchung-laden');
       await phone.back();
     }
