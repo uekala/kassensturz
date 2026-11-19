@@ -115,7 +115,7 @@ def import_csv(db: Database, raw: bytes) -> dict:
     for key, names in _COLUMNS.items():
         index[key] = next((header.index(n) for n in names if n in header), None)
     if None in (index["date"], index["kwh"], index["total"], index["id"]):
-        raise ImportError_("Das ist kein Export von Ladecockpit. Erwartet wird die Datei „Ladevorgänge als CSV“.")
+        raise ImportError_("Das ist kein Export von Ladecockpit. Erwartet wird die Datei „CSV – alle Ladungen“.")
     added = known = skipped = 0
     for cells in rows[1:MAX_ROWS + 1]:
         def cell(key):

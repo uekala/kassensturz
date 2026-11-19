@@ -33,7 +33,7 @@ function chargingSheet(ch) {
       <p class="small muted">Gesucht wird eine Buchung mit genau diesem Betrag, einen Tag vor bis sieben Tage nach dem Laden. Rechnet die Bank mehrere Ladevorgänge zusammen ab, passt keine.</p>
       <ul class="list">${ch.unlinked.map((c) => html`<li class="row static"><span class="title">${c.site || "Ladevorgang"}</span>
         <span class="sub">${dFull(c.started.slice(0, 10))}, ${KWH1.format(c.kwh)} kWh</span><span class="amount">${money(-c.total_cents)}</span></li>`)}</ul>` : ""}
-    <p class="small muted">Neue Ladevorgänge liest Kassensturz aus dem Sensor von Ladecockpit. Ältere kommen über den Export „Ladevorgänge als CSV“ aus Ladecockpit, importiert unter <i>Konten → Datei importieren</i>.</p>
+    <p class="small muted">Neue Ladevorgänge liest Kassensturz aus dem Sensor von Ladecockpit. Ältere kommen über den Export „CSV – alle Ladungen“ aus Ladecockpit, importiert unter <i>Konten → Datei importieren</i>.</p>
     <div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
 }
 

@@ -414,8 +414,8 @@ kWh, Preis je kWh, Ort und Zeit. In der Übersicht steht dann ein Abschnitt *Lad
 unter *Alle Monate* die Monate einzeln.
 
 - **Neue Ladevorgänge** liest Kassensturz aus dem Sensor `sensor.ladecockpit_last_charge`, höchstens alle fünf
-  Minuten. Dafür muss in Ladecockpit „Entitäten veröffentlichen“ an sein.
-- **Ältere Ladevorgänge** kommen über den Export *Ladevorgänge als CSV* aus Ladecockpit. Importiere die Datei unter
+  Minuten. Dafür muss in Ladecockpit „Sensoren in Home Assistant anlegen“ an sein.
+- **Ältere Ladevorgänge** kommen über den Export *CSV – alle Ladungen* aus Ladecockpit. Importiere die Datei unter
   *Konten → Datei importieren*; Kassensturz erkennt sie.
 - **Keine neuen Buchungen:** Die Abbuchung kommt von deiner Bank. Ein Ladevorgang wird der Buchung mit genau diesem
   Betrag zugeordnet, gebucht einen Tag vor bis sieben Tage nach dem Laden. Passen mehrere, gewinnt die mit „Tesla“
