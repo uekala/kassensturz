@@ -48,8 +48,8 @@ Umsätze, sofern die Bank das erlaubt, sonst die letzten 89 Tage. Ohne dein Zutu
 **Freigabe erneuern:** Je nach Bank gilt die Freigabe bis zu 180 Tage. Eine Woche vor Ablauf erscheint ein Hinweis (auch als
 Benachrichtigung); *Erneuern* führt durch dieselben Schritte, die Konten bleiben verknüpft.
 
-Welche Banken Enable Banking anbindet, siehst du in der Bankauswahl. Manche stehen unter dem Land ihres Sitzes, PayPal und
-Advanzia etwa unter Luxemburg. Der private Schlüssel liegt nur auf dem Gerät und ist von Backups ausgenommen; nach einer
+Welche Banken Enable Banking anbindet, siehst du in der Bankauswahl. Manche stehen unter dem Land ihres Sitzes, PayPal
+etwa unter Luxemburg. Für Banken, die dort fehlen, bleibt der Datei-Import; für Advanzia gibt es dafür ein eigenes Profil. Der private Schlüssel liegt nur auf dem Gerät und ist von Backups ausgenommen; nach einer
 Wiederherstellung lädst du ihn einfach neu hoch.
 
 ## Bankabruf per FinTS

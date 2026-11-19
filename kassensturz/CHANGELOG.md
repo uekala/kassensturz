@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.59
+
+- Bank verbinden: Der Hinweis unter der Bankliste nannte Advanzia als Beispiel für Luxemburg. Enable Banking führt
+  Advanzia dort nicht; der Hinweis und die Dokumentation verweisen jetzt auf den Datei-Import.
+
 ## 0.3.58
 
 - App (ab Version 0.3.39): Verlangt eine FinTS-Bank beim Abruf aus der App eine TAN, eine Freigabe in der
