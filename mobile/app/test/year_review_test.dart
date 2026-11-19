@@ -28,11 +28,7 @@ Map<String, dynamic> _year(int year) => {
     {'month': '$year-01', 'income_cents': 250000, 'expense_cents': 100000},
     {'month': '$year-02', 'income_cents': 250000, 'expense_cents': 250000},
   ],
-  'best_month': {
-    'month': '$year-01',
-    'label': 'Januar',
-    'saldo_cents': 150000,
-  },
+  'best_month': {'month': '$year-01', 'label': 'Januar', 'saldo_cents': 150000},
   'worst_month': {'month': '$year-02', 'label': 'Februar', 'saldo_cents': 0},
   'categories': [
     {
