@@ -352,6 +352,19 @@ export function accountSheet(a) {
   });
 }
 
+// Abgleich mit den gebuchten Raten seit der eingetragenen Restschuld.
+export function bookedHtml(p) {
+  const b = p.booked;
+  if (!b || !b.expected) return "";
+  const months = (list) => list.map((m) => fmtMonth.format(D(m + "-15"))).join(", ");
+  const to = b.counterparty ? ` an ${b.counterparty}` : "";
+  const other = b.other && b.other.length ? ` Weitere Zahlungen${to}: ${b.other.map((o) => `${money(o.cents)} am ${dFull(o.date)}`).join(", ")}. War das eine Sondertilgung, trag die Restschuld neu ein.` : "";
+  if (!b.count) return html`<p class="small muted">Keine Abbuchung über genau ${money(p.payment_cents)} gefunden. Die Schätzung nimmt an, dass jede Rate gezahlt wurde; kommt sie von einem Konto, das Kassensturz nicht kennt, passt das.</p>`.s;
+  if (!b.missing.length) return html`<p class="small">✓ Alle ${b.expected} ${b.expected === 1 ? "Rate" : "Raten"} seit dem Eintrag sind gebucht${to}.${other}</p>`.s;
+  return html`<div class="alert warning" style="display:block;cursor:default;margin:10px 0"><strong>${b.missing.length === 1 ? "Eine Rate fehlt" : `${b.missing.length} Raten fehlen`}</strong>
+    <p class="small">Für ${months(b.missing)} ist keine Abbuchung über ${money(p.payment_cents)}${to} gebucht. Nach den gebuchten Raten wären es heute ${money(-b.rest_cents)} statt ${money(-p.today_cents)}.${other}</p></div>`.s;
+}
+
 // Tilgungsplan eines Kredits: Restschuld heute, Enddatum, Zinsen, Sondertilgung, Plan je Jahr.
 export async function loanSheet(a) {
   let p;
@@ -367,6 +380,7 @@ export async function loanSheet(a) {
         <div class="actions"><button class="btn primary" id="ln-edit">Angaben ändern</button></div>`
       : html`<div class="big-amount">${money(-p.today_cents)}</div>
         <p class="small muted">${p.months_since_entry ? `Geschätzt. Eingetragen waren ${money(p.entered_cents)} am ${dFull(p.entered_on)}, seitdem ${p.months_since_entry} ${p.months_since_entry === 1 ? "Rate" : "Raten"}.` : `Restschuld, eingetragen am ${dFull(p.entered_on)}.`}</p>
+        ${raw(bookedHtml(p))}
         <dl class="facts">
           <dt>Sollzins</dt><dd>${PCT.format(p.rate_milli / 1000)} % pro Jahr</dd>
           <dt>Monatsrate</dt><dd>${money(p.payment_cents)}, davon zurzeit ${money(p.first_interest_cents)} Zinsen</dd>

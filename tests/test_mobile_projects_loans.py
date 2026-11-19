@@ -76,3 +76,17 @@ def test_loan_plan_for_a_visible_loan(db, monkeypatch):
         assert client.get(f"/api/v1/accounts/{hidden}/loan", headers=anna).status_code == 404
         assert client.get(f"/api/v1/accounts/{s['shared']}/loan", headers=anna).status_code == 409
         assert client.get(f"/api/v1/accounts/{loan}/loan?extra_cents=-5", headers=anna).status_code == 400
+
+
+def test_booked_rates_on_the_phone_come_only_from_visible_accounts(db, monkeypatch):
+    s = setup(db, monkeypatch)
+    loan = db.insert("accounts", {"name": "KS-Autokredit", "kind": "kredit", "loan_rate_milli": 3600, "loan_payment_cents": 100000})
+    entered = date.today().replace(day=1)
+    ledger.record_valuation(db, loan, -10_000_000, (entered.replace(year=entered.year - 1)).isoformat())
+    day = entered.isoformat()
+    book(db, s["bens"], day, -100000, "KS-Kreditbank")
+    with https_client() as client:
+        anna = pair(client, s["anna"], "Annas Handy")
+        ben = pair(client, s["ben"], "Bens Handy")
+        assert client.get(f"/api/v1/accounts/{loan}/loan", headers=anna).json()["booked"]["count"] == 0
+        assert client.get(f"/api/v1/accounts/{loan}/loan", headers=ben).json()["booked"]["count"] == 1

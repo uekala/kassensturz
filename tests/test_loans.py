@@ -117,3 +117,33 @@ def test_terms_are_saved_with_the_account_and_checked(client, db):
 def test_edge_amounts_terminate(rest, rate, payment):
     plan = loans.schedule(rest, date(2027, 1, 1), rate, payment)
     assert plan["done"] and plan["rows"][-1]["rest_cents"] == 0
+
+
+def _rates(db, giro, rows):
+    ledger.import_rows(db, giro, [{"booking_date": d, "amount_cents": -c, "counterparty": who, "purpose": f"Rate {d}"}
+                                  for d, c, who in rows], "datei")
+
+
+def test_booked_rates_are_compared_with_the_plan(db):
+    acc = kredit(db, rest=1_000_000, on="2026-12-20", rate=6000, payment=50_000)
+    giro = db.insert("accounts", {"name": "Testgiro", "kind": "giro"})
+    _rates(db, giro, [("2027-01-01", 50_000, "Erfundene Kreditbank"), ("2027-02-01", 50_000, "Erfundene Kreditbank"),
+                      # gleicher Betrag an jemand anderen zählt nicht, eine Sondertilgung wird nur genannt
+                      ("2027-02-05", 50_000, "Erfundener Laden"), ("2027-02-15", 200_000, "Erfundene Kreditbank")])
+    plan = loans.overview(db, acc, today=TODAY)
+    b = plan["booked"]
+    assert (b["count"], b["expected"], b["counterparty"]) == (2, 3, "Erfundene Kreditbank")
+    assert b["missing"] == ["2027-03"] and b["other"] == [{"date": "2027-02-15", "cents": 200_000}]
+    rest = 1_000_000
+    for paid in (50_000, 50_000, 0):
+        rest = rest + (rest * 6000 + 600_000) // 1_200_000 - paid
+    assert b["rest_cents"] == rest and rest > plan["today_cents"]
+
+
+def test_without_booked_rates_every_month_is_missing(db):
+    acc = kredit(db, rest=1_000_000, on="2026-12-20", rate=6000, payment=50_000)
+    b = loans.overview(db, acc, today=TODAY)["booked"]
+    assert (b["count"], b["counterparty"], b["rest_cents"]) == (0, None, None)
+    assert b["missing"] == ["2027-01", "2027-02", "2027-03"]
+    fresh = loans.overview(db, kredit(db, on="2027-03-20"), today=TODAY)["booked"]
+    assert (fresh["expected"], fresh["missing"]) == (0, [])

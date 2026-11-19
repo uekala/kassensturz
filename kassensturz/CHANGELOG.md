@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.68
+
+- Tilgungsplan mit Abgleich der gebuchten Raten: Abbuchungen über genau die Monatsrate seit der eingetragenen
+  Restschuld (häufigster Empfänger). Fehlt eine Rate, nennt der Plan den Monat und die Restschuld nach den gebuchten
+  Raten; andere Zahlungen an denselben Empfänger werden als mögliche Sondertilgung genannt. Am Handy nur aus Konten,
+  die die Person sieht. Feld `booked` im Tilgungsplan.
+
 ## 0.3.67
 
 - Jahresrückblick für die App: `GET /api/v1/year?year=JJJJ` mit Summen, Monaten, Hauptkategorien samt Vorjahr und den
