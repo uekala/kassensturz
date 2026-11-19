@@ -6,11 +6,7 @@ import 'package:pdfx/pdfx.dart';
 /// Shows a PDF with the renderer of the phone. The file stays in memory; it
 /// is neither written to storage nor handed to another app.
 class PdfBytesView extends StatefulWidget {
-  const PdfBytesView({
-    required this.bytes,
-    required this.errorText,
-    super.key,
-  });
+  const PdfBytesView({required this.bytes, required this.errorText, super.key});
 
   final Uint8List bytes;
   final String errorText;
