@@ -6,7 +6,7 @@ import time
 import uuid
 from fastapi import APIRouter, Body, File, UploadFile
 
-from . import audit, categorize, contracts, finanzguru, importers, inbox, ledger, services
+from . import audit, categorize, charging, contracts, finanzguru, importers, inbox, ledger, services
 from .db import get_db, now_iso
 from .web import _err, _imports
 
@@ -33,6 +33,27 @@ def _match_account(db, res: dict, signature: str | None) -> int | None:
         if prof and db.one("SELECT id FROM accounts WHERE id = ?", (prof["account_id"],)):
             return prof["account_id"]
     return None
+
+
+@router.get("/api/charging")
+def charging_summary():
+    """Ladevorgänge aus Ladecockpit je Monat und was noch keiner Abbuchung zugeordnet ist."""
+    return charging.summary(get_db())
+
+
+@router.post("/api/charging/import")
+async def charging_import(file: UploadFile = File(...)):
+    """Liest den CSV-Export von Ladecockpit. Legt keine Buchungen an, ordnet nur zu."""
+    data = await file.read(importers.MAX_IMPORT_BYTES + 1)
+    if len(data) > importers.MAX_IMPORT_BYTES:
+        _err(400, "Die Datei ist größer als 25 MB.")
+    try:
+        res = charging.import_csv(get_db(), data)
+    except charging.ImportError_ as exc:
+        _err(400, str(exc))
+    audit.subject(f"{res['added']} neu")
+    services.schedule_refresh()
+    return res
 
 
 @router.post("/api/import/analyze")

@@ -14,6 +14,9 @@ export function pickImportFile() {
     if (!f) return;
     const form = new FormData();
     form.append("file", f);
+    // Der Export von Ladecockpit enthält Ladevorgänge, keine Buchungen; er geht einen eigenen Weg.
+    const head = (await f.slice(0, 300).text()).replace(/^\uFEFF/, "");
+    if (/^(Datum;Start;Ende;Standort;kWh|Date,Start,End,Site,kWh)/.test(head)) { chargingImport(form); return; }
     const sh = openSheet(html`${sheetHead("Datei wird gelesen")}<div class="progress"><div class="spinner"></div><span>${f.name}</span></div>`.s);
     try {
       const res = await api("import/analyze", { method: "POST", form });
@@ -24,6 +27,21 @@ export function pickImportFile() {
     }
   };
   input.click();
+}
+
+async function chargingImport(form) {
+  const sh = openSheet(html`${sheetHead("Ladevorgänge werden gelesen")}<div class="progress"><div class="spinner"></div></div>`.s);
+  try {
+    const r = await api("charging/import", { method: "POST", form });
+    sh.set(html`${sheetHead("Ladevorgänge aus Ladecockpit")}
+      <p><b>${r.added} neu</b>${r.known ? `, ${r.known} schon bekannt` : ""}${r.skipped ? `, ${r.skipped} übersprungen` : ""}.
+        ${r.linked} ${r.linked === 1 ? "Ladevorgang ist" : "Ladevorgänge sind"} jetzt einer Abbuchung zugeordnet.</p>
+      <p class="small muted">Buchungen legt das nicht an: Die Abbuchung kommt von deiner Bank. Kassensturz hängt kWh, Preis und Ort an die Buchung mit genau diesem Betrag.</p>
+      <div class="actions"><button class="btn primary" data-close>Fertig</button></div>`.s);
+    rerender();
+  } catch (e) {
+    sh.set(html`${sheetHead("Datei nicht lesbar")}<p>${e.message}</p><div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
+  }
 }
 
 export function importSheet(res) {

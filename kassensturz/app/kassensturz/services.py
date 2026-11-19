@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import allowance, analytics, anomalies, audit, backup, contracts, expected, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, planned, projects, savings, secrets_store
+from . import allowance, analytics, anomalies, audit, backup, charging, contracts, expected, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, planned, projects, savings, secrets_store
 from .db import Database, get_db
 from .util import euro
 
@@ -355,6 +355,12 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
     planned.prune(db)
     projects.prune(db)
     audit.prune(db)
+    charging.prune(db)
+    try:
+        if not charging.poll(db):
+            charging.match(db)  # neue Abbuchungen zu bekannten Ladevorgängen
+    except Exception:  # noqa: BLE001 – Ladecockpit ist eine Zugabe, nie ein Grund für einen Fehler
+        log.exception("Ladevorgänge aus Ladecockpit nicht gelesen")
     planned.settle(db)  # geplante Ausgaben abhaken, die eindeutig bezahlt sind
     summary = build_summary(db)
     opts = options.load()

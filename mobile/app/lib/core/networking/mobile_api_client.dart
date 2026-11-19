@@ -645,6 +645,21 @@ class MobileApiClient {
     return _authenticatedJson(method: 'GET', path: '/api/v1/projects/$id');
   }
 
+  /// Charging per month from Ladecockpit.
+  Future<Map<String, dynamic>> chargingMonths() =>
+      _authenticatedJson(method: 'GET', path: '/api/v1/charging');
+
+  /// The charging session a booking paid for; `charging` is null otherwise.
+  Future<Map<String, dynamic>> transactionCharging(int transactionId) {
+    if (transactionId <= 0) {
+      throw const FormatException('Die Buchung ist ungültig.');
+    }
+    return _authenticatedJson(
+      method: 'GET',
+      path: '/api/v1/transactions/$transactionId/charging',
+    );
+  }
+
   /// The project of a transaction and the projects it can go into.
   Future<Map<String, dynamic>> transactionProject(int transactionId) {
     if (transactionId <= 0) {

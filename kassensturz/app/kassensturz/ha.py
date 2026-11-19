@@ -42,6 +42,27 @@ def _post(path: str, payload: dict) -> bool:
         return False
 
 
+def state(entity_id: str) -> dict | None:
+    """Zustand und Attribute einer Entität; ``None``, wenn es sie nicht gibt oder Home Assistant fehlt."""
+    global _down_until
+    token = _token()
+    if not token or time.time() < _down_until:
+        return None
+    try:
+        r = requests.get(f"{API}/states/{entity_id}", timeout=8, headers={"Authorization": f"Bearer {token}"})
+    except requests.RequestException as exc:
+        _down_until = time.time() + 120
+        log.warning("Home Assistant nicht erreichbar: %s", exc)
+        return None
+    if r.status_code != 200:
+        return None
+    try:
+        data = r.json()
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def slug(text: str) -> str:
     t = (text or "").lower()
     for a, b in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):

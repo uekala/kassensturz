@@ -48,6 +48,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const suggestCapability = 'budgets.suggest';
   static const plansCapability = 'plans';
   static const projectsCapability = 'projects';
+  static const chargingCapability = 'charging';
   static const loansCapability = 'loans';
   static const changesCapability = 'changes';
   static const partsCapability = 'parts';
@@ -394,6 +395,9 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// Whether the server shows projects to this phone.
   bool get canShowProjects => _capabilities.contains(projectsCapability);
+
+  /// Whether the server knows charging sessions from Ladecockpit.
+  bool get canShowCharging => _capabilities.contains(chargingCapability);
 
   /// Whether the server computes repayment plans of loans for this phone.
   bool get canShowLoans => _capabilities.contains(loansCapability);
