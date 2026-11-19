@@ -1324,7 +1324,7 @@ def loan_plan(account_id: str, request: Request, extra_cents: int = Query(defaul
     if parsed is None or not household.sees_account(get_db(), device.person_id, parsed):
         return _not_found("Konto")
     try:
-        plan = loans.overview(get_db(), parsed, extra_cents)
+        plan = loans.overview(get_db(), parsed, extra_cents, payments_db=_view(device))
     except loans.LoanError as error:
         return _plan_error(error)
     plan.pop("account_id", None)

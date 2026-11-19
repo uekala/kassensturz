@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.42
+
+- Tilgungsplan: Unter der Restschuld steht, ob seit dem Eintrag alle Raten gebucht sind. Fehlt eine, nennt die App den
+  Monat und die Restschuld nach den gebuchten Raten (ab Server 0.3.68).
+
 ## 0.3.41
 
 - *Auswertung → Jahresrückblick*: Einnahmen, Ausgaben und Saldo des Jahres, Einnahmen und Ausgaben je Monat,

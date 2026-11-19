@@ -332,6 +332,11 @@ Ein Kredit ist ein Konto der Art *Kredit* mit einer von Hand eingetragenen Rests
 
 - **Restschuld heute:** von der zuletzt eingetragenen Restschuld Monat für Monat weitergerechnet. *Geschätzte
   Restschuld übernehmen* trägt sie als neuen Wert ein; erst dann ändert sich das Vermögen.
+- **Gebuchte Raten:** Kassensturz sucht seit der eingetragenen Restschuld nach Abbuchungen über genau die Monatsrate
+  (bei mehreren Empfängern zählt der häufigste). Fehlt in einem Monat die Rate, nennt der Plan den Monat und die
+  Restschuld nach den wirklich gebuchten Raten. Andere Zahlungen an denselben Empfänger, etwa eine Sondertilgung,
+  werden genannt, aber nicht verrechnet; trag danach die Restschuld neu ein. Zahlst du die Rate von einem Konto, das
+  Kassensturz nicht kennt, findet es keine Abbuchung und rechnet weiter mit allen Raten.
 - **Fertig:** Monat der letzten Rate und die Zeit bis dahin.
 - **Noch Zinsen:** was bis zum Ende an Zinsen anfällt, und die Summe aller restlichen Zahlungen.
 - **Sondertilgung:** Betrag eintragen, *Rechnen*. Kassensturz zeigt, wie viel früher der Kredit fertig wäre und wie

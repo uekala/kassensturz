@@ -52,6 +52,61 @@ String _monthYear(String value) {
   return '${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
 
+int _whole(dynamic value) => value is int ? value : 0;
+
+/// What the booked rates say about the estimate; null when there is nothing
+/// to compare yet. The second value is true when a rate is missing.
+(String, bool)? bookedRatesText(Map<String, dynamic> plan) {
+  final booked = plan['booked'];
+  if (booked is! Map || _whole(booked['expected']) == 0) return null;
+  final payment = formatEuro(_whole(plan['payment_cents']) / 100);
+  final count = _whole(booked['count']);
+  final expected = _whole(booked['expected']);
+  final counterparty = booked['counterparty'];
+  final to = counterparty is String ? ' an $counterparty' : '';
+  if (count == 0) {
+    return (
+      'Keine Abbuchung über genau $payment gefunden. Die Schätzung nimmt an, '
+          'dass jede Rate gezahlt wurde.',
+      false,
+    );
+  }
+  final other = booked['other'] is List
+      ? (booked['other'] as List).whereType<Map>().toList()
+      : const <Map>[];
+  final otherParts = [
+    for (final item in other)
+      '${formatEuro(_whole(item['cents']) / 100)} am '
+          '${formatShortDate(item['date']?.toString() ?? '')}',
+  ];
+  final otherText = otherParts.isEmpty
+      ? ''
+      : ' Weitere Zahlungen$to: ${otherParts.join(', ')}. War das eine '
+            'Sondertilgung, trag die Restschuld neu ein.';
+  final missing = booked['missing'] is List
+      ? (booked['missing'] as List).whereType<String>().toList()
+      : const <String>[];
+  if (missing.isEmpty) {
+    return (
+      '✓ Alle $expected ${expected == 1 ? 'Rate' : 'Raten'} seit dem Eintrag '
+          'sind gebucht$to.$otherText',
+      false,
+    );
+  }
+  final months = [
+    for (final month in missing)
+      month.length == 7
+          ? '${month.substring(5)}/${month.substring(0, 4)}'
+          : month,
+  ];
+  final rest = formatEuro(_whole(booked['rest_cents']) / 100);
+  return (
+    'Für ${months.join(', ')} ist keine Abbuchung über $payment$to gebucht. '
+        'Nach den gebuchten Raten wären es heute $rest.$otherText',
+    true,
+  );
+}
+
 class LoanSheet extends StatefulWidget {
   const LoanSheet({
     required this.controller,
@@ -220,6 +275,15 @@ class _LoanSheetState extends State<LoanSheet> {
             : null,
         size: 36,
       ),
+      if (bookedRatesText(plan) case (final text, final missing)) ...[
+        const SizedBox(height: 10),
+        Text(
+          text,
+          style: textTheme.bodySmall?.copyWith(
+            color: missing ? klar.warn : null,
+          ),
+        ),
+      ],
       const SizedBox(height: 14),
       _Fact('Sollzins', '${_percent(_int(plan['rate_milli']))} % pro Jahr'),
       _Fact(

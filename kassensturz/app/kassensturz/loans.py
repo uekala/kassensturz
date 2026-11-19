@@ -93,8 +93,52 @@ def _years(rows: list[dict]) -> list[dict]:
     return list(out.values())
 
 
-def overview(db: Database, account_id: int, extra_cents: int = 0, today: date | None = None) -> dict:
-    """Der Tilgungsplan eines Kredits ab heute, auf Wunsch mit einer Sondertilgung heute."""
+def booked(payments_db: Database, start: date, elapsed: int, rest: int, rate: int, payment: int, today: date) -> dict:
+    """Abgleich mit den gebuchten Raten seit der eingetragenen Restschuld.
+
+    Als Rate zählt eine Abbuchung über genau die Monatsrate auf einem eigenen Konto. Gibt es solche
+    Abbuchungen an mehrere Empfänger, zählt nur der häufigste – gleiche Beträge an andere sind Zufall.
+    Gerechnet wird je Monat ab dem Tag der eingetragenen Restschuld: Zinsen auf den Rest, abzüglich
+    dessen, was in diesem Monat wirklich abging. Andere Zahlungen an denselben Empfänger (etwa eine
+    Sondertilgung) werden nur genannt, nicht verrechnet."""
+    rows = payments_db.query(
+        "SELECT t.booking_date, t.amount_cents, t.counterparty FROM transactions t JOIN accounts a ON a.id = t.account_id "
+        "WHERE a.archived = 0 AND t.amount_cents = ? AND t.booking_date > ? AND t.booking_date <= ? ORDER BY t.booking_date",
+        (-payment, start.isoformat(), today.isoformat()))
+    counts: dict[str, int] = {}
+    for r in rows:
+        key = (r["counterparty"] or "").strip().lower()
+        counts[key] = counts.get(key, 0) + 1
+    if not counts:
+        return {"count": 0, "expected": elapsed, "counterparty": None, "items": [], "missing": [
+            add_months(start, i).isoformat()[:7] for i in range(1, elapsed + 1)], "rest_cents": None, "other": []}
+    key = max(counts, key=lambda k: (counts[k], k))
+    items = [r for r in rows if (r["counterparty"] or "").strip().lower() == key]
+    name = (items[0]["counterparty"] or "").strip() or None
+    missing, booked_rest = [], rest
+    for i in range(1, elapsed + 1):
+        lo, hi = add_months(start, i - 1).isoformat(), add_months(start, i).isoformat()
+        paid = sum(-r["amount_cents"] for r in items if lo < r["booking_date"] <= hi)
+        if not paid:
+            missing.append(hi[:7])
+        booked_rest = max(0, booked_rest + _interest(booked_rest, rate) - paid)
+    other = []
+    if name:
+        other = [{"date": r["booking_date"], "cents": -r["amount_cents"]} for r in payments_db.query(
+            "SELECT t.booking_date, t.amount_cents FROM transactions t JOIN accounts a ON a.id = t.account_id "
+            "WHERE a.archived = 0 AND t.amount_cents < 0 AND t.amount_cents != ? AND t.booking_date > ? "
+            "AND t.booking_date <= ? AND t.counterparty = ? ORDER BY t.booking_date DESC LIMIT 5",
+            (-payment, start.isoformat(), today.isoformat(), items[0]["counterparty"]))]
+    return {"count": len(items), "expected": elapsed, "counterparty": name,
+            "items": [{"date": r["booking_date"], "cents": -r["amount_cents"]} for r in items][-24:],
+            "missing": missing, "rest_cents": booked_rest, "other": other}
+
+
+def overview(db: Database, account_id: int, extra_cents: int = 0, today: date | None = None,
+             payments_db: Database | None = None) -> dict:
+    """Der Tilgungsplan eines Kredits ab heute, auf Wunsch mit einer Sondertilgung heute.
+
+    ``payments_db`` ist die Sicht, in der nach gebuchten Raten gesucht wird (am Handy die der Person)."""
     today = today or date.today()
     acc = db.one("SELECT id, name, kind, matures_on, loan_rate_milli, loan_payment_cents FROM accounts WHERE id = ?", (account_id,))
     if not acc:
@@ -125,7 +169,8 @@ def overview(db: Database, account_id: int, extra_cents: int = 0, today: date | 
         rest = _step(rest, rate, payment)[2]
     base = add_months(start, elapsed)
     out.update({"ready": True, "today_cents": rest, "months_since_entry": elapsed,
-                "first_interest_cents": _interest(rest, rate)})
+                "first_interest_cents": _interest(rest, rate),
+                "booked": booked(payments_db or db, start, elapsed, abs(last["value_cents"]), rate, payment, today)})
     if rest and payment <= _interest(rest, rate):
         # Die Rate deckt nicht einmal die Zinsen: Die Schuld wächst, es gibt kein Ende.
         out.update({"covers_interest": False, "months": None, "end_date": None, "interest_cents": None, "years": []})
