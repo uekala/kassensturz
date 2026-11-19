@@ -75,6 +75,8 @@ CAPABILITIES = (
     "sync.tan",
     # Ladevorgänge aus Ladecockpit an Buchungen und in der Auswertung
     "charging",
+    # Jahresrückblick mit Vergleich zum Vorjahr
+    "year",
 )
 # What the phone of a child gets: reading its own account, nothing that writes.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
@@ -515,6 +517,21 @@ def stats(request: Request, month: str | None = Query(default=None), part: str |
         return mobile_read.get_stats(view, month=month)
     except mobile_read.MobileQueryError:
         return _error(400, "invalid_query", "Ungültiger Monat.")
+
+
+@router.get("/api/v1/year")
+def year_review(request: Request, year: str | None = Query(default=None), part: str | None = Query(default=None)):
+    """Return the year in review, compared with the year before."""
+    device = _authenticated_device(request)
+    if isinstance(device, Response):
+        return device
+    view = _part_view(device, part)
+    if view is None:
+        return _error(400, "invalid_query", "Ungültiges Jahr oder ungültiger Teil.")
+    try:
+        return mobile_read.get_year(view, year)
+    except mobile_read.MobileQueryError:
+        return _error(400, "invalid_query", "Für dieses Jahr gibt es keinen Rückblick.")
 
 
 @router.get("/api/v1/afford")

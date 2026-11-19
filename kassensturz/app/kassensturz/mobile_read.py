@@ -384,6 +384,50 @@ def get_stats(db: Database, *, month: str | None = None) -> dict:
     }
 
 
+def get_year(db: Database, year: Any) -> dict:
+    """The year in review for the app: totals, months, categories and the biggest single expenses.
+
+    Compared with the year before as far as there are bookings, in the running year only up to the same
+    day. Transfers between own accounts are left out."""
+    today = date.today()
+    if year is None or year == "":
+        year = today.year
+    if isinstance(year, str):
+        if not (year.isascii() and year.isdigit() and len(year) == 4):
+            raise MobileQueryError("year")
+        year = int(year)
+    if isinstance(year, bool) or not isinstance(year, int) or not 2000 <= year <= today.year:
+        raise MobileQueryError("year")
+    r = analytics.year_review(db, year, today=today)
+    prev = r["previous"]
+
+    def month_ref(item):
+        return item and {"month": item["month"], "label": str(item["label"]), "saldo_cents": int(item["saldo_cents"])}
+
+    return {
+        "year": r["year"],
+        "running": r["running"],
+        "until": r["until"],
+        "has_data": r["has_data"],
+        "years": [int(y) for y in r["years"]],
+        "income_cents": int(r["income_cents"]),
+        "expense_cents": int(r["expense_cents"]),
+        "saved_cents": int(r["saved_cents"]),
+        "savings_rate": r["savings_rate"],
+        "fixed_cents": int(r["fixed_cents"]),
+        "count": int(r["count"]),
+        "previous": prev and {k: int(prev[k]) for k in ("income_cents", "expense_cents", "saved_cents")},
+        "months": [{"month": m["month"], "income_cents": int(m["income_cents"]),
+                    "expense_cents": int(m["expense_cents"])} for m in r["months"] if not m["future"]],
+        "best_month": month_ref(r["best_month"]),
+        "worst_month": month_ref(r["worst_month"]),
+        "categories": [{"name": str(c["name"]), "cents": int(c["cents"]), "share": c["share"],
+                        "previous_cents": c["previous_cents"]} for c in r["categories"]],
+        "biggest": [{"name": str(b["name"]), "amount_cents": int(b["amount_cents"]), "date": b["date"]}
+                    for b in r["biggest"]],
+    }
+
+
 def get_afford(db: Database, amount_cents: Any) -> dict:
     """What a purchase of this amount today means for the rest of the period."""
     if isinstance(amount_cents, bool) or not isinstance(amount_cents, int):

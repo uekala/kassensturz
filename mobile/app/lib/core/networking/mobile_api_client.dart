@@ -329,6 +329,17 @@ class MobileApiClient {
         },
       );
 
+  /// The year in review, compared with the year before.
+  Future<Map<String, dynamic>> yearReview({int? year, String? part}) =>
+      _authenticatedJson(
+        method: 'GET',
+        path: '/api/v1/year',
+        query: {
+          if (year != null) 'year': '$year',
+          if (part != null && part.isNotEmpty) 'part': part,
+        },
+      );
+
   /// What a purchase of [amountCents] today means until the next salary.
   Future<Map<String, dynamic>> afford(int amountCents) {
     if (amountCents <= 0) {

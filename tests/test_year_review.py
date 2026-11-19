@@ -57,3 +57,22 @@ def test_year_review_limits(db, client):
         analytics.year_review(db, 2027, today=date(2026, 6, 20))
     assert client.get("/api/year?year=1999").status_code == 400
     assert client.get("/api/year").status_code == 200
+
+
+def test_year_review_for_the_app(client, db, monkeypatch):
+    from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+
+    _setup(db)
+    reset_mobile_guards(monkeypatch)
+    with https_client() as mobile:
+        headers = paired_headers(mobile)
+        assert mobile.get("/api/v1/year?year=2025").status_code == 401
+        for bad in ("1999", "abc", "20255", str(date.today().year + 1)):
+            assert mobile.get(f"/api/v1/year?year={bad}", headers=headers).status_code == 400
+        assert mobile.get("/api/v1/year?part=quatsch", headers=headers).status_code == 400
+        r = mobile.get("/api/v1/year?year=2025", headers=headers).json()
+        assert (r["income_cents"], r["expense_cents"], r["saved_cents"]) == (2400000, 1200000, 1200000)
+        assert len(r["months"]) == 12 and set(r["months"][0]) == {"month", "income_cents", "expense_cents"}
+        assert r["categories"][0]["previous_cents"] is None and r["previous"] is None
+        assert set(r["biggest"][0]) == {"name", "amount_cents", "date"}
+        assert "year" in mobile.get("/api/v1/me", headers=headers).json()["capabilities"]

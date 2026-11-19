@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.67
+
+- Jahresrückblick für die App: `GET /api/v1/year?year=JJJJ` mit Summen, Monaten, Hauptkategorien samt Vorjahr und den
+  größten Einzelausgaben, auch nach *Ich* und *Gemeinsam* (`part`). Neue Fähigkeit `year`, nicht für Kinderhandys.
+
 ## 0.3.66
 
 - *Budgets → Jahresrückblick*: Einnahmen, Ausgaben, Sparquote, Überschuss je Monat, bester und schwächster Monat,

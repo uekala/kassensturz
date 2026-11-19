@@ -55,6 +55,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const bankRenewCapability = 'banks.renew';
   static const accountValueCapability = 'accounts.value';
   static const syncTanCapability = 'sync.tan';
+  static const yearCapability = 'year';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -395,6 +396,9 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// Whether the server shows projects to this phone.
   bool get canShowProjects => _capabilities.contains(projectsCapability);
+
+  /// Whether the server offers the year in review.
+  bool get canShowYear => _capabilities.contains(yearCapability);
 
   /// Whether the server knows charging sessions from Ladecockpit.
   bool get canShowCharging => _capabilities.contains(chargingCapability);

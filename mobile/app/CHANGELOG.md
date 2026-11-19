@@ -1,5 +1,11 @@
 # Änderungen der Mobile-App
 
+## 0.3.41
+
+- *Auswertung → Jahresrückblick*: Einnahmen, Ausgaben und Saldo des Jahres, Einnahmen und Ausgaben je Monat,
+  Kategorien mit Vergleich zum Vorjahr und die größten Einzelausgaben; Jahre zum Umschalten. Im laufenden Jahr wird
+  bis zum selben Tag verglichen (ab Server 0.3.67).
+
 ## 0.3.40
 
 - Laden mit Ladecockpit: An einer Supercharger-Abbuchung steht *Laden* mit kWh, Preis je kWh, Ort und Zeit. Die
