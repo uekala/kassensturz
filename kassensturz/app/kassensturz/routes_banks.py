@@ -23,6 +23,7 @@ def connections():
     for c in db.query("SELECT id, name, blz, login, customer_id, server, tan_mechanism, tan_medium, history_days, last_sync, last_status "
                       "FROM connections ORDER BY id"):
         c["has_pin"] = secrets_store.has_pin(c["id"])
+        c["login_rejected"] = fints_sync.login_rejected(db, c["id"]) is not None
         c["accounts"] = db.query("SELECT id, name FROM accounts WHERE connection_id = ?", (c["id"],))
         out.append(c)
     return out
@@ -49,6 +50,7 @@ def update_connection(cid: int, body: dict = Body(...)):
     data = {k: body[k] for k in ("name", "blz", "login", "customer_id", "server", "history_days") if k in body}
     if {"blz", "login", "customer_id", "server"} & set(data):
         data["client_state"] = None  # Bankdaten neu aushandeln
+        fints_sync.clear_login_rejected(db, cid)
     db.update("connections", "id", cid, data)
     return {"ok": True}
 
@@ -63,6 +65,7 @@ def reset_tan(cid: int):
 def delete_connection(cid: int):
     db = get_db()
     secrets_store.delete_pin(cid)
+    fints_sync.clear_login_rejected(db, cid)
     db.execute("UPDATE accounts SET connection_id = NULL WHERE connection_id = ?", (cid,))
     db.execute("DELETE FROM connections WHERE id = ?", (cid,))
     return {"ok": True}

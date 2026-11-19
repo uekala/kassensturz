@@ -451,7 +451,7 @@ def _scheduler_loop() -> None:
 def run_daily_sync() -> None:
     db = get_db()
     for conn in db.query("SELECT * FROM connections"):
-        if not secrets_store.has_pin(conn["id"]):
+        if not secrets_store.has_pin(conn["id"]) or fints_sync.login_rejected(db, conn["id"]):
             continue
         last = conn["last_sync"]
         if last and last[:10] == date.today().isoformat():

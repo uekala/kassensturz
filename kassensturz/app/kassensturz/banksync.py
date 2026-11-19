@@ -53,10 +53,11 @@ def sources(db: Database) -> list[dict]:
                             s["days_left"] is not None and s["days_left"] <= openbanking.RENEW_DAYS)) else None})
     for c in db.query("SELECT id, name, last_sync, last_status FROM connections ORDER BY id"):
         has_pin = secrets_store.has_pin(c["id"])
+        rejected = fints_sync.login_rejected(db, c["id"]) is not None
         accounts = int(db.scalar("SELECT COUNT(*) FROM accounts WHERE connection_id = ?", (c["id"],)) or 0)
-        state = "needs_pin" if not has_pin else "error" if (c["last_status"] or "ok") != "ok" else "ok"
+        state = "needs_pin" if not has_pin else "error" if rejected or (c["last_status"] or "ok") != "ok" else "ok"
         out.append({"id": f"fints:{c['id']}", "name": c["name"], "last_sync": c["last_sync"], "state": state,
-                    "days_left": None, "accounts": accounts, "automatic": has_pin, "renew": None})
+                    "days_left": None, "accounts": accounts, "automatic": has_pin and not rejected, "renew": None})
     return out
 
 
