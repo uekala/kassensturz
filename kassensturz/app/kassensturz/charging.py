@@ -60,11 +60,21 @@ def _wh(value) -> int | None:
 
 
 def _store(db: Database, row: dict, source: str) -> bool:
-    """Legt einen Ladevorgang an, den es noch nicht gibt. Bestehende bleiben, wie sie sind."""
-    if db.scalar("SELECT 1 FROM charging_sessions WHERE session_id = ?", (row["session_id"],)):
-        return False
-    db.insert("charging_sessions", {**row, "source": source, "created": now_iso()})
-    return True
+    """Legt einen Ladevorgang an, den es noch nicht gibt.
+
+    Gibt es ihn schon, übernimmt ein erneuter Import Betrag, kWh und Blockiergebühr aus der Datei; so werden
+    früher falsch gelesene Beträge (0.3.62 nahm „Netto“ ohne Mehrwertsteuer) beim nächsten Import richtig.
+    Eine Zuordnung zu einer Buchung, deren Betrag dann nicht mehr passt, wird gelöst."""
+    known = db.one("SELECT * FROM charging_sessions WHERE session_id = ?", (row["session_id"],))
+    if not known:
+        db.insert("charging_sessions", {**row, "source": source, "created": now_iso()})
+        return True
+    fix = {k: row[k] for k in ("total_cents", "kwh_wh", "idle_cents") if row[k] != known[k]}
+    if fix:
+        if "total_cents" in fix and known["tx_id"] is not None:
+            fix["tx_id"] = None
+        db.update("charging_sessions", "id", known["id"], fix)
+    return False
 
 
 def from_sensor(data: dict | None) -> dict | None:
@@ -139,10 +149,8 @@ def import_csv(db: Database, raw: bytes) -> dict:
             continue
         start = cell("start") if re.fullmatch(r"\d{1,2}:\d{2}", cell("start")) else "00:00"
         kwh, total, idle = _number(cell("kwh")), _number(cell("total")), _number(cell("idle"))
-        # Abgebucht wird der Betrag nach Gutschriften (Netto), sonst die Summe.
-        net = _number(cell("net"))
-        if net is not None and net > 0:
-            total = net
+        # „Summe“ ist der abgebuchte Betrag (mit Mehrwertsteuer, nach Gutschriften). „Netto“ ist ohne
+        # Mehrwertsteuer und passt darum nie zur Abbuchung.
         wh = _wh(kwh)
         if not cell("id") or not wh or total is None or total <= 0 or cell("currency") not in ("", "EUR"):
             skipped += 1

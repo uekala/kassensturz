@@ -127,14 +127,21 @@ def test_mobile_routes(db, monkeypatch):
         assert client.get("/api/v1/charging", headers=bens).json()["count"] == 2
 
 
-def test_net_amount_after_credit_is_matched(db):
+def test_total_with_vat_is_matched_and_reimport_fixes_old_amounts(db):
     acc = _giro(db)
-    tx = _book(db, acc, "2026-10-25", -1021, "Tesla")
+    tx = _book(db, acc, "2026-10-25", -1215, "Tesla")
+    # Summe 12,15 € wird abgebucht; Netto 10,21 € ist ohne Mehrwertsteuer.
     export = ("\ufeffDatum;Start;Ende;Standort;kWh;Preis pro kWh;Ladekosten;Blockiergebühr;Summe;Währung;Ø kW;Ladung-ID;Netz;"
               "Listenpreis pro kWh;Gutschrift;Netto;Betreiber;Adresse\r\n"
-              "24.10.2026;19:40;20:11;Erfundenhausen;41,800;0,2907;12,15;0,00;12,15;EUR;81;ks-n1;Supercharger;0,5300;1,94;10,21;;\r\n")
-    assert charging.import_csv(db, export.encode())["linked"] == 1
-    assert db.scalar("SELECT tx_id FROM charging_sessions WHERE session_id = 'ks-n1'") == tx
+              "24.10.2026;19:40;20:11;Erfundenhausen;41,800;0,2907;12,15;0,00;12,15;EUR;81;ks-n1;Supercharger;0,5300;10,00;10,21;;\r\n")
+    # So hatte 0.3.62 den Ladevorgang gespeichert: mit dem Nettobetrag.
+    db.insert("charging_sessions", {"session_id": "ks-n1", "started": "2026-10-24T19:40:00", "site": "Erfundenhausen",
+                                    "network": "supercharger", "kwh_wh": 41800, "total_cents": 1021, "idle_cents": 0,
+                                    "source": "csv"})
+    res = charging.import_csv(db, export.encode())
+    assert (res["added"], res["known"], res["linked"]) == (0, 1, 1)
+    row = db.one("SELECT total_cents, tx_id FROM charging_sessions WHERE session_id = 'ks-n1'")
+    assert (row["total_cents"], row["tx_id"]) == (1215, tx)
 
 
 def test_analyze_recognises_export_and_web_pages(client, db):
