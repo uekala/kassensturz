@@ -58,7 +58,8 @@ export async function renderBudgets(view, params, seq) {
     <div class="page-head"><h1>${fmtMonth.format(new Date(y, m - 1, 1))}</h1>
       <div class="segmented"><button id="b-prev" aria-label="Vormonat">‹ ${fmtMonth.format(prev).split(" ")[0]}</button>
       ${!isCurrent ? html`<button id="b-next" aria-label="Folgemonat">${fmtMonth.format(next).split(" ")[0]} ›</button>` : ""}</div>
-      <button class="link-btn" id="b-year">Jahresrückblick ${y}</button></div>
+      <span><button class="link-btn" id="b-year">Jahresrückblick ${y}</button>
+      <a class="link-btn" href="api/report/month.pdf?month=${month}" download style="margin-left:12px">Monatsbericht als PDF</a></span></div>
     <ul class="tally-lines" style="max-width:420px;font-size:1rem">
       <li><span class="op"></span><span>Einnahmen</span><span class="amount pos">${money(st.income_cents, { plus: true })}</span></li>
       <li><span class="op">−</span><span>Ausgaben</span><span class="amount">${money(st.expense_cents)}</span></li>
@@ -168,7 +169,8 @@ export async function yearSheet(year) {
         <span class="amount">${c.change_cents > 0 ? "+" : "−"}${money(Math.abs(c.change_cents))}</span></li>`)}</ul></section>` : ""}
     ${r.biggest.length ? html`<section class="section"><div class="section-head"><h2>Größte Einzelausgaben</h2><span class="small muted">ohne Verträge</span></div>
       <ul class="list">${r.biggest.map((b) => html`<li class="row static"><span class="title">${b.name}</span><span class="sub">${dFull(b.date)}</span><span class="amount">${money(-b.amount_cents)}</span></li>`)}</ul></section>` : ""}
-    <p class="small muted">${r.count} Buchungen, ohne Umbuchungen zwischen eigenen Konten.</p>`}`.s, { wide: true });
+    <p class="small muted">${r.count} Buchungen, ohne Umbuchungen zwischen eigenen Konten.</p>
+    <a class="btn small" href="api/report/year.pdf?year=${r.year}" download>Als PDF</a>`}`.s, { wide: true });
   on(sh.el, "[data-year]", "click", (_e, el) => { sh.close(); yearSheet(Number(el.dataset.year)); });
   if (r.has_data) historyChart($("#y-chart", sh.el), r.months.filter((m) => !m.future));
 }

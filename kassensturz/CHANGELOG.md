@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.69
+
+- Berichte als PDF: *Budgets → Monatsbericht als PDF* (Kennzahlen, Vergleich mit den Monaten davor, Kategorien,
+  größte Einzelausgaben, Kontostände am Monatsende) und *Jahresrückblick → Als PDF* (mit Monatstabelle und Balken).
+  Kassensturz schreibt die PDF-Datei selbst, ohne neue Abhängigkeit. `GET /api/report/month.pdf?month=JJJJ-MM`,
+  `GET /api/report/year.pdf?year=JJJJ`.
+
 ## 0.3.68
 
 - Tilgungsplan mit Abgleich der gebuchten Raten: Abbuchungen über genau die Monatsrate seit der eingetragenen

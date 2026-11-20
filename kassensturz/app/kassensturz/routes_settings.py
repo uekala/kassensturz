@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 import shutil
 import tempfile
 from datetime import date
@@ -11,7 +12,7 @@ from fastapi.responses import FileResponse, Response
 from pathlib import Path
 from starlette.background import BackgroundTask
 
-from . import analytics, audit, contracts, db as dbmod, demo, ha, health, options, savings, services, umzug
+from . import analytics, audit, contracts, db as dbmod, demo, ha, health, options, report, savings, services, umzug
 from .db import get_db
 from .web import _changed, _err
 
@@ -25,6 +26,30 @@ def stats(month: str = ""):
     month = month or date.today().strftime("%Y-%m")
     return {"month": analytics.month_stats(db, month), "history": analytics.monthly_totals(db, 12),
             "review": analytics.month_review(db, month)}
+
+
+@router.get("/api/report/month.pdf")
+def report_month(month: str = ""):
+    month = month or date.today().strftime("%Y-%m")
+    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", month):
+        _err(400, "Ungültiger Monat.")
+    try:
+        data = report.month_pdf(get_db(), month)
+    except ValueError:
+        _err(400, "Für diesen Monat gibt es keinen Bericht.")
+    return Response(data, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="kassensturz-{month}.pdf"'})
+
+
+@router.get("/api/report/year.pdf")
+def report_year(year: int = 0):
+    year = year or date.today().year
+    try:
+        data = report.year_pdf(get_db(), year)
+    except ValueError:
+        _err(400, "Für dieses Jahr gibt es keinen Bericht.")
+    return Response(data, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="kassensturz-{year}.pdf"'})
 
 
 @router.get("/api/year")
