@@ -2,11 +2,11 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:pdfx/pdfx.dart';
 
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
+import '../../core/widgets/pdf_bytes_view.dart';
 
 /// A photo chosen for upload. It lives in memory until the server has it.
 class PickedReceipt {
@@ -292,7 +292,14 @@ class _ReceiptViewPageState extends State<_ReceiptViewPage> {
               ),
             );
           }
-          if (!widget.receipt.isImage) return _PdfView(bytes: bytes);
+          if (!widget.receipt.isImage) {
+            return PdfBytesView(
+              bytes: bytes,
+              errorText:
+                  'Das PDF ließ sich nicht anzeigen. Öffne die Buchung dafür '
+                  'in Kassensturz in Home Assistant.',
+            );
+          }
           return InteractiveViewer(
             maxScale: 6,
             child: Center(
@@ -306,53 +313,6 @@ class _ReceiptViewPageState extends State<_ReceiptViewPage> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-/// Shows a PDF with the renderer of the phone. The file stays in memory; it
-/// is neither written to storage nor handed to another app.
-class _PdfView extends StatefulWidget {
-  const _PdfView({required this.bytes});
-
-  final Uint8List bytes;
-
-  @override
-  State<_PdfView> createState() => _PdfViewState();
-}
-
-class _PdfViewState extends State<_PdfView> {
-  late final PdfControllerPinch _controller = PdfControllerPinch(
-    document: PdfDocument.openData(widget.bytes),
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PdfViewPinch(
-      controller: _controller,
-      builders: PdfViewPinchBuilders<DefaultBuilderOptions>(
-        options: const DefaultBuilderOptions(),
-        documentLoaderBuilder: (_) =>
-            const Center(child: CircularProgressIndicator()),
-        pageLoaderBuilder: (_) =>
-            const Center(child: CircularProgressIndicator()),
-        errorBuilder: (_, _) => const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Das PDF ließ sich nicht anzeigen. Öffne die Buchung dafür in '
-              'Kassensturz in Home Assistant.',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
       ),
     );
   }

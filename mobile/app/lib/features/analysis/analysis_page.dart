@@ -8,6 +8,7 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/klar_widgets.dart';
 import '../../core/widgets/part_filter.dart';
 import '../charging/charging_widgets.dart';
+import '../reports/report_page.dart';
 import 'year_review_page.dart';
 
 const _monthNames = [
@@ -151,6 +152,23 @@ class _AnalysisPageState extends State<AnalysisPage> {
                         builder: (_) => YearReviewPage(
                           controller: controller,
                           year: _month.year,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (controller.canShowReport) ...[
+                  const SizedBox(height: 8),
+                  LinkTile(
+                    icon: Icons.picture_as_pdf_rounded,
+                    title: 'Monatsbericht als PDF',
+                    subtitle: 'Zum Ansehen, bleibt nur im Speicher der App',
+                    onTap: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => ReportPage(
+                          controller: controller,
+                          kind: 'month',
+                          period: _key(_month),
                         ),
                       ),
                     ),

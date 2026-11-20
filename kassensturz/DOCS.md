@@ -280,7 +280,9 @@ Zum Ablegen oder Ausdrucken gibt es zwei Berichte als PDF-Datei (A4):
 - **Jahresrückblick** (*Budgets → Jahresrückblick → Als PDF*): alles aus dem Jahresrückblick, dazu eine Tabelle je
   Monat.
 
-Die Berichte umfassen den ganzen Haushalt. Kassensturz schreibt die Datei selbst, ohne Dienst im Internet.
+Die Berichte in Home Assistant umfassen den ganzen Haushalt. In der App (ab 0.3.43) gibt es beide unter
+*Auswertung → Monatsbericht als PDF* und im Jahresrückblick oben rechts; sie zeigen nur die Konten, die die Person
+sieht, und beachten *Ich / Gemeinsam*. Die App zeigt die Datei nur an und speichert sie nicht. Kassensturz schreibt die Datei selbst, ohne Dienst im Internet.
 
 ## Sparziele und Jahreskosten
 

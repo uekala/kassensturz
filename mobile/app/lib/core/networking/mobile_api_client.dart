@@ -582,6 +582,27 @@ class MobileApiClient {
     );
   }
 
+  /// A month report (period JJJJ-MM) or the year in review (period JJJJ) as
+  /// PDF, from what this device sees.
+  Future<Uint8List> reportBytes({
+    required String kind,
+    required String period,
+    String? part,
+  }) {
+    if (kind != 'month' && kind != 'year') {
+      throw const FormatException('Diesen Bericht gibt es nicht.');
+    }
+    return _authenticatedBinary(
+      method: 'GET',
+      path: '/api/v1/report/$kind',
+      query: {
+        'period': period,
+        if (part != null && part.isNotEmpty) 'part': part,
+      },
+      maximumResponseBytes: maximumReceiptBytes,
+    );
+  }
+
   Future<void> deleteReceipt(int receiptId) async {
     if (receiptId <= 0) throw const FormatException('Der Beleg ist ungültig.');
     await _authenticatedJson(

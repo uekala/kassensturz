@@ -1,5 +1,10 @@
 # Änderungen der Mobile-App
 
+## 0.3.43
+
+- *Auswertung → Monatsbericht als PDF* und im Jahresrückblick oben rechts *Als PDF*: Der Server schreibt den Bericht,
+  die App zeigt ihn an, ohne ihn zu speichern (ab Server 0.3.70). Die PDF-Ansicht der Belege nutzt dieselbe Anzeige.
+
 ## 0.3.42
 
 - Tilgungsplan: Unter der Restschuld steht, ob seit dem Eintrag alle Raten gebucht sind. Fehlt eine, nennt die App den

@@ -101,6 +101,7 @@ def test_pairing_returns_secret_once_and_me_endpoint_authenticates_device(
             "sync.tan",
             "charging",
             "year",
+            "report",
         ]
 
         replay = client.post(

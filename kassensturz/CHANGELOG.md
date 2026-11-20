@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.70
+
+- Berichte als PDF für die App: `GET /api/v1/report/month?period=JJJJ-MM` und `GET /api/v1/report/year?period=JJJJ`,
+  nur aus den Konten, die die Person sieht, auch mit `part`. Neue Fähigkeit `report`, nicht für Kinderhandys.
+
 ## 0.3.69
 
 - Berichte als PDF: *Budgets → Monatsbericht als PDF* (Kennzahlen, Vergleich mit den Monaten davor, Kategorien,

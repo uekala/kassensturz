@@ -56,6 +56,7 @@ class MobileConnectionController extends ChangeNotifier {
   static const accountValueCapability = 'accounts.value';
   static const syncTanCapability = 'sync.tan';
   static const yearCapability = 'year';
+  static const reportCapability = 'report';
 
   final MobileApiClient _apiClient;
   final Duration _readRetryDelay;
@@ -396,6 +397,9 @@ class MobileConnectionController extends ChangeNotifier {
 
   /// Whether the server shows projects to this phone.
   bool get canShowProjects => _capabilities.contains(projectsCapability);
+
+  /// Whether the server writes the month report and the year as PDF.
+  bool get canShowReport => _capabilities.contains(reportCapability);
 
   /// Whether the server offers the year in review.
   bool get canShowYear => _capabilities.contains(yearCapability);
@@ -1062,6 +1066,24 @@ class MobileConnectionController extends ChangeNotifier {
   ) async {
     try {
       return (bytes: await _apiClient.receiptBytes(receiptId), error: null);
+    } catch (error) {
+      return (bytes: null, error: await _describeFailure(error));
+    }
+  }
+
+  /// A report as PDF for [period] (JJJJ-MM or JJJJ), with the part filter of
+  /// the analysis when the server offers it.
+  Future<({Uint8List? bytes, String? error})> reportBytes({
+    required String kind,
+    required String period,
+  }) async {
+    try {
+      final bytes = await _apiClient.reportBytes(
+        kind: kind,
+        period: period,
+        part: canFilterParts ? viewPart : null,
+      );
+      return (bytes: bytes, error: null);
     } catch (error) {
       return (bytes: null, error: await _describeFailure(error));
     }

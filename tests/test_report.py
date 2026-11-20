@@ -79,3 +79,37 @@ def test_text_width_and_wrapping():
     assert report.text_width("A", 10, bold=True) >= report.text_width("A", 10)
     lines = report.wrap_text("eins zwei drei vier fünf sechs sieben acht neun zehn", 10, 80)
     assert len(lines) > 1 and all(report.text_width(line, 10) <= 80 for line in lines)
+
+
+def test_reports_on_the_phone_show_only_visible_accounts(db, monkeypatch):
+    from kassensturz import household
+    from test_household import pair
+    from test_mobile_write import https_client, reset_mobile_guards
+
+    reset_mobile_guards(monkeypatch)
+    anna = household.create_person(db, {"name": "Anna"})["id"]
+    ben = household.create_person(db, {"name": "Ben"})["id"]
+    mia = household.create_person(db, {"name": "Mia", "is_child": True})["id"]
+    shared = db.insert("accounts", {"name": "KS-Gemeinsam", "kind": "giro"})
+    bens = db.insert("accounts", {"name": "KS-Bens Konto", "kind": "giro", "owner_person_id": ben})
+    ledger.import_rows(db, shared, [{"booking_date": "2025-06-03", "amount_cents": -4000, "counterparty": "KS-Markt",
+                                     "purpose": "a"}], "datei")
+    ledger.import_rows(db, bens, [{"booking_date": "2025-06-04", "amount_cents": -7000, "counterparty": "KS-Geheim",
+                                   "purpose": "b"}], "datei")
+    with https_client() as client:
+        a, b, kid = pair(client, anna, "Annas Handy"), pair(client, ben, "Bens Handy"), pair(client, mia, "Mias Handy")
+        assert "report" in client.get("/api/v1/me", headers=a).json()["capabilities"]
+        assert "report" not in client.get("/api/v1/me", headers=kid).json()["capabilities"]
+        r = client.get("/api/v1/report/month?period=2025-06", headers=a)
+        assert r.status_code == 200 and r.headers["content-type"] == "application/pdf"
+        _valid(r.content)
+        text = _text(r.content)
+        assert "KS-Markt" in text and "KS-Geheim" not in text and "KS-Bens Konto" not in text
+        assert "KS-Geheim" in _text(client.get("/api/v1/report/month?period=2025-06", headers=b).content)
+        assert "KS-Geheim" not in _text(client.get("/api/v1/report/month?period=2025-06&part=shared", headers=b).content)
+        _valid(client.get("/api/v1/report/year?period=2025", headers=a).content)
+        assert client.get("/api/v1/report/month?period=2025-06", headers=kid).status_code == 404
+        assert client.get("/api/v1/report/week", headers=a).status_code == 404
+        assert client.get("/api/v1/report/month?period=2025-13", headers=a).status_code == 400
+        assert client.get("/api/v1/report/year?period=1999", headers=a).status_code == 400
+        assert client.get("/api/v1/report/month?period=2025-06").status_code == 401
