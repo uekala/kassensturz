@@ -1,5 +1,17 @@
 # Änderungen
 
+## 0.3.72
+
+- Abgleich mit Finanzguru genauer:
+  - Erwartete Buchungen mit Datum in der Zukunft (Finanzguru Plus schreibt sie in den Export) zählen nicht mehr; sie
+    verschoben bisher den Kontostand-Vergleich.
+  - Das PayPal-Konto aus Finanzguru (mit E-Mail statt IBAN) findet das einzige PayPal-Konto in Kassensturz.
+  - Konten, die Finanzguru nur von Hand kennt (etwa Bargeld), müssen nicht abgerufen werden; fehlen sie, steht der
+    Hinweis auf „Nicht übernehmen“ dabei.
+  - Statt „letzte Buchung älter als 10 Tage“ zählt, ob Finanzguru Neueres hat: Verglichen wird bis zur jüngsten
+    Buchung in Finanzguru, die mindestens zwei Tage alt ist. Ein ruhiges Tagesgeld ist kein Fehler mehr, ein hängender
+    Abruf wird mit Datum genannt.
+
 ## 0.3.71
 
 - *Konten → Mit Finanzguru abgleichen*: liest einen frischen Finanzguru-Export und ändert nichts. Je Konto: gibt es
