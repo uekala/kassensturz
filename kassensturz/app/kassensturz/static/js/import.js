@@ -5,7 +5,7 @@ import { balanceSheet } from "./konten.js";
 import { go, rerender } from "./router.js";
 
 /* --- Datei-Import ----------------------------------------------------------------------- */
-export function pickImportFile() {
+export function pickImportFile(mode = "") {
   const input = document.createElement("input");
   input.type = "file";
   // Bewusst ohne Filter: Android ordnet heruntergeladenen Dateien oft keinen passenden Dateityp zu und graut
@@ -22,7 +22,10 @@ export function pickImportFile() {
     try {
       const res = await api("import/analyze", { method: "POST", form });
       sh.close();
-      if (res.kind === "ladecockpit") chargingImport(form);
+      if (mode === "compare" && res.kind !== "finanzguru") {
+        openSheet(html`${sheetHead("Kein Finanzguru-Export")}<p>Für den Abgleich brauchst du den Export aus Finanzguru (Excel, „Alle Buchungen“).</p><div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
+      } else if (mode === "compare") compareSheet(res.token, res.accounts.map((a) => ({ ref: a.ref, target: a.target })));
+      else if (res.kind === "ladecockpit") chargingImport(form);
       else if (res.kind === "finanzguru") finanzguruSheet(res); else importSheet(res);
     } catch (e) {
       sh.set(html`${sheetHead("Datei nicht lesbar")}<p>${e.message}</p><div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
@@ -116,6 +119,33 @@ export function importSheet(res) {
 }
 
 /* --- Umstieg von Finanzguru -------------------------------------------------------------- */
+// Abgleich vor dem Kündigen: Was hat Finanzguru, was Kassensturz nicht hat? Ändert nichts.
+export async function compareSheet(token, accounts) {
+  const sh = openSheet(html`${sheetHead("Abgleich mit Finanzguru")}<div class="progress"><div class="spinner"></div></div>`.s, { wide: true });
+  let r;
+  try {
+    r = await api("import/finanzguru/compare", { method: "POST", body: { token, accounts } });
+  } catch (e) { sh.set(html`${sheetHead("Abgleich mit Finanzguru")}<p>${e.message}</p><div class="actions"><button class="btn" data-close>Schließen</button></div>`.s); return; }
+  const row = (x) => html`<li class="row static"><span class="title">${x.counterparty || "Ohne Empfänger"}</span><span class="sub">${dFull(x.date)}</span><span class="amount ${x.amount_cents > 0 ? "pos" : ""}">${money(x.amount_cents, { plus: true })}</span></li>`;
+  sh.set(html`${sheetHead("Abgleich mit Finanzguru")}
+    ${r.ready ? html`<div class="alert ok" style="display:block;cursor:default"><strong>Kassensturz hat alles, was Finanzguru hat.</strong>
+      <p class="small">Jedes Konto ruft selbst ab, im gemeinsamen Zeitraum fehlt keine Buchung${r.accounts.some((a) => a.balance) ? ", die Kontostände stimmen" : ""}. Du kannst Finanzguru kündigen.</p></div>`
+    : html`<div class="alert warning" style="display:block;cursor:default"><strong>Noch nicht so weit: ${r.open} ${r.open === 1 ? "Konto braucht" : "Konten brauchen"} Aufmerksamkeit.</strong>
+      <p class="small">Kassensturz hat nichts geändert. Was zu tun ist, steht beim Konto.</p></div>`}
+    <p class="small muted">Export: ${r.count} Buchungen vom ${dFull(r.first)} bis ${dFull(r.last)}. Gleiche Buchung heißt: gleicher Betrag, höchstens drei Tage auseinander.</p>
+    ${r.accounts.map((a) => html`<div class="fg-acc" style="display:block">
+      <div><strong>${a.problems.length ? "⚠ " : a.target === "skip" ? "" : "✓ "}${a.name}</strong>${a.label ? html` <span class="muted small">${a.label}</span>` : ""}
+        ${a.target === "skip" ? html` <span class="muted small">nicht geprüft</span>` : a.account ? html` <span class="muted small">→ ${a.account}${a.automatic ? ", ruft selbst ab" : ""}</span>` : ""}</div>
+      ${a.window ? html`<p class="small muted">Verglichen: ${dFull(a.window.from)} bis ${dFull(a.window.to)}${a.last_own ? `, letzte eigene Buchung ${dFull(a.last_own)}` : ""}.</p>` : ""}
+      ${a.balance ? html`<p class="small">Kontostand am ${dFull(a.balance.date)}: Finanzguru ${money(a.balance.finanzguru_cents)}, Kassensturz ${a.balance.kassensturz_cents === null ? "–" : money(a.balance.kassensturz_cents)}${a.balance.difference_cents ? html` <span class="chip warn">${money(a.balance.difference_cents, { plus: true })}</span>` : ""}.</p>` : ""}
+      ${a.problems.length ? html`<ul class="small" style="margin:4px 0 0 18px">${a.problems.map((p) => html`<li>${p}</li>`)}</ul>` : ""}
+      ${a.missing.length ? html`<p class="small" style="margin-top:8px"><strong>Fehlt in Kassensturz</strong>${a.missing_count > a.missing.length ? ` (die ersten ${a.missing.length} von ${a.missing_count})` : ""}</p><ul class="list">${a.missing.map(row)}</ul>` : ""}
+      ${a.extra.length ? html`<p class="small muted" style="margin-top:8px">Nur in Kassensturz: ${a.extra_count} ${a.extra_count === 1 ? "Buchung" : "Buchungen"}. Das ist meist harmlos, etwa vorgemerkte Buchungen oder Teile, die Finanzguru anders zeigt.</p>` : ""}
+    </div>`)}
+    <p class="small muted">Ordnet Kassensturz ein Konto falsch oder gar nicht zu, oder brauchst du ein Konto nicht mehr: Öffne die Datei über „Datei importieren“, wähle beim Konto das Ziel oder „Nicht übernehmen“ und tippe dann auf „Nur abgleichen“.</p>
+    <div class="actions"><button class="btn" data-close>Schließen</button></div>`.s);
+}
+
 export function finanzguruSheet(res) {
   // Die Auswahl bleibt erhalten, wenn die Vorschau nach einer Änderung neu kommt.
   const accChoice = new Map(res.accounts.map((a) => [a.ref, { target: a.target, name: a.suggest.name, kind: a.suggest.kind }]));
@@ -154,7 +184,8 @@ export function finanzguruSheet(res) {
       <table class="map-table">${res.categories.map((c, i) => html`<tr><td>${c.main}${c.main && c.sub ? " › " : ""}${c.sub} <span class="muted">(${c.count})</span></td>
         <td><select data-fg-cat="${i}" aria-label="Kategorie für ${c.sub || c.main}">${catOptions(catChoice[i])}</select></td></tr>`)}</table>
       <label class="check"><input type="checkbox" id="fg-learn" ${learn ? raw("checked") : ""}><span>Daraus lernen: Was in Finanzguru verlässlich gleich zugeordnet war, gilt auch für künftige Buchungen.</span></label>` : ""}
-      <div class="actions"><button class="btn primary" id="fg-go" ${!total ? raw("disabled") : ""}>${total} Buchungen übernehmen</button><button class="btn" data-close>Abbrechen</button></div>`.s);
+      <div class="actions"><button class="btn primary" id="fg-go" ${!total ? raw("disabled") : ""}>${total} Buchungen übernehmen</button><button class="btn" id="fg-compare">Nur abgleichen</button><button class="btn" data-close>Abbrechen</button></div>`.s);
+    $("#fg-compare", sh.el).onclick = () => { sh.close(); compareSheet(res.token, choices()); };
     on(sh.el, "[data-fg-acc]", "change", async (_e, el) => {
       const a = res.accounts[Number(el.dataset.fgAcc)];
       accChoice.get(a.ref).target = /^\d+$/.test(el.value) ? Number(el.value) : el.value;

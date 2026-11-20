@@ -211,6 +211,14 @@ def finanzguru_preview(body: dict = Body(...)):
     return {"kind": "finanzguru", "token": body["token"], **finanzguru.preview(get_db(), item["parsed"], choices)}
 
 
+@router.post("/api/import/finanzguru/compare")
+def finanzguru_compare(body: dict = Body(...)):
+    """Abgleich mit dem Export vor dem Kündigen; ändert nichts."""
+    item = _finanzguru_item(body)
+    choices = {c["ref"]: c["target"] for c in _finanzguru_choices(body) if c["target"] != "new"}
+    return finanzguru.compare(get_db(), item["parsed"], choices)
+
+
 @router.post("/api/import/finanzguru/commit")
 def finanzguru_commit(body: dict = Body(...)):
     db = get_db()
