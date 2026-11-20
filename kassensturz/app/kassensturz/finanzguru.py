@@ -709,3 +709,122 @@ def _apply_extras(db: Database, ids: list[int], rows: list[dict], target: dict, 
                    "WHERE id = ?", updates)
     db.executemany("UPDATE transactions SET note = ? WHERE id = ?", notes)
     db.executemany("INSERT INTO splits(tx_id, amount_cents, category_id, note) VALUES(?, ?, ?, ?)", splits)
+
+
+# --- Abgleich vor dem Kündigen -----------------------------------------------------------------
+
+# So weit dürfen Buchungstage zwischen Finanzguru und der Bank auseinanderliegen.
+MATCH_DAYS = 3
+# Liegt die letzte eigene Buchung eines Kontos länger zurück, ist der Abruf verdächtig.
+STALE_DAYS = 10
+
+
+def _pair(fg: list[dict], ks: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Ordnet Buchungen nach Betrag und nächstem Tag (höchstens MATCH_DAYS) einander zu.
+
+    Gibt zurück, was auf jeder Seite übrig bleibt."""
+    pool: dict[int, list[dict]] = defaultdict(list)
+    for r in ks:
+        pool[r["amount_cents"]].append(r)
+    missing = []
+    for r in sorted(fg, key=lambda x: x["booking_date"]):
+        day = date.fromisoformat(r["booking_date"])
+        best, gap = None, None
+        for cand in pool.get(r["amount_cents"], []):
+            d = abs((date.fromisoformat(cand["booking_date"]) - day).days)
+            if d <= MATCH_DAYS and (gap is None or d < gap):
+                best, gap = cand, d
+        if best is None:
+            missing.append(r)
+        else:
+            pool[r["amount_cents"]].remove(best)
+    extra = [r for rows in pool.values() for r in rows]
+    extra.sort(key=lambda x: x["booking_date"])
+    return missing, extra
+
+
+def _short(r: dict) -> dict:
+    return {"date": r["booking_date"], "amount_cents": r["amount_cents"],
+            "counterparty": (r.get("counterparty") or r.get("purpose") or "")[:80] or None}
+
+
+def compare(db: Database, parsed: dict, choices: dict | None = None, today: date | None = None) -> dict:
+    """Prüft, ob Kassensturz alles hat, was Finanzguru hat – ohne etwas zu ändern.
+
+    Je Konto im Export: das Konto in Kassensturz, ob es selbst abruft, wann zuletzt, und für die Zeit,
+    in der beide Buchungen haben, was auf der einen oder anderen Seite fehlt. Dazu der letzte Kontostand
+    aus dem Export gegen den Stand in Kassensturz am selben Tag."""
+    today = today or date.today()
+    choices = choices or {}
+    accounts = db.query("SELECT id, name, iban, eb_uid, connection_id, fints_ref FROM accounts WHERE archived = 0 "
+                        "ORDER BY sort, id")
+    by_id = {a["id"]: a for a in accounts}
+    out = []
+    for ref, rows in _by_account(parsed["rows"]).items():
+        name = next((r["account_name"] for r in rows if r["account_name"]), "") or "Konto ohne Namen"
+        target = choices.get(ref)
+        if target != "skip" and target not in by_id:
+            target = _match_account(accounts, ref, name)
+        days = sorted(r["booking_date"] for r in rows)
+        item = {"ref": ref, "name": name, "label": _label(ref) if ref != name else "", "count": len(rows),
+                "first": days[0], "last": days[-1], "target": target, "account": None, "automatic": False,
+                "last_own": None, "window": None, "missing": [], "missing_count": 0, "extra": [],
+                "extra_count": 0, "balance": None, "problems": []}
+        out.append(item)
+        if target == "skip":
+            continue
+        if target is None:
+            item["problems"].append("Dieses Konto gibt es in Kassensturz noch nicht.")
+            continue
+        acc = by_id[target]
+        item["account"] = acc["name"]
+        item["automatic"] = bool(acc["eb_uid"] or (acc["connection_id"] and acc["fints_ref"]))
+        own = db.query("SELECT booking_date, amount_cents, counterparty, purpose FROM transactions "
+                       "WHERE account_id = ? AND COALESCE(source, '') != ? ORDER BY booking_date", (target, SOURCE))
+        if not item["automatic"]:
+            item["problems"].append("Kassensturz ruft dieses Konto nicht selbst bei der Bank ab.")
+        if not own:
+            item["problems"].append("In Kassensturz gibt es für dieses Konto keine eigenen Buchungen, nur aus Finanzguru.")
+            continue
+        item["last_own"] = own[-1]["booking_date"]
+        if (today - date.fromisoformat(item["last_own"])).days > STALE_DAYS:
+            item["problems"].append(f"Die letzte eigene Buchung ist vom {item['last_own'][8:10]}.{item['last_own'][5:7]}. "
+                                    "Prüf den Bankabruf.")
+        start = max(days[0], own[0]["booking_date"])
+        end = min(days[-1], own[-1]["booking_date"])
+        if start > end:
+            item["problems"].append("Finanzguru und Kassensturz haben keinen gemeinsamen Zeitraum.")
+            continue
+        item["window"] = {"from": start, "to": end}
+        # Am Rand des Zeitraums darf eine Buchung ein paar Tage früher oder später auf der anderen Seite liegen.
+        lo = (date.fromisoformat(start) - timedelta(days=MATCH_DAYS)).isoformat()
+        hi = (date.fromisoformat(end) + timedelta(days=MATCH_DAYS)).isoformat()
+        fg_in = [r for r in rows if start <= r["booking_date"] <= end]
+        ks_near = [r for r in own if lo <= r["booking_date"] <= hi]
+        missing, extra = _pair(fg_in, ks_near)
+        # Was Kassensturz nur am Rand mehr hat, gehört zur Zeit außerhalb des Exports
+        extra = [r for r in extra if start <= r["booking_date"] <= end]
+        item["missing_count"], item["extra_count"] = len(missing), len(extra)
+        item["missing"] = [_short(r) for r in missing[:20]]
+        item["extra"] = [_short(r) for r in extra[:10]]
+        if missing:
+            item["problems"].append(f"{len(missing)} {'Buchung' if len(missing) == 1 else 'Buchungen'} aus Finanzguru "
+                                    f"{'fehlt' if len(missing) == 1 else 'fehlen'} in Kassensturz.")
+        closing = _closing_balance(rows)
+        if closing:
+            cents, day = closing
+            series = ledger.balance_series(db, [target], date.fromisoformat(day), date.fromisoformat(day))
+            mine = series[-1][1] if series else None
+            item["balance"] = {"date": day, "finanzguru_cents": cents, "kassensturz_cents": mine,
+                               "difference_cents": None if mine is None else mine - cents}
+            if mine is not None and mine != cents:
+                item["problems"].append("Der Kontostand weicht von Finanzguru ab.")
+    checked = [i for i in out if i["target"] != "skip"]
+    return {
+        "count": len(parsed["rows"]),
+        "first": min((i["first"] for i in out), default=None),
+        "last": max((i["last"] for i in out), default=None),
+        "accounts": out,
+        "ready": bool(checked) and not any(i["problems"] for i in checked),
+        "open": sum(1 for i in checked if i["problems"]),
+    }

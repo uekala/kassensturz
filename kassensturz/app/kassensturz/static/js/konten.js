@@ -54,7 +54,7 @@ export async function renderAccounts(view, _params, seq) {
   const sambaPath = box.path && box.path.startsWith("/share/") ? "\\\\homeassistant.local\\share\\" + box.path.slice(7).replace(/\//g, "\\") : null;
   view.innerHTML = html`
     <div class="page-head"><h1>Konten</h1>
-      <div class="actions" style="margin:0"><button class="btn small" id="a-import">${raw(ICON.file)}Datei importieren</button>
+      <div class="actions" style="margin:0"><button class="btn small" id="a-import">${raw(ICON.file)}Datei importieren</button><button class="btn small" id="a-fg-check">Mit Finanzguru abgleichen</button>
       <button class="btn small" id="a-bank">${raw(ICON.bank)}Bank verbinden</button></div></div>
     <div class="cols"><div>
       <section class="section" style="border-top:0">
@@ -101,6 +101,7 @@ export async function renderAccounts(view, _params, seq) {
       </section>
     </div></div>`.s;
   $("#a-import").onclick = () => pickImportFile();
+  $("#a-fg-check").onclick = () => pickImportFile("compare");
   $("#a-bank").onclick = () => bankChooser(eb);
   $("#a-new").onclick = () => accountSheet(null);
   if ($("#fints-add")) $("#fints-add").onclick = () => connectionSheet(null);

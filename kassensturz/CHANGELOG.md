@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.71
+
+- *Konten → Mit Finanzguru abgleichen*: liest einen frischen Finanzguru-Export und ändert nichts. Je Konto: gibt es
+  es in Kassensturz, ruft Kassensturz es selbst ab, wie alt ist die letzte eigene Buchung, welche Buchungen aus
+  Finanzguru fehlen im gemeinsamen Zeitraum (gleicher Betrag, höchstens drei Tage auseinander), passt der letzte
+  Kontostand. Oben steht, ob du Finanzguru kündigen kannst. Im Umzugsdialog gibt es dafür *Nur abgleichen*.
+
 ## 0.3.70
 
 - Berichte als PDF für die App: `GET /api/v1/report/month?period=JJJJ-MM` und `GET /api/v1/report/year?period=JJJJ`,
