@@ -49,7 +49,7 @@ Umsätze, sofern die Bank das erlaubt, sonst die letzten 89 Tage. Ohne dein Zutu
 Benachrichtigung); *Erneuern* führt durch dieselben Schritte, die Konten bleiben verknüpft.
 
 Welche Banken Enable Banking anbindet, siehst du in der Bankauswahl. Manche stehen unter dem Land ihres Sitzes, PayPal
-etwa unter Luxemburg. Für Banken, die dort fehlen, bleibt der Datei-Import; für Advanzia gibt es dafür ein eigenes Profil. Der private Schlüssel liegt nur auf dem Gerät und ist von Backups ausgenommen; nach einer
+etwa unter Luxemburg. Für Banken, die dort fehlen, bleibt der Datei-Import; für Advanzia siehe unten. Der private Schlüssel liegt nur auf dem Gerät und ist von Backups ausgenommen; nach einer
 Wiederherstellung lädst du ihn einfach neu hoch.
 
 ## Bankabruf per FinTS
@@ -99,6 +99,18 @@ Kassensturz merkt sich die Spaltenzuordnung je Dateiformat. Überlappende Zeitr�
 
 Bei Kreditkarten stehen Ausgaben in manchen Exporten ohne Minus. Kassensturz weist darauf hin; die Option
 „Vorzeichen umkehren“ steht in der Spaltenzuordnung.
+
+## Advanzia-Kreditkarte (gebührenfrei.de)
+
+Advanzia bietet keinen CSV-Export. Kassensturz liest deshalb die Monatsabrechnung als PDF: im Portal von gebührenfrei.de
+herunterladen und unter *Konten → Datei importieren* hochladen. Kassensturz nimmt jede Zeile mit Datum, Text und Betrag
+als Umsatz und prüft die Summe an den Salden der Abrechnung (alter Saldo plus Umsätze gleich neuer Saldo). Passt sie,
+steht ein Haken im Dialog; sonst steht dort die Abweichung, und du vergleichst die Buchungen mit der PDF, bevor du
+importierst. Eine Abrechnung zweimal hochzuladen, fügt nichts hinzu.
+
+Gut zu wissen: Andere PDFs liest Kassensturz nicht. Eine gescannte Abrechnung ohne Text geht nicht, ebenso eine mit
+Passwort. Im Abgleich mit Finanzguru gilt ein so gepflegtes Konto als „per Datei gepflegt“; verglichen wird bis zur
+letzten importierten Abrechnung.
 
 ## Umstieg von Finanzguru
 

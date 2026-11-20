@@ -61,6 +61,9 @@ export function importSheet(res) {
     sh.set(html`${sheetHead("Import prüfen")}
       ${res.error ? html`<p class="note">${res.error}</p>` : html`
       <p><strong>${res.format}</strong>: ${res.count} Buchungen${res.first ? ` vom ${dFull(res.first)} bis ${dFull(res.last)}` : ""}.${skipped ? html` <span class="muted">Übersprungen: ${skipped}.</span>` : ""}</p>
+      ${res.pdf_check ? (res.pdf_check.matches ? html`<p class="small">✓ Die Summe der Umsätze passt zu den Salden der Abrechnung.</p>`
+        : res.pdf_check.balances_found ? html`<p class="note">Die Summe weicht um ${money(Math.abs(res.pdf_check.difference_cents))} von den Salden der Abrechnung ab. Vergleich die Buchungen unten mit der PDF, bevor du importierst.</p>`
+        : html`<p class="note">In der Abrechnung fand Kassensturz keinen alten und neuen Saldo und konnte die Summe nicht prüfen. Vergleich die Buchungen unten mit der PDF.</p>`) : ""}
       ${res.invert_suggested ? html`<p class="note">Fast alle Beträge sind positiv. Bei Kreditkarten-Exporten sind Ausgaben oft ohne Minus – dann unten „Vorzeichen umkehren“ wählen.</p>` : ""}`}
       <label class="field"><span>In welches Konto?</span><select id="im-acc">
         <option value="">Neues Konto anlegen</option>
@@ -135,7 +138,7 @@ export async function compareSheet(token, accounts) {
     <p class="small muted">Export: ${r.count} Buchungen vom ${dFull(r.first)} bis ${dFull(r.last)}. Gleiche Buchung heißt: gleicher Betrag, höchstens drei Tage auseinander.${r.future ? ` ${r.future} erwartete Buchungen mit Datum in der Zukunft zählen nicht.` : ""}</p>
     ${r.accounts.map((a) => html`<div class="fg-acc" style="display:block">
       <div><strong>${a.problems.length ? "⚠ " : a.target === "skip" ? "" : "✓ "}${a.name}</strong>${a.label ? html` <span class="muted small">${a.label}</span>` : ""}
-        ${a.target === "skip" ? html` <span class="muted small">nicht geprüft</span>` : a.account ? html` <span class="muted small">→ ${a.account}${a.automatic ? ", ruft selbst ab" : a.manual ? ", von Hand geführt" : ""}</span>` : ""}</div>
+        ${a.target === "skip" ? html` <span class="muted small">nicht geprüft</span>` : a.account ? html` <span class="muted small">→ ${a.account}${a.automatic ? ", ruft selbst ab" : a.file ? ", per Datei gepflegt" : a.manual ? ", von Hand geführt" : ""}</span>` : ""}</div>
       ${a.window ? html`<p class="small muted">Verglichen: ${dFull(a.window.from)} bis ${dFull(a.window.to)}${a.last_own ? `, letzte eigene Buchung ${dFull(a.last_own)}` : ""}.</p>` : ""}
       ${a.balance ? html`<p class="small">Kontostand am ${dFull(a.balance.date)}: Finanzguru ${money(a.balance.finanzguru_cents)}, Kassensturz ${a.balance.kassensturz_cents === null ? "–" : money(a.balance.kassensturz_cents)}${a.balance.difference_cents ? html` <span class="chip warn">${money(a.balance.difference_cents, { plus: true })}</span>` : ""}.</p>` : ""}
       ${a.problems.length ? html`<ul class="small" style="margin:4px 0 0 18px">${a.problems.map((p) => html`<li>${p}</li>`)}</ul>` : ""}
