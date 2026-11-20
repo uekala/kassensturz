@@ -791,10 +791,13 @@ def compare(db: Database, parsed: dict, choices: dict | None = None, today: date
         acc = by_id[target]
         item["account"] = acc["name"]
         item["automatic"] = bool(acc["eb_uid"] or (acc["connection_id"] and acc["fints_ref"]))
-        own = db.query("SELECT booking_date, amount_cents, counterparty, purpose FROM transactions "
+        own = db.query("SELECT booking_date, amount_cents, counterparty, purpose, source FROM transactions "
                        "WHERE account_id = ? AND COALESCE(source, '') != ? ORDER BY booking_date", (target, SOURCE))
+        # Gepflegt per Datei (etwa die Advanzia-Abrechnung als PDF): kein eigener Abruf, aber auch kein Hindernis.
+        # Ob etwas fehlt, zeigt der Vergleich der Buchungen.
+        item["file"] = bool(own) and not item["automatic"] and all(r["source"] in ("datei", "ordner") for r in own)
         # Ein Konto, das Finanzguru selbst nur von Hand kennt, muss Kassensturz nicht abrufen.
-        if not item["automatic"] and not manual:
+        if not item["automatic"] and not manual and not item["file"]:
             item["problems"].append("Kassensturz ruft dieses Konto nicht selbst bei der Bank ab.")
         if not own:
             if not manual:
@@ -806,6 +809,9 @@ def compare(db: Database, parsed: dict, choices: dict | None = None, today: date
         # Verglichen wird bis zur jüngsten Buchung in Finanzguru, die nicht mehr ganz frisch ist: Was Finanzguru
         # danach hat und Kassensturz nicht, zeigt einen hängenden Abruf.
         end = max([d for d in days if d <= settled] or [days[0]])
+        if item["file"]:
+            # Eine Abrechnung reicht nur bis zu ihrem Stichtag; was danach kam, bringt die nächste.
+            end = min(end, own[-1]["booking_date"])
         if start > end:
             if days[-1] > own[-1]["booking_date"]:
                 item["problems"].append("Finanzguru und Kassensturz haben keinen gemeinsamen Zeitraum.")

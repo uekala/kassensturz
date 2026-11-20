@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.3.73
+
+- Advanzia-Kreditkarte (gebührenfrei.de): Die Monatsabrechnung als PDF lässt sich unter *Konten → Datei importieren*
+  hochladen. Kassensturz liest jede Umsatzzeile und prüft die Summe an altem und neuem Saldo der Abrechnung; das
+  Ergebnis steht im Dialog. Andere PDFs werden abgelehnt. Neue Abhängigkeit `pypdf` (reines Python).
+- Abgleich mit Finanzguru: Ein Konto, das per Datei gepflegt wird, ist kein Hindernis mehr; verglichen wird bis zur
+  letzten importierten Buchung.
+
 ## 0.3.72
 
 - Abgleich mit Finanzguru genauer:

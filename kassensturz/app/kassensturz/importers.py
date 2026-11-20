@@ -526,6 +526,10 @@ def analyze(data: bytes, filename: str, mapping_override: dict | None = None) ->
                         continue
                     meta[k] = v if k != "iban" or "iban" not in meta else meta[k]
         return _result("camt", "CAMT (ZIP)", rows, meta, None)
+    from . import advanzia_pdf
+
+    if advanzia_pdf.is_pdf(data):
+        return _advanzia_pdf(data)
     head = data[:2048].lstrip()
     if head.startswith(b"<") or name.endswith(".xml"):
         rows, meta = parse_camt(data)
@@ -573,6 +577,32 @@ def analyze(data: bytes, filename: str, mapping_override: dict | None = None) ->
     })
     positives = sum(1 for r in rows if r["amount_cents"] > 0)
     res["invert_suggested"] = len(rows) >= 5 and positives / len(rows) > 0.75 and not mapping.get("invert")
+    return res
+
+
+def _advanzia_pdf(data: bytes) -> dict:
+    """Die Monatsabrechnung von Advanzia (gebührenfrei.de) als PDF; andere PDFs liest Kassensturz nicht."""
+    from . import advanzia_pdf
+
+    try:
+        text = advanzia_pdf.text_of(data)
+    except ValueError:
+        raise
+    except Exception as exc:  # noqa: BLE001 – kaputte oder ungewöhnliche PDF
+        raise ValueError("Die PDF ließ sich nicht lesen.") from exc
+    if not text.strip():
+        raise ValueError("Die PDF enthält keinen Text, vermutlich ein Scan. Lade die Abrechnung aus dem Portal herunter.")
+    if not advanzia_pdf.looks_like_advanzia(text):
+        raise ValueError("PDF-Dateien liest Kassensturz nur als Monatsabrechnung der Advanzia-Kreditkarte "
+                         "(gebührenfrei.de). Exportiere die Umsätze anderer Banken als CSV.")
+    parsed = advanzia_pdf.parse(text)
+    rows, check = advanzia_pdf.rows_from(parsed)
+    preset = next(p for p in PRESETS if p["id"] == "advanzia")
+    res = _result("advanzia_pdf", "Advanzia-Abrechnung (PDF)", rows, {}, preset)
+    res["pdf_check"] = check
+    if not rows:
+        res["error"] = ("In der Abrechnung hat Kassensturz keine Umsätze gefunden. Schick einen Hinweis mit dem Aufbau "
+                        "einer Zeile (ohne echte Beträge), dann passe ich den Leser an.")
     return res
 
 
