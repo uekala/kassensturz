@@ -253,7 +253,7 @@ void main() {
     );
     if (charged.isNotEmpty &&
         await phone.open(
-          find.text(charged.first['counterparty'].toString()).first,
+          find.text(charged.first['counterparty'].toString()),
           'Buchung mit Ladevorgang',
         )) {
       expect(find.text('Laden'), findsOneWidget);
