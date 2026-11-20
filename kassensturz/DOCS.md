@@ -127,11 +127,14 @@ Kategorie lagen. Das wirkt wie eine eigene Korrektur: Es gilt für vorhandene un
 Kassensturz:
 
 - ob es das Konto in Kassensturz gibt und ob Kassensturz es selbst bei der Bank abruft (Open Banking oder FinTS),
-- ob die letzte eigene Buchung höchstens zehn Tage alt ist,
+- ob Kassensturz alles hat, was Finanzguru bis vor zwei Tagen gebucht hat (sonst hängt der Abruf),
 - ob im Zeitraum, in dem beide Buchungen haben, jede Buchung aus Finanzguru auch in Kassensturz steht (gleicher Betrag,
   höchstens drei Tage auseinander); was fehlt, steht mit Tag, Betrag und Empfänger da,
 - ob der letzte Kontostand aus dem Export zum Stand in Kassensturz am selben Tag passt (nur wenn die Spalte „Kontostand“
   mitläuft).
+
+Erwartete Buchungen mit Datum in der Zukunft, die Finanzguru Plus mit exportiert, zählen nicht. Konten, die du in
+Finanzguru von Hand führst (etwa Bargeld), muss Kassensturz nicht abrufen.
 
 Steht oben „Kassensturz hat alles, was Finanzguru hat“, kannst du kündigen. Ordnet Kassensturz ein Konto falsch oder gar
 nicht zu, öffnest du die Datei über *Datei importieren*, wählst beim Konto das Ziel oder *Nicht übernehmen* und tippst

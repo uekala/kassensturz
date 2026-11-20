@@ -132,10 +132,10 @@ export async function compareSheet(token, accounts) {
       <p class="small">Jedes Konto ruft selbst ab, im gemeinsamen Zeitraum fehlt keine Buchung${r.accounts.some((a) => a.balance) ? ", die Kontostände stimmen" : ""}. Du kannst Finanzguru kündigen.</p></div>`
     : html`<div class="alert warning" style="display:block;cursor:default"><strong>Noch nicht so weit: ${r.open} ${r.open === 1 ? "Konto braucht" : "Konten brauchen"} Aufmerksamkeit.</strong>
       <p class="small">Kassensturz hat nichts geändert. Was zu tun ist, steht beim Konto.</p></div>`}
-    <p class="small muted">Export: ${r.count} Buchungen vom ${dFull(r.first)} bis ${dFull(r.last)}. Gleiche Buchung heißt: gleicher Betrag, höchstens drei Tage auseinander.</p>
+    <p class="small muted">Export: ${r.count} Buchungen vom ${dFull(r.first)} bis ${dFull(r.last)}. Gleiche Buchung heißt: gleicher Betrag, höchstens drei Tage auseinander.${r.future ? ` ${r.future} erwartete Buchungen mit Datum in der Zukunft zählen nicht.` : ""}</p>
     ${r.accounts.map((a) => html`<div class="fg-acc" style="display:block">
       <div><strong>${a.problems.length ? "⚠ " : a.target === "skip" ? "" : "✓ "}${a.name}</strong>${a.label ? html` <span class="muted small">${a.label}</span>` : ""}
-        ${a.target === "skip" ? html` <span class="muted small">nicht geprüft</span>` : a.account ? html` <span class="muted small">→ ${a.account}${a.automatic ? ", ruft selbst ab" : ""}</span>` : ""}</div>
+        ${a.target === "skip" ? html` <span class="muted small">nicht geprüft</span>` : a.account ? html` <span class="muted small">→ ${a.account}${a.automatic ? ", ruft selbst ab" : a.manual ? ", von Hand geführt" : ""}</span>` : ""}</div>
       ${a.window ? html`<p class="small muted">Verglichen: ${dFull(a.window.from)} bis ${dFull(a.window.to)}${a.last_own ? `, letzte eigene Buchung ${dFull(a.last_own)}` : ""}.</p>` : ""}
       ${a.balance ? html`<p class="small">Kontostand am ${dFull(a.balance.date)}: Finanzguru ${money(a.balance.finanzguru_cents)}, Kassensturz ${a.balance.kassensturz_cents === null ? "–" : money(a.balance.kassensturz_cents)}${a.balance.difference_cents ? html` <span class="chip warn">${money(a.balance.difference_cents, { plus: true })}</span>` : ""}.</p>` : ""}
       ${a.problems.length ? html`<ul class="small" style="margin:4px 0 0 18px">${a.problems.map((p) => html`<li>${p}</li>`)}</ul>` : ""}

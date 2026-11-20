@@ -59,8 +59,25 @@ def test_missing_bookings_and_no_own_fetch_are_named(db):
     assert skipped["open"] == 1 and skipped["accounts"][1]["problems"] == []
 
 
-def test_stale_fetch_and_route(db, client):
+def test_hanging_fetch_future_rows_paypal_and_manual_accounts(db, client):
     setup(db)
-    r = finanzguru.compare(db, {"rows": rows_matching()}, today=date(2026, 12, 15))
-    assert any("letzte eigene Buchung" in p for p in r["accounts"][0]["problems"])
+    db.insert("accounts", {"name": "Mein PayPal", "kind": "paypal", "eb_uid": "erfunden-pp"})
+    rows = rows_matching() + [
+        # nach der letzten Buchung in Kassensturz, aber schon einige Tage alt: Abruf hängt
+        fg("2026-11-25", -1234, "Später Laden"),
+        # erwartete Buchung in der Zukunft
+        fg("2026-12-24", -9999, "Erwartet"),
+        fg("2026-11-20", -500, "Kiosk", ref="person@example.org", name="person@example.org"),
+        fg("2026-11-01", -2000, "Bar", ref="ef5e7cc0-e423-4d99-8acb-c56a1b2c3d4e", name="Bargeld"),
+    ]
+    r = finanzguru.compare(db, {"rows": rows}, today=date(2026, 12, 1))
+    giro, paypal, cash = r["accounts"]
+    assert r["future"] == 1 and r["count"] == len(rows) - 1
+    assert giro["missing_count"] == 1 and giro["missing"][0]["amount_cents"] == -1234
+    assert any("nichts Neues" in p for p in giro["problems"])
+    assert paypal["account"] == "Mein PayPal"
+    assert cash["manual"] and cash["label"] == "" and "von Hand" in cash["problems"][0]
+    # frische Buchungen der letzten zwei Tage dürfen noch fehlen; ein ruhiges Konto ist kein Problem
+    calm = finanzguru.compare(db, {"rows": rows_matching() + [fg("2026-11-30", -1, "Frisch")]}, today=date(2026, 12, 1))
+    assert calm["accounts"][0]["problems"] == [] and calm["ready"]
     assert client.post("/api/import/finanzguru/compare", json={"token": "gibtsnicht"}).status_code == 400
