@@ -15,12 +15,12 @@ class MorePage extends StatefulWidget {
     super.key,
   });
 
-  /// Fingerprint lock of the app; the switch is hidden without it.
+  /// Fingerabdrucksperre der App; ohne sie ist der Schalter ausgeblendet.
   final AppLock? appLock;
 
   final MobileConnectionController controller;
 
-  /// Present in release builds on Android; shows the update switch.
+  /// Vorhanden in Release-Builds auf Android; zeigt den Update-Schalter.
   final UpdateChecker? updates;
 
   @override
@@ -48,8 +48,8 @@ class _MorePageState extends State<MorePage> {
     });
   }
 
-  /// Turning the lock on or off needs the fingerprint, so nobody else can
-  /// change it on an unlocked phone.
+  /// Das Ein- und Ausschalten der Sperre braucht den Fingerabdruck, damit sie niemand
+  /// anderes auf einem entsperrten Handy ändern kann.
   Future<void> _setLock(bool value) async {
     final lock = widget.appLock;
     if (lock == null) return;

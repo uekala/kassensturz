@@ -46,7 +46,7 @@ String _span(Map<String, dynamic> project) {
   return '$count ${count == 1 ? 'Buchung' : 'Buchungen'}, $when';
 }
 
-/// Projects with their total costs. Opens one with a tap.
+/// Projekte mit ihren Gesamtkosten. Ein Tippen öffnet eines.
 class ProjectsPage extends StatefulWidget {
   const ProjectsPage({required this.controller, super.key});
 
@@ -181,7 +181,7 @@ class _ProjectRow extends StatelessWidget {
   }
 }
 
-/// One project: total, frame, costs by category and month, bookings.
+/// Ein Projekt: Summe, Rahmen, Kosten nach Kategorie und Monat, Buchungen.
 class ProjectDetailPage extends StatefulWidget {
   const ProjectDetailPage({
     required this.controller,

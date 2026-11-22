@@ -20,8 +20,8 @@ class MobileSession {
   final DateTime accessExpiresAt;
   final DateTime refreshExpiresAt;
 
-  /// Accept only an HTTPS origin. Credentials, query strings and URL paths
-  /// are rejected so secrets can never accidentally be embedded in a URL.
+  /// Nur einen HTTPS-Ursprung akzeptieren. Zugangsdaten, Query-Strings und URL-Pfade
+  /// werden abgelehnt, damit Geheimnisse nie versehentlich in einer URL landen.
   static String normalizeServerUrl(String value) {
     final uri = Uri.tryParse(value.trim());
     if (uri == null ||

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../networking/mobile_connection_controller.dart';
 
-/// Switches the transactions and the analysis between everything this person
-/// sees, only their own accounts and only the shared ones of the household.
+/// Schaltet Umsätze und Auswertung um zwischen allem, was diese Person sieht,
+/// nur ihren eigenen Konten und nur den gemeinsamen des Haushalts.
 class PartFilter extends StatelessWidget {
   const PartFilter({required this.controller, super.key});
 

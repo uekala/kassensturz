@@ -1,7 +1,7 @@
 import 'mobile_api_client.dart';
 
-/// Turns any failure of a server call into one sentence the user can act on.
-/// Never includes tokens, addresses with credentials or response bodies.
+/// Macht aus jedem Fehler eines Serveraufrufs einen Satz, mit dem der Nutzer etwas anfangen kann.
+/// Enthält nie Tokens, Adressen mit Zugangsdaten oder Antwortinhalte.
 String describeMobileError(Object error) {
   if (error is MobileSessionExpiredException) {
     return 'Dieses Gerät ist nicht mehr angemeldet. '
@@ -53,6 +53,6 @@ String describeMobileError(Object error) {
       'Prüfe Adresse und VPN-Verbindung.';
 }
 
-/// Whether the failure means the server could not be reached at all, as
-/// opposed to the server answering with an error.
+/// Ob der Fehler bedeutet, dass der Server gar nicht erreichbar war, im
+/// Gegensatz zu einem Server, der mit einem Fehler antwortet.
 bool isConnectivityFailure(Object error) => error is MobileNetworkException;

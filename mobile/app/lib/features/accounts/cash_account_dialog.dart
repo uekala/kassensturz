@@ -4,8 +4,8 @@ import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 
-/// Asks for a name and an optional balance and creates a cash account on the
-/// server. Completes with true once the account exists.
+/// Fragt nach einem Namen und einem optionalen Saldo und legt ein Bargeldkonto auf dem
+/// Server an. Endet mit true, sobald das Konto existiert.
 Future<bool> showCashAccountDialog(
   BuildContext context,
   MobileConnectionController controller,

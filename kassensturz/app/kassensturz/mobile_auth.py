@@ -1,8 +1,8 @@
-"""Secure device pairing and session lifecycle for the local mobile API.
+"""Sichere Gerätekopplung und Lebenszyklus der Sitzungen für die lokale API der Handy-App.
 
-This module deliberately contains no HTTP routes. A listener must not be enabled
-until transport security, rate limiting, administration authorization and the
-complete mobile DTO boundary are implemented and tested.
+Dieses Modul enthält absichtlich keine HTTP-Routen. Ein Listener darf erst eingeschaltet
+werden, wenn Transportsicherheit, Ratenbegrenzung, Berechtigung der Verwaltung und die
+vollständige DTO-Grenze der Handy-App umgesetzt und getestet sind.
 """
 from __future__ import annotations
 
@@ -18,32 +18,32 @@ from .db import Database
 PAIRING_TTL = timedelta(minutes=5)
 ACCESS_TTL = timedelta(minutes=10)
 REFRESH_TTL = timedelta(days=30)
-# A client whose refresh response got lost (connection drop) may present the
-# just-replaced refresh token exactly once more within this window, counted
-# from the first replacement, as long as the successor token was never used.
-# The window equals the lifetime of the access token that was lost with it.
+# Ein Client, dessen Antwort auf das Erneuern verloren ging (Verbindungsabbruch), darf das
+# gerade ersetzte Refresh-Token innerhalb dieses Zeitfensters genau einmal erneut vorlegen,
+# gezählt ab dem ersten Ersetzen, solange das Nachfolge-Token nie genutzt wurde.
+# Das Fenster entspricht der Lebensdauer des Access-Tokens, das mit ihm verloren ging.
 REFRESH_RETRY_GRACE = ACCESS_TTL
-# Expired token rows are kept this long (so a late reuse is still recognised
-# as "expired" rather than "unknown") and then deleted on the next rotation.
+# Abgelaufene Token-Zeilen bleiben so lange erhalten (damit eine späte Wiederverwendung noch
+# als „abgelaufen“ statt „unbekannt“ erkannt wird) und werden bei der nächsten Rotation gelöscht.
 EXPIRED_TOKEN_RETENTION = timedelta(days=1)
 MAX_ACTIVE_PAIRINGS = 3
 MAX_DEVICE_NAME_LENGTH = 64
 
 
 class MobileAuthError(Exception):
-    """Base class for errors safe to map to generic API responses."""
+    """Basisklasse für Fehler, die sich gefahrlos auf allgemeine API-Antworten abbilden lassen."""
 
 
 class PairingRejected(MobileAuthError):
-    """A pairing secret was unknown, expired or already consumed."""
+    """Ein Kopplungsgeheimnis war unbekannt, abgelaufen oder schon verbraucht."""
 
 
 class PairingLimitReached(MobileAuthError):
-    """Too many unconsumed pairing secrets are already active."""
+    """Es sind schon zu viele unverbrauchte Kopplungsgeheimnisse aktiv."""
 
 
 class InvalidCredential(MobileAuthError):
-    """A token is invalid, expired, revoked or belongs to a revoked device."""
+    """Ein Token ist ungültig, abgelaufen, widerrufen oder gehört zu einem widerrufenen Gerät."""
 
 
 class RefreshReplayDetected(InvalidCredential):
@@ -116,9 +116,9 @@ class MobileAuthService:
         return _utc(self._clock())
 
     def create_pairing(self, person_id: int | None = None) -> dict:
-        """Create a five-minute pairing secret; the raw value is returned once.
+        """Ein Kopplungsgeheimnis für fünf Minuten erzeugen; der rohe Wert kommt einmal zurück.
 
-        The device that redeems it is assigned to ``person_id``.
+        Das Gerät, das es einlöst, wird ``person_id`` zugeordnet.
         """
         now = self._now()
         created_at = _stamp(now)
@@ -207,7 +207,7 @@ class MobileAuthService:
         }
 
     def authenticate_access_token(self, access_token: str) -> MobileDevice:
-        """Validate a bearer token and update the device's last-used timestamp."""
+        """Ein Bearer-Token prüfen und den Zeitstempel der letzten Nutzung des Geräts aktualisieren."""
         try:
             token_hash = _typed_hash("access", access_token)
         except ValueError as exc:
@@ -243,16 +243,16 @@ class MobileAuthService:
             return MobileDevice(id=row["device_id"], name=row["name"], person_id=row["person_id"])
 
     def rotate_refresh_token(self, refresh_token: str) -> dict:
-        """Rotate a refresh token.
+        """Ein Refresh-Token rotieren.
 
-        A replaced token may be presented exactly once more within
-        ``REFRESH_RETRY_GRACE`` of its first replacement, and only while the
-        successor is unused: that is a client whose response got lost. The
-        unused successor is retired and chained to the new token. Every other
-        reuse revokes the device with all its tokens – a further presentation
-        of the replaced token, a presentation after the window, and any
-        presentation of a successor that was retired by a retry (two parties
-        then hold tokens of the same device).
+        Ein ersetztes Token darf innerhalb von ``REFRESH_RETRY_GRACE`` nach seinem ersten
+        Ersetzen genau einmal erneut vorgelegt werden, und nur, solange der Nachfolger
+        ungenutzt ist: Das ist ein Client, dessen Antwort verloren ging. Der ungenutzte
+        Nachfolger wird stillgelegt und mit dem neuen Token verkettet. Jede andere
+        Wiederverwendung widerruft das Gerät mit allen seinen Tokens – ein weiteres Vorlegen
+        des ersetzten Tokens, ein Vorlegen nach dem Fenster und jedes Vorlegen eines durch
+        einen Wiederholversuch stillgelegten Nachfolgers (dann halten zwei Parteien Tokens
+        desselben Geräts).
         """
         try:
             old_hash = _typed_hash("refresh", refresh_token)
@@ -280,9 +280,9 @@ class MobileAuthService:
                 raise InvalidCredential("Authentication required.")
 
             if row["revoked_at"] is not None:
-                # Tokens are only revoked individually when a retry retires an
-                # unused successor; that successor is chained to its
-                # replacement. Seeing it here means a second party holds it.
+                # Tokens werden nur einzeln widerrufen, wenn ein Wiederholversuch einen
+                # ungenutzten Nachfolger stilllegt; dieser Nachfolger ist mit seinem
+                # Ersatz verkettet. Taucht er hier auf, hält ihn eine zweite Partei.
                 if row["replaced_by_hash"] is None:
                     raise InvalidCredential("Authentication required.")
                 self._revoke_device_in_tx(row["device_id"], now_text)
@@ -303,17 +303,17 @@ class MobileAuthService:
                     and _parse_stamp(row["expires_at"]) > now
                 )
                 if not lost_response_retry:
-                    # Commit the revocation before raising the replay error.
+                    # Den Widerruf festschreiben, bevor der Fehler zur Wiederverwendung geworfen wird.
                     self._revoke_device_in_tx(row["device_id"], now_text)
                     replay_detected = True
                 else:
                     access_token = _opaque_secret()
                     new_refresh_token = _opaque_secret()
                     new_refresh_hash = _typed_hash("refresh", new_refresh_token)
-                    # Retire the pair that never reached the client. The
-                    # replaced token keeps pointing at this retired successor,
-                    # so a further presentation finds it used up: the retry
-                    # works once and cannot move the window.
+                    # Das Paar stilllegen, das den Client nie erreicht hat. Das
+                    # ersetzte Token zeigt weiter auf diesen stillgelegten Nachfolger,
+                    # ein weiteres Vorlegen findet ihn also verbraucht: Der Wiederholversuch
+                    # funktioniert einmal und kann das Fenster nicht verschieben.
                     self._db.execute(
                         "UPDATE mobile_tokens SET revoked_at = ? "
                         "WHERE device_id = ? AND token_type = 'access' "
@@ -379,14 +379,14 @@ class MobileAuthService:
         )
 
     def _purge_expired_tokens(self, now: datetime) -> None:
-        """Drop token rows that expired longer ago than the retention period."""
+        """Token-Zeilen löschen, die länger als die Aufbewahrungsfrist abgelaufen sind."""
         self._db.execute(
             "DELETE FROM mobile_tokens WHERE expires_at < ?",
             (_stamp(now - EXPIRED_TOKEN_RETENTION),),
         )
 
     def revoke_device(self, device_id: str) -> bool:
-        """Revoke a device and all of its credentials in one transaction."""
+        """Ein Gerät und alle seine Zugangsdaten in einer Transaktion widerrufen."""
         now_text = _stamp(self._now())
         with self._db.tx(immediate=True):
             device = self._db.one(
@@ -409,7 +409,7 @@ class MobileAuthService:
         return True
 
     def list_devices(self) -> list[dict]:
-        """Return device metadata only; credential material is never included."""
+        """Nur Metadaten der Geräte zurückgeben; Zugangsdaten sind nie enthalten."""
         return self._db.query(
             "SELECT id, name, created_at, last_used_at, revoked_at, person_id "
             "FROM mobile_devices ORDER BY created_at DESC, id ASC"

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 
-/// The project of a transaction, with a picker to change it. Shows nothing
-/// while there are no projects.
+/// Das Projekt eines Umsatzes, mit einer Auswahl zum Ändern. Zeigt nichts,
+/// solange es keine Projekte gibt.
 class ProjectSection extends StatefulWidget {
   const ProjectSection({
     required this.controller,

@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile
     image: local/kassensturz:standalone
     container_name: kassensturz
-    # Linux host networking lets the application bind to the host loopback only.
-    # Do not add a ports mapping or change KASSENSTURZ_HOST to 0.0.0.0.
+    # Host-Networking unter Linux lässt die Anwendung nur an das Loopback des Hosts binden.
+    # Kein Ports-Mapping ergänzen und KASSENSTURZ_HOST nicht auf 0.0.0.0 ändern.
     network_mode: host
     user: "${PUID:-1000}:${PGID:-1000}"
     environment:

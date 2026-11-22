@@ -15,6 +15,6 @@ if __name__ == "__main__":
     uvicorn.run("kassensturz.main:app", host=os.environ.get("KASSENSTURZ_HOST", "0.0.0.0"),
                 port=int(os.environ.get("KASSENSTURZ_PORT", "8099")),
                 log_level="warning", proxy_headers=False,
-                # Below the Supervisor's default stop timeout of 10 seconds, so a
-                # cold backup never has to kill the app mid-write.
+                # Unter dem Standard-Stopp-Timeout des Supervisors von 10 Sekunden, damit eine
+                # kalte Sicherung die App nie mitten im Schreiben beenden muss.
                 timeout_graceful_shutdown=5)

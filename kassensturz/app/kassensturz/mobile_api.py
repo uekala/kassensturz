@@ -1,8 +1,8 @@
-"""HTTP routes for the versioned, device-authenticated mobile API.
+"""HTTP-Routen der versionierten, per Gerät angemeldeten API für die Handy-App.
 
-Administrative pairing/device-management routes are restricted to the
-Home Assistant Ingress peer or loopback. Mobile routes require a valid device
-credential. Transport and network admission are enforced by main middleware.
+Verwaltungsrouten für Kopplung und Geräte sind auf die Ingress-Gegenstelle von
+Home Assistant oder Loopback beschränkt. Routen der Handy-App verlangen gültige
+Gerätezugangsdaten. Transport und Netzzulassung setzt die Middleware in main durch.
 """
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ CAPABILITIES = (
     # Monatsbericht und Jahresrückblick als PDF
     "report",
 )
-# What the phone of a child gets: reading its own account, nothing that writes.
+# Was das Handy eines Kindes bekommt: sein eigenes Konto lesen, nichts, was schreibt.
 CHILD_CAPABILITIES = ("overview", "transactions", "accounts", "categories", "transactions.search", "stats", "goals",
                       "news", "networth", "household")
 INGRESS_IP = "172.30.32.2"
@@ -142,7 +142,7 @@ def _configured_mobile_server_url() -> str | None:
 
 
 def _pairing_qr_svg_base64(payload: str) -> str:
-    """Create a self-contained SVG QR image without any external service."""
+    """Ein eigenständiges SVG-QR-Bild ohne fremden Dienst erzeugen."""
     code = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -165,18 +165,18 @@ async def _json_object(request: Request) -> dict[str, Any] | None:
 
 
 def _local_admin_allowed(request: Request) -> bool:
-    """Require an identified, admin-only HA Ingress session or local access."""
+    """Eine identifizierte, nur für Admins geltende HA-Ingress-Sitzung oder lokalen Zugriff verlangen."""
     peer = socket_peer(request)
-    # A trusted reverse proxy may itself connect over loopback. Do not mistake
-    # a tailnet-proxied request for a local HA administrator session.
+    # Ein vertrauenswürdiger Reverse-Proxy kann sich selbst über Loopback verbinden. Eine über das
+    # Tailnet weitergeleitete Anfrage nicht für eine lokale Admin-Sitzung von HA halten.
     if address_in_networks(peer, TRUSTED_PROXY_NETWORKS):
         return False
     if peer is None:
         return False
     if peer.compressed == INGRESS_IP:
-        # The Supervisor strips untrusted copies of these headers and sets
-        # X-Remote-User-Id for the authenticated Ingress session. The add-on
-        # also declares panel_admin: true so only HA administrators get one.
+        # Der Supervisor entfernt nicht vertrauenswürdige Kopien dieser Header und setzt
+        # X-Remote-User-Id für die angemeldete Ingress-Sitzung. Das Add-on deklariert
+        # außerdem panel_admin: true, sodass nur Admins von HA eine bekommen.
         user_id = request.headers.get("x-remote-user-id", "").strip()
         return bool(user_id)
     return peer.is_loopback
@@ -214,7 +214,7 @@ def _note_tx(tx_id: int, what: str) -> None:
 
 
 def _view(device):
-    """What this device may read: its person's accounts and the shared ones."""
+    """Was dieses Gerät lesen darf: die Konten seiner Person und die gemeinsamen."""
     return household.view(get_db(), device.person_id)
 
 
@@ -266,7 +266,7 @@ def _authenticated_device(request: Request):
             "Anmeldung erforderlich.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    # The phone of a child only reads. Signing out and marking news as seen stay possible.
+    # Das Handy eines Kindes liest nur. Abmelden und Neuigkeiten als gesehen markieren bleiben möglich.
     if (request.method.upper() != "GET" and request.url.path not in READ_ONLY_ALLOWED
             and household.is_child(get_db(), device.person_id)):
         return _error(403, "read_only", "Mit diesem Handy lässt sich nichts ändern.")
@@ -276,7 +276,7 @@ def _authenticated_device(request: Request):
 
 @router.post("/api/mobile/pairings")
 async def create_pairing(request: Request):
-    """Create a one-time pairing secret from the trusted local administration."""
+    """Ein einmaliges Kopplungsgeheimnis aus der vertrauenswürdigen lokalen Verwaltung erzeugen."""
     if not _local_admin_allowed(request):
         return _error(403, "forbidden", "Nur lokal über die Administration erlaubt.")
 
@@ -319,7 +319,7 @@ async def create_pairing(request: Request):
         )
         response["qr_svg_base64"] = _pairing_qr_svg_base64(qr_payload)
 
-    # This is the only response that contains the raw pairing secret.
+    # Das ist die einzige Antwort, die das rohe Kopplungsgeheimnis enthält.
     return JSONResponse(
         response,
         status_code=201,
@@ -329,7 +329,7 @@ async def create_pairing(request: Request):
 
 @router.get("/api/mobile/devices")
 def list_devices(request: Request):
-    """List device metadata only; never reveal token hashes or credentials."""
+    """Nur Metadaten der Geräte auflisten; nie Token-Hashes oder Zugangsdaten preisgeben."""
     if not _local_admin_allowed(request):
         return _error(403, "forbidden", "Nur lokal über die Administration erlaubt.")
     return {"items": _auth_service().list_devices()}
@@ -337,7 +337,7 @@ def list_devices(request: Request):
 
 @router.delete("/api/mobile/devices/{device_id}")
 def revoke_device(device_id: str, request: Request):
-    """Revoke one device from the trusted local administration."""
+    """Ein Gerät aus der vertrauenswürdigen lokalen Verwaltung widerrufen."""
     if not _local_admin_allowed(request):
         return _error(403, "forbidden", "Nur lokal über die Administration erlaubt.")
     if not device_id or len(device_id) > 128:
@@ -350,7 +350,7 @@ def revoke_device(device_id: str, request: Request):
 
 @router.patch("/api/mobile/devices/{device_id}")
 async def assign_device(device_id: str, request: Request):
-    """Assign a paired device to a person of the household, or to nobody."""
+    """Ein gekoppeltes Gerät einer Person des Haushalts zuordnen oder niemandem."""
     if not _local_admin_allowed(request):
         return _error(403, "forbidden", "Nur lokal über die Administration erlaubt.")
     payload = await _json_object(request)
@@ -378,7 +378,7 @@ def mobile_health():
 
 @router.post("/api/v1/pair")
 async def redeem_pairing(request: Request):
-    """Redeem a one-time pairing secret and issue device credentials."""
+    """Ein einmaliges Kopplungsgeheimnis einlösen und Gerätezugangsdaten ausgeben."""
     payload = await _json_object(request)
     if payload is None:
         return _error(400, "invalid_request", "Ungültige Anfrage.")
@@ -403,7 +403,7 @@ async def redeem_pairing(request: Request):
 
 @router.post("/api/v1/auth/refresh")
 async def refresh_session(request: Request):
-    """Rotate the refresh token and issue a fresh access/refresh pair."""
+    """Das Refresh-Token rotieren und ein neues Paar aus Access- und Refresh-Token ausgeben."""
     payload = await _json_object(request)
     refresh_token = payload.get("refresh_token") if payload is not None else None
     if not isinstance(refresh_token, str) or not 43 <= len(refresh_token) <= MAX_TOKEN_LENGTH:
@@ -424,7 +424,7 @@ async def refresh_session(request: Request):
 
 @router.post("/api/v1/auth/logout")
 def logout(request: Request):
-    """Revoke every credential belonging to the authenticated device."""
+    """Alle Zugangsdaten des angemeldeten Geräts widerrufen."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -434,7 +434,7 @@ def logout(request: Request):
 
 @router.get("/api/v1/me")
 def me(request: Request):
-    """Return the authenticated device and non-sensitive server capabilities."""
+    """Das angemeldete Gerät und unbedenkliche Fähigkeiten des Servers zurückgeben."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -449,17 +449,17 @@ def me(request: Request):
 
 @router.get("/api/v1/overview")
 def overview(request: Request):
-    """Return the allowlisted financial overview for the authenticated device."""
+    """Die Finanzübersicht mit erlaubten Feldern für das angemeldete Gerät zurückgeben."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
     result = mobile_read.get_overview(get_db(), view=_view(device))
     result["household"] = household.profile(get_db(), device.person_id)
     result["household"]["balances"] = sharing.for_person(get_db(), device.person_id)
-    # Budgets that only count this person's own accounts; "budgets" are the household's.
+    # Budgets, die nur die eigenen Konten dieser Person zählen; "budgets" sind die des Haushalts.
     result["own_budgets"] = mobile_read.budget_items(household.own_budgets(get_db(), device.person_id))
     if result["household"]["read_only"]:
-        # A child sees its own money only: what the household spends against its budgets stays with the adults.
+        # Ein Kind sieht nur sein eigenes Geld: was der Haushalt gegen seine Budgets ausgibt, bleibt bei den Erwachsenen.
         result["budgets"] = []
     return result
 
@@ -510,7 +510,7 @@ def _transaction_id(value: str) -> int | None:
 
 @router.get("/api/v1/stats")
 def stats(request: Request, month: str | None = Query(default=None), part: str | None = Query(default=None)):
-    """Return category spending, monthly totals and the balance curve."""
+    """Ausgaben nach Kategorie, Monatssummen und Saldoverlauf zurückgeben."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -525,7 +525,7 @@ def stats(request: Request, month: str | None = Query(default=None), part: str |
 
 @router.get("/api/v1/year")
 def year_review(request: Request, year: str | None = Query(default=None), part: str | None = Query(default=None)):
-    """Return the year in review, compared with the year before."""
+    """Den Jahresrückblick zurückgeben, verglichen mit dem Vorjahr."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -572,7 +572,7 @@ def report_pdf(request: Request, kind: str, period: str | None = Query(default=N
 
 @router.get("/api/v1/afford")
 def afford(request: Request, amount_cents: int = Query(default=0)):
-    """Say what a purchase of this amount would mean until the next salary."""
+    """Sagen, was ein Kauf in dieser Höhe bis zum nächsten Gehalt bedeuten würde."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -584,7 +584,7 @@ def afford(request: Request, amount_cents: int = Query(default=0)):
 
 @router.get("/api/v1/accounts")
 def accounts(request: Request):
-    """Return active accounts with balances and whether manual entries are allowed."""
+    """Aktive Konten mit Salden zurückgeben und ob manuelle Einträge erlaubt sind."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -592,7 +592,7 @@ def accounts(request: Request):
 
 
 def _sync_for(device, state: dict) -> dict:
-    """The fetch state for this phone. A child's phone gets neither renewals nor the bank's questions."""
+    """Der Abrufzustand für dieses Handy. Das Handy eines Kindes bekommt weder Verlängerungen noch die Rückfragen der Bank."""
     adult = not household.is_child(get_db(), device.person_id)
     out = _sync_public(state, renew=adult)
     out["question"] = banksync.question() if adult else None
@@ -600,8 +600,8 @@ def _sync_for(device, state: dict) -> dict:
 
 
 def _sync_public(state: dict, renew: bool = False) -> dict:
-    """Bank names and times only. ``renew`` is the local number of a consent
-    that may be renewed from this phone; never the session at the bank."""
+    """Nur Banknamen und Zeiten. ``renew`` ist die lokale Nummer einer Einwilligung, die von
+    diesem Handy aus verlängert werden darf; nie die Sitzung bei der Bank."""
     return {
         "sources": [
             {"name": s["name"], "last_sync": s["last_sync"], "state": s["state"], "days_left": s["days_left"],
@@ -627,9 +627,9 @@ def sync_status(request: Request):
 
 @router.post("/api/v1/sync/answer")
 async def sync_answer(request: Request):
-    """Answer the bank's question of a running fetch: a TAN, a choice, or "approved in the banking app".
+    """Die Rückfrage der Bank bei einem laufenden Abruf beantworten: eine TAN, eine Auswahl oder „in der Banking-App freigegeben“.
 
-    ``qid`` names the exact question; an answer to one that is no longer open is refused."""
+    ``qid`` nennt die genaue Rückfrage; eine Antwort auf eine, die nicht mehr offen ist, wird abgelehnt."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -657,7 +657,7 @@ def _psu(request: Request) -> dict:
 
 @router.post("/api/v1/banks/renew")
 async def bank_renew_start(request: Request):
-    """Start renewing an expiring consent. Returns the bank's page to open; nothing changes yet."""
+    """Das Verlängern einer ablaufenden Einwilligung beginnen. Gibt die zu öffnende Seite der Bank zurück; noch ändert sich nichts."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -678,10 +678,10 @@ async def bank_renew_start(request: Request):
 
 @router.post("/api/v1/banks/renew/complete")
 async def bank_renew_complete(request: Request):
-    """Finish a renewal with the address the bank sent the browser back to.
+    """Eine Verlängerung mit der Adresse abschließen, an die die Bank den Browser zurückgeschickt hat.
 
-    Only a renewal started above is accepted, never a new bank. No fetch is
-    started here: the next regular one uses the new consent."""
+    Nur eine oben begonnene Verlängerung wird angenommen, nie eine neue Bank. Hier beginnt
+    kein Abruf: Der nächste reguläre nutzt die neue Einwilligung."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -703,9 +703,9 @@ async def bank_renew_complete(request: Request):
 
 @router.post("/api/v1/sync")
 async def sync_start(request: Request):
-    """Fetch new transactions from all banks that work without further input.
+    """Neue Umsätze von allen Banken abrufen, die ohne weitere Eingabe funktionieren.
 
-    With ``{"interactive": true}`` a bank may ask back (TAN and the like); the app answers above."""
+    Mit ``{"interactive": true}`` darf eine Bank zurückfragen (TAN und Ähnliches); die App antwortet oben."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -721,7 +721,7 @@ async def sync_start(request: Request):
 
 @router.post("/api/v1/accounts")
 async def create_account(request: Request):
-    """Create a cash account, the only kind the app may add."""
+    """Ein Bargeldkonto anlegen, die einzige Art, die die App hinzufügen darf."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -738,7 +738,7 @@ async def create_account(request: Request):
 
 @router.put("/api/v1/accounts/{account_id}/value")
 async def set_account_value(account_id: str, request: Request):
-    """Enter today's value of a deposit or the remaining debt of a loan the person sees."""
+    """Den heutigen Wert einer Geldanlage oder die Restschuld eines Kredits eintragen, den die Person sieht."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -761,13 +761,13 @@ async def set_account_value(account_id: str, request: Request):
 
 @router.get("/api/v1/categories")
 def categories(request: Request):
-    """Return the category tree for pickers and filters."""
+    """Den Kategoriebaum für Auswahllisten und Filter zurückgeben."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
     result = mobile_write.list_categories(_view(device))
     if household.is_child(get_db(), device.person_id):
-        # Names are needed to label the child's own transactions; the household's limits are not.
+        # Namen sind nötig, um die eigenen Umsätze des Kindes zu beschriften; die Grenzen des Haushalts nicht.
         for item in result["items"]:
             item["budget_cents"] = None
     return result
@@ -784,7 +784,7 @@ def contracts_list(request: Request):
 
 @router.post("/api/v1/transactions")
 async def create_transaction(request: Request):
-    """Create one manual transaction; a repeated request id is not booked twice."""
+    """Einen manuellen Umsatz anlegen; eine wiederholte Anfrage-ID wird nicht doppelt gebucht."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -814,7 +814,7 @@ async def create_transaction(request: Request):
 
 @router.patch("/api/v1/transactions/{tx_id}")
 async def update_transaction(tx_id: str, request: Request):
-    """Change category/note of any transaction or all fields of a manual one."""
+    """Kategorie/Notiz eines beliebigen Umsatzes oder alle Felder eines manuellen ändern."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -842,7 +842,7 @@ async def update_transaction(tx_id: str, request: Request):
 
 @router.delete("/api/v1/transactions/{tx_id}")
 def delete_transaction(tx_id: str, request: Request):
-    """Delete one manually created transaction. Bank transactions are refused."""
+    """Einen von Hand angelegten Umsatz löschen. Bankumsätze werden abgelehnt."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -880,7 +880,7 @@ def list_receipts(tx_id: str, request: Request):
 
 @router.post("/api/v1/transactions/{tx_id}/receipts")
 async def add_receipt(tx_id: str, request: Request, filename: str = Query(default="", max_length=200)):
-    """Attach one photo or PDF. The body is the raw file."""
+    """Ein Foto oder PDF anhängen. Der Inhalt der Anfrage ist die rohe Datei."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -890,7 +890,7 @@ async def add_receipt(tx_id: str, request: Request, filename: str = Query(defaul
     declared = request.headers.get("content-length", "")
     if declared.isdigit() and int(declared) > papers.MAX_RECEIPT_BYTES:
         return _error(413, "too_large", "Die Datei ist größer als 10 MB.")
-    # Stop reading once the limit is exceeded instead of buffering an arbitrarily large body.
+    # Mit dem Lesen aufhören, sobald die Grenze überschritten ist, statt einen beliebig großen Inhalt zu puffern.
     data = bytearray()
     async for chunk in request.stream():
         data.extend(chunk)
@@ -946,7 +946,7 @@ def _sharing_error(error: sharing.SharingError) -> JSONResponse:
 
 
 def _own_payment(device, tx_id: int) -> bool:
-    """Only the person whose account paid may share a transaction or take that back."""
+    """Nur die Person, deren Konto bezahlt hat, darf einen Umsatz teilen oder das zurücknehmen."""
     db = get_db()
     if device.person_id is None or not household.sees_transaction(db, device.person_id, tx_id):
         return False
@@ -957,7 +957,7 @@ def _own_payment(device, tx_id: int) -> bool:
 
 @router.get("/api/v1/household/sharing")
 def household_sharing(request: Request):
-    """Shared expenses this person is part of, what is open, and settlements."""
+    """Geteilte Ausgaben, an denen diese Person beteiligt ist, was offen ist, und Ausgleiche."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -967,7 +967,7 @@ def household_sharing(request: Request):
     return {
         **sharing.overview(db, device.person_id),
         "open": sharing.for_person(db, device.person_id),
-        # Names only, to pick whom a settlement went to.
+        # Nur Namen, um auszuwählen, an wen ein Ausgleich ging.
         "persons": [{"id": p["id"], "name": p["name"]} for p in household.list_persons(db)],
     }
 
@@ -988,7 +988,7 @@ def transaction_share(tx_id: str, request: Request):
 
 @router.put("/api/v1/transactions/{tx_id}/share")
 async def share_transaction(tx_id: str, request: Request):
-    """Share an expense paid from the person's own account with the household."""
+    """Eine vom eigenen Konto der Person bezahlte Ausgabe mit dem Haushalt teilen."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1024,7 +1024,7 @@ def unshare_transaction(tx_id: str, request: Request):
 
 @router.post("/api/v1/household/settlements")
 async def add_settlement(request: Request):
-    """Record that this person has paid another one back."""
+    """Festhalten, dass diese Person einer anderen etwas zurückgezahlt hat."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1041,7 +1041,7 @@ async def add_settlement(request: Request):
 
 @router.get("/api/v1/networth")
 def net_worth_history(request: Request):
-    """Net worth at the end of the last months and today."""
+    """Vermögen am Ende der letzten Monate und heute."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1050,7 +1050,7 @@ def net_worth_history(request: Request):
 
 @router.get("/api/v1/news")
 def news(request: Request):
-    """New transactions since this device last marked them as read."""
+    """Neue Umsätze, seit dieses Gerät sie zuletzt als gelesen markiert hat."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1070,7 +1070,7 @@ def news_seen(request: Request):
 
 @router.get("/api/v1/papers")
 def papers_overview(request: Request, year: str | None = Query(default=None)):
-    """Tax overview of one year and running warranties."""
+    """Steuerübersicht eines Jahres und laufende Garantien."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1081,7 +1081,7 @@ def papers_overview(request: Request, year: str | None = Query(default=None)):
 
 @router.get("/api/v1/triage")
 def triage(request: Request, limit: str | None = Query(default=None)):
-    """Transactions nobody has put into a real category yet, largest first."""
+    """Umsätze, die noch niemand in eine echte Kategorie gelegt hat, die größten zuerst."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1093,7 +1093,7 @@ def triage(request: Request, limit: str | None = Query(default=None)):
 
 @router.get("/api/v1/budgets/suggestions")
 def budget_suggestions(request: Request):
-    """Budgets derived from the spending of the last full months."""
+    """Aus den Ausgaben der letzten vollen Monate abgeleitete Budgets."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1119,7 +1119,7 @@ def _plan_error(error) -> JSONResponse:
 
 @router.post("/api/v1/alerts/ack")
 async def acknowledge_alert(request: Request):
-    """Mark an anomaly the person can see as checked; it no longer shows."""
+    """Eine Auffälligkeit, die die Person sehen kann, als geprüft markieren; sie erscheint nicht mehr."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1137,7 +1137,7 @@ async def acknowledge_alert(request: Request):
 
 @router.post("/api/v1/planned")
 async def create_planned(request: Request):
-    """Plan a one-off expense on an account the person sees."""
+    """Eine einmalige Ausgabe auf einem Konto planen, das die Person sieht."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1159,7 +1159,7 @@ async def create_planned(request: Request):
 
 @router.post("/api/v1/planned/{item_id}/{action}")
 def settle_planned(item_id: str, action: str, request: Request):
-    """Tick a planned expense off as paid, or drop it."""
+    """Eine geplante Ausgabe als bezahlt abhaken oder streichen."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1179,7 +1179,7 @@ def settle_planned(item_id: str, action: str, request: Request):
 
 @router.post("/api/v1/expected")
 async def create_expected(request: Request):
-    """Note that money comes back for an expense the person sees."""
+    """Festhalten, dass für eine Ausgabe, die die Person sieht, Geld zurückkommt."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1201,7 +1201,7 @@ async def create_expected(request: Request):
 
 @router.post("/api/v1/expected/{item_id}/{action}")
 def settle_expected(item_id: str, action: str, request: Request):
-    """Tick an expected income off as received, or drop it."""
+    """Eine erwartete Einnahme als erhalten abhaken oder streichen."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1266,7 +1266,7 @@ def _charge_item(c: dict) -> dict:
 
 @router.get("/api/v1/charging")
 def charging_months(request: Request):
-    """Charging per month from Ladecockpit, as far as this person sees the bookings."""
+    """Laden je Monat aus Ladecockpit, soweit diese Person die Buchungen sieht."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1278,7 +1278,7 @@ def charging_months(request: Request):
 
 @router.get("/api/v1/transactions/{tx_id}/charging")
 def transaction_charging(tx_id: str, request: Request):
-    """The charging session a booking paid for, or null."""
+    """Die Ladung, die eine Buchung bezahlt hat, oder null."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1305,7 +1305,7 @@ def transaction_project(tx_id: str, request: Request):
 
 @router.put("/api/v1/transactions/{tx_id}/project")
 async def set_transaction_project(tx_id: str, request: Request):
-    """Put a transaction the person sees into a project, or take it out (null)."""
+    """Einen Umsatz, den die Person sieht, einem Projekt zuordnen oder herausnehmen (null)."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1336,7 +1336,7 @@ _OWN_BUDGET_ROUTES = ("PUT /api/v1/budgets/own/{category_id}", "PUT /api/persons
 
 @router.get("/api/v1/changes")
 def list_changes(request: Request, offset: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=100)):
-    """Who changed what, newest first: only entries about accounts the person sees or about the whole household."""
+    """Wer was geändert hat, das Neueste zuerst: nur Einträge zu Konten, die die Person sieht, oder zum ganzen Haushalt."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1352,7 +1352,7 @@ def list_changes(request: Request, offset: int = Query(default=0, ge=0), limit: 
 
 @router.get("/api/v1/accounts/{account_id}/loan")
 def loan_plan(account_id: str, request: Request, extra_cents: int = Query(default=0)):
-    """Repayment plan of a loan the person sees; with extra_cents, the effect of a special repayment today."""
+    """Tilgungsplan eines Kredits, den die Person sieht; mit extra_cents die Wirkung einer Sondertilgung heute."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1369,7 +1369,7 @@ def loan_plan(account_id: str, request: Request, extra_cents: int = Query(defaul
 
 @router.put("/api/v1/budgets/{category_id}")
 async def set_budget(category_id: str, request: Request):
-    """Set the monthly budget of an expense category; null removes it."""
+    """Das Monatsbudget einer Ausgabenkategorie setzen; null entfernt es."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1397,7 +1397,7 @@ async def set_budget(category_id: str, request: Request):
 
 @router.put("/api/v1/budgets/own/{category_id}")
 async def set_own_budget(category_id: str, request: Request):
-    """Set or remove a budget that only counts this person's own accounts."""
+    """Ein Budget setzen oder entfernen, das nur die eigenen Konten dieser Person zählt."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1419,7 +1419,7 @@ async def set_own_budget(category_id: str, request: Request):
 
 @router.patch("/api/v1/contracts/{key:path}")
 async def update_contract(key: str, request: Request):
-    """Confirm, ignore or cancel a contract, or acknowledge a price change."""
+    """Einen Vertrag bestätigen, ignorieren oder kündigen, oder eine Preisänderung zur Kenntnis nehmen."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device
@@ -1438,7 +1438,7 @@ async def update_contract(key: str, request: Request):
 
 @router.post("/api/v1/contracts/{key:path}/letter")
 async def contract_letter(key: str, request: Request):
-    """Build the cancellation letter; nothing is stored or sent."""
+    """Das Kündigungsschreiben erstellen; nichts wird gespeichert oder gesendet."""
     device = _authenticated_device(request)
     if isinstance(device, Response):
         return device

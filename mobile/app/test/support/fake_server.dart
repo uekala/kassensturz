@@ -27,14 +27,14 @@ MobileBinaryResponse binaryJson(int status, Map<String, dynamic> body) =>
       bytes: utf8.encode(jsonEncode(body)),
     );
 
-/// A transport whose answers are computed per request. The handler may
-/// throw a [MobileNetworkException] to simulate a broken connection.
+/// Ein Transport, dessen Antworten je Anfrage berechnet werden. Der Handler darf
+/// eine [MobileNetworkException] werfen, um eine abgebrochene Verbindung nachzustellen.
 class ScriptedTransport implements MobileTransport, MobileBinaryTransport {
   ScriptedTransport(this.handler, {this.binaryHandler});
 
   final MobileHttpResponse Function(RecordedRequest request) handler;
 
-  /// Answers file requests; without it they get a 404.
+  /// Beantwortet Dateianfragen; ohne ihn bekommen sie ein 404.
   final MobileBinaryResponse Function(RecordedBinaryRequest request)?
   binaryHandler;
   final requests = <RecordedRequest>[];
@@ -143,8 +143,8 @@ const fullCapabilities = [
   'review',
 ];
 
-/// Answers like a Kassensturz server 0.3.0 with one cash account and one
-/// bank account. [capabilities] can be reduced to imitate an older server.
+/// Antwortet wie ein Kassensturz-Server 0.3.0 mit einem Bargeldkonto und einem
+/// Bankkonto. [capabilities] lässt sich kürzen, um einen älteren Server nachzuahmen.
 MobileHttpResponse serverAnswer(
   RecordedRequest request, {
   List<String> capabilities = fullCapabilities,
@@ -348,7 +348,7 @@ MobileHttpResponse serverAnswer(
 Map<String, dynamic> jsonDecodeMap(String body) =>
     Map<String, dynamic>.from(jsonDecode(body) as Map);
 
-/// A store that already holds [testSession].
+/// Ein Speicher, der schon [testSession] enthält.
 class InMemoryStoreHandle {
   InMemoryStoreHandle._(this.store);
 

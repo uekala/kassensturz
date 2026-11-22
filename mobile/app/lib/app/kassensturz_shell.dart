@@ -28,8 +28,8 @@ class KassensturzShell extends StatefulWidget {
 
   final UpdateChecker? updateChecker;
 
-  /// The app shows server data only. Without a connection it asks the user
-  /// to connect; there is no example or device-local data.
+  /// Die App zeigt nur Serverdaten. Ohne Verbindung bittet sie den Nutzer,
+  /// sich zu verbinden; es gibt keine Beispiel- oder Gerätedaten.
   final MobileConnectionController? mobileConnectionController;
 
   @override
@@ -92,7 +92,7 @@ class _KassensturzShellState extends State<KassensturzShell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Returning to the app is the moment to reconnect and show fresh data.
+    // Die Rückkehr in die App ist der Moment, sich neu zu verbinden und frische Daten zu zeigen.
     if (state == AppLifecycleState.resumed) {
       _mobileConnectionController.refreshIfStale();
     }
@@ -145,8 +145,8 @@ class _KassensturzShellState extends State<KassensturzShell>
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// The plus button works from every tab; it explains what is missing
-  /// instead of being hidden.
+  /// Der Plus-Knopf funktioniert auf jedem Tab; er erklärt, was fehlt,
+  /// statt ausgeblendet zu werden.
   Future<void> _addTransaction() async {
     final controller = _mobileConnectionController;
     if (!controller.isConnected) {
@@ -189,7 +189,7 @@ class _KassensturzShellState extends State<KassensturzShell>
     );
   }
 
-  /// Null while everything is fine; the header then shows only a blue dot.
+  /// Null, solange alles in Ordnung ist; der Kopf zeigt dann nur einen blauen Punkt.
   String? _statusLabel() {
     final controller = _mobileConnectionController;
     if (controller.linkState == ServerLinkState.unreachable) {
@@ -199,7 +199,7 @@ class _KassensturzShellState extends State<KassensturzShell>
     return 'NICHT VERBUNDEN';
   }
 
-  /// A hint below the header, shown only when something needs attention.
+  /// Ein Hinweis unter dem Kopf, nur gezeigt, wenn etwas Aufmerksamkeit braucht.
   Widget _notice() {
     final klar = KlarColors.of(context);
     final controller = _mobileConnectionController;
@@ -377,10 +377,10 @@ class _ShellNavigation extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
-  /// False on a child's phone: budgets and contracts are for the adults.
+  /// False auf dem Handy eines Kindes: Budgets und Verträge sind für die Erwachsenen.
   final bool showPlanning;
 
-  /// Null on a read-only phone; the button is then left out.
+  /// Null auf einem Handy nur zum Lesen; der Knopf fällt dann weg.
   final VoidCallback? onAdd;
 
   @override

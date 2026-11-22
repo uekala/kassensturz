@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/design/app_theme.dart';
 
-/// Shown instead of financial data while the app is not paired with a
-/// server. The app keeps no financial data of its own.
+/// Statt Finanzdaten gezeigt, solange die App nicht mit einem Server gekoppelt
+/// ist. Die App führt keine eigenen Finanzdaten.
 class ConnectRequiredPage extends StatelessWidget {
   const ConnectRequiredPage({required this.onOpenSettings, super.key});
 

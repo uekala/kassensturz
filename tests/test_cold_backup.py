@@ -1,9 +1,9 @@
-"""Cold backups: Home Assistant stops the app, archives /data and restores it.
+"""Kalte Sicherungen: Home Assistant stoppt die App, archiviert /data und stellt es wieder her.
 
-The end-to-end test runs the real app (``python -m kassensturz``) like the
-container does, stops it with SIGTERM, archives /data with the add-on's
-``backup_exclude`` rules, restores the archive into an empty /data and compares
-the data. All data is synthetic.
+Der durchgehende Test startet die echte App (``python -m kassensturz``) wie der Container,
+stoppt sie mit SIGTERM, archiviert /data mit den Regeln ``backup_exclude`` des Add-ons,
+stellt das Archiv in ein leeres /data wieder her und vergleicht die Daten. Alle Daten sind
+erfunden.
 """
 
 from __future__ import annotations
@@ -79,7 +79,7 @@ def test_app_shutdown_closes_the_database(db, tmp_path):
         db.conn.execute("SELECT 1")
 
 
-# --- End to end: the real process, SIGTERM, archive, restore ---------------------
+# --- Durchgehend: der echte Prozess, SIGTERM, Archiv, Wiederherstellen ------------------
 
 
 def _free_port() -> int:
@@ -167,7 +167,7 @@ def test_cold_backup_and_restore_keep_the_data(tmp_path):
             body = {"name": name, **({"iban": iban} if iban else {})}
             assert httpx.post(f"{original.url}/api/accounts", json=body, timeout=5).status_code == 200
         expected = original.accounts()
-        # A secret like a stored PIN must not end up in the backup.
+        # Ein Geheimnis wie eine gespeicherte PIN darf nicht in der Sicherung landen.
         (data / "secrets.json").write_text('{"pin": "synthetisch"}', encoding="utf-8")
         (data / "secrets.key").write_bytes(b"x" * 32)
     finally:

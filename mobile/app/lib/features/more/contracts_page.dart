@@ -7,9 +7,9 @@ import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
 import 'contract_sheet.dart';
 
-/// List of the contracts the server detected or the user entered. With a
-/// current server a tap opens details, actions and the cancellation letter.
-/// Loads them when it is first shown.
+/// Liste der Verträge, die der Server erkannt oder der Nutzer eingetragen hat. Mit
+/// einem aktuellen Server öffnet ein Tippen Einzelheiten, Aktionen und das Kündigungsschreiben.
+/// Lädt sie, wenn sie zum ersten Mal gezeigt wird.
 class ContractsView extends StatefulWidget {
   const ContractsView({required this.controller, super.key});
 
@@ -23,7 +23,7 @@ class _ContractsViewState extends State<ContractsView> {
   @override
   void initState() {
     super.initState();
-    // Loading notifies listeners at once; wait until this build is finished.
+    // Das Laden benachrichtigt die Zuhörer sofort; warten, bis dieser Build fertig ist.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.controller.loadContracts();
     });

@@ -930,7 +930,7 @@ select, .input, textarea {
 }
 
 
-/* Responsive Dashboard: two columns only when the app content itself is wide enough. */
+/* Anpassungsfähiges Dashboard: zwei Spalten nur, wenn der Inhalt der App selbst breit genug ist. */
 @media (min-width: 900px) and (max-width: 1319px) {
   .overview,
   .cols {

@@ -6,8 +6,8 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
 
-/// Account kinds that hold a value instead of bookings; nothing is paid
-/// from them.
+/// Kontoarten, die einen Wert statt Buchungen führen; von ihnen wird nichts
+/// bezahlt.
 const _valueKinds = {
   'depot',
   'festgeld',
@@ -17,7 +17,7 @@ const _valueKinds = {
   'taschengeld',
 };
 
-/// Label of an action the server offers on an alert or a plan.
+/// Beschriftung einer Aktion, die der Server an einem Hinweis oder Plan anbietet.
 String planActionLabel(String action, {required bool expense}) =>
     switch (action) {
       'ack' => 'Geprüft',
@@ -27,7 +27,7 @@ String planActionLabel(String action, {required bool expense}) =>
       _ => action,
     };
 
-/// What an alert refers to: (`planned` or `expected`, id), or null.
+/// Worauf sich ein Hinweis bezieht: (`planned` oder `expected`, ID), oder null.
 ({String kind, int id})? planOfAlert(Map<String, dynamic> alert) {
   final key = alert['key']?.toString() ?? '';
   final match = RegExp(r'^(planned|expected)-due:(\d+):').firstMatch(key);
@@ -35,7 +35,7 @@ String planActionLabel(String action, {required bool expense}) =>
   return (kind: match.group(1)!, id: int.parse(match.group(2)!));
 }
 
-/// Runs an action of an alert and tells the person how it went.
+/// Führt eine Aktion eines Hinweises aus und sagt der Person, wie es lief.
 Future<void> runAlertAction(
   BuildContext context,
   MobileConnectionController controller,
@@ -55,7 +55,7 @@ Future<void> runAlertAction(
   messenger.showSnackBar(SnackBar(content: Text(error ?? 'Erledigt')));
 }
 
-/// Open planned expenses and expected incomes, each with its actions.
+/// Offene geplante Ausgaben und erwartete Einnahmen, jede mit ihren Aktionen.
 class PlansSection extends StatelessWidget {
   const PlansSection({
     required this.controller,
@@ -192,7 +192,7 @@ class _PlanRow extends StatelessWidget {
   }
 }
 
-/// Opens the form that plans a one-off expense, optionally with an amount.
+/// Öffnet das Formular, das eine einmalige Ausgabe plant, optional mit Betrag.
 Future<void> showPlanExpenseSheet(
   BuildContext context, {
   required MobileConnectionController controller,
@@ -401,7 +401,7 @@ class _PlanExpenseSheetState extends State<PlanExpenseSheet> {
   }
 }
 
-/// Asks how much comes back for an expense and notes it.
+/// Fragt, wie viel für eine Ausgabe zurückkommt, und hält es fest.
 Future<void> showMoneyBackDialog(
   BuildContext context, {
   required MobileConnectionController controller,

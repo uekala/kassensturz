@@ -38,7 +38,7 @@ def load() -> dict:
 
 
 def network_security_settings() -> dict[str, str]:
-    """Read proxy/client CIDRs from HA app options or standalone environment."""
+    """Proxy- und Client-CIDRs aus den Optionen der HA-App oder der Umgebung im eigenständigen Betrieb lesen."""
     opts = load()
     settings: dict[str, str] = {}
     for option_name, env_name in (
@@ -53,7 +53,7 @@ def network_security_settings() -> dict[str, str]:
 
 
 def cancellation_reminder_days() -> list[int]:
-    """Return configured reminder offsets, falling back safely to the defaults."""
+    """Die eingestellten Erinnerungsabstände zurückgeben, mit sicherem Rückfall auf die Standards."""
     raw = load().get("cancellation_reminder_days", DEFAULTS["cancellation_reminder_days"])
     if not isinstance(raw, str):
         return [7, 21, 45]

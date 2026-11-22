@@ -23,8 +23,8 @@ homeassistant_api: true
 map:
   - type: share
     read_only: false
-# Home Assistant stops the app during a backup, so the SQLite database
-# (WAL mode) is never copied mid-write.
+# Home Assistant stoppt die App während einer Sicherung, damit die SQLite-Datenbank
+# (WAL-Modus) nie mitten im Schreiben kopiert wird.
 backup: cold
 backup_exclude:
   - "secrets.json"

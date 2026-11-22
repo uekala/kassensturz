@@ -4,8 +4,8 @@ import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 
-/// Opens the form for today's value of a deposit or the remaining debt of a
-/// loan.
+/// Öffnet das Formular für den heutigen Wert einer Geldanlage oder die Restschuld eines
+/// Kredits.
 Future<void> showAccountValueSheet(
   BuildContext context, {
   required MobileConnectionController controller,
@@ -43,7 +43,7 @@ class AccountValueSheet extends StatefulWidget {
   final int accountId;
   final String name;
 
-  /// A loan asks for the remaining debt, everything else for its value.
+  /// Ein Kredit fragt nach der Restschuld, alles andere nach seinem Wert.
   final bool loan;
   final int? currentCents;
 

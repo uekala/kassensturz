@@ -1,15 +1,15 @@
-"""Write operations and reference lists for the device-authenticated mobile API.
+"""Schreibvorgänge und Referenzlisten für die per Gerät angemeldete API der Handy-App.
 
-The server database stays the single source of truth. Mobile clients may
+Die Serverdatenbank bleibt die einzige maßgebliche Quelle. Handy-Clients dürfen
 
-* create manual transactions on accounts without an automatic bank feed,
-* change category and note of any transaction,
-* change or delete transactions they created manually.
+* manuelle Umsätze auf Konten ohne automatische Bankanbindung anlegen,
+* Kategorie und Notiz jedes Umsatzes ändern,
+* von ihnen manuell angelegte Umsätze ändern oder löschen.
 
-Bank-imported transactions are never deleted or rewritten here: the next bank
-sync would bring them back and the duplicate detection relies on their hash.
-Every create request carries a client-generated request id; replaying the same
-id returns the already stored transaction instead of inserting a second one.
+Von der Bank importierte Umsätze werden hier nie gelöscht oder umgeschrieben: Der nächste
+Bankabgleich brächte sie zurück, und die Dublettenerkennung beruht auf ihrem Hash.
+Jede Anlage-Anfrage trägt eine vom Client erzeugte Anfrage-ID; dieselbe ID erneut zu
+senden gibt den schon gespeicherten Umsatz zurück, statt einen zweiten anzulegen.
 """
 from __future__ import annotations
 
@@ -136,7 +136,7 @@ def ownership(account: dict, viewer: int | None) -> str:
 
 
 def account_accepts_manual_entries(account: dict) -> bool:
-    """Only accounts without FinTS or Open Banking feed take manual entries."""
+    """Nur Konten ohne FinTS- oder Open-Banking-Anbindung nehmen manuelle Einträge an."""
     return (
         not account.get("archived")
         and account.get("connection_id") is None
@@ -145,7 +145,7 @@ def account_accepts_manual_entries(account: dict) -> bool:
 
 
 def serialize_transaction(row: dict) -> dict:
-    """Allowlisted transaction DTO shared by list and write responses."""
+    """Umsatz-DTO mit erlaubten Feldern, gemeinsam für Listen- und Schreibantworten."""
     return {
         "id": int(row["id"]),
         "account_id": int(row["account_id"]),
@@ -192,10 +192,10 @@ def _require_transaction(db: Database, tx_id: int) -> dict:
 
 
 def create_transaction(db: Database, payload: dict, *, today: date | None = None) -> tuple[dict, bool]:
-    """Insert one manual transaction. Returns ``(dto, created)``.
+    """Einen manuellen Umsatz einfügen. Gibt ``(dto, created)`` zurück.
 
-    ``created`` is False when the request id was already used; the stored
-    transaction is returned unchanged in that case.
+    ``created`` ist False, wenn die Anfrage-ID schon benutzt wurde; der gespeicherte
+    Umsatz kommt in diesem Fall unverändert zurück.
     """
     unknown = set(payload) - CREATE_FIELDS
     if unknown:
@@ -253,7 +253,7 @@ def create_transaction(db: Database, payload: dict, *, today: date | None = None
         try:
             tx_id = db.insert("transactions", data)
         except sqlite3.IntegrityError:
-            # A concurrent request with the same id won the race.
+            # Eine gleichzeitige Anfrage mit derselben ID war schneller.
             existing = _load(db, "t.client_request_id = ?", (request_id,))
             if existing is None:
                 raise
@@ -265,7 +265,7 @@ def create_transaction(db: Database, payload: dict, *, today: date | None = None
 
 
 def update_transaction(db: Database, tx_id: int, payload: dict, *, today: date | None = None) -> dict:
-    """Change a transaction. Bank transactions only accept category and note."""
+    """Einen Umsatz ändern. Bankumsätze nehmen nur Kategorie und Notiz an."""
     if not payload:
         raise _invalid("Die Anfrage enthält keine Änderungen.")
     unknown = set(payload) - UPDATE_FIELDS
@@ -348,7 +348,7 @@ def update_transaction(db: Database, tx_id: int, payload: dict, *, today: date |
 
 
 def delete_transaction(db: Database, tx_id: int) -> None:
-    """Delete one manually created transaction together with its splits."""
+    """Einen von Hand angelegten Umsatz samt seinen Aufteilungen löschen."""
     with db.tx(immediate=True):
         row = _require_transaction(db, tx_id)
         if row.get("source") != MANUAL_SOURCE:
@@ -370,11 +370,11 @@ MAX_MANUAL_ACCOUNTS = 20
 
 def create_cash_account(db: Database, payload: dict, *, today: date | None = None,
                         owner_person_id: int | None = None) -> dict:
-    """Create an account without bank feed so the app can book cash entries.
+    """Ein Konto ohne Bankanbindung anlegen, damit die App Bargeld buchen kann.
 
-    Only this one kind can be created from the app. Bank accounts, deposits
-    and loans stay in the Home Assistant interface. The account belongs to the
-    person of the device; whether it becomes a shared one is decided there too.
+    Nur diese eine Art lässt sich aus der App anlegen. Bankkonten, Geldanlagen
+    und Kredite bleiben in der Oberfläche von Home Assistant. Das Konto gehört der
+    Person des Geräts; ob es ein gemeinsames wird, wird ebenfalls dort entschieden.
     """
     if set(payload) - {"name", "balance_cents"}:
         raise _invalid("Die Anfrage enthält unbekannte Felder.")
@@ -438,7 +438,7 @@ def set_account_value(db: Database, account_id: int, payload: dict, *, today: da
 
 
 def list_accounts(db: Database) -> dict:
-    """Active accounts with current balance; no IBAN or bank reference."""
+    """Aktive Konten mit aktuellem Saldo; keine IBAN und keine Bankreferenz."""
     items = []
     for account in ledger.accounts_with_balance(db):
         items.append(
@@ -520,7 +520,7 @@ def _contract_item(contract: dict, reference: date) -> dict:
 
 
 def list_contracts(db: Database, *, today: date | None = None, view=None) -> dict:
-    """Detected and manual contracts without provider contact or customer data."""
+    """Erkannte und manuelle Verträge ohne Anbieterkontakt oder Kundendaten."""
     reference = today or date.today()
     contracts.detect(db)
     items = [

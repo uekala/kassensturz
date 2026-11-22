@@ -1,7 +1,7 @@
-"""Explicit, privacy-minimizing read DTOs for the future mobile API.
+"""Ausdrückliche, datensparsame Lese-DTOs für die künftige API der Handy-App.
 
-No HTTP routes are registered here. Functions return allowlisted dictionaries and
-never expose raw SQLite rows or provider/credential fields.
+Hier werden keine HTTP-Routen registriert. Die Funktionen geben Dictionaries mit erlaubten
+Feldern zurück und legen nie rohe SQLite-Zeilen oder Felder von Anbietern/Zugangsdaten offen.
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ _MONTH_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 class MobileQueryError(ValueError):
-    """A mobile list query contains invalid or out-of-range parameters."""
+    """Eine Listenabfrage der Handy-App enthält ungültige oder außerhalb des Bereichs liegende Parameter."""
 
 
 def _text(value: Any, maximum: int) -> str | None:
@@ -75,7 +75,7 @@ TRANSACTION_KINDS = ("in", "out")
 
 
 def _validate_search(value: Any) -> str | None:
-    """Return the trimmed search text, or None when nothing is searched."""
+    """Den bereinigten Suchtext zurückgeben, oder None, wenn nichts gesucht wird."""
     if value is None:
         return None
     if not isinstance(value, str):
@@ -97,7 +97,7 @@ def _validate_kind(value: Any) -> str | None:
 
 
 def _like_pattern(text: str) -> str:
-    """Search for the text as typed: % and _ are ordinary characters."""
+    """Nach dem Text suchen, wie er eingetippt wurde: % und _ sind normale Zeichen."""
     escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     return f"%{escaped}%"
 
@@ -284,10 +284,10 @@ def plans(db: Database) -> dict:
 
 
 def get_overview(db: Database, *, as_of: datetime | None = None, view=None) -> dict:
-    """Build a fresh mobile overview from the existing local domain services.
+    """Eine frische Übersicht für die Handy-App aus den bestehenden lokalen Fachdiensten bauen.
 
-    Contracts are detected on the whole database; everything shown is read
-    through ``view``, the part of it the device's person may see.
+    Verträge werden auf der ganzen Datenbank erkannt; alles Angezeigte wird über ``view``
+    gelesen, den Teil davon, den die Person des Geräts sehen darf.
     """
     contracts.detect(db)
     db = view or db
@@ -318,12 +318,12 @@ CURVE_PAST_DAYS = 30
 
 
 def get_stats(db: Database, *, month: str | None = None) -> dict:
-    """Return the figures behind the app's analysis page.
+    """Die Zahlen hinter der Auswertungsseite der App zurückgeben.
 
-    Spending of one month by top-level category, income and expenses of the
-    last twelve months, and the balance curve: the last days as booked, the
-    coming days as forecast. Transfers between own accounts are left out, as
-    everywhere else. Only names and amounts leave the server.
+    Ausgaben eines Monats nach oberster Kategorie, Einnahmen und Ausgaben der letzten
+    zwölf Monate und der Saldoverlauf: die letzten Tage wie gebucht, die kommenden Tage
+    als Prognose. Umbuchungen zwischen eigenen Konten bleiben außen vor, wie überall.
+    Nur Namen und Beträge verlassen den Server.
     """
     selected = _validate_month(month) or date.today().strftime("%Y-%m")
     stats = analytics.month_stats(db, selected)
@@ -385,10 +385,10 @@ def get_stats(db: Database, *, month: str | None = None) -> dict:
 
 
 def get_year(db: Database, year: Any) -> dict:
-    """The year in review for the app: totals, months, categories and the biggest single expenses.
+    """Der Jahresrückblick für die App: Summen, Monate, Kategorien und die größten Einzelausgaben.
 
-    Compared with the year before as far as there are bookings, in the running year only up to the same
-    day. Transfers between own accounts are left out."""
+    Verglichen mit dem Vorjahr, soweit es Buchungen gibt, im laufenden Jahr nur bis zum selben
+    Tag. Umbuchungen zwischen eigenen Konten bleiben außen vor."""
     today = date.today()
     if year is None or year == "":
         year = today.year
@@ -429,7 +429,7 @@ def get_year(db: Database, year: Any) -> dict:
 
 
 def get_afford(db: Database, amount_cents: Any) -> dict:
-    """What a purchase of this amount today means for the rest of the period."""
+    """Was ein Kauf in dieser Höhe heute für den Rest des Zeitraums bedeutet."""
     if isinstance(amount_cents, bool) or not isinstance(amount_cents, int):
         raise MobileQueryError("amount_cents")
     if not 0 < amount_cents <= analytics.MAX_AFFORD_CENTS:
@@ -450,11 +450,11 @@ def list_transactions(
     kind: str | None = None,
     triage: bool = False,
 ) -> dict:
-    """Return paginated transaction DTOs without internal or banking metadata.
+    """Seitenweise Umsatz-DTOs ohne interne oder Bank-Metadaten zurückgeben.
 
-    ``q`` searches counterparty, purpose and note; ``kind`` limits the list to
-    income ("in") or expenses ("out"), both without transfers between own
-    accounts, as in the web interface.
+    ``q`` durchsucht Gegenpartei, Verwendungszweck und Notiz; ``kind`` beschränkt die Liste auf
+    Einnahmen ("in") oder Ausgaben ("out"), beide ohne Umbuchungen zwischen eigenen
+    Konten, wie in der Weboberfläche.
     """
     page_size = _integer(
         limit,

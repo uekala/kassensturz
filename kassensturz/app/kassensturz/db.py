@@ -606,9 +606,9 @@ class ScopedDatabase:
 
 class Database:
     def __init__(self, path: Path):
-        # Financial data lives in a private directory. Restrict the directory
-        # as well as the main database file so SQLite WAL/SHM sidecars inherit
-        # a private access boundary even when their own mode depends on umask.
+        # Finanzdaten liegen in einem privaten Verzeichnis. Verzeichnis und Hauptdatenbank
+        # werden beschränkt, damit die WAL-/SHM-Begleitdateien von SQLite eine private
+        # Zugriffsgrenze erben, auch wenn ihr eigener Modus von der umask abhängt.
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(path.parent, 0o700)
         flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
@@ -669,11 +669,11 @@ class Database:
             return str(error)
 
     def close(self) -> None:
-        """Write the WAL into the database file and close the connection.
+        """Das WAL in die Datenbankdatei schreiben und die Verbindung schließen.
 
-        Called on shutdown: Home Assistant stops the app for a cold backup, and
-        the backup then holds one complete database file instead of a database
-        plus write-ahead log. A running transaction finishes first (lock).
+        Beim Herunterfahren aufgerufen: Home Assistant stoppt die App für eine kalte
+        Sicherung, und die Sicherung enthält dann eine vollständige Datenbankdatei statt
+        Datenbank plus Write-Ahead-Log. Eine laufende Transaktion endet vorher (Sperre).
         """
         with self.lock:
             for view in self._scoped.values():
@@ -887,7 +887,7 @@ def get_db() -> Database:
 
 
 def close_db() -> None:
-    """Close the shared database on shutdown (see Database.close)."""
+    """Die gemeinsame Datenbank beim Herunterfahren schließen (siehe Database.close)."""
     global _db
     if _db is not None:
         database, _db = _db, None

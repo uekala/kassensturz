@@ -31,8 +31,8 @@ class MobileBinaryResponse {
   final Uint8List bytes;
 }
 
-/// Optional second channel for files. Requests carry raw bytes instead of
-/// JSON and answers are returned undecoded.
+/// Optionaler zweiter Kanal für Dateien. Anfragen tragen rohe Bytes statt
+/// JSON, und Antworten kommen undekodiert zurück.
 abstract interface class MobileBinaryTransport {
   Future<MobileBinaryResponse> sendBinary({
     required String method,
@@ -43,11 +43,11 @@ abstract interface class MobileBinaryTransport {
   });
 }
 
-/// Why a request did not produce an HTTP response.
+/// Warum eine Anfrage keine HTTP-Antwort ergeben hat.
 enum MobileNetworkFailure { unreachable, timeout, certificate, interrupted }
 
-/// A transport failure. [requestSent] is false only when the connection was
-/// never established, so the server cannot have processed the request.
+/// Ein Transportfehler. [requestSent] ist nur false, wenn die Verbindung nie
+/// zustande kam, der Server die Anfrage also nicht verarbeitet haben kann.
 class MobileNetworkException implements Exception {
   const MobileNetworkException(this.failure, {required this.requestSent});
 
@@ -58,8 +58,8 @@ class MobileNetworkException implements Exception {
   String toString() => 'MobileNetworkException(${failure.name})';
 }
 
-/// Uses Dart's default TLS validation. No certificate override or redirect
-/// following is permitted for requests carrying mobile credentials.
+/// Nutzt die Standard-TLS-Prüfung von Dart. Für Anfragen mit Zugangsdaten der Handy-App
+/// sind weder Zertifikatsausnahmen noch das Folgen von Weiterleitungen erlaubt.
 class IoMobileTransport implements MobileTransport, MobileBinaryTransport {
   IoMobileTransport({
     Duration timeout = const Duration(seconds: 15),
@@ -233,7 +233,7 @@ class MobileApiClient {
 
   Future<MobileSession?> loadSession() => _sessionStore.read();
 
-  /// Removes a stored session that can no longer be read or used.
+  /// Entfernt eine gespeicherte Sitzung, die sich nicht mehr lesen oder nutzen lässt.
   Future<void> discardSession() => _sessionStore.clear();
 
   Future<MobileSession> pair({
@@ -317,8 +317,8 @@ class MobileApiClient {
   Future<Map<String, dynamic>> categories() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/categories');
 
-  /// Category spending, monthly totals and the balance curve. [month] is
-  /// 'YYYY-MM'; without it the server answers for the current month.
+  /// Ausgaben nach Kategorie, Monatssummen und Saldoverlauf. [month] ist
+  /// 'YYYY-MM'; ohne antwortet der Server für den laufenden Monat.
   Future<Map<String, dynamic>> stats({String? month, String? part}) =>
       _authenticatedJson(
         method: 'GET',
@@ -329,7 +329,7 @@ class MobileApiClient {
         },
       );
 
-  /// The year in review, compared with the year before.
+  /// Der Jahresrückblick, verglichen mit dem Vorjahr.
   Future<Map<String, dynamic>> yearReview({int? year, String? part}) =>
       _authenticatedJson(
         method: 'GET',
@@ -340,7 +340,7 @@ class MobileApiClient {
         },
       );
 
-  /// What a purchase of [amountCents] today means until the next salary.
+  /// Was ein Kauf über [amountCents] heute bis zum nächsten Gehalt bedeutet.
   Future<Map<String, dynamic>> afford(int amountCents) {
     if (amountCents <= 0) {
       throw const FormatException('Der Betrag ist ungültig.');
@@ -355,8 +355,8 @@ class MobileApiClient {
   Future<Map<String, dynamic>> contracts() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/contracts');
 
-  /// Creates a manual transaction. [fields] must contain a
-  /// `client_request_id`; sending the same id again never books twice.
+  /// Legt einen manuellen Umsatz an. [fields] muss eine `client_request_id`
+  /// enthalten; dieselbe ID erneut zu senden bucht nie doppelt.
   Future<Map<String, dynamic>> netWorthHistory() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/networth');
 
@@ -367,7 +367,7 @@ class MobileApiClient {
     await _authenticatedJson(method: 'POST', path: '/api/v1/news/seen');
   }
 
-  /// Tax overview of [year] (the newest when null) and the warranties.
+  /// Steuerübersicht von [year] (bei null das neueste) und die Garantien.
   Future<Map<String, dynamic>> papers({int? year}) => _authenticatedJson(
     method: 'GET',
     path: '/api/v1/papers',
@@ -387,9 +387,9 @@ class MobileApiClient {
   Future<Map<String, dynamic>> syncStatus() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/sync');
 
-  /// Asks the server to fetch from the banks now. Never repeated
-  /// automatically: banks allow only a few fetches per day. With
-  /// [interactive] a bank may ask back, for a TAN for example.
+  /// Bittet den Server, jetzt bei den Banken abzurufen. Nie automatisch
+  /// wiederholt: Banken erlauben nur wenige Abrufe am Tag. Mit
+  /// [interactive] darf eine Bank zurückfragen, zum Beispiel nach einer TAN.
   Future<Map<String, dynamic>> startSync({bool interactive = false}) =>
       _authenticatedJson(
         method: 'POST',
@@ -397,8 +397,8 @@ class MobileApiClient {
         body: interactive ? {'interactive': true} : null,
       );
 
-  /// Answers what a bank asks during a fetch, or gives the fetch up. A TAN
-  /// works once, so this is never repeated automatically.
+  /// Beantwortet, was eine Bank während eines Abrufs fragt, oder gibt den Abruf auf. Eine TAN
+  /// gilt einmal, deshalb wird das nie automatisch wiederholt.
   Future<Map<String, dynamic>> answerSync(
     String qid, {
     String? value,
@@ -409,16 +409,16 @@ class MobileApiClient {
     body: {'qid': qid, 'value': ?value, if (cancel) 'cancel': true},
   );
 
-  /// Starts renewing an expiring bank consent; the answer carries the bank's
-  /// page to open. Nothing changes on the server yet.
+  /// Beginnt das Verlängern einer ablaufenden Bank-Einwilligung; die Antwort enthält die
+  /// zu öffnende Seite der Bank. Auf dem Server ändert sich noch nichts.
   Future<Map<String, dynamic>> startBankRenewal(int id) => _authenticatedJson(
     method: 'POST',
     path: '/api/v1/banks/renew',
     body: {'id': id},
   );
 
-  /// Finishes a renewal with the address the browser ended up on. The code in
-  /// it works once, so this is never repeated automatically.
+  /// Schließt eine Verlängerung mit der Adresse ab, auf der der Browser gelandet ist. Der Code
+  /// darin gilt einmal, deshalb wird das nie automatisch wiederholt.
   Future<Map<String, dynamic>> completeBankRenewal(String address) =>
       _authenticatedJson(
         method: 'POST',
@@ -426,7 +426,7 @@ class MobileApiClient {
         body: {'text': address},
       );
 
-  /// Creates an account without bank feed for entries made by hand.
+  /// Legt ein Konto ohne Bankanbindung für von Hand erfasste Einträge an.
   Future<Map<String, dynamic>> createCashAccount(
     String name, {
     int? balanceCents,
@@ -441,7 +441,7 @@ class MobileApiClient {
     );
   }
 
-  /// Enters today's value of a deposit or the remaining debt of a loan.
+  /// Trägt den heutigen Wert einer Geldanlage oder die Restschuld eines Kredits ein.
   Future<Map<String, dynamic>> setAccountValue(int accountId, int cents) =>
       _authenticatedJson(
         method: 'PUT',
@@ -475,7 +475,7 @@ class MobileApiClient {
     );
   }
 
-  /// Changes the status of a contract or acknowledges its price change.
+  /// Ändert den Status eines Vertrags oder nimmt seine Preisänderung zur Kenntnis.
   Future<Map<String, dynamic>> updateContract(
     String key,
     Map<String, dynamic> changes,
@@ -490,8 +490,8 @@ class MobileApiClient {
     );
   }
 
-  /// Builds the cancellation letter for a contract. [mode] is 'ordentlich',
-  /// 'sonder' or 'termin'; [date] (YYYY-MM-DD) is only sent with 'termin'.
+  /// Erstellt das Kündigungsschreiben für einen Vertrag. [mode] ist 'ordentlich',
+  /// 'sonder' oder 'termin'; [date] (YYYY-MM-DD) wird nur mit 'termin' gesendet.
   Future<Map<String, dynamic>> contractLetter(
     String key, {
     String mode = 'ordentlich',
@@ -505,8 +505,8 @@ class MobileApiClient {
     );
   }
 
-  /// Sets the monthly budget of an expense category; null removes it. With
-  /// [own] it is the budget of this person that only counts own accounts.
+  /// Setzt das Monatsbudget einer Ausgabenkategorie; null entfernt es. Mit
+  /// [own] ist es das Budget dieser Person, das nur eigene Konten zählt.
   Future<Map<String, dynamic>> setBudget(
     int categoryId,
     int? limitCents, {
@@ -531,7 +531,7 @@ class MobileApiClient {
     );
   }
 
-  /// Largest receipt the app sends or shows; the server enforces the same.
+  /// Größter Beleg, den die App sendet oder zeigt; der Server setzt dasselbe durch.
   static const maximumReceiptBytes = 10 * 1024 * 1024;
 
   Future<Map<String, dynamic>> receipts(int transactionId) {
@@ -544,7 +544,7 @@ class MobileApiClient {
     );
   }
 
-  /// Attaches a photo or PDF to a transaction. Never repeated automatically.
+  /// Hängt ein Foto oder PDF an einen Umsatz. Nie automatisch wiederholt.
   Future<Map<String, dynamic>> uploadReceipt(
     int transactionId,
     String filename,
@@ -572,7 +572,7 @@ class MobileApiClient {
     return Map<String, dynamic>.from(decoded);
   }
 
-  /// The stored file of one receipt.
+  /// Die gespeicherte Datei eines Belegs.
   Future<Uint8List> receiptBytes(int receiptId) {
     if (receiptId <= 0) throw const FormatException('Der Beleg ist ungültig.');
     return _authenticatedBinary(
@@ -582,8 +582,8 @@ class MobileApiClient {
     );
   }
 
-  /// A month report (period JJJJ-MM) or the year in review (period JJJJ) as
-  /// PDF, from what this device sees.
+  /// Ein Monatsbericht (Zeitraum JJJJ-MM) oder der Jahresrückblick (Zeitraum JJJJ) als
+  /// PDF, aus dem, was dieses Gerät sieht.
   Future<Uint8List> reportBytes({
     required String kind,
     required String period,
@@ -611,7 +611,7 @@ class MobileApiClient {
     );
   }
 
-  /// Whether an expense can be shared with the household and how it is.
+  /// Ob sich eine Ausgabe mit dem Haushalt teilen lässt und wie sie geteilt ist.
   Future<Map<String, dynamic>> transactionShare(int transactionId) {
     if (transactionId <= 0) {
       throw const FormatException('Die Buchung ist ungültig.');
@@ -622,11 +622,11 @@ class MobileApiClient {
     );
   }
 
-  /// Shared expenses of this person, what is open, and the payments.
+  /// Geteilte Ausgaben dieser Person, was offen ist, und die Zahlungen.
   Future<Map<String, dynamic>> householdSharing() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/household/sharing');
 
-  /// Records a payment from this person to another one of the household.
+  /// Hält eine Zahlung dieser Person an eine andere im Haushalt fest.
   Future<Map<String, dynamic>> addSettlement(
     int toPersonId,
     int cents,
@@ -642,7 +642,7 @@ class MobileApiClient {
     );
   }
 
-  /// Shares an expense by the shares set for the household, or undoes that.
+  /// Teilt eine Ausgabe nach den für den Haushalt festgelegten Anteilen oder macht das rückgängig.
   Future<Map<String, dynamic>> setTransactionShare(
     int transactionId, {
     required bool shared,
@@ -657,7 +657,7 @@ class MobileApiClient {
     );
   }
 
-  /// Who changed what, newest first, as far as this person may see it.
+  /// Wer was geändert hat, das Neueste zuerst, soweit diese Person es sehen darf.
   Future<Map<String, dynamic>> changes({int offset = 0}) {
     if (offset < 0) throw const FormatException('Ungültige Seite.');
     return _authenticatedJson(
@@ -667,11 +667,11 @@ class MobileApiClient {
     );
   }
 
-  /// Projects with their costs, as far as this person sees the bookings.
+  /// Projekte mit ihren Kosten, soweit diese Person die Buchungen sieht.
   Future<Map<String, dynamic>> projects() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/projects');
 
-  /// One project with costs by category and month and its bookings.
+  /// Ein Projekt mit Kosten nach Kategorie und Monat und seinen Buchungen.
   Future<Map<String, dynamic>> project(int id) {
     if (id <= 0) throw const FormatException('Das Projekt ist ungültig.');
     return _authenticatedJson(method: 'GET', path: '/api/v1/projects/$id');
@@ -681,7 +681,7 @@ class MobileApiClient {
   Future<Map<String, dynamic>> chargingMonths() =>
       _authenticatedJson(method: 'GET', path: '/api/v1/charging');
 
-  /// The charging session a booking paid for; `charging` is null otherwise.
+  /// Die Ladung, die eine Buchung bezahlt hat; sonst ist `charging` null.
   Future<Map<String, dynamic>> transactionCharging(int transactionId) {
     if (transactionId <= 0) {
       throw const FormatException('Die Buchung ist ungültig.');
@@ -692,7 +692,7 @@ class MobileApiClient {
     );
   }
 
-  /// The project of a transaction and the projects it can go into.
+  /// Das Projekt eines Umsatzes und die Projekte, in die er kommen kann.
   Future<Map<String, dynamic>> transactionProject(int transactionId) {
     if (transactionId <= 0) {
       throw const FormatException('Die Buchung ist ungültig.');
@@ -703,7 +703,7 @@ class MobileApiClient {
     );
   }
 
-  /// Puts a transaction into a project or, with null, takes it out.
+  /// Legt einen Umsatz in ein Projekt oder nimmt ihn mit null heraus.
   Future<Map<String, dynamic>> setTransactionProject(
     int transactionId,
     int? projectId,
@@ -718,8 +718,8 @@ class MobileApiClient {
     );
   }
 
-  /// Repayment plan of a loan; with [extraCents] the effect of paying that
-  /// much off today.
+  /// Tilgungsplan eines Kredits; mit [extraCents] die Wirkung, heute so viel
+  /// zu tilgen.
   Future<Map<String, dynamic>> loanPlan(int accountId, {int extraCents = 0}) {
     if (accountId <= 0 || extraCents < 0) {
       throw const FormatException('Der Kredit ist ungültig.');
@@ -731,7 +731,7 @@ class MobileApiClient {
     );
   }
 
-  /// Hides an anomaly the person has checked.
+  /// Blendet eine Auffälligkeit aus, die die Person geprüft hat.
   Future<Map<String, dynamic>> acknowledgeAlert(String key) {
     if (key.isEmpty) throw const FormatException('Der Hinweis fehlt.');
     return _authenticatedJson(
@@ -741,7 +741,7 @@ class MobileApiClient {
     );
   }
 
-  /// Plans a one-off expense that then counts in the forecast.
+  /// Plant eine einmalige Ausgabe, die dann in der Prognose zählt.
   Future<Map<String, dynamic>> createPlanned({
     required String label,
     required int cents,
@@ -763,7 +763,7 @@ class MobileApiClient {
     );
   }
 
-  /// Notes that money comes back for an expense, all of it or a part.
+  /// Hält fest, dass für eine Ausgabe Geld zurückkommt, ganz oder teilweise.
   Future<Map<String, dynamic>> createExpected(int transactionId, int cents) {
     if (transactionId <= 0 || cents <= 0) {
       throw const FormatException('Der erwartete Eingang ist ungültig.');
@@ -775,8 +775,8 @@ class MobileApiClient {
     );
   }
 
-  /// Ticks a planned expense or an expected income off, or drops it.
-  /// [kind] is `planned` or `expected`; [action] `paid`, `received` or `drop`.
+  /// Hakt eine geplante Ausgabe oder eine erwartete Einnahme ab oder streicht sie.
+  /// [kind] ist `planned` oder `expected`; [action] `paid`, `received` oder `drop`.
   Future<Map<String, dynamic>> settlePlan(String kind, int id, String action) {
     const allowed = {
       'planned': {'paid', 'drop'},
@@ -862,8 +862,8 @@ class MobileApiClient {
     );
   }
 
-  /// Attempts server-side logout and always removes the local credential set.
-  /// If the server cannot be reached, the device can still be locally signed out.
+  /// Versucht das Abmelden auf dem Server und entfernt immer die lokalen Zugangsdaten.
+  /// Ist der Server nicht erreichbar, lässt sich das Gerät trotzdem lokal abmelden.
   Future<void> logout() async {
     final session = await _sessionStore.read();
     if (session == null) return;
@@ -930,7 +930,7 @@ class MobileApiClient {
     final current = await _sessionStore.read();
     if (current == null) throw const MobileSessionExpiredException();
 
-    // Another request may already have completed the rotation.
+    // Eine andere Anfrage hat die Rotation vielleicht schon abgeschlossen.
     if (current.refreshToken != staleSession.refreshToken) {
       return current;
     }
@@ -972,13 +972,13 @@ class MobileApiClient {
     return updated;
   }
 
-  /// Sends the refresh token. The server accepts a replaced refresh token
-  /// exactly once more, and only within ten minutes of the first attempt.
-  /// If the connection breaks after the request left the device, the answer
-  /// may be lost although the server already rotated the token, so the one
-  /// permitted repetition is sent right away instead of minutes later.
-  /// A connection that was never established is not repeated here: nothing
-  /// reached the server and the next call simply starts over.
+  /// Sendet das Refresh-Token. Der Server akzeptiert ein ersetztes Refresh-Token
+  /// genau ein weiteres Mal, und nur innerhalb von zehn Minuten nach dem ersten Versuch.
+  /// Bricht die Verbindung ab, nachdem die Anfrage das Gerät verlassen hat, kann die
+  /// Antwort verloren sein, obwohl der Server das Token schon rotiert hat; die eine
+  /// erlaubte Wiederholung wird deshalb sofort gesendet statt Minuten später.
+  /// Eine Verbindung, die nie zustande kam, wird hier nicht wiederholt: Nichts hat den
+  /// Server erreicht, und der nächste Aufruf beginnt einfach von vorn.
   Future<Map<String, dynamic>> _sendRefresh(MobileSession current) async {
     Future<Map<String, dynamic>> send() => _requestJson(
       method: 'POST',

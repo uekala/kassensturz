@@ -6,8 +6,8 @@ import '../../core/networking/mobile_models.dart';
 import 'bank_question_panel.dart';
 import 'bank_renew_sheet.dart';
 
-/// Says how old the bank data is and fetches on request. Pulling the page
-/// down only reloads from the server; this is the way to ask the banks.
+/// Sagt, wie alt die Bankdaten sind, und ruft auf Wunsch ab. Die Seite herunterziehen
+/// lädt nur vom Server neu; das hier ist der Weg, die Banken zu fragen.
 class SyncStatusCard extends StatelessWidget {
   const SyncStatusCard({required this.controller, super.key});
 

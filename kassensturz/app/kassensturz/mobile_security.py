@@ -1,9 +1,9 @@
-"""Transport and request-rate security primitives for the mobile API.
+"""Grundbausteine für Transportsicherheit und Ratenbegrenzung der API der Handy-App.
 
-This module does not open a listener. Forwarding headers are trusted only when
-the immediate TCP peer is explicitly present in the proxy allowlist. Rate-limit
-identity is derived from the socket peer or a validated forwarded chain from
-such a trusted proxy.
+Dieses Modul öffnet keinen Listener. Weiterleitungs-Headern wird nur vertraut, wenn die
+direkte TCP-Gegenstelle ausdrücklich in der Proxy-Allowlist steht. Die Identität für die
+Ratenbegrenzung kommt von der Socket-Gegenstelle oder einer geprüften Weiterleitungskette
+eines solchen vertrauenswürdigen Proxys.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ IPNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
 
 
 def parse_trusted_proxy_networks(value: str | None) -> tuple[IPNetwork, ...]:
-    """Parse a comma-separated allowlist of exact proxy IPs or CIDR networks."""
+    """Eine kommagetrennte Allowlist exakter Proxy-IPs oder CIDR-Netze auswerten."""
     networks: list[IPNetwork] = []
     for item in (value or "").split(","):
         entry = item.strip()
@@ -55,12 +55,12 @@ def address_in_networks(
     address: IPAddress | None,
     networks: Iterable[IPNetwork],
 ) -> bool:
-    """Check an IP address against an explicit allowlist of networks."""
+    """Eine IP-Adresse gegen eine ausdrückliche Allowlist von Netzen prüfen."""
     return _is_trusted(address, networks)
 
 
 def socket_peer(request: Request) -> IPAddress | None:
-    """Return only the TCP peer address; never consult forwarding headers."""
+    """Nur die Adresse der TCP-Gegenstelle zurückgeben; nie Weiterleitungs-Header befragen."""
     return _parse_ip(request.client.host if request.client else None)
 
 
@@ -68,12 +68,12 @@ def effective_client_ip(
     request: Request,
     trusted_proxies: Iterable[IPNetwork] = (),
 ) -> IPAddress | None:
-    """Resolve the client IP without allowing an untrusted peer to spoof XFF.
+    """Die Client-IP ermitteln, ohne dass eine nicht vertrauenswürdige Gegenstelle XFF fälschen kann.
 
-    If the socket peer is not trusted, all forwarding headers are ignored. For
-    a trusted proxy, walk the X-Forwarded-For chain from nearest to farthest and
-    return the first non-trusted hop. A malformed chain falls back to the
-    immediate peer, which is the conservative shared proxy bucket.
+    Ist die Socket-Gegenstelle nicht vertrauenswürdig, werden alle Weiterleitungs-Header ignoriert.
+    Bei einem vertrauenswürdigen Proxy die X-Forwarded-For-Kette von nah nach fern durchgehen und
+    den ersten nicht vertrauenswürdigen Hop zurückgeben. Eine fehlerhafte Kette fällt auf die
+    direkte Gegenstelle zurück, den vorsichtigen gemeinsamen Proxy-Eimer.
     """
     peer = socket_peer(request)
     if peer is None or not _is_trusted(peer, trusted_proxies):
@@ -101,7 +101,7 @@ def request_is_https(
     request: Request,
     trusted_proxies: Iterable[IPNetwork] = (),
 ) -> bool:
-    """Check direct TLS or a single HTTPS assertion from an allowlisted proxy."""
+    """Direktes TLS oder eine einzelne HTTPS-Zusicherung eines erlaubten Proxys prüfen."""
     if request.scope.get("scheme", "").lower() == "https":
         return True
 
@@ -110,7 +110,7 @@ def request_is_https(
         return False
 
     forwarded_proto = request.headers.get("x-forwarded-proto", "")
-    # Do not accept a comma-separated chain or ambiguous proxy values.
+    # Keine kommagetrennte Kette und keine mehrdeutigen Proxy-Werte akzeptieren.
     return forwarded_proto.strip().lower() == "https"
 
 
@@ -127,13 +127,14 @@ class _Bucket:
 
 
 class InMemoryRateLimiter:
-    """Thread-safe bounded sliding-window limiter for a single app process.
+    """Threadsicherer, begrenzter Sliding-Window-Limiter für einen einzelnen App-Prozess.
 
-    This limiter is suitable only while Kassensturz runs as one application
-    process. Multi-worker deployments must replace it with shared state (for
-    example a transactional SQLite-backed limiter) before enabling mobile APIs.
-    When the bucket table is full, unknown keys are rejected until buckets
-    expire; the limiter never evicts a live bucket to make room for an attacker.
+    Dieser Limiter taugt nur, solange Kassensturz als ein Anwendungsprozess läuft.
+    Installationen mit mehreren Workern müssen ihn durch einen gemeinsamen Zustand
+    ersetzen (zum Beispiel einen transaktionalen Limiter auf SQLite-Basis), bevor die
+    APIs der Handy-App eingeschaltet werden. Ist die Eimertabelle voll, werden unbekannte
+    Schlüssel abgelehnt, bis Eimer ablaufen; der Limiter verdrängt nie einen lebenden Eimer,
+    um einem Angreifer Platz zu machen.
     """
 
     def __init__(
@@ -150,7 +151,7 @@ class InMemoryRateLimiter:
         self._lock = threading.Lock()
 
     def hit(self, key: str, *, limit: int, window_seconds: float) -> RateLimitDecision:
-        """Consume one attempt and return retry timing when the key is limited."""
+        """Einen Versuch verbrauchen und die Wartezeit zurückgeben, wenn der Schlüssel begrenzt ist."""
         if not isinstance(key, str) or not key.strip():
             raise ValueError("rate-limit key must be a non-empty string")
         if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
@@ -200,9 +201,9 @@ def request_rate_limit_key(
     *,
     scope: str,
 ) -> str:
-    """Build a namespaced limiter key from the resolved network client."""
+    """Einen Limiter-Schlüssel mit Namensraum aus dem ermittelten Netz-Client bauen."""
     if not scope or not scope.strip():
         raise ValueError("rate-limit scope must be non-empty")
     address = effective_client_ip(request, trusted_proxies)
-    # Missing or invalid peer metadata shares one conservative bucket.
+    # Fehlende oder ungültige Angaben zur Gegenstelle teilen sich einen vorsichtigen Eimer.
     return f"{scope.strip()}:{address.compressed if address else 'unknown'}"

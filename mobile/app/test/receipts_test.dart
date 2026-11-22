@@ -15,7 +15,7 @@ import 'support/fake_server.dart';
 const _capabilities = [...fullCapabilities, 'tax', 'receipts', 'warranty'];
 final _photo = Uint8List.fromList([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 
-/// A server that keeps receipts of transaction 4 in memory.
+/// Ein Server, der Belege von Umsatz 4 im Arbeitsspeicher hält.
 class _ReceiptServer {
   final receipts = <Map<String, dynamic>>[
     {'id': 11, 'filename': 'rechnung.jpg', 'mime': 'image/jpeg', 'size': 2048},
@@ -78,7 +78,7 @@ const _bankTransaction = ServerTransaction(
   categoryName: 'Wohnen',
 );
 
-/// Scrolls until [target] is built and then fully into view, so a tap hits it.
+/// Scrollt, bis [target] gebaut und dann ganz sichtbar ist, damit ein Tippen es trifft.
 Future<void> _reveal(
   WidgetTester tester,
   Finder target,

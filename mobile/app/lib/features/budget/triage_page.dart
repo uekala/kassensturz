@@ -6,8 +6,8 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
 
-/// Sorts transactions without a real category one after the other: one card,
-/// one tap on a category, next card. The server learns from every choice.
+/// Sortiert Umsätze ohne echte Kategorie nacheinander: eine Karte, ein Tippen auf
+/// eine Kategorie, nächste Karte. Der Server lernt aus jeder Wahl.
 class TriagePage extends StatefulWidget {
   const TriagePage({required this.controller, super.key});
 
@@ -77,7 +77,7 @@ class _TriagePageState extends State<TriagePage> {
       1 => '${to.name} gemerkt, eine ähnliche Buchung gleich mit.',
       _ => '${to.name} gemerkt, $also ähnliche Buchungen gleich mit.',
     };
-    // Similar entries moved along, so the list is read again.
+    // Ähnliche Einträge sind mitgewandert, deshalb wird die Liste neu gelesen.
     await _load();
     if (mounted) setState(() => _saving = false);
   }
@@ -262,8 +262,8 @@ String _germanDate(String iso) {
       '${day.month.toString().padLeft(2, '0')}.${day.year}';
 }
 
-/// Budgets proposed from the spending of the last full months, to accept one
-/// by one or all at once.
+/// Aus den Ausgaben der letzten vollen Monate vorgeschlagene Budgets, einzeln
+/// oder alle auf einmal anzunehmen.
 class BudgetSuggestionsPage extends StatefulWidget {
   const BudgetSuggestionsPage({required this.controller, super.key});
 

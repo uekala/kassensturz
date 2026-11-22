@@ -5,8 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 
-/// Opens the two steps that renew a bank consent: approve at the bank in the
-/// browser, then hand the address of the page it ends on back to the server.
+/// Öffnet die zwei Schritte, die eine Bank-Einwilligung verlängern: bei der Bank im
+/// Browser freigeben, dann die Adresse der Endseite an den Server zurückgeben.
 Future<void> showBankRenewSheet(
   BuildContext context, {
   required MobileConnectionController controller,

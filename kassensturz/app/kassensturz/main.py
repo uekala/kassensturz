@@ -28,8 +28,8 @@ from .mobile_security import (
 log = logging.getLogger("kassensturz")
 STATIC = Path(__file__).parent / "static"
 INGRESS_IP = "172.30.32.2"
-# HA app options and standalone environment variables both support explicit
-# proxy/client CIDR allowlists. Both values remain empty by default.
+# Optionen der HA-App und Umgebungsvariablen im eigenständigen Betrieb unterstützen beide
+# ausdrückliche CIDR-Allowlists für Proxys und Clients. Beide Werte bleiben standardmäßig leer.
 NETWORK_SECURITY_SETTINGS = options.network_security_settings()
 TRUSTED_PROXY_NETWORKS = parse_trusted_proxy_networks(
     NETWORK_SECURITY_SETTINGS["trusted_proxies"]
@@ -39,8 +39,8 @@ MOBILE_CLIENT_NETWORKS = parse_trusted_proxy_networks(
 )
 MOBILE_API_PREFIXES = ("/api/v1", "/api/mobile")
 
-# Per-process network limits. The limiter fails closed when its bounded key
-# table is full and must be replaced by shared storage before multi-worker use.
+# Netzgrenzen je Prozess. Der Limiter sperrt, wenn seine begrenzte Schlüsseltabelle voll
+# ist, und muss vor dem Einsatz mehrerer Worker durch einen gemeinsamen Speicher ersetzt werden.
 MOBILE_RATE_LIMITER = InMemoryRateLimiter(max_keys=4096)
 MOBILE_RATE_LIMITS = {
     ("GET", "/api/v1/health"): ("health", 60, 60),
@@ -88,8 +88,8 @@ async def lifespan(_app):
     try:
         yield
     finally:
-        # Home Assistant stops the app for a cold backup (SIGTERM). Leave one
-        # complete database file behind: checkpoint the WAL and close.
+        # Home Assistant stoppt die App für eine kalte Sicherung (SIGTERM). Eine vollständige
+        # Datenbankdatei hinterlassen: das WAL zurückschreiben und schließen.
         close_db()
         logging.getLogger("kassensturz").info("Kassensturz beendet, Datenbank geschlossen")
 
@@ -143,9 +143,9 @@ async def only_ingress(request: Request, call_next):
             return await call_next(request)
         return JSONResponse({"detail": "Nicht erreichbar."}, status_code=403, headers={"Cache-Control": "no-store"})
 
-    # Mobile namespaces require direct TLS or an HTTPS assertion from an
-    # explicitly trusted proxy. Route registration does not publish a port;
-    # the add-on port mapping remains disabled until an administrator opts in.
+    # Die Namensräume der Handy-App verlangen direktes TLS oder eine HTTPS-Zusicherung eines
+    # ausdrücklich vertrauenswürdigen Proxys. Das Registrieren der Routen gibt keinen Port frei;
+    # die Portfreigabe des Add-ons bleibt aus, bis ein Admin sie einschaltet.
     is_mobile_api = request.url.path in MOBILE_API_PREFIXES or request.url.path.startswith(
         tuple(prefix + "/" for prefix in MOBILE_API_PREFIXES)
     )
@@ -155,9 +155,9 @@ async def only_ingress(request: Request, call_next):
         request.url.path in ("/api/mobile/pairings", "/api/mobile/devices")
         or request.url.path.startswith("/api/mobile/devices/")
     )
-    # The HA Ingress and loopback admin plane is already protected by the
-    # trusted local boundary; TLS is terminated by HA in front of Ingress.
-    # Native mobile traffic must always use direct TLS or a trusted HTTPS proxy.
+    # Die Verwaltungsebene über HA-Ingress und Loopback ist schon durch die vertrauenswürdige
+    # lokale Grenze geschützt; TLS endet bei HA vor Ingress.
+    # Nativer Verkehr der Handy-App muss immer direktes TLS oder einen vertrauenswürdigen HTTPS-Proxy nutzen.
     if (
         is_mobile_api
         and not request_is_https(request, TRUSTED_PROXY_NETWORKS)
@@ -169,9 +169,9 @@ async def only_ingress(request: Request, call_next):
             headers={"Cache-Control": "no-store"},
         )
 
-    # Existing browser/API traffic remains restricted to Ingress and loopback.
-    # Mobile namespaces additionally allow only explicitly configured private
-    # client networks; an empty allowlist therefore keeps remote access closed.
+    # Bestehender Browser- und API-Verkehr bleibt auf Ingress und Loopback beschränkt.
+    # Die Namensräume der Handy-App erlauben zusätzlich nur ausdrücklich eingerichtete private
+    # Client-Netze; eine leere Allowlist hält den Fernzugriff also geschlossen.
     proxy_peer_allowed = address_in_networks(
         socket_peer(request),
         TRUSTED_PROXY_NETWORKS,
@@ -185,7 +185,7 @@ async def only_ingress(request: Request, call_next):
     )
     if not existing_local_peer and not mobile_peer_allowed:
         message = "Nur über Home Assistant oder ein freigegebenes privates Netz erreichbar."
-        # "detail" stays for the existing web client; mobile clients read "error".
+        # "detail" bleibt für den bestehenden Web-Client; Handy-Clients lesen "error".
         body: dict = {"detail": message}
         if is_mobile_api:
             body["error"] = {"code": "network_not_allowed", "message": message}

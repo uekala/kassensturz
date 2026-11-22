@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print the changelog section of one version, for GitHub release notes."""
+"""Den Changelog-Abschnitt einer Version ausgeben, für GitHub-Release-Notes."""
 
 from __future__ import annotations
 

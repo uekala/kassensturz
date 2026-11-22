@@ -38,9 +38,9 @@ def import_rows(db: Database, account_id: int, rows: list[dict], source: str, fi
                                                "added": 0, "skipped": 0})
             created = now_iso()
             for key, group in groups.items():
-                # Match exact hashes first, consuming each existing occurrence only once.
-                # Remaining same-day/same-amount rows retain the legacy fuzzy fallback
-                # (e.g. changed merchant text between FinTS and CSV imports).
+                # Zuerst exakte Hashes zuordnen und jedes vorhandene Vorkommen nur einmal verbrauchen.
+                # Übrige Zeilen mit gleichem Tag und Betrag behalten den alten unscharfen Rückfall
+                # (z. B. geänderter Händlertext zwischen FinTS- und CSV-Importen).
                 available = have_counts.get(key, Counter()).copy()
                 unmatched = []
                 exact_matches = 0

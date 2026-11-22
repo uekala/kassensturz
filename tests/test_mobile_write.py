@@ -153,7 +153,7 @@ def test_request_id_is_unique_in_the_database(db):
         pass
     else:
         raise AssertionError("duplicate request id was accepted")
-    # Imported rows without a request id are unaffected by the unique index.
+    # Importierte Zeilen ohne Anfrage-ID sind vom eindeutigen Index nicht betroffen.
     db.insert("transactions", {"account_id": account_id, "booking_date": "2026-11-09", "amount_cents": -1})
     db.insert("transactions", {"account_id": account_id, "booking_date": "2026-11-09", "amount_cents": -1})
 

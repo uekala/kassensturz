@@ -13,7 +13,7 @@ import 'account_value_sheet.dart';
 import 'loan_sheet.dart';
 import 'net_worth_trend.dart';
 
-/// Accounts as the server reports them; they are managed in Home Assistant.
+/// Konten, wie der Server sie meldet; verwaltet werden sie in Home Assistant.
 class ServerAccountsPage extends StatelessWidget {
   const ServerAccountsPage({required this.controller, super.key});
 
@@ -25,8 +25,8 @@ class ServerAccountsPage extends StatelessWidget {
     final data = controller.overviewData;
     final accounts = _maps(data?['accounts']);
     final textTheme = Theme.of(context).textTheme;
-    // A child's pocket money is an arrangement, not money in the bank; it
-    // does not count towards the adults' net worth.
+    // Das Taschengeld eines Kindes ist eine Abmachung, kein Geld auf der Bank; es
+    // zählt nicht zum Vermögen der Erwachsenen.
     final known = accounts
         .where((item) => item['balance_known'] == true && !_isPocket(item))
         .toList();
@@ -34,8 +34,8 @@ class ServerAccountsPage extends StatelessWidget {
       0,
       (sum, item) => sum + _integer(item['balance_cents']),
     );
-    // Older servers send no group; they only know everyday accounts,
-    // reserves and depots.
+    // Ältere Server senden keine Gruppe; sie kennen nur Alltagskonten,
+    // Rücklagen und Depots.
     String groupOf(Map<String, dynamic> item) {
       final group = item['group'];
       if (group is String && _groupLabels.containsKey(group)) return group;
@@ -53,8 +53,8 @@ class ServerAccountsPage extends StatelessWidget {
         if (entry.key == 'alltag' || (sums[entry.key] ?? 0) != 0)
           '${entry.value} ${formatEuro((sums[entry.key] ?? 0) / 100)}',
     ].join(' · ');
-    // With a household the server only sends the accounts of this person
-    // and the shared ones; say so and mark which is which.
+    // Mit einem Haushalt sendet der Server nur die Konten dieser Person
+    // und die gemeinsamen; das sagen und kennzeichnen, welches welches ist.
     final household = data?['household'];
     final split = household is Map && household['private_accounts'] == true;
     final person = household is Map ? household['person'] : null;
@@ -67,7 +67,7 @@ class ServerAccountsPage extends StatelessWidget {
     } else {
       scope = 'Du siehst deine eigenen und die gemeinsamen Konten ($viewer).';
     }
-    // What is open between this person and the others from shared expenses.
+    // Was zwischen dieser Person und den anderen aus geteilten Ausgaben offen ist.
     final open = household is Map ? household['balances'] : null;
     final owed = _maps(open).map(_owedLine).toList();
 
@@ -77,7 +77,7 @@ class ServerAccountsPage extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          // A child only has its pocket money; groups would read as 0,00 €.
+          // Ein Kind hat nur sein Taschengeld; Gruppen würden sich als 0,00 € lesen.
           AmountHeadline(
             label: controller.isReadOnly ? 'Dein Geld' : 'Vermögen',
             amount: formatEuro(total / 100),
@@ -152,7 +152,7 @@ class ServerAccountsPage extends StatelessWidget {
   }
 }
 
-/// A loan opens its repayment plan, a deposit the form for its value.
+/// Ein Kredit öffnet seinen Tilgungsplan, eine Geldanlage das Formular für ihren Wert.
 VoidCallback? _accountTap(
   BuildContext context,
   MobileConnectionController controller,
@@ -204,10 +204,10 @@ class _AccountPanel extends StatelessWidget {
 
   final Map<String, dynamic> account;
 
-  /// Opens more about the account, for a loan its repayment plan.
+  /// Öffnet mehr zum Konto, bei einem Kredit seinen Tilgungsplan.
   final VoidCallback? onTap;
 
-  /// Only with a household: say whether the account is private or shared.
+  /// Nur mit einem Haushalt: sagen, ob das Konto privat oder gemeinsam ist.
   final bool showOwnership;
 
   @override
@@ -282,7 +282,7 @@ class _AccountPanel extends StatelessWidget {
   }
 }
 
-/// Budgets of the current month as the server reports them.
+/// Budgets des laufenden Monats, wie der Server sie meldet.
 class ServerBudgetPage extends StatelessWidget {
   const ServerBudgetPage({required this.controller, super.key});
 
@@ -293,8 +293,8 @@ class ServerBudgetPage extends StatelessWidget {
     final klar = KlarColors.of(context);
     final data = controller.overviewData;
     final budgets = _maps(data?['budgets']);
-    // With a household these are the shared budgets; the person's own ones
-    // only count the own accounts and come separately.
+    // Mit einem Haushalt sind das die gemeinsamen Budgets; die eigenen der Person
+    // zählen nur die eigenen Konten und kommen getrennt.
     final ownBudgets = _maps(data?['own_budgets']);
     final household = data?['household'];
     final split = household is Map && household['private_accounts'] == true;
@@ -558,7 +558,7 @@ const _typeLabels = {
   'sonstiges': 'Sonstiges',
 };
 
-/// The pocket money account of a child, as an adult sees it.
+/// Das Taschengeldkonto eines Kindes, wie ein Erwachsener es sieht.
 bool _isPocket(Map<String, dynamic> item) => item['ownership'] == 'child';
 
 String _ownershipLabel(dynamic ownership) => switch (ownership) {
@@ -569,7 +569,7 @@ String _ownershipLabel(dynamic ownership) => switch (ownership) {
 
 const _valueTypes = {'depot', 'festgeld', 'vl', 'immobilie', 'kredit'};
 
-/// Parts of the net worth, in the order they are shown.
+/// Teile des Vermögens, in der Reihenfolge, in der sie gezeigt werden.
 const _groupLabels = {
   'alltag': 'Alltag',
   'ruecklagen': 'Rücklagen',
@@ -585,7 +585,7 @@ List<Map<String, dynamic>> _maps(dynamic value) {
 
 int _integer(dynamic value) => value is int ? value : 0;
 
-/// One line per other person: positive cents mean they owe this person.
+/// Eine Zeile je anderer Person: positive Cent heißen, sie schuldet dieser Person etwas.
 String _owedLine(Map<String, dynamic> item) {
   final name = _string(item['person'], 'Jemand');
   final cents = _integer(item['cents']);
@@ -598,8 +598,8 @@ String _owedLine(Map<String, dynamic> item) {
 String _string(dynamic value, String fallback) =>
     value is String && value.isNotEmpty ? value : fallback;
 
-/// Savings goals and the reserve for rare costs, as far as the server sends
-/// them. Both are maintained in Kassensturz in Home Assistant.
+/// Sparziele und die Rücklage für seltene Kosten, soweit der Server sie sendet.
+/// Beide werden in Kassensturz in Home Assistant gepflegt.
 List<Widget> _savingsSections(
   BuildContext context,
   Map<String, dynamic>? data,
@@ -667,7 +667,7 @@ class _GoalBlock extends StatelessWidget {
         : monthly is int && due.isNotEmpty
         ? '${formatEuro(monthly / 100)} im Monat bis ${formatShortDate(due)}'
         : 'Es fehlen ${formatEuro(rest / 100)}';
-    // With a household a goal can belong to this person alone.
+    // Mit einem Haushalt kann ein Ziel dieser Person allein gehören.
     final own = goal['ownership'] == 'mine';
     final note = own ? '$detail · nur für dich' : detail;
 
@@ -701,7 +701,7 @@ class _GoalBlock extends StatelessWidget {
   }
 }
 
-/// What the line below the budgets says, depending on what this phone may do.
+/// Was die Zeile unter den Budgets sagt, je nachdem, was dieses Handy darf.
 String _budgetHint(MobileConnectionController controller) {
   if (controller.canEditBudgets) {
     return 'Tippe auf ein Budget, um es zu ändern oder zu entfernen.';

@@ -138,7 +138,7 @@ def test_cancellation_contact_sources_and_event(client):
             "email": "kuendigung@telekom.example",
             "postal_address": "Telekom Kundenservice, 53171 Bonn",
             "cancellation_url": "https://www.telekom.de/kontakt",
-            "status": "verified",  # ignored by the ordinary save endpoint
+            "status": "verified",  # vom normalen Speicher-Endpunkt ignoriert
             "sources": [{
                 "title": "Offizielle Kontaktseite",
                 "url": "https://www.telekom.de/kontakt",
@@ -340,11 +340,11 @@ def test_unconfirmed_cancellation_event_reminder(client, db):
         json={"mode": "ordinary"},
     ).json()
 
-    # Freshly prepared cancellations must not trigger a reminder yet.
+    # Frisch vorbereitete Kündigungen dürfen noch keine Erinnerung auslösen.
     alerts = client.get("/api/overview").json()["alerts"]
     assert not any(a["key"] == f"cancellation-pending:{event['id']}" for a in alerts)
 
-    # After 24 hours without explicit send confirmation, a warning appears.
+    # Nach 24 Stunden ohne ausdrückliche Versandbestätigung erscheint eine Warnung.
     old = (datetime.now() - timedelta(hours=25)).replace(microsecond=0).isoformat()
     db.conn.execute(
         "UPDATE cancellation_events SET prepared_at = ? WHERE id = ?",
@@ -356,7 +356,7 @@ def test_unconfirmed_cancellation_event_reminder(client, db):
     assert reminder["level"] == "warning"
     assert "tatsächlich versendet" in reminder["text"]
 
-    # After explicit send confirmation, the reminder disappears.
+    # Nach ausdrücklicher Versandbestätigung verschwindet die Erinnerung.
     client.post(f"/api/contracts/{key}/cancellation-events/{event['id']}/handoff")
     sent = client.post(
         f"/api/contracts/{key}/cancellation-events/{event['id']}/confirm-sent",

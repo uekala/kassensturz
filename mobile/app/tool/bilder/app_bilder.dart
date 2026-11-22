@@ -25,11 +25,11 @@ import '../../test/support/fake_server.dart';
 const _answersPath = 'tool/bilder/server.json';
 const _outputFolder = 'build/app-bilder';
 
-/// What the server answered, per person: "anna" is an adult, "mia" a child.
+/// Was der Server je Person geantwortet hat: "anna" ist erwachsen, "mia" ein Kind.
 late final Map<String, dynamic> _views;
 
-/// Registers the fonts of the app. Without this, tests draw every letter as
-/// a box.
+/// Registriert die Schriften der App. Ohne das zeichnen Tests jeden Buchstaben als
+/// Kästchen.
 Future<void> _loadFonts() async {
   final manifest =
       jsonDecode(await rootBundle.loadString('FontManifest.json'))
@@ -48,7 +48,7 @@ Future<void> _loadFonts() async {
 Map<String, dynamic> _answers(String view) =>
     _views[view] as Map<String, dynamic>;
 
-/// The body of a recorded answer, for reading a name to tap on.
+/// Der Inhalt einer aufgezeichneten Antwort, um einen Namen zum Antippen zu lesen.
 Map<String, dynamic> _body(String view, String path) {
   final answer = _answers(view)['GET $path'] as Map<String, dynamic>;
   return answer['body'] as Map<String, dynamic>;
@@ -68,14 +68,14 @@ MobileHttpResponse _replay(String view, RecordedRequest request) {
   return errorResponse(404, 'not_found', 'Unbekannt.');
 }
 
-/// One running app on a phone-sized screen.
+/// Eine laufende App auf einem Bildschirm in Handygröße.
 class _Phone {
   _Phone(this.tester, this.frame);
 
   final WidgetTester tester;
   final GlobalKey frame;
 
-  /// Things a scene looked for and did not find.
+  /// Dinge, die eine Szene gesucht und nicht gefunden hat.
   final missing = <String>[];
 
   static Future<_Phone> start(
@@ -113,7 +113,7 @@ class _Phone {
     return _Phone(tester, frame);
   }
 
-  /// Saves what is on the screen, twice as sharp as the screen is large.
+  /// Speichert, was auf dem Bildschirm ist, doppelt so scharf, wie der Bildschirm groß ist.
   Future<void> shot(String name) async {
     await tester.pumpAndSettle();
     final boundary =
@@ -128,14 +128,14 @@ class _Phone {
     });
   }
 
-  /// Scrolls the visible page down by [distance].
+  /// Scrollt die sichtbare Seite um [distance] nach unten.
   Future<void> down([double distance = 520]) async {
     await tester.dragFrom(const Offset(195, 560), Offset(0, -distance));
     await tester.pumpAndSettle();
   }
 
-  /// Scrolls until [target] can be tapped, then taps it. Looks further down
-  /// first and then back up, so it does not matter where the page stands.
+  /// Scrollt, bis sich [target] antippen lässt, und tippt es dann an. Sucht zuerst
+  /// weiter unten und dann wieder oben, damit es egal ist, wo die Seite steht.
   Future<bool> open(Finder target, String what) async {
     for (final distance in [300.0, -300.0]) {
       for (var step = 0; step < 14; step++) {
@@ -152,7 +152,7 @@ class _Phone {
     return false;
   }
 
-  /// Switches to one of the four tabs at the bottom.
+  /// Wechselt zu einem der vier Tabs unten.
   Future<void> tab(String label) async {
     final visible = find.text(label).hitTestable();
     if (visible.evaluate().isEmpty) {
@@ -163,7 +163,7 @@ class _Phone {
     await tester.pumpAndSettle();
   }
 
-  /// Closes the page, sheet or dialog on top.
+  /// Schließt die Seite, das Blatt oder den Dialog obenauf.
   Future<void> back() async {
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await tester.pumpAndSettle();
@@ -174,7 +174,7 @@ class _Phone {
   }
 }
 
-/// A test that draws real shadows; the test default paints them as blocks.
+/// Ein Test, der echte Schatten zeichnet; der Teststandard malt sie als Blöcke.
 void _scene(String name, Future<void> Function(WidgetTester tester) body) {
   testWidgets(name, (tester) async {
     debugDisableShadows = false;
@@ -188,7 +188,7 @@ void _scene(String name, Future<void> Function(WidgetTester tester) body) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  // This file is a test, it only lives outside test/ (see the note on top).
+  // Diese Datei ist ein Test, sie liegt nur außerhalb von test/ (siehe den Hinweis oben).
   // ignore: invalid_use_of_visible_for_testing_member
   FlutterSecureStorage.setMockInitialValues({});
 
@@ -235,7 +235,7 @@ void main() {
     final items =
         (_body('anna', '/api/v1/transactions')['items'] as List<dynamic>)
             .cast<Map<String, dynamic>>();
-    // An ordinary expense from the bank, not the pocket money on top.
+    // Eine gewöhnliche Ausgabe von der Bank, nicht das Taschengeld obendrauf.
     final first = items.firstWhere(
       (item) => (item['amount_cents'] as int) < 0,
       orElse: () => items.first,
@@ -332,8 +332,8 @@ void main() {
     phone.done();
   });
 
-  // The recorded household has no bank that asks back, so the question is
-  // put into the answers here: invented bank, invented wording.
+  // Der aufgezeichnete Haushalt hat keine Bank, die zurückfragt, deshalb wird die Frage
+  // hier in die Antworten gelegt: erfundene Bank, erfundener Wortlaut.
   for (final (name, question) in [
     (
       '33-bank-tan',
@@ -425,13 +425,13 @@ void main() {
 
   _scene('Handy eines Kindes', (tester) async {
     final phone = await _Phone.start(tester, view: 'mia');
-    // A child's phone is read-only on purpose; nothing there may suggest
-    // that the server is outdated or that something can be added.
+    // Das Handy eines Kindes ist absichtlich nur zum Lesen; nichts darf dort nahelegen,
+    // dass der Server veraltet ist oder sich etwas hinzufügen lässt.
     expect(find.textContaining('aktualisieren'), findsNothing);
     expect(find.byTooltip('Umsatz anlegen'), findsNothing);
     expect(find.text('Dein Geld'), findsOneWidget);
-    // Budgets and contracts are for the adults: no planning tab, no empty
-    // budget section, no groups of wealth that would all read 0,00 €.
+    // Budgets und Verträge sind für die Erwachsenen: kein Planungs-Tab, kein leerer
+    // Budgetbereich, keine Vermögensgruppen, die alle 0,00 € zeigen würden.
     expect(find.text('Planung'), findsNothing);
     expect(find.text('Noch keine Budgets eingerichtet.'), findsNothing);
     await phone.shot('20-kind-heute');

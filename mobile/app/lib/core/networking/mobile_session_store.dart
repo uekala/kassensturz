@@ -10,8 +10,8 @@ abstract interface class MobileSessionStore {
   Future<void> clear();
 }
 
-/// Stores the complete session as one secure-storage value so token rotation
-/// cannot leave a half-written access/refresh token pair.
+/// Speichert die ganze Sitzung als einen Wert im sicheren Speicher, damit die Token-Rotation
+/// kein halb geschriebenes Paar aus Access- und Refresh-Token hinterlassen kann.
 class SecureMobileSessionStore implements MobileSessionStore {
   SecureMobileSessionStore({FlutterSecureStorage? storage})
     : _storage = storage ?? const FlutterSecureStorage();
@@ -35,7 +35,7 @@ class SecureMobileSessionStore implements MobileSessionStore {
   Future<void> clear() => _storage.delete(key: _key);
 }
 
-/// In-memory store used by widget tests and non-production previews.
+/// Speicher im Arbeitsspeicher für Widget-Tests und Vorschauen außerhalb der Produktion.
 class InMemoryMobileSessionStore implements MobileSessionStore {
   MobileSession? _session;
 

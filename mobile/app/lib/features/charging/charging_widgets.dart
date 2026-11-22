@@ -10,7 +10,7 @@ String _kwh(dynamic value) =>
 String _perKwh(dynamic cents) =>
     cents is num ? '${formatEuro(cents / 100)}/kWh' : '';
 
-/// One charging session in a line: kWh, price per kWh, place and time.
+/// Eine Ladung in einer Zeile: kWh, Preis pro kWh, Ort und Zeit.
 String chargingLine(Map<String, dynamic> c) {
   final started = c['started']?.toString() ?? '';
   final when = started.length >= 16
@@ -30,8 +30,8 @@ String chargingLine(Map<String, dynamic> c) {
   ].where((part) => part.isNotEmpty).join(' · ');
 }
 
-/// What Ladecockpit knows about the charging a booking paid for. Shows
-/// nothing for other bookings.
+/// Was Ladecockpit über die Ladung weiß, die eine Buchung bezahlt hat. Zeigt
+/// bei anderen Buchungen nichts.
 class TransactionChargingSection extends StatefulWidget {
   const TransactionChargingSection({
     required this.controller,
@@ -85,8 +85,8 @@ class _TransactionChargingSectionState
   }
 }
 
-/// Charging of the shown month in the analysis. Shows nothing while
-/// Ladecockpit has not reported any session.
+/// Laden im angezeigten Monat der Auswertung. Zeigt nichts, solange
+/// Ladecockpit keine Ladung gemeldet hat.
 class ChargingMonthCard extends StatefulWidget {
   const ChargingMonthCard({
     required this.controller,
@@ -96,7 +96,7 @@ class ChargingMonthCard extends StatefulWidget {
 
   final MobileConnectionController controller;
 
-  /// yyyy-MM of the month the analysis shows.
+  /// yyyy-MM des Monats, den die Auswertung zeigt.
   final String month;
 
   @override

@@ -12,7 +12,7 @@ const _parts = [
   {'person_id': 2, 'name': 'Ben', 'cents': 1500},
 ];
 
-/// A server that remembers whether transaction 4 is shared.
+/// Ein Server, der sich merkt, ob Umsatz 4 geteilt ist.
 class _ShareServer {
   bool shared = false;
 

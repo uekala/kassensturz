@@ -104,7 +104,7 @@ void main() {
         });
       }
       if (request.method == 'PATCH' && path == '/api/v1/transactions/1') {
-        // The server moved the similar entry along.
+        // Der Server hat den ähnlichen Eintrag mitgenommen.
         open.removeWhere((item) => item['id'] == 1 || item['id'] == 3);
         return jsonResponse(200, {
           'transaction': _transaction(1, 'Erfundene Firma XY', -45000),

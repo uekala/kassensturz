@@ -6,8 +6,8 @@ import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 
-/// Shows what a bank asks during a fetch and sends the answer: a TAN, which
-/// method to use, or that the access was approved in the banking app.
+/// Zeigt, was eine Bank während eines Abrufs fragt, und sendet die Antwort: eine TAN,
+/// welches Verfahren, oder dass der Zugriff in der Banking-App freigegeben wurde.
 class BankQuestionPanel extends StatefulWidget {
   const BankQuestionPanel({
     required this.controller,
@@ -152,7 +152,7 @@ class _BankQuestionPanelState extends State<BankQuestionPanel> {
   }
 }
 
-/// The five blinking bars a chipTAN reader is held against.
+/// Die fünf blinkenden Balken, an die ein chipTAN-Leser gehalten wird.
 class _Flicker extends StatefulWidget {
   const _Flicker({required this.frames});
 

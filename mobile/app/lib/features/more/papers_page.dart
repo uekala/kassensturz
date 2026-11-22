@@ -6,8 +6,8 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
 
-/// Tax overview per year and the warranties, read-only. Marking a
-/// transaction and adding receipts happens in the transaction itself.
+/// Steuerübersicht je Jahr und die Garantien, nur zum Lesen. Einen Umsatz markieren
+/// und Belege hinzufügen geschieht im Umsatz selbst.
 class PapersPage extends StatefulWidget {
   const PapersPage({required this.controller, super.key});
 

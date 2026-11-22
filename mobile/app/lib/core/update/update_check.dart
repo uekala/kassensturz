@@ -5,13 +5,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../networking/mobile_api_client.dart';
 
-/// Version of this build. Release builds get it from the release tag
-/// (`--dart-define=KASSENSTURZ_VERSION=0.3.8`); other builds have none and
-/// never look for updates.
+/// Version dieses Builds. Release-Builds bekommen sie aus dem Release-Tag
+/// (`--dart-define=KASSENSTURZ_VERSION=0.3.8`); andere Builds haben keine und
+/// suchen nie nach Updates.
 const appVersion = String.fromEnvironment('KASSENSTURZ_VERSION');
 
-/// The repository also holds add-on releases (`v0.3.6`), so the app looks
-/// through the recent releases instead of asking for the latest one.
+/// Das Repository enthält auch Add-on-Releases (`v0.3.6`), deshalb durchsucht die App
+/// die jüngsten Releases, statt nach dem neuesten zu fragen.
 final _releasesUri = Uri.parse(
   'https://api.github.com/repos/uekala/kassensturz/releases?per_page=15',
 );
@@ -27,7 +27,7 @@ class UpdateInfo {
 
   final String version;
 
-  /// Direct link to the APK, or the release page when the release has none.
+  /// Direkter Link zur APK oder die Release-Seite, wenn das Release keine hat.
   final String downloadUrl;
   final String pageUrl;
 }
@@ -73,7 +73,7 @@ List<int>? parseVersion(String value) {
   return [for (var i = 1; i <= 3; i++) int.parse(match.group(i)!)];
 }
 
-/// True when [candidate] is a higher version than [current].
+/// True, wenn [candidate] eine höhere Version als [current] ist.
 bool isNewerVersion(String candidate, String current) {
   final a = parseVersion(candidate);
   final b = parseVersion(current);
@@ -84,9 +84,9 @@ bool isNewerVersion(String candidate, String current) {
   return false;
 }
 
-/// Asks GitHub once per app start whether a newer app release exists. Only
-/// the public release list is fetched, without credentials; nothing about
-/// the user, the server or the finances leaves the phone.
+/// Fragt GitHub einmal pro App-Start, ob es ein neueres App-Release gibt. Abgerufen
+/// wird nur die öffentliche Release-Liste, ohne Zugangsdaten; nichts über den Nutzer,
+/// den Server oder die Finanzen verlässt das Handy.
 class UpdateChecker {
   UpdateChecker({
     MobileTransport? transport,
@@ -103,15 +103,15 @@ class UpdateChecker {
   final String currentVersion;
   final bool _isAndroid;
 
-  /// Only release builds on Android can update from an APK.
+  /// Nur Release-Builds auf Android können sich aus einer APK aktualisieren.
   bool get supported => _isAndroid && parseVersion(currentVersion) != null;
 
   Future<bool> get enabled => _preference.enabled;
 
   Future<void> setEnabled(bool value) => _preference.setEnabled(value);
 
-  /// Returns the newest newer release, or null when there is none, the check
-  /// is switched off or not supported, or GitHub cannot be reached.
+  /// Gibt das neueste neuere Release zurück, oder null, wenn es keines gibt, die Prüfung
+  /// abgeschaltet oder nicht unterstützt ist oder GitHub nicht erreichbar ist.
   Future<UpdateInfo?> check() async {
     if (!supported) return null;
     try {
@@ -135,7 +135,7 @@ class UpdateChecker {
   }
 }
 
-/// Picks the newest app release out of GitHub's release list.
+/// Sucht das neueste App-Release aus GitHubs Release-Liste heraus.
 UpdateInfo? updateFromReleases(dynamic releases, String currentVersion) {
   if (releases is! List) return null;
   UpdateInfo? best;
@@ -164,7 +164,7 @@ UpdateInfo? updateFromReleases(dynamic releases, String currentVersion) {
         }
       }
     }
-    // A release without its APK is still being built; skip it for now.
+    // Ein Release ohne seine APK wird noch gebaut; vorerst überspringen.
     if (apk == null) continue;
     best = UpdateInfo(version: version, downloadUrl: apk, pageUrl: page);
   }

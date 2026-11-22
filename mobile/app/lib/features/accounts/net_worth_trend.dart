@@ -6,8 +6,8 @@ import '../../core/design/app_theme.dart';
 import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 
-/// Net worth over the last months as a line, with the change in words.
-/// Shows nothing until the server has at least two points.
+/// Vermögen über die letzten Monate als Linie, mit der Veränderung in Worten.
+/// Zeigt nichts, bis der Server mindestens zwei Punkte hat.
 class NetWorthTrend extends StatefulWidget {
   const NetWorthTrend({required this.controller, super.key});
 

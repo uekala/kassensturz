@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// The colours of one brightness. Widgets read them with
-/// `KlarColors.of(context)` so the same layout works light and dark.
+/// Die Farben einer Helligkeit. Widgets lesen sie mit
+/// `KlarColors.of(context)`, damit dasselbe Layout hell und dunkel funktioniert.
 @immutable
 class KlarColors extends ThemeExtension<KlarColors> {
   const KlarColors({
@@ -18,11 +18,11 @@ class KlarColors extends ThemeExtension<KlarColors> {
     required this.onSoftWarn,
   });
 
-  /// The one accent: actions, progress, income.
+  /// Der eine Akzent: Aktionen, Fortschritt, Einnahmen.
   final Color brand;
   final Color onBrand;
 
-  /// Page and panel background; there are no tinted or grey panels.
+  /// Hintergrund von Seite und Bereichen; es gibt keine getönten oder grauen Bereiche.
   final Color surface;
   final Color ink;
   final Color mutedInk;
@@ -30,10 +30,10 @@ class KlarColors extends ThemeExtension<KlarColors> {
   /// Hairlines between rows.
   final Color border;
 
-  /// Outlines of inputs and filter buttons.
+  /// Umrisse von Eingaben und Filterknöpfen.
   final Color fieldBorder;
 
-  /// Tint behind brand-coloured content, and the track of progress bars.
+  /// Tönung hinter Inhalten in Markenfarbe und die Spur von Fortschrittsbalken.
   final Color softBrand;
 
   /// What needs attention: over budget, errors, lost connection.
@@ -120,16 +120,16 @@ class KlarColors extends ThemeExtension<KlarColors> {
   }
 }
 
-/// The visual foundation of Kassensturz.
+/// Die gestalterische Grundlage von Kassensturz.
 ///
-/// One surface colour, strong ink and one blue. Shapes are drawn with ink
-/// outlines instead of tinted fills; orange marks what needs attention.
-/// Text is set in Inter, headings and large amounts in Space Grotesk.
+/// Eine Flächenfarbe, kräftige Tinte und ein Blau. Formen werden mit Umrissen in Tinte
+/// statt getönter Füllungen gezeichnet; Orange markiert, was Aufmerksamkeit braucht.
+/// Text ist in Inter gesetzt, Überschriften und große Beträge in Space Grotesk.
 abstract final class AppTheme {
   static const textFamily = 'Inter';
   static const displayFamily = 'Space Grotesk';
 
-  /// Glyphs beyond Western European (for example Turkish or Polish names).
+  /// Zeichen jenseits Westeuropas (zum Beispiel türkische oder polnische Namen).
   static const textFallback = ['Inter Ext'];
   static const displayFallback = ['Space Grotesk Ext', 'Inter', 'Inter Ext'];
 

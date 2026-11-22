@@ -13,7 +13,7 @@ from datetime import date
 from .util import clean_purpose, norm, parse_amount, parse_date
 
 
-# Resource limits apply to uploads and watched-folder imports alike.
+# Ressourcengrenzen gelten für Uploads und Importe aus überwachten Ordnern gleichermaßen.
 MAX_IMPORT_BYTES = 25 * 1024 * 1024
 MAX_ZIP_ENTRIES = 100
 MAX_ZIP_EXPANDED_BYTES = 50 * 1024 * 1024
@@ -514,7 +514,7 @@ def analyze(data: bytes, filename: str, mapping_override: dict | None = None) ->
                     raise ValueError("Verschlüsselte ZIP-Einträge werden nicht unterstützt.")
                 if info.file_size > MAX_XML_FILE_BYTES:
                     raise ValueError("Eine XML-Datei im ZIP-Archiv ist zu groß.")
-                # Read at most one byte beyond the limit, even if ZIP metadata is misleading.
+                # Höchstens ein Byte über die Grenze hinaus lesen, auch wenn die ZIP-Metadaten täuschen.
                 with zf.open(info) as member:
                     xml_bytes = member.read(MAX_XML_FILE_BYTES + 1)
                 if len(xml_bytes) > MAX_XML_FILE_BYTES:

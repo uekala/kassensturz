@@ -4,8 +4,8 @@ from kassensturz import main
 
 
 def _client_with_address(address: str) -> TestClient:
-    # Starlette lets tests provide the peer address so that the ingress
-    # middleware can be exercised without opening a network listener.
+    # Starlette lässt Tests die Adresse der Gegenstelle vorgeben, damit sich die
+    # Ingress-Middleware prüfen lässt, ohne einen Netz-Listener zu öffnen.
     return TestClient(main.app, client=(address, 50123))
 
 
@@ -97,7 +97,7 @@ def test_mobile_namespace_accepts_https_asserted_by_explicitly_trusted_proxy(
             headers={"X-Forwarded-Proto": "https"},
         )
 
-    # The reserved path is not a registered API endpoint; transport succeeds and the router returns 404.
+    # Der reservierte Pfad ist kein registrierter API-Endpunkt; der Transport gelingt, und der Router gibt 404 zurück.
     assert response.status_code == 404
 
 
@@ -136,8 +136,8 @@ def test_mobile_pairing_rate_limit_is_enforced_before_route_dispatch(monkeypatch
         second = client.post("/api/v1/pair", json={"pairing_secret": "not-real"})
         third = client.post("/api/v1/pair", json={"pairing_secret": "not-real"})
 
-    # The registered route validates the intentionally malformed body,
-    # while the third attempt is stopped by the network limiter first.
+    # Die registrierte Route prüft den absichtlich fehlerhaften Inhalt,
+    # während der dritte Versuch vorher vom Netz-Limiter gestoppt wird.
     assert first.status_code == 400
     assert second.status_code == 400
     assert third.status_code == 429

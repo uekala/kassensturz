@@ -144,7 +144,7 @@ def cancellation_contact_put(key: str, body: dict = Body(...)):
                 _err(400, "Quellen und Kontaktseiten müssen gültige HTTPS-URLs ohne Zugangsdaten sein.")
         urls[field] = value
     checked_at = now_iso()
-    # Only the explicit confirmation endpoint may set status="verified".
+    # Nur der ausdrückliche Bestätigungs-Endpunkt darf status="verified" setzen.
     status = body.get("status") if body.get("status") in ("unverified", "partially_verified", "conflicting") else "unverified"
     sources = body.get("sources") or []
     if not isinstance(sources, list) or len(sources) > 20:
@@ -213,8 +213,8 @@ def cancellation_contact_confirm(key: str, body: dict = Body(...)):
         if cp.scheme != "https" or not cp.hostname or cp.username or cp.password or cp.port not in (None, 443):
             _err(400, "Der Kündigungslink muss eine gültige HTTPS-Adresse sein.")
 
-    # Never overwrite existing contract fields silently. The user can resolve
-    # differences in the normal contract editor after seeing the conflict.
+    # Vorhandene Vertragsfelder nie stillschweigend überschreiben. Der Nutzer kann
+    # Unterschiede im normalen Vertragseditor auflösen, nachdem er den Konflikt gesehen hat.
     if email and contract.get("provider_email") and contract["provider_email"].strip().lower() != email.lower():
         _err(409, "Im Vertrag ist bereits eine andere Anbieter-E-Mail hinterlegt. Bitte prüfe den Konflikt zuerst in den Vertragsdaten.")
     if address and contract.get("provider_address") and contract["provider_address"].strip() != address:

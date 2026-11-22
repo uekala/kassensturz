@@ -20,7 +20,7 @@ const _monthNames = [
   'Dezember',
 ];
 
-/// The title of a report: "Monatsbericht Oktober 2026" or
+/// Der Titel eines Berichts: "Monatsbericht Oktober 2026" oder
 /// "Jahresrückblick 2026".
 String reportTitle(String kind, String period) {
   if (kind == 'year') return 'Jahresrückblick $period';
@@ -29,7 +29,7 @@ String reportTitle(String kind, String period) {
   return 'Monatsbericht ${_monthNames[month - 1]} ${period.substring(0, 4)}';
 }
 
-/// Shows a report the server wrote as PDF. It stays in memory on the phone.
+/// Zeigt einen Bericht, den der Server als PDF geschrieben hat. Er bleibt im Arbeitsspeicher des Handys.
 class ReportPage extends StatefulWidget {
   const ReportPage({
     required this.controller,

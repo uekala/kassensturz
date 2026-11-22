@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 
-/// Shows a PDF with the renderer of the phone. The file stays in memory; it
-/// is neither written to storage nor handed to another app.
+/// Zeigt ein PDF mit dem Renderer des Handys. Die Datei bleibt im Arbeitsspeicher; sie
+/// wird weder gespeichert noch an eine andere App übergeben.
 class PdfBytesView extends StatefulWidget {
   const PdfBytesView({required this.bytes, required this.errorText, super.key});
 

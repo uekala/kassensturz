@@ -182,7 +182,7 @@ PAGE_TIMEOUT = 6
 
 
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
-    """HTTPS connection that connects to a prevalidated IP but verifies host TLS."""
+    """HTTPS-Verbindung zu einer vorab geprüften IP, die trotzdem das TLS des Hosts prüft."""
 
     def __init__(self, host: str, address: str, timeout: int):
         super().__init__(host, port=443, timeout=timeout, context=ssl.create_default_context())
@@ -224,10 +224,10 @@ class _PageEvidenceParser(HTMLParser):
 
 
 def fetch_public_page_evidence(raw_url: str) -> dict:
-    """Fetches a small HTML page through a DNS-pinned, TLS-verified connection.
+    """Holt eine kleine HTML-Seite über eine DNS-gebundene, TLS-geprüfte Verbindung.
 
-    Redirects are intentionally not followed. The page and extracted data remain
-    untrusted evidence; this function never marks a provider contact verified.
+    Weiterleitungen werden absichtlich nicht verfolgt. Seite und ausgelesene Daten bleiben
+    nicht vertrauenswürdige Belege; diese Funktion markiert nie einen Anbieterkontakt als geprüft.
     """
     checked = inspect_public_https_url(raw_url)
     parsed = urlparse(raw_url)

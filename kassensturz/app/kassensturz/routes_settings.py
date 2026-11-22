@@ -155,7 +155,7 @@ def refresh():
 
 
 def _csv_safe_text(value: str | None) -> str:
-    """Prevent spreadsheet formula execution when untrusted text is opened from CSV."""
+    """Das Ausführen von Tabellenformeln verhindern, wenn nicht vertrauenswürdiger Text aus einer CSV geöffnet wird."""
     text = str(value or "")
     if text.lstrip(" \t\r\n").startswith(("=", "+", "-", "@")):
         return "'" + text

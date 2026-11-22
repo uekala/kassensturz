@@ -81,7 +81,7 @@ ScriptedTransport _server({
     return jsonResponse(200, _overview(child: child, split: split));
   }
   if (path == '/api/v1/me' && child) {
-    // The server tells a child's phone in its identity that it only reads.
+    // Der Server teilt dem Handy eines Kindes in seiner Identität mit, dass es nur liest.
     return jsonResponse(200, {
       'device': {'id': 'device-1', 'name': 'Testgerät'},
       'server': {'name': 'Kassensturz', 'version': '0.3.57'},
@@ -204,7 +204,7 @@ void main() {
     expect(find.textContaining('nur für dich'), findsOneWidget);
     expect(find.textContaining('gemeinsam'), findsWidgets);
 
-    // An account with a bank feed has nothing to open.
+    // Ein Konto mit Bankanbindung hat nichts zu öffnen.
     await tester.tap(find.text('Erfundenes Giro'));
     await tester.pumpAndSettle();
     expect(find.text('Wert eintragen'), findsNothing);

@@ -51,8 +51,8 @@ class LiveDashboardPage extends StatelessWidget {
         final expense = _asInt(month['expense_cents']).abs();
         final transactions = controller.transactionItems;
         final textTheme = Theme.of(context).textTheme;
-        // A child's phone shows the child's own money. The month and the
-        // forecast of the household are not sent to it.
+        // Das Handy eines Kindes zeigt das eigene Geld des Kindes. Monat und
+        // Prognose des Haushalts werden ihm nicht geschickt.
         final ownOnly = controller.isReadOnly;
         var own = 0;
         for (final account in accounts) {
@@ -192,8 +192,8 @@ class LiveDashboardPage extends StatelessWidget {
                         _AccountTile(account: accounts[index]),
                   ),
                 ),
-              // A child has no planning tab; budgets only show up when
-              // there are some.
+              // Ein Kind hat keinen Planungs-Tab; Budgets erscheinen nur, wenn
+              // es welche gibt.
               if (!ownOnly || budgets.isNotEmpty) ...[
                 const SizedBox(height: 26),
                 SectionTitle(

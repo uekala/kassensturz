@@ -9,8 +9,8 @@ import '../projects/project_section.dart';
 import 'receipts_section.dart';
 import 'share_section.dart';
 
-/// Creates a manual transaction or edits an existing one. Everything is
-/// stored on the server; the page keeps no copy on the device.
+/// Legt einen manuellen Umsatz an oder ändert einen vorhandenen. Alles wird
+/// auf dem Server gespeichert; die Seite behält keine Kopie auf dem Gerät.
 class TransactionEditorPage extends StatefulWidget {
   const TransactionEditorPage({
     required this.controller,
@@ -38,8 +38,8 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
   late final TextEditingController _purpose;
   late final TextEditingController _note;
 
-  /// Stays the same for every attempt to save this form, so a repeated
-  /// request after a lost connection is recognised by the server.
+  /// Bleibt für jeden Speicherversuch dieses Formulars gleich, damit der Server eine
+  /// wiederholte Anfrage nach einer abgebrochenen Verbindung erkennt.
   final String _requestId = newClientRequestId();
 
   late bool _isExpense;
@@ -54,7 +54,7 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
   bool get _isNew => widget.existing == null;
   bool get _fullyEditable => _isNew || widget.existing!.manual;
 
-  /// True for the credit Kassensturz books on a pocket money account.
+  /// True für die Gutschrift, die Kassensturz auf ein Taschengeldkonto bucht.
   bool get _isPocketMoney {
     final existing = widget.existing;
     if (existing == null || existing.manual) return false;
@@ -66,7 +66,7 @@ class _TransactionEditorPageState extends State<TransactionEditorPage> {
     return false;
   }
 
-  /// Says why amount, date and text of this transaction cannot be changed.
+  /// Sagt, warum Betrag, Datum und Text dieses Umsatzes sich nicht ändern lassen.
   String get _fixedHint {
     if (_isPocketMoney) {
       return 'Diese Gutschrift hat Kassensturz angelegt. Betrag, Datum und '

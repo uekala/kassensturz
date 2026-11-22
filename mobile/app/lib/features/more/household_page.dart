@@ -8,7 +8,7 @@ import '../../core/widgets/klar_widgets.dart';
 
 typedef HouseholdPerson = ({int id, String name});
 
-/// The other persons of the household, without the one using this phone.
+/// Die anderen Personen des Haushalts, ohne die, die dieses Handy nutzt.
 List<HouseholdPerson> householdOthers(Map<String, dynamic> data, int? me) {
   final persons = data['persons'];
   final others = <HouseholdPerson>[];
@@ -22,7 +22,7 @@ List<HouseholdPerson> householdOthers(Map<String, dynamic> data, int? me) {
   return others;
 }
 
-/// The person this phone belongs to, as the overview reports it.
+/// Die Person, der dieses Handy gehört, wie die Übersicht sie meldet.
 int? householdPersonId(Map<String, dynamic>? overview) {
   final household = overview?['household'];
   final person = household is Map ? household['person'] : null;
@@ -30,7 +30,7 @@ int? householdPersonId(Map<String, dynamic>? overview) {
   return id is int ? id : null;
 }
 
-/// Who owes whom: positive cents mean the other person owes this one.
+/// Wer wem etwas schuldet: positive Cent heißen, die andere Person schuldet dieser etwas.
 String openTitle(Map<String, dynamic> entry) {
   final name = _string(entry['person'], 'Jemand');
   return _integer(entry['cents']) > 0
@@ -58,8 +58,8 @@ String paymentDetail(Map<String, dynamic> payment) {
 
 String _euro(dynamic cents) => formatEuro(_integer(cents).abs() / 100);
 
-/// Shared expenses of the household: what is open between this person and
-/// the others, the latest shared expenses and the payments entered by hand.
+/// Geteilte Ausgaben des Haushalts: was zwischen dieser Person und den anderen offen ist,
+/// die jüngsten geteilten Ausgaben und die von Hand eingetragenen Zahlungen.
 class HouseholdPage extends StatefulWidget {
   const HouseholdPage({required this.controller, super.key});
 

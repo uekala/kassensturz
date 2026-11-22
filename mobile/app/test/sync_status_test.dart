@@ -403,7 +403,7 @@ void main() {
     expect(find.text('Erfundene Bank verlangt eine TAN'), findsNothing);
     expect(controller.bankQuestion, isNull);
     expect(controller.syncStatus!.running, isFalse);
-    // Nothing was started from here: the fetch was already waiting.
+    // Von hier wurde nichts gestartet: Der Abruf wartete schon.
     expect(startBody, isNull);
   });
 

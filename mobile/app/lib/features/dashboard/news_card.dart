@@ -4,7 +4,7 @@ import '../../core/design/app_theme.dart';
 import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 
-/// What arrived since the last visit. Stays until it is marked as read.
+/// Was seit dem letzten Besuch eingetroffen ist. Bleibt, bis es als gelesen markiert ist.
 class NewsCard extends StatelessWidget {
   const NewsCard({required this.controller, super.key});
 

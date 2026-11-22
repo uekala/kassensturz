@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the Home Assistant add-on and Flutter app version metadata."""
+"""Die Versionsangaben des Home-Assistant-Add-ons und der Flutter-App prüfen."""
 
 from __future__ import annotations
 

@@ -8,7 +8,7 @@ import 'mobile_models.dart';
 import 'mobile_session.dart';
 import 'mobile_session_store.dart';
 
-/// What the app currently knows about its link to the Kassensturz server.
+/// Was die App gerade über ihre Verbindung zum Kassensturz-Server weiß.
 enum ServerLinkState { notPaired, connected, unreachable }
 
 class MobileConnectionController extends ChangeNotifier {
@@ -127,20 +127,20 @@ class MobileConnectionController extends ChangeNotifier {
         : ServerLinkState.connected;
   }
 
-  /// Time of the last call that returned current data from the server.
+  /// Zeitpunkt des letzten Aufrufs, der aktuelle Daten vom Server lieferte.
   DateTime? get lastSyncAt => _lastSyncAt;
   String? get serverVersion => _serverVersion;
 
-  /// True when the server stores a tax kind per transaction.
+  /// True, wenn der Server je Umsatz eine Steuerart speichert.
   bool get canTagTax => _capabilities.contains(taxCapability);
 
-  /// True when the server stores the end of a warranty per transaction.
+  /// True, wenn der Server je Umsatz das Ende einer Garantie speichert.
   bool get canSetWarranty => _capabilities.contains(warrantyCapability);
 
-  /// True when the server reports the net worth over the last months.
+  /// True, wenn der Server das Vermögen über die letzten Monate meldet.
   bool get canShowNetWorthHistory => _capabilities.contains(netWorthCapability);
 
-  /// Net worth at month ends and today, oldest first; empty when unknown.
+  /// Vermögen an Monatsenden und heute, das Älteste zuerst; leer, wenn unbekannt.
   Future<List<({DateTime day, int cents})>> loadNetWorthHistory() async {
     try {
       final response = await _read(_apiClient.netWorthHistory);
@@ -161,26 +161,26 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// True when the server shows the tax overview and warranties.
+  /// True, wenn der Server die Steuerübersicht und Garantien zeigt.
   bool get canShowPapers => _capabilities.contains(papersCapability);
 
-  /// What arrived since this device last marked it as read; null when
-  /// nothing did or the server is older.
+  /// Was eingetroffen ist, seit dieses Gerät es zuletzt als gelesen markiert hat; null, wenn
+  /// nichts kam oder der Server älter ist.
   ServerNews? get news => _news;
 
-  /// Marks the news as read on the server and hides them here.
+  /// Markiert die Neuigkeiten auf dem Server als gelesen und blendet sie hier aus.
   Future<void> markNewsRead() async {
     _news = null;
     _notifyIfMounted();
     try {
       await _apiClient.markNewsSeen();
     } catch (error) {
-      // They simply show up again on the next load.
+      // Sie erscheinen beim nächsten Laden einfach wieder.
       await _describeFailure(error);
     }
   }
 
-  /// Tax overview and warranties. Either the data or the message is set.
+  /// Steuerübersicht und Garantien. Entweder die Daten oder die Meldung ist gesetzt.
   Future<({PapersOverview? data, String? error})> loadPapers({
     int? year,
   }) async {
@@ -192,19 +192,19 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// True when the server lists transactions that still need a category.
+  /// True, wenn der Server Umsätze auflistet, die noch eine Kategorie brauchen.
   bool get canTriage => _capabilities.contains(triageCapability);
 
-  /// True when the server proposes budgets from past spending.
+  /// True, wenn der Server Budgets aus früheren Ausgaben vorschlägt.
   bool get canSuggestBudgets => _capabilities.contains(suggestCapability);
 
-  /// Transactions without a real category as of the last load.
+  /// Umsätze ohne echte Kategorie zum Stand des letzten Ladens.
   int get triageTotal => _triageTotal;
 
   /// Spending that sits in no real category, in cents.
   int get triageExpenseCents => _triageExpenseCents;
 
-  /// The next transactions to sort. Either the list or the message is set.
+  /// Die nächsten zu sortierenden Umsätze. Entweder die Liste oder die Meldung ist gesetzt.
   Future<({List<ServerTransaction> items, int total, String? error})>
   loadTriage() async {
     try {
@@ -232,7 +232,7 @@ class MobileConnectionController extends ChangeNotifier {
     _triageExpenseCents = spent is int ? spent : 0;
   }
 
-  /// Budgets proposed from the last full months.
+  /// Aus den letzten vollen Monaten vorgeschlagene Budgets.
   Future<({List<BudgetSuggestion> items, int months, String? error})>
   loadBudgetSuggestions() async {
     try {
@@ -252,33 +252,33 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// True when the server reports and starts fetching from the banks.
+  /// True, wenn der Server den Abruf bei den Banken meldet und startet.
   bool get canSyncBanks => _capabilities.contains(syncCapability);
 
-  /// State of the bank fetch as of the last load; null on older servers.
+  /// Zustand des Bankabrufs zum Stand des letzten Ladens; null bei älteren Servern.
   ServerSyncStatus? get syncStatus => _syncStatus;
 
-  /// True while a fetch started from this app is running.
+  /// True, solange ein aus dieser App gestarteter Abruf läuft.
   bool get bankSyncRunning => _bankSyncRunning;
 
   DateTime get now => _clock();
 
-  /// Whether values of deposits and loans can be entered on this phone.
+  /// Ob sich Werte von Geldanlagen und Krediten auf diesem Handy eintragen lassen.
   bool get canEditAccountValues =>
       _capabilities.contains(accountValueCapability) && !isReadOnly;
 
-  /// Enters today's value of a deposit or the remaining debt of a loan.
-  /// Null when it worked, otherwise the message to show.
+  /// Trägt den heutigen Wert einer Geldanlage oder die Restschuld eines Kredits ein.
+  /// Null, wenn es geklappt hat, sonst die anzuzeigende Meldung.
   Future<String?> setAccountValue(int accountId, int cents) => _write(
     () => _apiClient.setAccountValue(accountId, cents),
     capability: accountValueCapability,
   );
 
-  /// Whether an expiring bank consent can be renewed from this phone.
+  /// Ob sich eine ablaufende Bank-Einwilligung von diesem Handy aus verlängern lässt.
   bool get canRenewBanks =>
       _capabilities.contains(bankRenewCapability) && !isReadOnly;
 
-  /// Asks the server for the bank's page that renews a consent.
+  /// Fragt den Server nach der Seite der Bank, die eine Einwilligung verlängert.
   Future<({String? url, String? error})> startBankRenewal(int id) async {
     try {
       final data = await _apiClient.startBankRenewal(id);
@@ -292,15 +292,15 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Hands the address from the browser to the server. Null when the consent
-  /// is renewed, otherwise the message to show.
+  /// Übergibt die Adresse aus dem Browser an den Server. Null, wenn die Einwilligung
+  /// verlängert ist, sonst die anzuzeigende Meldung.
   Future<String?> completeBankRenewal(String address) => _write(
     () => _apiClient.completeBankRenewal(address),
     capability: bankRenewCapability,
   );
 
-  /// Fetches from the banks and reloads everything afterwards. Returns the
-  /// sentence to show: what arrived, or why nothing happened.
+  /// Ruft bei den Banken ab und lädt danach alles neu. Gibt den anzuzeigenden
+  /// Satz zurück: was eingetroffen ist oder warum nichts passiert ist.
   Future<String> startBankSync() async {
     if (_bankSyncRunning) return 'Der Abruf läuft schon.';
     return _followBankSync(
@@ -308,18 +308,18 @@ class MobileConnectionController extends ChangeNotifier {
     );
   }
 
-  /// Whether this phone can answer what a bank asks during a fetch.
+  /// Ob dieses Handy beantworten kann, was eine Bank während eines Abrufs fragt.
   bool get canAnswerBanks =>
       _capabilities.contains(syncTanCapability) && !isReadOnly;
 
-  /// What a bank asks right now; null once it was answered from here.
+  /// Was eine Bank gerade fragt; null, sobald es von hier beantwortet wurde.
   BankQuestion? get bankQuestion {
     final question = canAnswerBanks ? _syncStatus?.question : null;
     return question?.qid == _answeredQid ? null : question;
   }
 
-  /// Answers the bank's question, or gives the fetch up with [cancel]. Null
-  /// when the server took it, otherwise the message to show.
+  /// Beantwortet die Rückfrage der Bank oder gibt den Abruf mit [cancel] auf. Null,
+  /// wenn der Server es angenommen hat, sonst die anzuzeigende Meldung.
   Future<String?> answerBankQuestion(
     String qid, {
     String? value,
@@ -337,7 +337,7 @@ class MobileConnectionController extends ChangeNotifier {
     } catch (error) {
       return _describeFailure(error);
     }
-    // After a restart of the app nothing is watching the fetch yet.
+    // Nach einem Neustart der App beobachtet noch niemand den Abruf.
     if (!_bankSyncRunning) {
       unawaited(_followBankSync(() => _read(_apiClient.syncStatus)));
     }
@@ -351,8 +351,8 @@ class MobileConnectionController extends ChangeNotifier {
     _notifyIfMounted();
     try {
       var state = ServerSyncStatus.fromJson(await first());
-      // Up to two minutes; a bank that takes longer finishes on the server.
-      // A question of the bank stays open for five minutes, so wait longer.
+      // Bis zu zwei Minuten; eine Bank, die länger braucht, wird auf dem Server fertig.
+      // Eine Rückfrage der Bank bleibt fünf Minuten offen, also länger warten.
       var rounds = 40;
       for (var round = 0; state.running && round < rounds; round += 1) {
         if (state.question != null) rounds = 140;
@@ -382,47 +382,47 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// True when the app may add a cash account on the server.
+  /// True, wenn die App ein Bargeldkonto auf dem Server anlegen darf.
   bool get canCreateAccounts => _capabilities.contains(accountsCapability);
 
-  /// True when the server keeps receipts for transactions.
+  /// True, wenn der Server Belege zu Umsätzen aufbewahrt.
   bool get canUseReceipts => _capabilities.contains(receiptsCapability);
 
-  /// True when expenses can be shared with the household.
+  /// True, wenn sich Ausgaben mit dem Haushalt teilen lassen.
   bool get canShareExpenses => _capabilities.contains(sharingCapability);
 
-  /// Whether the server shows the log of changes to this phone.
+  /// Ob der Server diesem Handy das Änderungsprotokoll zeigt.
   bool get canShowChanges =>
       _capabilities.contains(changesCapability) && !isReadOnly;
 
-  /// Whether the server shows projects to this phone.
+  /// Ob der Server diesem Handy Projekte zeigt.
   bool get canShowProjects => _capabilities.contains(projectsCapability);
 
-  /// Whether the server writes the month report and the year as PDF.
+  /// Ob der Server den Monatsbericht und das Jahr als PDF schreibt.
   bool get canShowReport => _capabilities.contains(reportCapability);
 
-  /// Whether the server offers the year in review.
+  /// Ob der Server den Jahresrückblick anbietet.
   bool get canShowYear => _capabilities.contains(yearCapability);
 
-  /// Whether the server knows charging sessions from Ladecockpit.
+  /// Ob der Server Ladungen aus Ladecockpit kennt.
   bool get canShowCharging => _capabilities.contains(chargingCapability);
 
-  /// Whether the server computes repayment plans of loans for this phone.
+  /// Ob der Server für dieses Handy Tilgungspläne von Krediten berechnet.
   bool get canShowLoans => _capabilities.contains(loansCapability);
 
-  /// Whether this phone can tick alerts off and plan expenses and incomes.
+  /// Ob dieses Handy Hinweise abhaken und Ausgaben und Einnahmen planen kann.
   bool get canManagePlans =>
       _capabilities.contains(plansCapability) && !isReadOnly;
 
-  /// True once the server announced that it accepts manual transactions.
+  /// True, sobald der Server angekündigt hat, dass er manuelle Umsätze annimmt.
   bool get canWriteTransactions => _capabilities.contains(writeCapability);
 
-  /// True when this phone belongs to a child of the household: it shows
-  /// that person's own money and cannot change anything.
+  /// True, wenn dieses Handy einem Kind des Haushalts gehört: Es zeigt
+  /// das eigene Geld dieser Person und kann nichts ändern.
   bool get isReadOnly => _readOnly;
 
-  /// True when the server answered but is older than this app expects. A
-  /// read-only phone lacks the same abilities on purpose.
+  /// True, wenn der Server geantwortet hat, aber älter ist, als diese App erwartet. Einem
+  /// Handy nur zum Lesen fehlen dieselben Fähigkeiten absichtlich.
   bool get serverNeedsUpdate =>
       _session != null &&
       _serverVersion != null &&
@@ -437,11 +437,11 @@ class MobileConnectionController extends ChangeNotifier {
   bool get contractsLoading => _contractsLoading;
   String? get contractsError => _contractsError;
 
-  /// True once the server answers "can I afford this?".
+  /// True, sobald der Server „Kann ich mir das leisten?“ beantwortet.
   bool get canAfford => _capabilities.contains(affordCapability);
 
-  /// Asks the server what a purchase would mean. Either the answer or the
-  /// message to show is set. Nothing is stored.
+  /// Fragt den Server, was ein Kauf bedeuten würde. Entweder die Antwort oder die
+  /// anzuzeigende Meldung ist gesetzt. Nichts wird gespeichert.
   Future<({Map<String, dynamic>? answer, String? error})> afford(
     int amountCents,
   ) async {
@@ -461,39 +461,39 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// True when this person can keep budgets that only count own accounts.
+  /// True, wenn diese Person Budgets führen kann, die nur eigene Konten zählen.
   bool get canEditOwnBudgets => _capabilities.contains(ownBudgetCapability);
 
-  /// True once the server accepts contract changes and builds letters.
+  /// True, sobald der Server Vertragsänderungen annimmt und Schreiben erstellt.
   bool get canEditContracts => _capabilities.contains(contractCapability);
 
-  /// True once the server accepts budget changes from the app.
+  /// True, sobald der Server Budgetänderungen aus der App annimmt.
   bool get canEditBudgets => _capabilities.contains(budgetCapability);
 
-  /// True once the server offers the figures for the analysis page.
+  /// True, sobald der Server die Zahlen für die Auswertungsseite anbietet.
   bool get canShowStats => _capabilities.contains(statsCapability);
 
-  /// The analysis last loaded with [loadStats], as the server sent it.
+  /// Die zuletzt mit [loadStats] geladene Auswertung, wie der Server sie geschickt hat.
   Map<String, dynamic>? get stats => _stats;
   bool get statsLoading => _statsLoading;
   String? get statsError => _statsError;
 
-  /// True once the server can search transactions and split them by kind.
+  /// True, sobald der Server Umsätze durchsuchen und nach Art trennen kann.
   bool get canSearchTransactions => _capabilities.contains(searchCapability);
 
   int? get filterAccountId => _filterAccountId;
   int? get filterCategoryId => _filterCategoryId;
   String get filterSearch => _filterSearch;
 
-  /// 'in' for income, 'out' for expenses, null for both.
+  /// 'in' für Einnahmen, 'out' für Ausgaben, null für beides.
   String? get filterKind => _filterKind;
 
-  /// 'own' shows only this person's accounts, 'shared' only the common
-  /// ones, null both. Applies to the transactions and the analysis.
+  /// 'own' zeigt nur die Konten dieser Person, 'shared' nur die gemeinsamen,
+  /// null beides. Gilt für die Umsätze und die Auswertung.
   String? get viewPart => _viewPart;
 
-  /// Whether the transactions and the analysis can be split into what
-  /// belongs to this person and what the household shares.
+  /// Ob sich Umsätze und Auswertung in das trennen lassen, was dieser Person
+  /// gehört, und das, was der Haushalt teilt.
   bool get canFilterParts {
     if (!_capabilities.contains(partsCapability) || isReadOnly) return false;
     final household = _overview?['household'];
@@ -523,14 +523,14 @@ class MobileConnectionController extends ChangeNotifier {
     try {
       _session = await _apiClient.loadSession();
     } catch (_) {
-      // A stored session that cannot be read (for example after restoring a
-      // device backup without its key) can never work again. Remove it so
-      // the app does not keep failing on every start.
+      // Eine gespeicherte Sitzung, die sich nicht lesen lässt (zum Beispiel nach dem
+      // Wiederherstellen einer Gerätesicherung ohne ihren Schlüssel), kann nie wieder
+      // funktionieren. Sie entfernen, damit die App nicht bei jedem Start scheitert.
       _session = null;
       try {
         await _apiClient.discardSession();
       } catch (_) {
-        // Nothing else can be done; pairing again overwrites the entry.
+        // Mehr lässt sich nicht tun; eine neue Kopplung überschreibt den Eintrag.
       }
       _errorMessage =
           'Die gespeicherte Sitzung konnte nicht gelesen werden. '
@@ -592,7 +592,7 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Tests the saved connection and reloads all data when it works.
+  /// Prüft die gespeicherte Verbindung und lädt alle Daten neu, wenn sie funktioniert.
   Future<bool> checkConnection() async {
     _isBusy = true;
     _errorMessage = null;
@@ -614,7 +614,7 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Signs this device out on the server and removes the local session.
+  /// Meldet dieses Gerät auf dem Server ab und entfernt die lokale Sitzung.
   Future<void> logout() async {
     _isBusy = true;
     _errorMessage = null;
@@ -639,8 +639,8 @@ class MobileConnectionController extends ChangeNotifier {
     await _synchronize();
   }
 
-  /// Reloads when the app returns to the foreground and the data is older
-  /// than [maxAge]. Also the moment a connection that was lost is retried.
+  /// Lädt neu, wenn die App in den Vordergrund zurückkehrt und die Daten älter
+  /// als [maxAge] sind. Auch der Moment, eine verlorene Verbindung neu zu versuchen.
   Future<void> refreshIfStale({
     Duration maxAge = const Duration(minutes: 1),
   }) async {
@@ -650,8 +650,8 @@ class MobileConnectionController extends ChangeNotifier {
     await _synchronize();
   }
 
-  /// Loads identity, overview, transactions and reference lists. Returns
-  /// false when the server could not be reached or the session ended.
+  /// Lädt Identität, Übersicht, Umsätze und Referenzlisten. Gibt false zurück,
+  /// wenn der Server nicht erreichbar war oder die Sitzung endete.
   Future<bool> _synchronize() async {
     if (_session == null) return false;
     _financeLoading = true;
@@ -681,7 +681,7 @@ class MobileConnectionController extends ChangeNotifier {
             await _read(_apiClient.syncStatus),
           );
         } catch (_) {
-          // The figures are complete without it; the line simply stays as is.
+          // Die Zahlen sind ohne das vollständig; die Zeile bleibt einfach, wie sie ist.
         }
       } else {
         _syncStatus = null;
@@ -691,7 +691,7 @@ class MobileConnectionController extends ChangeNotifier {
           final found = ServerNews.fromJson(await _read(_apiClient.news));
           _news = found.count > 0 ? found : null;
         } catch (_) {
-          // Nice to have; the figures do not depend on it.
+          // Eine Zugabe; die Zahlen hängen nicht davon ab.
         }
       } else {
         _news = null;
@@ -700,7 +700,7 @@ class MobileConnectionController extends ChangeNotifier {
         try {
           _applyTriage(await _read(() => _apiClient.triage(limit: 1)));
         } catch (_) {
-          // Only the hint on the budget page depends on it.
+          // Nur der Hinweis auf der Budgetseite hängt davon ab.
         }
       } else {
         _triageTotal = 0;
@@ -744,8 +744,8 @@ class MobileConnectionController extends ChangeNotifier {
     _readOnly = household is Map && household['read_only'] == true;
   }
 
-  /// An older server ignores unknown parameters and would answer with the
-  /// unfiltered list, so search and kind are only sent when it knows them.
+  /// Ein älterer Server ignoriert unbekannte Parameter und würde mit der ungefilterten
+  /// Liste antworten, deshalb werden Suche und Art nur gesendet, wenn er sie kennt.
   Future<Map<String, dynamic>> _loadTransactionPage({int offset = 0}) {
     return _apiClient.transactions(
       offset: offset,
@@ -757,8 +757,8 @@ class MobileConnectionController extends ChangeNotifier {
     );
   }
 
-  /// Read calls change nothing on the server, so one automatic repetition
-  /// after a transport failure is safe.
+  /// Lesende Aufrufe ändern nichts auf dem Server, eine automatische Wiederholung
+  /// nach einem Transportfehler ist also sicher.
   Future<Map<String, dynamic>> _read(
     Future<Map<String, dynamic>> Function() call,
   ) async {
@@ -826,7 +826,7 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Limits the transaction list to one account and/or category.
+  /// Beschränkt die Umsatzliste auf ein Konto und/oder eine Kategorie.
   Future<void> setTransactionFilter({int? accountId, int? categoryId}) async {
     if (accountId == _filterAccountId && categoryId == _filterCategoryId) {
       return;
@@ -836,7 +836,7 @@ class MobileConnectionController extends ChangeNotifier {
     await refreshTransactions();
   }
 
-  /// Searches counterparty, purpose and note. Empty text ends the search.
+  /// Durchsucht Gegenpartei, Verwendungszweck und Notiz. Leerer Text beendet die Suche.
   Future<void> setTransactionSearch(String text) async {
     final search = text.trim();
     if (search == _filterSearch) return;
@@ -844,15 +844,15 @@ class MobileConnectionController extends ChangeNotifier {
     await refreshTransactions();
   }
 
-  /// 'in' shows income only, 'out' expenses only, null both.
+  /// 'in' zeigt nur Einnahmen, 'out' nur Ausgaben, null beides.
   Future<void> setTransactionKind(String? kind) async {
     if (kind == _filterKind) return;
     _filterKind = kind;
     await refreshTransactions();
   }
 
-  /// Loads the analysis for [month] ('YYYY-MM'); null is the current month.
-  /// The previous analysis stays visible until the new one has arrived.
+  /// Lädt die Auswertung für [month] ('YYYY-MM'); null ist der laufende Monat.
+  /// Die vorige Auswertung bleibt sichtbar, bis die neue da ist.
   Future<void> loadStats({String? month}) async {
     if (_session == null || _statsLoading || !canShowStats) return;
     _statsMonth = month;
@@ -891,11 +891,11 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Creates a manual transaction. Returns null on success, otherwise the
-  /// message to show. The caller keeps [fields] unchanged for a retry so the
-  /// server recognises the repetition by its `client_request_id`.
-  /// Adds an account for entries made by hand. Returns null on success,
-  /// otherwise the message to show.
+  /// Legt einen manuellen Umsatz an. Gibt bei Erfolg null zurück, sonst die
+  /// anzuzeigende Meldung. Der Aufrufer behält [fields] für einen neuen Versuch unverändert,
+  /// damit der Server die Wiederholung an ihrer `client_request_id` erkennt.
+  /// Fügt ein Konto für von Hand erfasste Einträge hinzu. Gibt bei Erfolg null zurück,
+  /// sonst die anzuzeigende Meldung.
   Future<String?> createCashAccount(String name, {int? balanceCents}) => _write(
     () => _apiClient.createCashAccount(name, balanceCents: balanceCents),
     capability: accountsCapability,
@@ -904,8 +904,8 @@ class MobileConnectionController extends ChangeNotifier {
   Future<String?> createTransaction(Map<String, dynamic> fields) =>
       _write(() => _apiClient.createTransaction(fields));
 
-  /// After a category change the server applies it to similar transactions;
-  /// [lastAlsoChanged] says how many followed the last update.
+  /// Nach einer Kategorieänderung wendet der Server sie auf ähnliche Umsätze an;
+  /// [lastAlsoChanged] sagt, wie viele der letzten Änderung gefolgt sind.
   Future<String?> updateTransaction(int id, Map<String, dynamic> changes) {
     _lastAlsoChanged = 0;
     return _write(() async {
@@ -922,8 +922,8 @@ class MobileConnectionController extends ChangeNotifier {
   Future<String?> deleteTransaction(int id) =>
       _write(() => _apiClient.deleteTransaction(id));
 
-  /// Changes a contract and reloads the contract list. Returns null on
-  /// success, otherwise the message to show.
+  /// Ändert einen Vertrag und lädt die Vertragsliste neu. Gibt bei Erfolg null
+  /// zurück, sonst die anzuzeigende Meldung.
   Future<String?> updateContract(
     String key,
     Map<String, dynamic> changes,
@@ -936,8 +936,8 @@ class MobileConnectionController extends ChangeNotifier {
     return error;
   }
 
-  /// Fetches the cancellation letter. Either the letter or the message to
-  /// show is set. Nothing is stored on the server.
+  /// Holt das Kündigungsschreiben. Entweder das Schreiben oder die anzuzeigende
+  /// Meldung ist gesetzt. Auf dem Server wird nichts gespeichert.
   Future<({Map<String, dynamic>? letter, String? error})> contractLetter(
     String key, {
     String mode = 'ordentlich',
@@ -972,7 +972,7 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Receipts of one transaction. Either the list or the message is set.
+  /// Belege eines Umsatzes. Entweder die Liste oder die Meldung ist gesetzt.
   Future<({List<ServerReceipt> items, int max, String? error})> loadReceipts(
     int transactionId,
   ) async {
@@ -993,8 +993,8 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Attaches a file to a transaction. Returns null on success, otherwise
-  /// the message to show. Nothing is kept on the device.
+  /// Hängt eine Datei an einen Umsatz. Gibt bei Erfolg null zurück, sonst
+  /// die anzuzeigende Meldung. Auf dem Gerät bleibt nichts.
   Future<String?> addReceipt(
     int transactionId,
     String filename,
@@ -1017,7 +1017,7 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// How one expense is shared with the household.
+  /// Wie eine Ausgabe mit dem Haushalt geteilt ist.
   Future<({Map<String, dynamic>? share, String? error})> loadShare(
     int id,
   ) async {
@@ -1028,7 +1028,7 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Shared expenses of this person, what is open, and the payments.
+  /// Geteilte Ausgaben dieser Person, was offen ist, und die Zahlungen.
   Future<({Map<String, dynamic>? data, String? error})> loadSharing() async {
     try {
       return (data: await _read(_apiClient.householdSharing), error: null);
@@ -1037,7 +1037,7 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Records that this person paid someone back. Null when it worked.
+  /// Hält fest, dass diese Person jemandem etwas zurückgezahlt hat. Null, wenn es geklappt hat.
   Future<String?> addSettlement(int toPersonId, int cents, String note) async {
     try {
       await _apiClient.addSettlement(toPersonId, cents, note);
@@ -1047,7 +1047,7 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Shares an expense with the household or takes that back.
+  /// Teilt eine Ausgabe mit dem Haushalt oder nimmt das zurück.
   Future<({Map<String, dynamic>? share, String? error})> setShare(
     int id, {
     required bool shared,
@@ -1060,7 +1060,7 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// The file of one receipt, held in memory only while it is shown.
+  /// Die Datei eines Belegs, nur im Speicher gehalten, solange sie angezeigt wird.
   Future<({Uint8List? bytes, String? error})> receiptBytes(
     int receiptId,
   ) async {
@@ -1071,8 +1071,8 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// A report as PDF for [period] (JJJJ-MM or JJJJ), with the part filter of
-  /// the analysis when the server offers it.
+  /// Ein Bericht als PDF für [period] (JJJJ-MM oder JJJJ), mit dem Teilfilter der
+  /// Auswertung, wenn der Server ihn anbietet.
   Future<({Uint8List? bytes, String? error})> reportBytes({
     required String kind,
     required String period,
@@ -1096,8 +1096,8 @@ class MobileConnectionController extends ChangeNotifier {
     return describeMobileError(error);
   }
 
-  /// Sets or, with null, removes the monthly budget of a category. Returns
-  /// null on success, otherwise the message to show.
+  /// Setzt das Monatsbudget einer Kategorie oder entfernt es mit null. Gibt bei Erfolg
+  /// null zurück, sonst die anzuzeigende Meldung.
   Future<String?> setBudget(
     int categoryId,
     int? limitCents, {
@@ -1107,8 +1107,8 @@ class MobileConnectionController extends ChangeNotifier {
     capability: own ? ownBudgetCapability : budgetCapability,
   );
 
-  /// Reads something once with one retry on a network hiccup; the error is
-  /// the message to show.
+  /// Liest etwas einmal, mit einem neuen Versuch bei einem Netzaussetzer; der Fehler ist
+  /// die anzuzeigende Meldung.
   Future<({Map<String, dynamic>? data, String? error})> readOnce(
     Future<Map<String, dynamic>> Function(MobileApiClient api) call,
   ) async {
@@ -1119,20 +1119,20 @@ class MobileConnectionController extends ChangeNotifier {
     }
   }
 
-  /// Puts a transaction into a project or takes it out. Null when it worked.
+  /// Legt einen Umsatz in ein Projekt oder nimmt ihn heraus. Null, wenn es geklappt hat.
   Future<String?> setTransactionProject(int transactionId, int? projectId) =>
       _write(
         () => _apiClient.setTransactionProject(transactionId, projectId),
         capability: projectsCapability,
       );
 
-  /// Hides a checked anomaly. Null when it worked, otherwise the message.
+  /// Blendet eine geprüfte Auffälligkeit aus. Null, wenn es geklappt hat, sonst die Meldung.
   Future<String?> acknowledgeAlert(String key) => _write(
     () => _apiClient.acknowledgeAlert(key),
     capability: plansCapability,
   );
 
-  /// Plans a one-off expense on an account this person sees.
+  /// Plant eine einmalige Ausgabe auf einem Konto, das diese Person sieht.
   Future<String?> createPlanned({
     required String label,
     required int cents,
@@ -1148,20 +1148,20 @@ class MobileConnectionController extends ChangeNotifier {
     capability: plansCapability,
   );
 
-  /// Notes that money comes back for an expense.
+  /// Hält fest, dass für eine Ausgabe Geld zurückkommt.
   Future<String?> createExpected(int transactionId, int cents) => _write(
     () => _apiClient.createExpected(transactionId, cents),
     capability: plansCapability,
   );
 
-  /// Ticks a planned expense or an expected income off, or drops it.
+  /// Hakt eine geplante Ausgabe oder eine erwartete Einnahme ab oder streicht sie.
   Future<String?> settlePlan(String kind, int id, String action) => _write(
     () => _apiClient.settlePlan(kind, id, action),
     capability: plansCapability,
   );
 
-  /// Write calls are never repeated automatically. After success all views
-  /// are reloaded so balances and lists show what the server stored.
+  /// Schreibende Aufrufe werden nie automatisch wiederholt. Nach Erfolg werden alle
+  /// Ansichten neu geladen, damit Salden und Listen zeigen, was der Server gespeichert hat.
   Future<String?> _write(
     Future<Object?> Function() call, {
     String capability = writeCapability,

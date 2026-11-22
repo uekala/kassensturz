@@ -4,10 +4,10 @@ import '../../core/design/app_theme.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 
-/// Opens the sheet to set, change or remove a monthly budget.
+/// Öffnet das Blatt zum Setzen, Ändern oder Entfernen eines Monatsbudgets.
 ///
-/// Without [categoryId] the user first picks an expense category that has no
-/// budget yet.
+/// Ohne [categoryId] wählt der Nutzer zuerst eine Ausgabenkategorie, die noch kein
+/// Budget hat.
 Future<void> showBudgetEditor(
   BuildContext context, {
   required MobileConnectionController controller,
@@ -46,7 +46,7 @@ class BudgetEditorSheet extends StatefulWidget {
   final String? categoryName;
   final int? limitCents;
 
-  /// True for a budget of this person that only counts own accounts.
+  /// True für ein Budget dieser Person, das nur eigene Konten zählt.
   final bool own;
 
   @override
@@ -78,8 +78,8 @@ class _BudgetEditorSheetState extends State<BudgetEditorSheet> {
     super.dispose();
   }
 
-  /// Expense categories that can still get a budget. An own budget may sit
-  /// next to a shared one, so those are not left out.
+  /// Ausgabenkategorien, die noch ein Budget bekommen können. Ein eigenes Budget darf
+  /// neben einem gemeinsamen stehen, deshalb fallen diese nicht weg.
   List<ServerCategory> get _choices {
     final free = <ServerCategory>[];
     for (final category in widget.controller.categories) {

@@ -7,7 +7,7 @@ import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
 import 'plans.dart';
 
-/// Opens the sheet that answers "can I afford this?".
+/// Öffnet das Blatt, das „Kann ich mir das leisten?“ beantwortet.
 Future<void> showAffordSheet(
   BuildContext context, {
   required MobileConnectionController controller,

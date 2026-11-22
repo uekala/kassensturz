@@ -35,7 +35,7 @@ int _int(dynamic value) => value is int ? value : 0;
 
 String _euro(int cents) => formatEuro(cents / 100);
 
-/// "+12 % zum Vorjahr" or similar; empty without a year before.
+/// "+12 % zum Vorjahr" oder Ähnliches; leer ohne Vorjahr.
 String _change(int cents, dynamic previous) {
   if (previous is! int) return '';
   if (previous == 0) return cents == 0 ? '' : ' · neu';
@@ -44,7 +44,7 @@ String _change(int cents, dynamic previous) {
   return ' · ${percent > 0 ? '+' : '−'}${percent.abs()} % zum Vorjahr';
 }
 
-/// The sentences under the totals, from the figures the server sends.
+/// Die Sätze unter den Summen, aus den Zahlen, die der Server sendet.
 String yearReviewText(Map<String, dynamic> review) {
   final lines = <String>[];
   final saved = _int(review['saved_cents']);
@@ -86,8 +86,8 @@ String yearReviewText(Map<String, dynamic> review) {
   return lines.join(' ');
 }
 
-/// A whole year: totals, months, categories and the biggest single expenses,
-/// compared with the year before. All figures come from the server.
+/// Ein ganzes Jahr: Summen, Monate, Kategorien und die größten Einzelausgaben,
+/// verglichen mit dem Vorjahr. Alle Zahlen kommen vom Server.
 class YearReviewPage extends StatefulWidget {
   const YearReviewPage({required this.controller, this.year, super.key});
 

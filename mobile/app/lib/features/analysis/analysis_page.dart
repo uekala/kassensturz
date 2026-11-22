@@ -26,8 +26,8 @@ const _monthNames = [
   'Dezember',
 ];
 
-/// Spending by category, the last twelve months and the balance curve.
-/// All figures come from the server; the page only draws them.
+/// Ausgaben nach Kategorie, die letzten zwölf Monate und der Saldoverlauf.
+/// Alle Zahlen kommen vom Server; die Seite zeichnet sie nur.
 class AnalysisPage extends StatefulWidget {
   const AnalysisPage({required this.controller, super.key});
 
@@ -45,7 +45,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
     super.initState();
     final now = DateTime.now();
     _month = DateTime(now.year, now.month);
-    // Loading notifies listeners at once; wait until this build is finished.
+    // Das Laden benachrichtigt die Zuhörer sofort; warten, bis dieser Build fertig ist.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.controller.loadStats(month: _key(_month));
     });
@@ -365,7 +365,7 @@ class _HistoryBars extends StatelessWidget {
     );
   }
 
-  /// First letter of the month name for a 'YYYY-MM' key.
+  /// Erster Buchstabe des Monatsnamens zu einem Schlüssel 'YYYY-MM'.
   static String _initial(dynamic key) {
     if (key is! String || key.length < 7) return '';
     final month = int.tryParse(key.substring(5, 7));
@@ -537,11 +537,11 @@ class _CurvePainter extends CustomPainter {
   }
 }
 
-/// The month in two or three sentences, or null when the server sent no
-/// review or there is nothing to say.
+/// Der Monat in zwei oder drei Sätzen, oder null, wenn der Server keinen
+/// Rückblick geschickt hat oder es nichts zu sagen gibt.
 String? _reviewText(dynamic review) {
   if (review is! Map || review['has_data'] != true) return null;
-  // A running month cannot be compared with whole months yet.
+  // Ein laufender Monat lässt sich noch nicht mit ganzen Monaten vergleichen.
   if (review['complete'] == false) return null;
   final saved = review['saved_cents'];
   final rate = review['savings_rate'];

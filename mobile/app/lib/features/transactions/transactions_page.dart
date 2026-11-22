@@ -30,7 +30,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     super.dispose();
   }
 
-  /// Waits for a pause in typing so not every letter asks the server.
+  /// Wartet auf eine Tipp-Pause, damit nicht jeder Buchstabe den Server fragt.
   void _onSearchChanged(String value) {
     setState(() {});
     _searchDelay?.cancel();
@@ -68,7 +68,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       try {
         existing = ServerTransaction.fromJson(item);
       } on FormatException {
-        // An older server does not send the fields needed for editing.
+        // Ein älterer Server sendet die zum Bearbeiten nötigen Felder nicht.
         _showMessage(
           'Bitte aktualisiere Kassensturz in Home Assistant, um Umsätze '
           'zu bearbeiten.',
@@ -125,7 +125,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
-  /// Returns the chosen id, 0 for "all" or null when the dialog was closed.
+  /// Gibt die gewählte ID zurück, 0 für „alle“ oder null, wenn der Dialog geschlossen wurde.
   Future<int?> _pickFilter({
     required String title,
     required Map<int, String> options,

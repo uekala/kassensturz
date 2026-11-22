@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-/// Typed views of the server responses used by forms and pickers. Every
-/// factory validates the fields it needs and throws a [FormatException]
-/// instead of silently falling back to zero.
+/// Typisierte Sichten auf die Serverantworten, die Formulare und Auswahllisten nutzen. Jede
+/// Factory prüft die Felder, die sie braucht, und wirft eine [FormatException],
+/// statt stillschweigend auf null zurückzufallen.
 
 String _requiredString(Map<String, dynamic> source, String key) {
   final value = source[key];
@@ -70,7 +70,7 @@ class ServerAccount {
   final int balanceCents;
   final bool balanceKnown;
 
-  /// True for accounts without a bank feed; only these accept manual entries.
+  /// True für Konten ohne Bankanbindung; nur diese nehmen manuelle Einträge an.
   final bool manualEntries;
 }
 
@@ -101,7 +101,7 @@ class ServerCategory {
   final String kind;
   final int? parentId;
 
-  /// Monthly budget in cents, null when the category has none.
+  /// Monatsbudget in Cent, null, wenn die Kategorie keines hat.
   final int? budgetCents;
 }
 
@@ -158,8 +158,8 @@ class ServerContract {
   final String? accountName;
   final String? cancellationDeadline;
 
-  /// Change of the last payment against the usual price; negative means the
-  /// contract became more expensive. Null when there is nothing to show.
+  /// Veränderung der letzten Zahlung gegenüber dem üblichen Preis; negativ heißt, der
+  /// Vertrag wurde teurer. Null, wenn es nichts zu zeigen gibt.
   final int? priceChangeCents;
   final bool manual;
 }
@@ -220,8 +220,8 @@ class ServerTransaction {
   final String bookingDate;
   final int amountCents;
 
-  /// True for entries created by hand; only these can be fully edited or
-  /// deleted. Bank transactions accept a new category and note only.
+  /// True für von Hand angelegte Einträge; nur diese lassen sich ganz ändern oder
+  /// löschen. Bankumsätze nehmen nur eine neue Kategorie und Notiz an.
   final bool manual;
   final String? counterparty;
   final String? purpose;
@@ -230,18 +230,18 @@ class ServerTransaction {
   final int? categoryId;
   final String? categoryName;
 
-  /// Key from [taxKindLabels] when the entry is marked for the tax return.
+  /// Schlüssel aus [taxKindLabels], wenn der Eintrag für die Steuererklärung markiert ist.
   final String? taxKind;
   final int receiptCount;
 
-  /// ISO date on which the warranty of this purchase ends, if one is set.
+  /// ISO-Datum, an dem die Garantie dieses Kaufs endet, falls eines gesetzt ist.
   final String? warrantyUntil;
 
-  /// Category the server proposes while sorting; null without a clear hint.
+  /// Kategorie, die der Server beim Sortieren vorschlägt; null ohne klaren Hinweis.
   final int? suggestedCategoryId;
 }
 
-/// New transactions since this device last marked them as read.
+/// Neue Umsätze, seit dieses Gerät sie zuletzt als gelesen markiert hat.
 class ServerNews {
   const ServerNews({
     required this.count,
@@ -277,7 +277,7 @@ class ServerNews {
   final List<({String label, int amountCents})> largest;
 }
 
-/// One kind of the tax overview with its sum for the year.
+/// Eine Art der Steuerübersicht mit ihrer Summe für das Jahr.
 class TaxGroup {
   const TaxGroup({
     required this.label,
@@ -301,7 +301,7 @@ class TaxGroup {
   final int missingReceipts;
 }
 
-/// A purchase whose warranty is running or ended recently.
+/// Ein Kauf, dessen Garantie läuft oder vor Kurzem geendet hat.
 class ServerWarranty {
   const ServerWarranty({
     required this.label,
@@ -327,7 +327,7 @@ class ServerWarranty {
   final bool hasReceipt;
 }
 
-/// Tax overview of one year and the warranties, as the server reports them.
+/// Steuerübersicht eines Jahres und die Garantien, wie der Server sie meldet.
 class PapersOverview {
   const PapersOverview({
     required this.year,
@@ -374,7 +374,7 @@ class PapersOverview {
   final List<ServerWarranty> expired;
 }
 
-/// A budget the server derived from past spending.
+/// Ein Budget, das der Server aus früheren Ausgaben abgeleitet hat.
 class BudgetSuggestion {
   const BudgetSuggestion({
     required this.categoryId,
@@ -405,8 +405,8 @@ class BudgetSuggestion {
   final int? currentCents;
 }
 
-/// What a bank asks during a fetch: a TAN, which method or device to use, or
-/// to approve the access in its own app.
+/// Was eine Bank während eines Abrufs fragt: eine TAN, welches Verfahren oder Gerät, oder
+/// den Zugriff in ihrer eigenen App freizugeben.
 class BankQuestion {
   const BankQuestion({
     required this.qid,
@@ -419,7 +419,7 @@ class BankQuestion {
     this.flicker = const [],
   });
 
-  /// Null for anything this app cannot show, so it is never answered blindly.
+  /// Null für alles, was diese App nicht zeigen kann, damit es nie blind beantwortet wird.
   static BankQuestion? tryParse(dynamic json) {
     if (json is! Map) return null;
     final qid = json['qid'];
@@ -476,24 +476,24 @@ class BankQuestion {
     );
   }
 
-  /// Names this one question; the answer goes back with it.
+  /// Benennt genau diese Rückfrage; die Antwort geht mit ihr zurück.
   final String qid;
 
-  /// 'tan', 'decoupled' (approve in the banking app) or 'choice'.
+  /// 'tan', 'decoupled' (in der Banking-App freigeben) oder 'choice'.
   final String kind;
   final String bank;
   final String text;
   final String title;
   final List<({String value, String label, String hint})> options;
 
-  /// The picture of a photoTAN, if the bank sent one.
+  /// Das Bild einer photoTAN, falls die Bank eines geschickt hat.
   final Uint8List? image;
 
-  /// Frames of a flicker code, five bars each, '1' for a white bar.
+  /// Bilder eines Flickercodes, je fünf Balken, '1' für einen weißen Balken.
   final List<String> flicker;
 }
 
-/// What the server knows about fetching from the banks.
+/// Was der Server über den Abruf bei den Banken weiß.
 class ServerSyncStatus {
   const ServerSyncStatus({
     required this.running,
@@ -575,27 +575,27 @@ class ServerSyncStatus {
   final bool canStart;
   final int waitMinutes;
 
-  /// New transactions of the fetch started from the app.
+  /// Neue Umsätze des aus der App gestarteten Abrufs.
   final int added;
   final List<String> errors;
 
-  /// Banks that need attention, ready to show.
+  /// Banken, die Aufmerksamkeit brauchen, fertig zum Anzeigen.
   final List<String> problems;
 
-  /// Bank consents that are about to end or have ended and can be renewed
-  /// from the phone.
+  /// Bank-Einwilligungen, die bald enden oder geendet haben und sich vom
+  /// Handy aus verlängern lassen.
   final List<({int id, String name})> renewals;
 
-  /// What a bank is asking right now, if a fetch waits for an answer.
+  /// Was eine Bank gerade fragt, falls ein Abruf auf eine Antwort wartet.
   final BankQuestion? question;
   final int sources;
 
-  /// Oldest state among all banks; null until every bank was fetched once.
+  /// Ältester Stand aller Banken; null, bis jede Bank einmal abgerufen wurde.
   final DateTime? lastSync;
   final DateTime? nextSync;
 }
 
-/// "heute, 06:30 Uhr", "gestern, …", "morgen, …" or the date.
+/// "heute, 06:30 Uhr", "gestern, …", "morgen, …" oder das Datum.
 String formatMoment(DateTime moment, DateTime now) {
   final day = DateTime(moment.year, moment.month, moment.day);
   final today = DateTime(now.year, now.month, now.day);
@@ -614,7 +614,7 @@ String formatMoment(DateTime moment, DateTime now) {
   return '$label, $time';
 }
 
-/// The same calendar day [years] later; 29 February becomes the 28th.
+/// Derselbe Kalendertag [years] später; der 29. Februar wird zum 28.
 DateTime addYears(DateTime day, int years) {
   final moved = DateTime(day.year + years, day.month, day.day);
   return moved.month == day.month
@@ -622,8 +622,8 @@ DateTime addYears(DateTime day, int years) {
       : DateTime(day.year + years, day.month + 1, 0);
 }
 
-/// Kinds a transaction can be marked with for the tax return. The keys are
-/// the ones the server stores.
+/// Arten, mit denen sich ein Umsatz für die Steuererklärung markieren lässt. Die Schlüssel
+/// sind die, die der Server speichert.
 const taxKindLabels = <String, String>{
   'handwerker': 'Handwerkerleistung',
   'haushaltsnah': 'Haushaltsnahe Dienstleistung',
@@ -665,8 +665,8 @@ class ServerReceipt {
       : '${(size / 1024).ceil()} KB';
 }
 
-/// Parses a German or plain amount such as `12,50`, `1.234,56` or `12.5`
-/// into cents. Returns null for anything that is not a positive amount.
+/// Wandelt einen deutschen oder einfachen Betrag wie `12,50`, `1.234,56` oder `12.5`
+/// in Cent um. Gibt null für alles zurück, was kein positiver Betrag ist.
 int? parseAmountToCents(String input) {
   var text = input.trim().replaceAll('€', '').replaceAll(' ', '');
   if (text.isEmpty) return null;
@@ -681,15 +681,15 @@ int? parseAmountToCents(String input) {
   return cents > 0 ? cents : null;
 }
 
-/// Formats a date as the `YYYY-MM-DD` string the server expects.
+/// Formatiert ein Datum als `YYYY-MM-DD`-String, wie der Server ihn erwartet.
 String formatIsoDate(DateTime date) {
   final month = date.month.toString().padLeft(2, '0');
   final day = date.day.toString().padLeft(2, '0');
   return '${date.year}-$month-$day';
 }
 
-/// Creates the id that makes creating a transaction repeatable: the server
-/// stores it and answers a repeated request with the existing entry.
+/// Erzeugt die ID, die das Anlegen eines Umsatzes wiederholbar macht: Der Server
+/// speichert sie und beantwortet eine wiederholte Anfrage mit dem vorhandenen Eintrag.
 String newClientRequestId({Random? random}) {
   final source = random ?? Random.secure();
   final buffer = StringBuffer();

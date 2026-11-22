@@ -26,11 +26,11 @@ _NONCE_BYTES = 12
 
 
 class SecretsStoreError(RuntimeError):
-    """Stored secrets cannot safely be read or decrypted."""
+    """Gespeicherte Geheimnisse lassen sich nicht sicher lesen oder entschlüsseln."""
 
 
 class SecretsKeyError(SecretsStoreError):
-    """The configured installation key is invalid or unavailable."""
+    """Der eingestellte Installationsschlüssel ist ungültig oder nicht verfügbar."""
 
 
 class SecretsIntegrityError(SecretsStoreError):
@@ -193,8 +193,8 @@ def _load() -> dict:
     if stored.get("format") == _FORMAT:
         return _decode_envelope(stored)
 
-    # Backward-compatible migration: a valid legacy plaintext dictionary is
-    # immediately rewritten as an authenticated AES-GCM envelope on first read.
+    # Abwärtskompatible Umstellung: Ein gültiges altes Klartext-Dictionary wird beim ersten
+    # Lesen sofort als authentifizierter AES-GCM-Umschlag neu geschrieben.
     if any(not isinstance(k, str) or not isinstance(v, str) for k, v in stored.items()):
         raise SecretsIntegrityError("Die bisherige Geheimnisdatei enthält ungültige Werte.")
     _save(stored)

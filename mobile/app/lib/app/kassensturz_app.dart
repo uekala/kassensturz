@@ -17,10 +17,10 @@ class KassensturzApp extends StatelessWidget {
   /// Fingerprint lock; tests pass their own.
   final AppLock? appLock;
 
-  /// Looks for newer app releases; tests pass their own.
+  /// Sucht nach neueren App-Releases; Tests geben ihre eigene Prüfung mit.
   final UpdateChecker? updateChecker;
 
-  /// Without a controller the app starts unpaired with an in-memory session.
+  /// Ohne Controller startet die App ungekoppelt mit einer Sitzung im Speicher.
   final MobileConnectionController? mobileConnectionController;
 
   @override
@@ -31,7 +31,7 @@ class KassensturzApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      // Above the navigator, so the lock also covers open pages and sheets.
+      // Über dem Navigator, damit die Sperre auch offene Seiten und Blätter abdeckt.
       builder: (context, child) =>
           AppLockGate(lock: lock, child: child ?? const SizedBox.shrink()),
       home: KassensturzShell(

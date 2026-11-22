@@ -7,9 +7,9 @@ import 'core/networking/mobile_session_store.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // The app keeps no financial records on the device: accounts, budgets and
-  // transactions come from the paired Kassensturz server only. Files written
-  // by versions before 0.2.0 are left untouched and are not read.
+  // Die App führt keine Finanzdaten auf dem Gerät: Konten, Budgets und Umsätze
+  // kommen nur vom gekoppelten Kassensturz-Server. Dateien von Versionen vor
+  // 0.2.0 bleiben unberührt und werden nicht gelesen.
   runApp(
     KassensturzApp(
       mobileConnectionController: MobileConnectionController(

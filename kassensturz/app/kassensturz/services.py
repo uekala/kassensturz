@@ -126,8 +126,8 @@ def alerts(db: Database, summary: dict) -> list[dict]:
             if stage:
                 out.append({"key": f"deadline:{stage}:{c['key']}:{c['deadline']}", "level": level,
                             "contract": c["key"], "title": f"Kündigungsfrist {c['name']}", "text": message})
-    # Remind about cancellation events that were not explicitly confirmed as sent.
-    # The stable event key prevents repeats during the regular refresh cycle.
+    # An Kündigungsereignisse erinnern, die nicht ausdrücklich als versendet bestätigt wurden.
+    # Der feste Ereignisschlüssel verhindert Wiederholungen im regulären Aktualisierungstakt.
     pending_events = db.query(
         "SELECT e.id, e.contract_key, e.status, e.prepared_at, c.name "
         "FROM cancellation_events e JOIN contracts c ON c.key = e.contract_key "

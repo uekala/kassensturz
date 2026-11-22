@@ -295,8 +295,8 @@ def test_local_admin_can_create_pairing_through_ingress_tls_termination(
     db, monkeypatch
 ):
     reset_mobile_guards(monkeypatch)
-    # The HA Ingress terminates external HTTPS and talks to the add-on over
-    # the trusted internal network. Native pairing redemption still requires TLS.
+    # HA-Ingress beendet externes HTTPS und spricht über das vertrauenswürdige interne
+    # Netz mit dem Add-on. Das native Einlösen der Kopplung verlangt trotzdem TLS.
     with TestClient(main.app, client=("127.0.0.1", 50123)) as client:
         pairing = client.post("/api/mobile/pairings")
         assert pairing.status_code == 201
@@ -333,8 +333,8 @@ def test_trusted_tailscale_proxy_can_reach_mobile_api_without_client_cidr(
             },
         )
 
-    # The request passed the transport and peer allowlists and was rejected
-    # only by the pairing handler's JSON validation.
+    # Die Anfrage kam durch die Transport- und Gegenstellen-Allowlists und wurde
+    # erst von der JSON-Prüfung des Kopplungs-Handlers abgelehnt.
     assert response.status_code == 400
 
 
@@ -503,7 +503,7 @@ def test_pairing_qr_rejects_non_https_or_path_server_url_before_creating_secret(
     )
     with https_client() as client:
         response = client.post("/api/mobile/pairings")
-        # Checked while the app runs: shutting the app down closes the database.
+        # Geprüft, während die App läuft: Das Herunterfahren schließt die Datenbank.
         pairings = db.scalar("SELECT COUNT(*) FROM mobile_pairings")
 
     assert response.status_code == 503

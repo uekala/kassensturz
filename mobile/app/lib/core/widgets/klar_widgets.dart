@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/app_theme.dart';
 
-/// A small label above one large amount: the opening element of a page.
+/// Eine kleine Beschriftung über einem großen Betrag: das erste Element einer Seite.
 class AmountHeadline extends StatelessWidget {
   const AmountHeadline({
     required this.label,
@@ -51,7 +51,7 @@ class AmountHeadline extends StatelessWidget {
   }
 }
 
-/// A thick rounded progress bar. Turns orange when [over] is set.
+/// Ein dicker, abgerundeter Fortschrittsbalken. Wird orange, wenn [over] gesetzt ist.
 class ThickBar extends StatelessWidget {
   const ThickBar({
     required this.value,
@@ -79,7 +79,7 @@ class ThickBar extends StatelessWidget {
   }
 }
 
-/// A section title with an optional text action on the right.
+/// Ein Abschnittstitel mit optionaler Textaktion rechts.
 class SectionTitle extends StatelessWidget {
   const SectionTitle(this.title, {this.action, this.onAction, super.key});
 
@@ -110,7 +110,7 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
-/// A white panel drawn with an ink outline instead of a tinted fill.
+/// Ein weißer Bereich mit Umriss in Tinte statt getönter Füllung.
 class OutlinedPanel extends StatelessWidget {
   const OutlinedPanel({
     required this.child,
@@ -136,7 +136,7 @@ class OutlinedPanel extends StatelessWidget {
   }
 }
 
-/// One line of a money list: initial, name, detail and amount.
+/// Eine Zeile einer Geldliste: Initiale, Name, Detail und Betrag.
 class EntryRow extends StatelessWidget {
   const EntryRow({
     required this.title,
@@ -244,7 +244,7 @@ class EntryRow extends StatelessWidget {
   }
 }
 
-/// A short message for empty lists and missing data.
+/// Eine kurze Meldung für leere Listen und fehlende Daten.
 class QuietMessage extends StatelessWidget {
   const QuietMessage(this.message, {super.key});
 
@@ -267,7 +267,7 @@ String formatShortDate(String value) {
   return '$day.$month.${date.year}';
 }
 
-/// A row that leads somewhere: icon, title, one line of explanation.
+/// Eine Zeile, die irgendwohin führt: Symbol, Titel, eine Zeile Erklärung.
 class LinkTile extends StatelessWidget {
   const LinkTile({
     required this.icon,

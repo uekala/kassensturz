@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../more/contracts_page.dart';
 
-/// Budgets and contracts behind one tab.
+/// Budgets und Verträge hinter einem Tab.
 class PlanningPage extends StatefulWidget {
   const PlanningPage({
     required this.controller,
@@ -21,7 +21,7 @@ class PlanningPage extends StatefulWidget {
 class _PlanningPageState extends State<PlanningPage> {
   bool _showContracts = false;
 
-  /// Contracts are loaded from the server the first time they are opened.
+  /// Verträge werden beim ersten Öffnen vom Server geladen.
   bool _contractsOpened = false;
 
   void _select(Set<bool> selection) {

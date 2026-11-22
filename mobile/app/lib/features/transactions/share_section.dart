@@ -4,9 +4,9 @@ import '../../core/design/app_theme.dart';
 import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 
-/// Shares an expense paid from the person's own account with the household:
-/// the others then owe the payer their part. Shows nothing for transactions
-/// that cannot be shared.
+/// Teilt eine vom eigenen Konto der Person bezahlte Ausgabe mit dem Haushalt:
+/// Die anderen schulden dem Zahler dann ihren Teil. Zeigt nichts bei Umsätzen,
+/// die sich nicht teilen lassen.
 class ShareSection extends StatefulWidget {
   const ShareSection({
     required this.controller,
@@ -91,7 +91,7 @@ class _ShareSectionState extends State<ShareSection> {
   }
 }
 
-/// Who bears which part of a shared expense, as one line.
+/// Wer welchen Teil einer geteilten Ausgabe trägt, als eine Zeile.
 String shareSummary(Map<String, dynamic> share) {
   final parts = share['parts'];
   if (parts is! List) return '';

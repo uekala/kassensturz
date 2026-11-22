@@ -11,7 +11,7 @@ String _stamp(String value) {
       '${two(at.hour)}:${two(at.minute)} Uhr';
 }
 
-/// The log of changes: who changed what in Home Assistant or on a phone.
+/// Das Änderungsprotokoll: wer was in Home Assistant oder auf einem Handy geändert hat.
 class ChangesPage extends StatefulWidget {
   const ChangesPage({required this.controller, super.key});
 

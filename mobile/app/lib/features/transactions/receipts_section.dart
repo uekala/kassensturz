@@ -8,7 +8,7 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/pdf_bytes_view.dart';
 
-/// A photo chosen for upload. It lives in memory until the server has it.
+/// Ein zum Hochladen gewähltes Foto. Es liegt im Arbeitsspeicher, bis der Server es hat.
 class PickedReceipt {
   const PickedReceipt({required this.name, required this.bytes});
 
@@ -18,8 +18,8 @@ class PickedReceipt {
 
 typedef ReceiptPicker = Future<PickedReceipt?> Function({required bool camera});
 
-/// Takes a photo or opens the gallery. Large photos are scaled down so a
-/// receipt stays readable without sending the full camera resolution.
+/// Macht ein Foto oder öffnet die Galerie. Große Fotos werden verkleinert, damit ein
+/// Beleg lesbar bleibt, ohne die volle Kameraauflösung zu senden.
 Future<PickedReceipt?> pickReceiptPhoto({required bool camera}) async {
   final file = await ImagePicker().pickImage(
     source: camera ? ImageSource.camera : ImageSource.gallery,
@@ -31,8 +31,8 @@ Future<PickedReceipt?> pickReceiptPhoto({required bool camera}) async {
   return PickedReceipt(name: file.name, bytes: await file.readAsBytes());
 }
 
-/// Receipts of one transaction: list, add from camera or gallery, remove.
-/// Every change is sent to the server right away.
+/// Belege eines Umsatzes: Liste, aus Kamera oder Galerie hinzufügen, entfernen.
+/// Jede Änderung geht sofort an den Server.
 class ReceiptsSection extends StatefulWidget {
   const ReceiptsSection({
     required this.controller,

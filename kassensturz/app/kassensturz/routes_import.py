@@ -78,8 +78,8 @@ async def charging_import(file: UploadFile = File(...)):
 
 @router.post("/api/import/analyze")
 async def import_analyze(file: UploadFile = File(...)):
-    # Stop reading as soon as the upload limit is exceeded instead of first
-    # allocating the complete untrusted upload in memory.
+    # Mit dem Lesen aufhören, sobald die Upload-Grenze überschritten ist, statt zuerst
+    # den ganzen nicht vertrauenswürdigen Upload im Speicher anzulegen.
     data = await file.read(importers.MAX_IMPORT_BYTES + 1)
     if len(data) > importers.MAX_IMPORT_BYTES:
         _err(400, "Die Datei ist größer als 25 MB.")

@@ -6,7 +6,7 @@ import '../../core/formatting.dart';
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 
-/// Details of one contract with the actions the server allows.
+/// Einzelheiten eines Vertrags mit den Aktionen, die der Server erlaubt.
 Future<void> showContractSheet(
   BuildContext context, {
   required MobileConnectionController controller,
@@ -184,7 +184,7 @@ class _ContractSheetState extends State<ContractSheet> {
   }
 }
 
-/// Builds the cancellation letter on the server and offers it for copying.
+/// Erstellt das Kündigungsschreiben auf dem Server und bietet es zum Kopieren an.
 class CancellationLetterPage extends StatefulWidget {
   const CancellationLetterPage({
     required this.controller,

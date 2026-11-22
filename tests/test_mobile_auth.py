@@ -185,7 +185,7 @@ def test_lost_refresh_response_can_be_retried_once_within_grace(db, mobile_auth)
 
     assert retried["refresh_token"] not in (initial["refresh_token"], lost["refresh_token"])
     assert service.authenticate_access_token(retried["access_token"]).id == device_id
-    # The pair that never reached the client is retired, the device stays paired.
+    # Das Paar, das den Client nie erreicht hat, wird stillgelegt; das Gerät bleibt gekoppelt.
     with pytest.raises(InvalidCredential):
         service.authenticate_access_token(lost["access_token"])
     device = next(item for item in service.list_devices() if item["id"] == device_id)
@@ -206,8 +206,8 @@ def test_old_refresh_token_is_a_replay_once_the_successor_was_used(db, mobile_au
     clock.advance(timedelta(seconds=5))
     service.rotate_refresh_token(second["refresh_token"])
 
-    # Still inside the grace window, but the client demonstrably received the
-    # successor: presenting the first token again is a replay.
+    # Noch im Kulanzfenster, aber der Client hat den Nachfolger nachweislich bekommen:
+    # Das erste Token erneut vorzulegen ist eine Wiederverwendung.
     with pytest.raises(RefreshReplayDetected):
         service.rotate_refresh_token(initial["refresh_token"])
     device = service.list_devices()[0]

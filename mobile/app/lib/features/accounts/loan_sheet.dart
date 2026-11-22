@@ -6,7 +6,7 @@ import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/networking/mobile_models.dart';
 import '../../core/widgets/klar_widgets.dart';
 
-/// Opens the repayment plan of a loan.
+/// Öffnet den Tilgungsplan eines Kredits.
 Future<void> showLoanSheet(
   BuildContext context, {
   required MobileConnectionController controller,
@@ -54,8 +54,8 @@ String _monthYear(String value) {
 
 int _whole(dynamic value) => value is int ? value : 0;
 
-/// What the booked rates say about the estimate; null when there is nothing
-/// to compare yet. The second value is true when a rate is missing.
+/// Was die gebuchten Raten über die Schätzung sagen; null, wenn es noch nichts
+/// zu vergleichen gibt. Der zweite Wert ist true, wenn eine Rate fehlt.
 (String, bool)? bookedRatesText(Map<String, dynamic> plan) {
   final booked = plan['booked'];
   if (booked is! Map || _whole(booked['expected']) == 0) return null;
@@ -120,7 +120,7 @@ class LoanSheet extends StatefulWidget {
   final int accountId;
   final String name;
 
-  /// Opens the form for the remaining debt; the plan closes first.
+  /// Öffnet das Formular für die Restschuld; der Plan schließt sich vorher.
   final VoidCallback? onEditValue;
 
   @override

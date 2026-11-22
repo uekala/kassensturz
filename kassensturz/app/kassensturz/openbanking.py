@@ -234,7 +234,7 @@ def renewable(db: Database, eb_id: int) -> dict | None:
 
 def complete_auth(db: Database, text: str, psu: dict | None = None) -> dict:
     code, state = parse_return(text)
-    # Never associate a callback without its exact, single-use state with a pending flow.
+    # Einen Callback nie ohne seinen exakten, einmaligen State einem offenen Ablauf zuordnen.
     pend = _pending.pop(state, None)
     if not pend:
         raise EBError("Diese Freigabe gehört zu keinem offenen Vorgang. Starte „Bank verbinden“ bitte noch einmal.")
