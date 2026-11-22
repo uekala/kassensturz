@@ -105,8 +105,8 @@ jobs:
           REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git init -q seite
           cd seite
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "uekala"
+          git config user.email "264241592+uekala@users.noreply.github.com"
           # Was schon da ist, übernehmen. Der Zweig besteht immer nur aus einem Commit,
           # damit alte Bilder das Repository nicht aufblähen.
           if git fetch -q --depth 1 "$REMOTE" "$BRANCH" 2>/dev/null; then
