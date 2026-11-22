@@ -1,43 +1,43 @@
-# Kassensturz Mobile App
+# Kassensturz Handy-App
 
-Flutter client source for iOS and Android. Both platforms share the Dart application code.
+Flutter-Quellcode für iOS und Android. Beide Plattformen teilen den Dart-Code der App.
 
-## Current status
+## Stand
 
-The app is a client for exactly one Kassensturz server. All financial data lives on the server; the installed app keeps only the server address and the device credentials (in platform secure storage).
+Die App ist ein Client für genau einen Kassensturz-Server. Alle Finanzdaten liegen auf dem Server; die installierte App behält nur die Serveradresse und die Gerätezugangsdaten (im sicheren Speicher der Plattform).
 
-With a paired server (0.3.0 or newer) the app
+Mit einem gekoppelten Server (0.3.0 oder neuer) kann die App
 
-- shows overview, accounts, budgets, transactions and contracts from the server,
-- creates, edits and deletes manual transactions on accounts without a bank feed,
-- changes category and note of bank transactions,
-- filters the transaction list by account and category,
-- shows the connection state, the last successful synchronisation and a cause-specific message when the server cannot be reached,
-- reloads when the app returns to the foreground.
+- Übersicht, Konten, Budgets, Umsätze und Verträge vom Server zeigen,
+- manuelle Umsätze auf Konten ohne Bankanbindung anlegen, ändern und löschen,
+- Kategorie und Notiz von Bankumsätzen ändern,
+- die Umsatzliste nach Konto und Kategorie filtern,
+- den Verbindungszustand, den letzten erfolgreichen Abgleich und eine Meldung mit dem Grund zeigen, wenn der Server nicht erreichbar ist,
+- neu laden, wenn die App wieder in den Vordergrund kommt.
 
-Without a connection the installed app shows a "connect" page instead of example data. Paired with an older server it stays read-only and asks to update the server.
+Ohne Verbindung zeigt die installierte App statt Beispieldaten eine Seite „Verbinden“. Mit einem älteren Server gekoppelt bleibt sie bei reinem Lesen und bittet darum, den Server zu aktualisieren.
 
-The demo dashboard, the device-local account editor (encrypted SQLite) and the device-local budget limits were removed in 0.3.1, together with the packages they needed. Files written by versions before 0.2.0 stay on the device and are not read.
+Das Demo-Dashboard, der Kontoeditor auf dem Gerät (verschlüsseltes SQLite) und die Budgetgrenzen auf dem Gerät sind in 0.3.1 entfallen, zusammen mit den Paketen, die sie brauchten. Dateien von Versionen vor 0.2.0 bleiben auf dem Gerät und werden nicht gelesen.
 
-## Saving and repeated requests
+## Speichern und wiederholte Anfragen
 
-Every "new transaction" form creates one request id and sends it with each attempt to save. The server stores the id, so repeating a save after a lost connection never books twice. Write requests are never repeated automatically; read requests are repeated once.
+Jedes Formular „Neuer Umsatz“ erzeugt eine Anfrage-ID und schickt sie mit jedem Speicherversuch. Der Server speichert die ID, ein wiederholtes Speichern nach einer abgebrochenen Verbindung bucht also nie doppelt. Schreibende Anfragen werden nie automatisch wiederholt; lesende Anfragen einmal.
 
-## Session renewal
+## Erneuern der Sitzung
 
-Access tokens are renewed with the refresh token as soon as the server answers 401. Only one renewal runs at a time. The server accepts a replaced refresh token exactly once more, within ten minutes, to cover a lost answer. The client therefore repeats a renewal once, immediately, when the connection broke after the request was sent, and does not repeat it when the connection was never established. If the server rejects the renewal, the local session is removed and the device has to be paired again.
+Access-Tokens werden mit dem Refresh-Token erneuert, sobald der Server mit 401 antwortet. Es läuft immer nur eine Erneuerung zugleich. Der Server akzeptiert ein ersetztes Refresh-Token genau ein weiteres Mal innerhalb von zehn Minuten, um eine verlorene Antwort abzufangen. Der Client wiederholt eine Erneuerung deshalb einmal sofort, wenn die Verbindung nach dem Senden der Anfrage abbrach, und nicht, wenn die Verbindung nie zustande kam. Lehnt der Server die Erneuerung ab, wird die lokale Sitzung entfernt, und das Gerät muss neu gekoppelt werden.
 
-## Requirements
+## Voraussetzungen
 
-- Flutter SDK 3.47.9 from the stable channel (same version as CI)
-- Android SDK for Android development
-- Xcode on macOS for iOS development
+- Flutter SDK 3.47.9 aus dem stable-Kanal (dieselbe Version wie in der CI)
+- Android SDK für die Android-Entwicklung
+- Xcode auf macOS für die iOS-Entwicklung
 
-Flutter's stable channel is the recommended channel for new projects and production releases: https://docs.flutter.dev/install/upgrade
+Der stable-Kanal von Flutter ist der empfohlene Kanal für neue Projekte und Produktiv-Releases: https://docs.flutter.dev/install/upgrade
 
-## Local setup
+## Lokale Einrichtung
 
-From this directory:
+In diesem Verzeichnis:
 
 ```bash
 flutter pub get
@@ -45,32 +45,32 @@ flutter test
 flutter analyze
 ```
 
-The automated suite covers the API client (pairing, renewal, repeated renewal, write calls), the connection controller (state, synchronisation, saving, filters), response models, error messages, the unpaired app and the connected app on every tab at phone size. The code is checked with `flutter_lints`. The Android manifest hardening is tested with pytest (`tests/test_android_manifest.py`).
+Die automatischen Tests decken den API-Client (Kopplung, Erneuern, wiederholtes Erneuern, schreibende Aufrufe), den Verbindungs-Controller (Zustand, Abgleich, Speichern, Filter), Antwortmodelle, Fehlermeldungen, die nicht gekoppelte App und die verbundene App auf jedem Tab in Handygröße ab. Der Code wird mit `flutter_lints` geprüft. Die Härtung des Android-Manifests wird mit pytest getestet (`tests/test_android_manifest.py`).
 
-Generate the native Android and iOS project files once. The script also declares the INTERNET permission in the release manifest and excludes the app data from Android backup and device transfer:
+Die nativen Projektdateien für Android und iOS einmal erzeugen. Das Skript trägt außerdem die Berechtigung INTERNET ins Release-Manifest ein und nimmt die App-Daten von Android-Sicherung und Geräteumzug aus:
 
 ```bash
 bash tool/bootstrap-platforms.sh
 ```
 
-The bootstrap script refuses to overwrite existing platform folders. After the first generation, keep the generated android/ and ios/ directories under version control when preparing a real developer workspace.
+Das Skript überschreibt keine vorhandenen Plattform-Ordner. Nach der ersten Erzeugung die erzeugten Verzeichnisse android/ und ios/ unter Versionskontrolle halten, wenn eine echte Entwicklungsumgebung vorbereitet wird.
 
-Run on a connected device or simulator:
+Auf einem angeschlossenen Gerät oder Simulator starten:
 
 ```bash
 flutter devices
 flutter run
 ```
 
-## Security and API integration
+## Sicherheit und API-Anbindung
 
-The Flutter app includes HTTPS health checks, one-time pairing, automatic refresh, server-backed reads and writes and a native QR scanner for the versioned Kassensturz pairing payload. QR scanning uses the device camera only after the user opens the scanner; the iOS bootstrap adds the required camera usage explanation. The API client uses standard TLS certificate validation, disables redirects for authenticated requests, keeps access tokens in the Authorization header and sends refresh tokens only in the HTTPS request body. Access-token 401 responses trigger a single-flight refresh; a rejected refresh removes the stored session. Credentials are stored in platform secure storage. Do not add placeholder tokens, certificate exceptions or logs containing credentials.
+Die Flutter-App enthält HTTPS-Zustandsprüfungen, einmalige Kopplung, automatisches Erneuern, Lesen und Schreiben über den Server und einen nativen QR-Scanner für die versionierten Kopplungsdaten von Kassensturz. Der QR-Scanner nutzt die Kamera erst, wenn der Nutzer ihn öffnet; das iOS-Skript ergänzt die nötige Begründung für die Kameranutzung. Der API-Client nutzt die normale Prüfung von TLS-Zertifikaten, schaltet Weiterleitungen bei angemeldeten Anfragen ab, hält Access-Tokens im Authorization-Header und sendet Refresh-Tokens nur im Body einer HTTPS-Anfrage. Ein 401 auf ein Access-Token löst genau eine Erneuerung aus; eine abgelehnte Erneuerung entfernt die gespeicherte Sitzung. Zugangsdaten liegen im sicheren Speicher der Plattform. Keine Platzhalter-Tokens, keine Ausnahmen für Zertifikate und keine Logs mit Zugangsdaten einbauen.
 
-See [Mobile architecture](../../docs/architecture/0006-flutter-mobile-client.md) and [Mobile security requirements](../../docs/architecture/0002-mobile-api-security.md).
+Siehe [Architektur der Handy-App](../../docs/architecture/0006-flutter-mobile-client.md) und [Sicherheitsanforderungen der Handy-App](../../docs/architecture/0002-mobile-api-security.md).
 
-## Releasing
+## Veröffentlichen
 
-A tag `mobile-v<version>` (the version in `pubspec.yaml` without the build number, e.g. `mobile-v0.3.4`) runs the tests, builds the signed arm64 APK and attaches it to a GitHub release with the matching section of `CHANGELOG.md`. The build needs the four `ANDROID_*` repository secrets; without them it stops before building. The build number comes from the run number of the workflow, so every release installs over the previous one.
+Ein Tag `mobile-v<version>` (die Version aus `pubspec.yaml` ohne Build-Nummer, z. B. `mobile-v0.3.4`) führt die Tests aus, baut die signierte arm64-APK und hängt sie mit dem passenden Abschnitt aus `CHANGELOG.md` an ein GitHub-Release. Der Build braucht die vier Repository-Secrets `ANDROID_*`; ohne sie bricht er vor dem Bauen ab. Die Build-Nummer kommt aus der Laufnummer des Workflows, jedes Release installiert sich also über das vorige.
 
 ## Bildschirmfotos aus der CI
 

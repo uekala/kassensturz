@@ -1,107 +1,107 @@
-# Mobile API security requirements
+# Sicherheitsanforderungen an die API für die Handy-App
 
-- Status: Proposed implementation baseline
-- Related decision: [Local-first architecture](0001-local-first-architecture.md)
+- Status: vorgeschlagene Grundlage für die Umsetzung
+- Zugehörige Entscheidung: [Lokale Architektur](0001-local-first-architecture.md)
 
-This document defines requirements, not a claim that the current API already meets them.
+Dieses Dokument legt Anforderungen fest; es behauptet nicht, dass die heutige API sie schon erfüllt.
 
-## Current state
+## Heutiger Stand
 
-The current FastAPI application is designed for Home Assistant Ingress. Existing non-mobile routes remain restricted to the Ingress peer and IPv4/IPv6 loopback. Mobile namespaces require HTTPS and accept either an explicitly configured client CIDR or a request from an explicitly trusted reverse-proxy peer. Both settings are configurable through the Home Assistant add-on options or standalone environment variables, and are empty by default. Development mode does not bypass the boundary. The API routes implement bearer-token authentication, but remote access is not enabled by default: the HA app port mapping remains disabled.
+Die heutige FastAPI-Anwendung ist für Ingress von Home Assistant gebaut. Bestehende Routen außerhalb der Handy-App bleiben auf die Ingress-Gegenstelle und IPv4/IPv6-Loopback beschränkt. Die Namensräume der Handy-App verlangen HTTPS und akzeptieren entweder ein ausdrücklich eingerichtetes Client-CIDR oder eine Anfrage von einer ausdrücklich vertrauenswürdigen Reverse-Proxy-Gegenstelle. Beide Einstellungen lassen sich über die Optionen des Home-Assistant-Add-ons oder Umgebungsvariablen im eigenständigen Betrieb setzen und sind standardmäßig leer. Der Entwicklungsmodus umgeht diese Grenze nicht. Die API-Routen setzen Anmeldung per Bearer-Token um, Fernzugriff ist aber standardmäßig nicht eingeschaltet: Die Portfreigabe der HA-App bleibt aus.
 
-FinTS PINs and the Enable Banking private key are now stored in an AES-256-GCM encrypted envelope. The installation uses a local 256-bit key file with mode 0600 by default, or an externally supplied 64-hex-character `KASSENSTURZ_MASTER_KEY`. Home Assistant backups exclude both the encrypted secret file and its local key. See [local secret encryption](0005-local-secret-encryption.md) for migration, recovery and threat limitations.
+FinTS-PINs und der private Schlüssel für Enable Banking liegen jetzt in einem mit AES-256-GCM verschlüsselten Umschlag. Die Installation nutzt standardmäßig eine lokale 256-Bit-Schlüsseldatei mit Modus 0600 oder einen von außen gesetzten `KASSENSTURZ_MASTER_KEY` aus 64 Hex-Zeichen. Sicherungen von Home Assistant lassen die verschlüsselte Geheimnisdatei und ihren lokalen Schlüssel aus. Umstellung, Wiederherstellung und Grenzen gegenüber Angreifern stehen unter [Lokale Verschlüsselung von Geheimnissen](0005-local-secret-encryption.md).
 
-SQLite stores financial transactions and connection metadata. The data directory is restricted to mode 0700 and the main database file to mode 0600. These controls do not encrypt the SQLite database or its backups. The local key file protects an isolated copy of the encrypted secrets file, but does not protect against an attacker who can read the entire live data directory.
+SQLite speichert Finanzumsätze und Verbindungsdaten. Das Datenverzeichnis ist auf Modus 0700 beschränkt, die Hauptdatenbank auf Modus 0600. Diese Maßnahmen verschlüsseln weder die SQLite-Datenbank noch ihre Sicherungen. Die lokale Schlüsseldatei schützt eine isolierte Kopie der verschlüsselten Geheimnisdatei, aber nicht gegen einen Angreifer, der das gesamte laufende Datenverzeichnis lesen kann.
 
-### Current mobile implementation status (2026-11-03)
+### Stand der Umsetzung für die Handy-App (2026-11-03)
 
-| Component | Status |
+| Baustein | Stand |
 |---|---|
-| Mobile pairing/device/token tables | Schema present; migration and constraints tested |
-| Pairing and token lifecycle service | Implemented as an internal HTTP-free service; unit tests cover one-time pairing, expiry, rotation, replay detection and revocation |
-| Overview and transaction DTO mappers | Implemented as internal read services with field allowlists, pagination and query validation tests |
-| Pairing-secret creation and redemption routes | Implemented: admin creation via trusted Ingress/loopback; single-use redemption via HTTPS mobile route |
-| Access-/refresh-token HTTP routes | Implemented: refresh rotation, bearer authentication and device logout |
-| Mobile device listing and revocation routes | Implemented: admin-only Home Assistant Ingress (`panel_admin: true`) or trusted local loopback; Ingress also requires the Supervisor-supplied `X-Remote-User-Id` header |
-| Authenticated mobile DTO routes | Implemented: `/api/v1/me`, `/overview` and paginated `/transactions` with field allowlists |
-| HTTPS enforcement for mobile namespaces | Middleware gate for `/api/v1/*` and `/api/mobile/*`; accepts direct TLS or `X-Forwarded-Proto: https` from explicitly allowlisted proxies. The listener remains restricted to Ingress/loopback plus the optional explicit mobile-network allowlist. |
-| Mobile client network allowlist | `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` accepts explicit IP/CIDR ranges; empty by default. The existing browser UI remains Ingress/loopback-only. An explicitly trusted reverse-proxy peer is admitted independently of this list; both controls remain opt-in. |
-| Network rate limiting | Bounded, process-local sliding-window limiter wired to pairing, refresh, logout, read and device-management routes. Per-device refresh limits and shared multi-worker storage remain outstanding. |
-| Flutter client | UI prototype; no server connection or mobile authentication |
-| Local account store | Encrypted SQLite3MultipleCiphers database; random 256-bit key in platform secure storage; manual account data only |
-| Local budget preferences | SharedPreferences; category IDs and limits only, not encrypted |
-| Bank account import / transaction sync | Not implemented |
+| Tabellen für Kopplung, Geräte und Tokens | Schema vorhanden; Migration und Einschränkungen getestet |
+| Dienst für Kopplung und Token-Lebenszyklus | Als interner Dienst ohne HTTP umgesetzt; Unit-Tests decken einmalige Kopplung, Ablauf, Rotation, Erkennung von Wiederverwendung und Widerruf ab |
+| DTO-Abbildung für Übersicht und Umsätze | Als interne Lesedienste umgesetzt, mit Feld-Allowlists, Seitenaufteilung und Tests der Abfrageprüfung |
+| Routen zum Erzeugen und Einlösen von Kopplungsgeheimnissen | Umgesetzt: Erzeugen durch den Admin über vertrauenswürdiges Ingress/Loopback; einmaliges Einlösen über eine HTTPS-Route für die Handy-App |
+| HTTP-Routen für Access- und Refresh-Tokens | Umgesetzt: Rotation beim Erneuern, Bearer-Anmeldung und Abmelden eines Geräts |
+| Routen zum Auflisten und Widerrufen von Geräten | Umgesetzt: nur für Admins über Ingress von Home Assistant (`panel_admin: true`) oder vertrauenswürdiges lokales Loopback; Ingress verlangt zusätzlich den vom Supervisor gesetzten Header `X-Remote-User-Id` |
+| Angemeldete DTO-Routen für die Handy-App | Umgesetzt: `/api/v1/me`, `/overview` und seitenweise `/transactions` mit Feld-Allowlists |
+| HTTPS-Pflicht für die Namensräume der Handy-App | Middleware-Sperre für `/api/v1/*` und `/api/mobile/*`; akzeptiert direktes TLS oder `X-Forwarded-Proto: https` von ausdrücklich erlaubten Proxys. Der Listener bleibt auf Ingress/Loopback beschränkt, plus die optionale ausdrückliche Allowlist für das Netz der Handy-App. |
+| Netz-Allowlist für Handy-Clients | `KASSENSTURZ_MOBILE_CLIENT_NETWORKS` nimmt ausdrückliche IP-/CIDR-Bereiche; standardmäßig leer. Die bestehende Browser-Oberfläche bleibt auf Ingress/Loopback beschränkt. Eine ausdrücklich vertrauenswürdige Reverse-Proxy-Gegenstelle wird unabhängig von dieser Liste zugelassen; beide Maßnahmen bleiben Opt-in. |
+| Ratenbegrenzung im Netz | Begrenzter, prozesslokaler Sliding-Window-Limiter für Kopplung, Erneuern, Abmelden, Lesen und Geräteverwaltung. Grenzen je Gerät beim Erneuern und ein gemeinsamer Speicher für mehrere Worker fehlen noch. |
+| Flutter-Client | Oberflächen-Prototyp; keine Serververbindung und keine Anmeldung der Handy-App |
+| Lokaler Kontospeicher | Verschlüsselte SQLite3MultipleCiphers-Datenbank; zufälliger 256-Bit-Schlüssel im sicheren Speicher der Plattform; nur von Hand erfasste Kontodaten |
+| Lokale Budget-Einstellungen | SharedPreferences; nur Kategorie-IDs und Grenzen, nicht verschlüsselt |
+| Import von Bankkonten / Abgleich von Umsätzen | Nicht umgesetzt |
 
-The FastAPI application now registers the versioned mobile endpoints alongside the existing Home Assistant routes. The existing legacy `/api/*` routes remain separate and must not be treated as device-authenticated routes. Mobile financial routes require a bearer token. Device creation/listing/revocation is restricted to the Ingress peer with a Supervisor-authenticated user ID or trusted local loopback. The add-on explicitly sets `panel_admin: true`, which prevents non-administrators from opening the Ingress panel; missing `X-Remote-User-Id` is denied at the API. The standalone deployment still binds to loopback only and therefore does not expose the mobile API to LAN/VPN clients.
+Die FastAPI-Anwendung registriert die versionierten Endpunkte der Handy-App jetzt neben den bestehenden Routen für Home Assistant. Die alten Routen `/api/*` bleiben getrennt und dürfen nicht als per Gerät angemeldete Routen gelten. Finanzrouten der Handy-App verlangen ein Bearer-Token. Anlegen, Auflisten und Widerrufen von Geräten ist auf die Ingress-Gegenstelle mit einer vom Supervisor angemeldeten Nutzer-ID oder vertrauenswürdiges lokales Loopback beschränkt. Das Add-on setzt ausdrücklich `panel_admin: true`, sodass Nicht-Admins den Ingress-Bereich nicht öffnen können; ein fehlender `X-Remote-User-Id` wird an der API abgelehnt. Die eigenständige Installation bindet weiter nur an Loopback und stellt die API der Handy-App deshalb nicht für Clients im LAN oder VPN bereit.
 
-The detailed contract in [0003](0003-mobile-api-contract.md) and state machine in [0004](0004-mobile-api-dto-state-machine.md) remain the API specifications. The `mobile_auth.py` and `mobile_read.py` services are exposed through `mobile_api.py`. The HA app settings `trusted_proxies` and `mobile_client_networks` now feed the same fail-closed policy as the standalone environment variables. Forwarded transport/client headers are considered only when the immediate peer is in `KASSENSTURZ_TRUSTED_PROXIES`. A trusted loopback proxy is explicitly denied access to the local device-administration routes, so a Tailscale proxy cannot inherit local Ingress privileges. The optional container port mapping for 8099/TCP is declared but disabled (`null`) by default. Network rate limits are wired before route dispatch, but the in-memory limiter is single-process only. Per-device rate limits, persistent shared rate-limit state, Flutter connection/pairing flow and release hardening remain outstanding.
+Der ausführliche Vertrag in [0003](0003-mobile-api-contract.md) und die Zustandsmaschine in [0004](0004-mobile-api-dto-state-machine.md) bleiben die API-Spezifikationen. Die Dienste `mobile_auth.py` und `mobile_read.py` werden über `mobile_api.py` bereitgestellt. Die Einstellungen `trusted_proxies` und `mobile_client_networks` der HA-App speisen jetzt dieselbe im Zweifel sperrende Regel wie die Umgebungsvariablen im eigenständigen Betrieb. Weitergeleitete Transport- und Client-Header zählen nur, wenn die direkte Gegenstelle in `KASSENSTURZ_TRUSTED_PROXIES` steht. Einem vertrauenswürdigen Loopback-Proxy wird der Zugriff auf die lokalen Routen der Geräteverwaltung ausdrücklich verweigert, damit ein Tailscale-Proxy keine lokalen Ingress-Rechte erbt. Die optionale Portfreigabe des Containers für 8099/TCP ist deklariert, aber standardmäßig aus (`null`). Netz-Ratenbegrenzungen greifen vor der Weiterleitung an die Route, der Limiter im Speicher gilt aber nur für einen Prozess. Grenzen je Gerät, ein dauerhafter gemeinsamer Zustand der Ratenbegrenzung, der Verbindungs- und Kopplungsablauf in Flutter und die Härtung für Releases fehlen noch.
 
 
-## Required controls before wider mobile network access is enabled
+## Nötige Maßnahmen, bevor ein breiterer Netzzugriff für die Handy-App eingeschaltet wird
 
 ### Transport
-- HTTPS is mandatory for pairing and authenticated API access.
-- Remote use should be through a customer-managed VPN.
-- Do not enable public port forwarding as the default setup.
-- Reject cleartext credentials and tokens.
-- Do not silently accept invalid TLS certificates.
+- HTTPS ist Pflicht für Kopplung und angemeldeten API-Zugriff.
+- Fernzugriff soll über ein vom Kunden verwaltetes VPN laufen.
+- Öffentliche Portweiterleitung nicht als Standardeinrichtung einschalten.
+- Zugangsdaten und Tokens im Klartext ablehnen.
+- Ungültige TLS-Zertifikate nicht stillschweigend akzeptieren.
 
-### Pairing and device identity
-- Pairing secrets are generated by the local instance, single-use and short-lived.
-- Pairing attempts are rate-limited.
-- Pairing secrets must have sufficient entropy; a short human code must be protected by strict attempt limits.
-- Each successful pairing creates a distinct device record.
-- Device records include creation time, last-used time and a user-editable device label.
-- Users can revoke one device without affecting other devices.
-- Device credentials are never written to application logs.
+### Kopplung und Geräteidentität
+- Kopplungsgeheimnisse erzeugt die lokale Instanz; sie gelten einmal und kurz.
+- Kopplungsversuche sind in der Rate begrenzt.
+- Kopplungsgeheimnisse brauchen genug Entropie; ein kurzer, für Menschen lesbarer Code muss durch strenge Versuchsgrenzen geschützt sein.
+- Jede erfolgreiche Kopplung legt einen eigenen Gerätedatensatz an.
+- Gerätedatensätze enthalten Erstellungszeit, letzte Nutzung und eine vom Nutzer änderbare Gerätebezeichnung.
+- Nutzer können ein Gerät widerrufen, ohne andere Geräte zu berühren.
+- Gerätezugangsdaten werden nie in Anwendungslogs geschrieben.
 
-### Session credentials
-- Use short-lived access credentials.
-- Use rotating, revocable refresh credentials.
-- Store a verifier/hash of refresh credentials on the server, not the raw credential.
-- Detect reuse of a rotated refresh credential and revoke the affected session family.
-- Avoid putting bearer credentials in URLs, query strings or analytics.
-- Define a secure credential reset and recovery procedure.
+### Sitzungszugangsdaten
+- Kurzlebige Access-Zugangsdaten nutzen.
+- Rotierende, widerrufbare Refresh-Zugangsdaten nutzen.
+- Auf dem Server einen Prüfwert bzw. Hash der Refresh-Zugangsdaten speichern, nicht die Zugangsdaten selbst.
+- Die Wiederverwendung rotierter Refresh-Zugangsdaten erkennen und die betroffene Sitzungsfamilie widerrufen.
+- Bearer-Zugangsdaten nicht in URLs, Query-Strings oder Analysedaten ablegen.
+- Ein sicheres Verfahren zum Zurücksetzen und Wiederherstellen von Zugangsdaten festlegen.
 
-### API authorization
-- Version mobile endpoints under `/api/v1`.
-- Require authorization for all financial data and mutation endpoints.
-- Default-deny unknown routes and methods.
-- Enforce request DTO validation, pagination limits and upload limits.
-- Apply network rate limits before dispatch and per-device rate limits to pairing, login/refresh and expensive operations. The current in-memory implementation is only valid for one process; use shared transactional state before multi-worker deployment.
-- Keep CORS disabled unless a documented browser client requires specific origins.
-- Prefer bearer authorization headers over cookie-based sessions for native clients.
+### Berechtigungen der API
+- Endpunkte der Handy-App unter `/api/v1` versionieren.
+- Für alle Finanzdaten und ändernden Endpunkte eine Berechtigung verlangen.
+- Unbekannte Routen und Methoden standardmäßig ablehnen.
+- Prüfung der Anfrage-DTOs, Grenzen für Seitenaufteilung und Uploads durchsetzen.
+- Netz-Ratenbegrenzungen vor der Weiterleitung und Grenzen je Gerät für Kopplung, Anmeldung/Erneuern und aufwendige Vorgänge anwenden. Die heutige Umsetzung im Speicher gilt nur für einen Prozess; vor einer Installation mit mehreren Workern einen gemeinsamen transaktionalen Zustand nutzen.
+- CORS ausgeschaltet lassen, außer ein dokumentierter Browser-Client braucht bestimmte Origins.
+- Für native Clients Bearer-Header gegenüber Cookie-Sitzungen bevorzugen.
 
-### Data protection
-- Never log PINs, TANs, private keys, access tokens, full IBANs or transaction purposes.
-- Redact provider errors before returning them to the mobile client.
-- Define encryption at rest for bank credentials and any local client cache.
-- Restrict file permissions for the database, secrets and backups.
-- Provide user-controlled data export and complete deletion.
-- Explain that encrypting a SQLite database does not automatically encrypt backups, WAL files, temporary files or mobile caches.
+### Datenschutz
+- Nie PINs, TANs, private Schlüssel, Access-Tokens, vollständige IBANs oder Verwendungszwecke loggen.
+- Fehler der Anbieter schwärzen, bevor sie an die Handy-App gehen.
+- Verschlüsselung im Ruhezustand für Bankzugangsdaten und jeden lokalen Cache der App festlegen.
+- Dateirechte für Datenbank, Geheimnisse und Sicherungen beschränken.
+- Vom Nutzer gesteuerten Datenexport und vollständiges Löschen anbieten.
+- Erklären, dass die Verschlüsselung einer SQLite-Datenbank nicht automatisch Sicherungen, WAL-Dateien, temporäre Dateien oder Caches der Handy-App verschlüsselt.
 
-### Import hardening
-- Enforce both compressed and expanded archive size limits.
-- Limit ZIP entry count, per-entry size, total expanded size and parser execution time.
-- Reject path traversal and symlink entries in archives.
-- Apply file size limits consistently to upload and watched-folder imports.
-- Do not trust file names, MIME types or CSV content.
+### Härtung der Importe
+- Größengrenzen für gepackte und entpackte Archive durchsetzen.
+- Anzahl der ZIP-Einträge, Größe je Eintrag, entpackte Gesamtgröße und Laufzeit des Parsers begrenzen.
+- Pfad-Traversal und Symlinks in Archiven ablehnen.
+- Größengrenzen für Uploads und Importe aus überwachten Ordnern einheitlich anwenden.
+- Dateinamen, MIME-Typen und CSV-Inhalten nicht vertrauen.
 
-### Open Banking flow
-- Require exact matching of OAuth state; do not accept a callback code without its matching state.
-- Expire pending authorization state and consume it exactly once.
-- Treat the redirect URL and provider account identifiers as untrusted input.
-- Document which party provides the regulated account information service.
-- Confirm the provider's commercial / customer usage terms before enabling third-party users.
+### Ablauf bei Open Banking
+- Exakte Übereinstimmung des OAuth-State verlangen; keinen Callback-Code ohne passenden State annehmen.
+- Offene Autorisierungszustände ablaufen lassen und genau einmal verbrauchen.
+- Weiterleitungs-URL und Kontokennungen des Anbieters als nicht vertrauenswürdige Eingabe behandeln.
+- Dokumentieren, wer den regulierten Kontoinformationsdienst erbringt.
+- Die gewerblichen bzw. Nutzungsbedingungen des Anbieters prüfen, bevor Nutzer außerhalb des eigenen Haushalts freigeschaltet werden.
 
-## Security testing
-- Unit tests for pairing expiry, single use, token rotation, revocation, trusted proxy parsing, HTTPS enforcement and rate-limit boundaries.
-- API tests proving unauthenticated clients cannot read or modify financial data.
-- Tests for tenant isolation if multi-user support is ever introduced.
-- Import tests for oversized and malformed ZIP archives and XML files.
-- Static analysis and dependency vulnerability scanning in CI.
-- A release checklist covering backup restoration, secret rotation and device revocation.
+## Sicherheitstests
+- Unit-Tests für Ablauf und Einmaligkeit der Kopplung, Token-Rotation, Widerruf, Auswertung vertrauenswürdiger Proxys, HTTPS-Pflicht und Grenzen der Ratenbegrenzung.
+- API-Tests, die belegen, dass nicht angemeldete Clients keine Finanzdaten lesen oder ändern können.
+- Tests der Mandantentrennung, falls je mehrere Nutzer unterstützt werden.
+- Importtests für übergroße und fehlerhafte ZIP-Archive und XML-Dateien.
+- Statische Analyse und Prüfung der Abhängigkeiten auf Schwachstellen in der CI.
+- Eine Release-Checkliste für Wiederherstellung von Sicherungen, Rotation von Geheimnissen und Widerruf von Geräten.
 
-## Release gate
+## Freigabe-Schranke
 
-Remote access must remain disabled until the controls in the sections "Transport", "Pairing and device identity", "Session credentials" and "API authorization" are implemented and covered by tests. Before enabling the optional HA host-port mapping, configure the exact Tailscale Services reverse-proxy peer in the add-on `trusted_proxies` option, verify `X-Forwarded-Proto: https` and source-address behavior on the Green, configure a tailnet-only Tailscale Service grant, and prove that direct LAN requests are denied. Do not configure router port forwarding or Tailscale Funnel.
+Fernzugriff bleibt aus, bis die Maßnahmen der Abschnitte „Transport“, „Kopplung und Geräteidentität“, „Sitzungszugangsdaten“ und „Berechtigungen der API“ umgesetzt und durch Tests abgedeckt sind. Vor dem Einschalten der optionalen Host-Portfreigabe in HA die genaue Reverse-Proxy-Gegenstelle der Tailscale Services in der Add-on-Option `trusted_proxies` eintragen, `X-Forwarded-Proto: https` und das Verhalten der Quelladresse auf dem Green prüfen, eine nur für das Tailnet geltende Freigabe für den Tailscale Service einrichten und belegen, dass direkte Anfragen aus dem LAN abgelehnt werden. Keine Portweiterleitung im Router und keinen Tailscale Funnel einrichten.
