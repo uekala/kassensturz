@@ -47,7 +47,7 @@ jobs:
         run: python tools/app_fixture.py mobile/app/tool/bilder/server.json
 
       - name: Set up Flutter stable
-        uses: flutter-actions/setup-flutter@v4
+        uses: flutter-actions/setup-flutter@v5
         with:
           channel: stable
           version: 3.47.9
