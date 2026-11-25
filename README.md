@@ -47,10 +47,11 @@ Umstieg: Der Excel-Export aus Finanzguru bringt Historie und Kategorien mit.
 
 ## Eigenständiger Betrieb
 
-Zusätzlich zum Home-Assistant-Add-on gibt es eine frühe Docker-Variante für Linux-Server.
-Sie bindet aus Sicherheitsgründen zunächst ausschließlich an `127.0.0.1`; LAN- und Mobile-Zugriff sind
-noch nicht freigegeben. Die [Anleitung für den eigenständigen Betrieb](deploy/standalone/README.md)
-beschreibt Installation, Datenablage und Backup.
+Zusätzlich zum Home-Assistant-Add-on gibt es eine Docker-Variante für Linux-Server, zum Beispiel Unraid.
+Sie bindet aus Sicherheitsgründen ausschließlich an `127.0.0.1`. Von anderen Geräten aus ist sie nur über einen
+HTTPS-Proxy auf demselben Server erreichbar, mit Benutzername und Passwort; ein direkter Zugriff aus dem LAN
+ist nicht vorgesehen. Die [Anleitung für den eigenständigen Betrieb](deploy/standalone/README.md)
+beschreibt Installation, Zugriff, Datenablage und Backup.
 
 ## Mobile-App für iOS und Android
 

@@ -168,6 +168,9 @@ def begin(request) -> tuple[dict, Token]:
     peer = request.client.host if request.client else ""
     if request.url.path.startswith("/api/v1/"):
         actor, kind = "Handy", "phone"
+    elif getattr(request.state, "web_login_user", None):
+        # Eigenständiger Betrieb: an der Weboberfläche mit Benutzername und Passwort angemeldet.
+        actor, kind = str(request.state.web_login_user)[:60], "web"
     elif peer == INGRESS_IP:
         actor = (_header(request, "x-remote-user-display-name") or _header(request, "x-remote-user-name")
                  or "Home Assistant")

@@ -1,10 +1,14 @@
 """HTTP-Schnittstelle und Auslieferung der Oberfläche (über Home-Assistant-Ingress)."""
 from __future__ import annotations
 
+import base64
+import hmac
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import Body, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -38,6 +42,97 @@ MOBILE_CLIENT_NETWORKS = parse_trusted_proxy_networks(
     NETWORK_SECURITY_SETTINGS["mobile_client_networks"]
 )
 MOBILE_API_PREFIXES = ("/api/v1", "/api/mobile")
+
+
+# ---------- Eigenständiger Betrieb: Anmeldung an der Weboberfläche ----------
+# Als Home-Assistant-App meldet Home Assistant an (Ingress). Ohne Supervisor gibt es kein Ingress;
+# dann schützt KASSENSTURZ_WEB_PASSWORD die Weboberfläche, wenn sie über einen vertrauenswürdigen
+# HTTPS-Proxy erreichbar gemacht wird. Ohne Passwort bleibt alles wie bisher auf Loopback beschränkt.
+def _web_password_from_env(environ=os.environ) -> str:
+    if environ.get("SUPERVISOR_TOKEN"):
+        return ""
+    return environ.get("KASSENSTURZ_WEB_PASSWORD", "")
+
+
+WEB_USER = os.environ.get("KASSENSTURZ_WEB_USER", "").strip() or "kassensturz"
+WEB_PASSWORD = _web_password_from_env()
+WEB_LOGIN_LIMIT = 5
+WEB_LOGIN_WINDOW = 300.0
+WEB_LOGIN_FAILURES: dict[str, list[float]] = {}
+_NO_STORE = {"Cache-Control": "no-store"}
+
+
+def _is_local_peer(request: Request, peer: str) -> bool:
+    """Die vertrauenswürdige lokale Grenze: HA-Ingress und Loopback.
+
+    Mit eingerichteter Anmeldung gilt strenger: Ingress gibt es ohne Supervisor nicht, und ein
+    Proxy, der selbst über Loopback ankommt, ist kein lokaler Zugriff. Das gilt auch für einen Proxy,
+    der nicht in KASSENSTURZ_TRUSTED_PROXIES steht: Seine Anfragen tragen Weiterleitungs-Kopfzeilen
+    und werden dann abgelehnt, statt als lokal durchzugehen.
+    """
+    if peer in ("127.0.0.1", "::1"):
+        if not WEB_PASSWORD:
+            return True
+        return not (address_in_networks(socket_peer(request), TRUSTED_PROXY_NETWORKS)
+                    or calendar_feed.forwarded(request.headers))
+    if peer == INGRESS_IP:
+        return not WEB_PASSWORD
+    return False
+
+
+def _basic_credentials(header: str | None) -> tuple[str, str]:
+    kind, _, value = (header or "").partition(" ")
+    if kind.lower() != "basic":
+        return "", ""
+    try:
+        user, _, password = base64.b64decode(value.strip(), validate=True).decode("utf-8").partition(":")
+    except ValueError:
+        return "", ""
+    return user, password
+
+
+def _same_origin(request: Request) -> bool:
+    """Schreibende Anfragen nur von der eigenen Seite, nicht von fremden Seiten im selben Browser."""
+    site = request.headers.get("sec-fetch-site", "").lower()
+    if site and site not in ("same-origin", "none"):
+        return False
+    origin = request.headers.get("origin")
+    if origin is None:
+        return True
+    own = {request.headers.get("host", "").lower(), request.headers.get("x-forwarded-host", "").lower()} - {""}
+    return urlsplit(origin).netloc.lower() in own
+
+
+def _web_login_refusal(request: Request) -> JSONResponse | None:
+    """Prüft die Anmeldung an der Weboberfläche. ``None`` heißt: angemeldet.
+
+    Der Aufrufer stellt sicher, dass die Anfrage über einen vertrauenswürdigen Proxy kommt.
+    """
+    if not request_is_https(request, TRUSTED_PROXY_NETWORKS):
+        return JSONResponse({"detail": "Die Weboberfläche ist nur per HTTPS erreichbar."},
+                            status_code=426, headers=_NO_STORE)
+    client = effective_client_ip(request, TRUSTED_PROXY_NETWORKS)
+    key = client.compressed if client is not None else "unbekannt"
+    now = time.monotonic()
+    recent = [stamp for stamp in WEB_LOGIN_FAILURES.get(key, []) if now - stamp < WEB_LOGIN_WINDOW]
+    if len(recent) >= WEB_LOGIN_LIMIT:
+        return JSONResponse({"detail": "Zu viele Anmeldeversuche. Bitte fünf Minuten warten."}, status_code=429,
+                            headers={"Retry-After": str(int(WEB_LOGIN_WINDOW)), **_NO_STORE})
+    if request.method.upper() not in ("GET", "HEAD", "OPTIONS") and not _same_origin(request):
+        return JSONResponse({"detail": "Anfrage von einer fremden Seite abgelehnt."},
+                            status_code=403, headers=_NO_STORE)
+    user, password = _basic_credentials(request.headers.get("authorization"))
+    user_ok = hmac.compare_digest(user.encode(), WEB_USER.encode())
+    password_ok = hmac.compare_digest(password.encode(), WEB_PASSWORD.encode())
+    if user_ok and password_ok:
+        return None
+    if user or password:
+        if len(WEB_LOGIN_FAILURES) > 1000:
+            WEB_LOGIN_FAILURES.clear()
+        WEB_LOGIN_FAILURES[key] = recent + [now]
+        log.warning("Fehlgeschlagene Anmeldung an der Weboberfläche von %s", key)
+    return JSONResponse({"detail": "Anmeldung erforderlich."}, status_code=401,
+                        headers={"WWW-Authenticate": 'Basic realm="Kassensturz", charset="UTF-8"', **_NO_STORE})
 
 # Netzgrenzen je Prozess. Der Limiter sperrt, wenn seine begrenzte Schlüsseltabelle voll
 # ist, und muss vor dem Einsatz mehrerer Worker durch einen gemeinsamen Speicher ersetzt werden.
@@ -150,7 +245,7 @@ async def only_ingress(request: Request, call_next):
         tuple(prefix + "/" for prefix in MOBILE_API_PREFIXES)
     )
     peer = request.client.host if request.client else ""
-    existing_local_peer = peer in (INGRESS_IP, "127.0.0.1", "::1")
+    existing_local_peer = _is_local_peer(request, peer)
     is_local_admin_path = (
         request.url.path in ("/api/mobile/pairings", "/api/mobile/devices")
         or request.url.path.startswith("/api/mobile/devices/")
@@ -183,7 +278,25 @@ async def only_ingress(request: Request, call_next):
             MOBILE_CLIENT_NETWORKS,
         )
     )
-    if not existing_local_peer and not mobile_peer_allowed:
+    # Eigenständiger Betrieb mit Anmeldung: Die Weboberfläche und ihre Verwaltungswege gibt es über
+    # einen vertrauenswürdigen HTTPS-Proxy nur mit Benutzername und Passwort. Die Handy-API bleibt
+    # bei ihren Geräte-Tokens.
+    web_login_ok = False
+    if WEB_PASSWORD and not existing_local_peer and (not is_mobile_api or is_local_admin_path):
+        if (request.url.path == "/healthz" and request.method == "GET" and peer in ("127.0.0.1", "::1")
+                and not calendar_feed.forwarded(request.headers)):
+            # Die Container-Prüfung fragt direkt über Loopback, ohne Proxy-Kopfzeilen und ohne Finanzdaten.
+            return await call_next(request)
+        if proxy_peer_allowed:
+            refusal = _web_login_refusal(request)
+            if refusal is not None:
+                return refusal
+            request.state.web_login_user = WEB_USER
+            web_login_ok = True
+        elif is_local_admin_path:
+            mobile_peer_allowed = False
+
+    if not existing_local_peer and not mobile_peer_allowed and not web_login_ok:
         message = "Nur über Home Assistant oder ein freigegebenes privates Netz erreichbar."
         # "detail" bleibt für den bestehenden Web-Client; Handy-Clients lesen "error".
         body: dict = {"detail": message}
