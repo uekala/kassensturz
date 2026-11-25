@@ -166,6 +166,10 @@ async def _json_object(request: Request) -> dict[str, Any] | None:
 
 def _local_admin_allowed(request: Request) -> bool:
     """Eine identifizierte, nur für Admins geltende HA-Ingress-Sitzung oder lokalen Zugriff verlangen."""
+    # Eigenständiger Betrieb: Die Middleware hat Benutzername und Passwort schon geprüft und
+    # merkt das an der Anfrage selbst vor; von außen lässt sich dieser Zustand nicht setzen.
+    if getattr(request.state, "web_login_user", None):
+        return True
     peer = socket_peer(request)
     # Ein vertrauenswürdiger Reverse-Proxy kann sich selbst über Loopback verbinden. Eine über das
     # Tailnet weitergeleitete Anfrage nicht für eine lokale Admin-Sitzung von HA halten.

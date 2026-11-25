@@ -11,11 +11,13 @@ import requests
 from .db import Database, now_iso
 
 log = logging.getLogger("kassensturz.ha")
-API = os.environ.get("KASSENSTURZ_HA_API", "http://supervisor/core/api")
+API = os.environ.get("KASSENSTURZ_HA_API") or "http://supervisor/core/api"
 
 
 def _token() -> str | None:
-    return os.environ.get("SUPERVISOR_TOKEN")
+    """Als Home-Assistant-App das Token des Supervisors; im eigenständigen Betrieb ein langlebiges
+    Zugriffstoken aus KASSENSTURZ_HA_TOKEN (dazu KASSENSTURZ_HA_API auf ``http://<HA>:8123/api``)."""
+    return os.environ.get("SUPERVISOR_TOKEN") or os.environ.get("KASSENSTURZ_HA_TOKEN") or None
 
 
 def available() -> bool:

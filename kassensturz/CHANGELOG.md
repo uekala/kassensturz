@@ -1,5 +1,18 @@
 # Änderungen
 
+## 0.3.74
+
+- Eigenständiger Betrieb (Docker ohne Home Assistant): Die Weboberfläche lässt sich über einen HTTPS-Proxy auf
+  demselben Server erreichen, zum Beispiel Tailscale Serve. Dafür gibt es eine Anmeldung mit Benutzername und
+  Passwort (`KASSENSTURZ_WEB_USER`, `KASSENSTURZ_WEB_PASSWORD`); der Proxy steht in `KASSENSTURZ_TRUSTED_PROXIES`.
+  Ohne HTTPS gibt es keine Anmeldung, nach fünf falschen Versuchen ist die Adresse fünf Minuten gesperrt, und
+  schreibende Anfragen von fremden Seiten werden abgelehnt. Der Dienst lauscht weiter nur auf `127.0.0.1`.
+- Im eigenständigen Betrieb gehen Sensoren, Benachrichtigungen und Events mit `KASSENSTURZ_HA_API` und
+  `KASSENSTURZ_HA_TOKEN` an Home Assistant.
+- Das Änderungsprotokoll nennt bei Änderungen über die angemeldete Weboberfläche den Benutzernamen.
+- Fertiges Image für amd64 und arm64 unter `ghcr.io/uekala/kassensturz`.
+- Als Home-Assistant-App ändert sich nichts.
+
 ## 0.3.73
 
 - Advanzia-Kreditkarte (gebührenfrei.de): Die Monatsabrechnung als PDF lässt sich unter *Konten → Datei importieren*

@@ -17,6 +17,12 @@ services:
       KASSENSTURZ_MASTER_KEY: ${KASSENSTURZ_MASTER_KEY:-}
       KASSENSTURZ_TRUSTED_PROXIES: ${KASSENSTURZ_TRUSTED_PROXIES:-}
       KASSENSTURZ_MOBILE_CLIENT_NETWORKS: ${KASSENSTURZ_MOBILE_CLIENT_NETWORKS:-}
+      # Anmeldung an der Weboberfläche hinter einem HTTPS-Proxy auf demselben Server (siehe README).
+      KASSENSTURZ_WEB_USER: ${KASSENSTURZ_WEB_USER:-}
+      KASSENSTURZ_WEB_PASSWORD: ${KASSENSTURZ_WEB_PASSWORD:-}
+      # Optional: Sensoren, Benachrichtigungen und Events an Home Assistant.
+      KASSENSTURZ_HA_API: ${KASSENSTURZ_HA_API:-}
+      KASSENSTURZ_HA_TOKEN: ${KASSENSTURZ_HA_TOKEN:-}
     volumes:
       - ./data:/data
       - ./imports:/share/kassensturz
