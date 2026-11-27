@@ -253,37 +253,44 @@ class _KassensturzShellState extends State<KassensturzShell>
       _serverData(ServerAccountsPage(controller: controller)),
     ];
 
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            AnimatedBuilder(
-              animation: _mobileConnectionController,
-              builder: (context, _) => _ShellHeader(
-                title: _titles[_selectedIndex],
-                status: _statusLabel(),
-                online: controller.linkState == ServerLinkState.connected,
-                onOpenSettings: _openSettings,
+    // Zurück-Taste: erst zur Übersicht, dann wie gewohnt aus der App.
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _selectedIndex = 0);
+      },
+      child: Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              AnimatedBuilder(
+                animation: _mobileConnectionController,
+                builder: (context, _) => _ShellHeader(
+                  title: _titles[_selectedIndex],
+                  status: _statusLabel(),
+                  online: controller.linkState == ServerLinkState.connected,
+                  onOpenSettings: _openSettings,
+                ),
               ),
-            ),
-            AnimatedBuilder(
-              animation: _mobileConnectionController,
-              builder: (context, _) => _notice(),
-            ),
-            Expanded(
-              child: IndexedStack(index: _selectedIndex, children: pages),
-            ),
-          ],
+              AnimatedBuilder(
+                animation: _mobileConnectionController,
+                builder: (context, _) => _notice(),
+              ),
+              Expanded(
+                child: IndexedStack(index: _selectedIndex, children: pages),
+              ),
+            ],
+          ),
         ),
-      ),
-      bottomNavigationBar: AnimatedBuilder(
-        animation: _mobileConnectionController,
-        builder: (context, _) => _ShellNavigation(
-          selectedIndex: _selectedIndex,
-          onSelected: (index) => setState(() => _selectedIndex = index),
-          onAdd: controller.isReadOnly ? null : _addTransaction,
-          showPlanning: !controller.isReadOnly,
+        bottomNavigationBar: AnimatedBuilder(
+          animation: _mobileConnectionController,
+          builder: (context, _) => _ShellNavigation(
+            selectedIndex: _selectedIndex,
+            onSelected: (index) => setState(() => _selectedIndex = index),
+            onAdd: controller.isReadOnly ? null : _addTransaction,
+            showPlanning: !controller.isReadOnly,
+          ),
         ),
       ),
     );

@@ -1,7 +1,7 @@
 // Kassensturz – Oberfläche, router. Aufgeteilt aus app.js; Exporte und Importe zwischen den Modulen.
 
 import { renderBudgets } from "./budgets.js";
-import { $, $$, ICON, api, html, loadBase, raw, store, toast } from "./core.js";
+import { $, $$, ICON, api, html, loadBase, raw, sheetStack, store, toast } from "./core.js";
 import { renderSettings } from "./einstellungen.js";
 import { pickImportFile } from "./import.js";
 import { bankChooser, renderAccounts } from "./konten.js";
@@ -46,7 +46,12 @@ export async function route() {
     $("#retry").onclick = route;
   }
 }
-window.addEventListener("hashchange", () => { window.scrollTo(0, 0); route(); });
+window.addEventListener("hashchange", () => {
+  window.scrollTo(0, 0);
+  // Ein offenes Fenster gehört zur alten Seite.
+  [...sheetStack].forEach((s) => s.close());
+  route();
+});
 export const rerender = () => route();
 
 /* ------------------------------------------------------------------ Leerer Start */
@@ -67,9 +72,15 @@ export function renderEmpty(view) {
   $("#start-file").onclick = () => pickImportFile();
   $("#start-bank").onclick = async () => bankChooser(await api("eb"));
   $("#start-demo").onclick = async () => {
-    $("#start-demo").disabled = true;
-    await api("demo", { method: "POST" });
-    toast("Beispieldaten geladen");
-    rerender();
+    const btn = $("#start-demo");
+    btn.disabled = true;
+    try {
+      await api("demo", { method: "POST" });
+      toast("Beispieldaten geladen");
+      rerender();
+    } catch (err) {
+      btn.disabled = false;
+      toast(err.message);
+    }
   };
 }
