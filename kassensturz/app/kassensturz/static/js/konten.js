@@ -122,7 +122,7 @@ export async function renderAccounts(view, _params, seq) {
     try {
       const res = await api("inbox/analyze", { method: "POST", body: { filename: el.dataset.ibAssign } });
       if (res.kind === "finanzguru") finanzguruSheet(res); else importSheet(res);
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(e.message, { error: true }); }
   });
   on(view, "[data-ib-del]", "click", (_e, el) => {
     if (el.dataset.armed) { api(`inbox/${encodeURIComponent(el.dataset.ibDel)}`, { method: "DELETE" }).then(() => { toast("Datei gelöscht"); rerender(); }); return; }
@@ -167,7 +167,7 @@ export async function ebSetupSheet() {
     try {
       await api("eb/config", { method: "PUT", body: { app_id: $("#eb-app", sh.el).value, private_key: pem, redirect_url: $("#eb-redir", sh.el).value } });
       sh.close(); toast("Open Banking ist eingerichtet"); rerender(); ebConnectSheet(null);
-    } catch (e) { toast(e.message); btn.disabled = false; }
+    } catch (e) { toast(e.message, { error: true }); btn.disabled = false; }
   };
   if ($("#eb-del", sh.el)) confirmButton($("#eb-del", sh.el), "Wirklich entfernen?", async () => { await api("eb/config", { method: "DELETE" }); sh.close(); rerender(); });
 }
@@ -214,7 +214,7 @@ export function ebConnectSheet(renew) {
       </ol>
       <p class="small muted">Die Freigabe gilt ${a.days} Tage. Rechtzeitig vorher erinnert Kassensturz dich ans Erneuern.</p>
       <div class="actions"><button class="btn primary" id="eb-done">Verbinden</button><button class="btn" data-close>Abbrechen</button></div>`.s);
-    if ($("#eb-paste", sh.el)) $("#eb-paste", sh.el).onclick = async () => { try { $("#eb-ret", sh.el).value = await navigator.clipboard.readText(); } catch { toast("Zwischenablage nicht lesbar – bitte von Hand einfügen"); } };
+    if ($("#eb-paste", sh.el)) $("#eb-paste", sh.el).onclick = async () => { try { $("#eb-ret", sh.el).value = await navigator.clipboard.readText(); } catch { toast("Zwischenablage nicht lesbar – bitte von Hand einfügen", { error: true }); } };
     $("#eb-done", sh.el).onclick = () => complete(name, $("#eb-ret", sh.el).value);
   };
   const complete = async (name, text) => {
@@ -332,7 +332,7 @@ export function accountSheet(a) {
     try {
       if (isNew) await api("accounts", { method: "POST", body }); else await api(`accounts/${a.id}`, { method: "PATCH", body });
       sh.close(); toast("Konto gespeichert"); rerender();
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(e.message, { error: true }); }
   };
   $("#ac-kind", sh.el).onchange = (e) => {
     const kind = e.target.value;
@@ -369,7 +369,7 @@ export function bookedHtml(p) {
 // Tilgungsplan eines Kredits: Restschuld heute, Enddatum, Zinsen, Sondertilgung, Plan je Jahr.
 export async function loanSheet(a) {
   let p;
-  try { p = await api(`accounts/${a.id}/loan`); } catch (err) { toast(err.message); return; }
+  try { p = await api(`accounts/${a.id}/loan`); } catch (err) { toast(err.message, { error: true }); return; }
   const need = { rate: "den Sollzins", payment: "die Monatsrate", balance: "die Restschuld" };
   const span = (n) => (n >= 12 ? `${Math.floor(n / 12)} ${Math.floor(n / 12) === 1 ? "Jahr" : "Jahre"}${n % 12 ? ` und ${n % 12} ${n % 12 === 1 ? "Monat" : "Monate"}` : ""}` : `${n} ${n === 1 ? "Monat" : "Monate"}`);
   const body = !p.ready
@@ -402,7 +402,7 @@ export async function loanSheet(a) {
   if ($("#ln-bal", sh.el)) $("#ln-bal", sh.el).onclick = () => { sh.close(); balanceSheet(a); };
   if ($("#ln-take", sh.el)) $("#ln-take", sh.el).onclick = async () => {
     try { await api(`accounts/${a.id}/balance`, { method: "POST", body: { balance_cents: p.today_cents, date: todayIso() } }); sh.close(); toast("Restschuld übernommen"); rerender(); }
-    catch (err) { toast(err.message); }
+    catch (err) { toast(err.message, { error: true }); }
   };
   if ($("#ln-extra-form", sh.el)) $("#ln-extra-form", sh.el).onsubmit = async (e) => {
     e.preventDefault();
@@ -412,7 +412,7 @@ export async function loanSheet(a) {
       const x = (await api(`accounts/${a.id}/loan?extra_cents=${cents}`)).extra;
       $("#ln-extra-out", sh.el).innerHTML = html`<div class="alert" style="margin-top:10px;display:block;cursor:default"><strong>${money(x.cents)} heute getilgt</strong>
         <p class="small">${x.months ? `Fertig ${fmtMonth.format(D(x.end_date))}${x.months_saved ? `, ${span(x.months_saved)} früher` : ", zur selben Zeit"}.` : "Damit wäre der Kredit sofort getilgt."} Du sparst ${money(x.interest_saved_cents)} Zinsen. Ob und wie viel du ohne Gebühr sondertilgen darfst, steht im Vertrag.</p></div>`.s;
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(err.message, { error: true }); }
   };
 }
 

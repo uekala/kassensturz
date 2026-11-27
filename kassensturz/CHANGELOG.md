@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.3.76
+
+- Weboberfläche: Fehlermeldungen sind rot und werden von Screenreadern sofort vorgelesen; Bestätigungen bleiben dunkel.
+
 ## 0.3.75
 
 - Weboberfläche: Ohne Verbindung zum Add-on erscheint ein verständlicher Hinweis statt „Failed to fetch“.

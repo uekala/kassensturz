@@ -99,9 +99,12 @@ export const ICON = {
 };
 
 export let toastTimer;
-export function toast(text) {
+export function toast(text, { error = false } = {}) {
   const el = $("#toast");
   el.textContent = text;
+  el.classList.toggle("error", error);
+  // Fehler sofort vorlesen, sonst höflich warten.
+  el.setAttribute("aria-live", error ? "assertive" : "polite");
   el.classList.add("show");
   clearTimeout(toastTimer);
   // Längere Meldungen bleiben länger stehen, damit man sie zu Ende lesen kann.
@@ -176,6 +179,6 @@ export function confirmButton(btn, label, fn) {
     }
     armed = false; btn.classList.remove("armed");
     btn.disabled = true;
-    try { await fn(); } catch (err) { toast(err.message); } finally { btn.disabled = false; }
+    try { await fn(); } catch (err) { toast(err.message, { error: true }); } finally { btn.disabled = false; }
   });
 }

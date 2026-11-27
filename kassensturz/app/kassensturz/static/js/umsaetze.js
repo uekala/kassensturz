@@ -95,7 +95,7 @@ export async function triageSheet() {
   const finish = () => { closed = true; if (done) rerender(); };
   const show = async () => {
     let data;
-    try { data = await api("triage?limit=100"); } catch (e) { toast(e.message); return; }
+    try { data = await api("triage?limit=100"); } catch (e) { toast(e.message, { error: true }); return; }
     if (closed) return;
     const t = data.items.find((i) => !skipped.has(i.id));
     const body = !t
@@ -117,7 +117,7 @@ export async function triageSheet() {
     if (!t) return;
     const pick = async (id) => {
       let r;
-      try { r = await api(`transactions/${t.id}`, { method: "PATCH", body: { category_id: id } }); } catch (e) { toast(e.message); return; }
+      try { r = await api(`transactions/${t.id}`, { method: "PATCH", body: { category_id: id } }); } catch (e) { toast(e.message, { error: true }); return; }
       done += 1;
       if (r.recategorized) toast(`${r.recategorized} weitere Buchungen gleich mit zugeordnet`);
       show();
@@ -168,7 +168,7 @@ export async function drawShare(box, txId) {
       <div class="actions" style="margin-top:0"><button class="btn small" type="button" id="share-on">Mit dem Haushalt teilen</button></div>`}`.s;
   const change = async (method) => {
     try { await api(`transactions/${txId}/share`, { method, body: method === "PUT" ? {} : undefined }); toast(method === "PUT" ? "Ausgabe geteilt" : "Teilen zurückgenommen"); }
-    catch (e) { toast(e.message); }
+    catch (e) { toast(e.message, { error: true }); }
     drawShare(box, txId);
   };
   if ($("#share-on", box)) $("#share-on", box).onclick = () => change("PUT");
@@ -307,7 +307,7 @@ export async function bindReceipts(box, txId) {
         <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden></label>
         <span class="small muted" id="rcpt-status">${res.items.length ? "" : "Foto oder PDF, bis 10 MB."}</span>` : ""}`.s;
     $$("[data-rcpt-del]", box).forEach((b) => b.onclick = async () => {
-      try { await api(`receipts/${b.dataset.rcptDel}`, { method: "DELETE" }); } catch (e) { toast(e.message); }
+      try { await api(`receipts/${b.dataset.rcptDel}`, { method: "DELETE" }); } catch (e) { toast(e.message, { error: true }); }
       draw();
     });
     const input = $('input[type="file"]', box);
@@ -318,7 +318,7 @@ export async function bindReceipts(box, txId) {
       form.append("file", f);
       $("#rcpt-status", box).textContent = "Wird hochgeladen …";
       try { await api(`transactions/${txId}/receipts`, { method: "POST", form }); toast("Beleg gespeichert"); }
-      catch (e) { toast(e.message); }
+      catch (e) { toast(e.message, { error: true }); }
       draw();
     };
   };
@@ -433,7 +433,7 @@ export function splitSheet(t) {
       $$("[data-pcat]", sh.el).forEach((el) => { parts[Number(el.dataset.pcat)].cat = Number(el.value); });
       const splits = parts.filter((p) => p.amount > 0).map((p) => ({ amount_cents: sign * p.amount, category_id: p.cat }));
       try { await api(`transactions/${t.id}/splits`, { method: "PUT", body: { splits } }); sh.close(); toast("Aufteilung gespeichert"); rerender(); }
-      catch (e) { toast(e.message); }
+      catch (e) { toast(e.message, { error: true }); }
     };
     if ($("#sp-clear", sh.el)) $("#sp-clear", sh.el).onclick = async () => { await api(`transactions/${t.id}/splits`, { method: "PUT", body: { splits: [] } }); sh.close(); rerender(); };
   };

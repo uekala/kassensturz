@@ -8,7 +8,7 @@ import { TX_FILTERS } from "./umsaetze.js";
 // Ein Projekt: Gesamtkosten, Rahmen, Verteilung auf Kategorien und Monate, jüngste Buchungen.
 export async function projectSheet(id) {
   let p;
-  try { p = await api("projects/" + id); } catch (err) { toast(err.message); return; }
+  try { p = await api("projects/" + id); } catch (err) { toast(err.message, { error: true }); return; }
   const maxCat = Math.max(1, ...p.categories.map((c) => c.cents));
   const used = p.budget_cents ? Math.min(100, Math.round((Math.max(0, p.cost_cents) / p.budget_cents) * 100)) : 0;
   const sh = openSheet(html`${sheetHead(p.name)}
@@ -29,12 +29,12 @@ export async function projectSheet(id) {
   $("#pr-edit", sh.el).onclick = () => { sh.close(); projectEditSheet(p); };
   $("#pr-arch", sh.el).onclick = async () => {
     try { await api("projects/" + p.id, { method: "POST", body: { archived: !p.archived } }); sh.close(); toast(p.archived ? "Wieder geöffnet" : "Abgeschlossen"); rerender(); }
-    catch (err) { toast(err.message); }
+    catch (err) { toast(err.message, { error: true }); }
   };
   let sure = false;
   $("#pr-del", sh.el).onclick = async (e) => {
     if (!sure) { sure = true; e.target.textContent = "Wirklich löschen? Die Buchungen bleiben"; return; }
-    try { await api("projects/" + p.id, { method: "DELETE" }); sh.close(); toast("Projekt gelöscht"); rerender(); } catch (err) { toast(err.message); }
+    try { await api("projects/" + p.id, { method: "DELETE" }); sh.close(); toast("Projekt gelöscht"); rerender(); } catch (err) { toast(err.message, { error: true }); }
   };
 }
 
@@ -54,7 +54,7 @@ export function projectEditSheet(p, done) {
       const saved = await api(p ? "projects/" + p.id : "projects", { method: "POST", body });
       sh.close();
       if (done) done(saved); else { toast(p ? "Gespeichert" : "Projekt angelegt"); rerender(); }
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(err.message, { error: true }); }
   };
 }
 
@@ -71,7 +71,7 @@ export async function projectPickSheet(params) {
     try {
       const r = await api(`projects/${id}/assign`, { method: "POST", body: { filter } });
       sh.close(); toast(r.assigned ? `${r.assigned} ${r.assigned === 1 ? "Buchung" : "Buchungen"} zugeordnet` : "Alle Treffer waren schon im Projekt"); rerender();
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(err.message, { error: true }); }
   };
   on(sh.el, "[data-pick]", "click", (_e, el) => take(Number(el.dataset.pick)));
   $("#pick-new", sh.el).onclick = () => { sh.close(); projectEditSheet(null, (saved) => take(saved.id)); };

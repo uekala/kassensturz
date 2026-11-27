@@ -51,7 +51,7 @@ export async function renderBudgets(view, params, seq) {
   const suggest = !person && isCurrent && data.suggestions ? data.suggestions.items : [];
   const takeSuggestions = async (items) => {
     try { for (const s of items) await api(`categories/${s.category_id}`, { method: "PATCH", body: { budget_cents: s.suggested_cents } }); }
-    catch (e) { toast(e.message); rerender(); return; }
+    catch (e) { toast(e.message, { error: true }); rerender(); return; }
     toast(items.length === 1 ? "Budget gespeichert" : `${items.length} Budgets gespeichert`); rerender();
   };
   view.innerHTML = html`
@@ -136,7 +136,7 @@ function changeText(cents, prev) {
 
 export async function yearSheet(year) {
   let r;
-  try { r = await api("year?year=" + year); } catch (e) { toast(e.message); return; }
+  try { r = await api("year?year=" + year); } catch (e) { toast(e.message, { error: true }); return; }
   const p = r.previous;
   const until = r.running ? ` bis ${dFull(r.until)}` : "";
   const lines = [];
@@ -238,7 +238,7 @@ export function goalSheet(g) {
     try {
       if (isNew) await api("goals", { method: "POST", body }); else await api(`goals/${g.id}`, { method: "PATCH", body });
       sh.close(); toast("Sparziel gespeichert"); rerender();
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(e.message, { error: true }); }
   };
   if ($("#g-del", sh.el)) confirmButton($("#g-del", sh.el), "Wirklich löschen?", async () => {
     await api(`goals/${g.id}`, { method: "DELETE" }); sh.close(); toast("Sparziel gelöscht"); rerender();
@@ -258,7 +258,7 @@ export function budgetSheet(catId, person, limits) {
     try {
       if (person) await api(`persons/${person.id}/budgets/${c.id}`, { method: "PUT", body: { budget_cents: cents } });
       else await api(`categories/${c.id}`, { method: "PATCH", body: { budget_cents: cents } });
-    } catch (e) { toast(e.message); return; }
+    } catch (e) { toast(e.message, { error: true }); return; }
     sh.close(); toast(cents ? "Budget gespeichert" : "Budget entfernt"); rerender(); };
   $("#bu-save", sh.el).onclick = () => save(Math.abs(parseMoney($("#bu-amt", sh.el).value) || 0) || null);
   $("#bu-amt", sh.el).addEventListener("keydown", (e) => { if (e.key === "Enter") $("#bu-save", sh.el).click(); });

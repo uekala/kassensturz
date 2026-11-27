@@ -80,7 +80,7 @@ export function renderEmpty(view) {
       rerender();
     } catch (err) {
       btn.disabled = false;
-      toast(err.message);
+      toast(err.message, { error: true });
     }
   };
 }

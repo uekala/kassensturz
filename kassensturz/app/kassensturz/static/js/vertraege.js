@@ -140,7 +140,7 @@ export function contractSheet(c) {
       toast("Kündigungsvorgang abgebrochen");
       sh.close();
       rerender();
-    } catch (error) { toast(error.message); button.disabled = false; }
+    } catch (error) { toast(error.message, { error: true }); button.disabled = false; }
   });
   on(history, "[data-confirm-received]", "click", async (_event, button) => {
     button.disabled = true;
@@ -149,7 +149,7 @@ export function contractSheet(c) {
       toast("Anbieterbestätigung dokumentiert");
       sh.close();
       contractSheet(c);
-    } catch (error) { toast(error.message); button.disabled = false; }
+    } catch (error) { toast(error.message, { error: true }); button.disabled = false; }
   });
   const patch = async (body, msg) => { await api(`contracts/${encodeURIComponent(c.key)}`, { method: body === null ? "DELETE" : "PATCH", body: body || undefined }); sh.close(); toast(msg); rerender(); };
   $("#c-cancelled", sh.el).onchange = (e) => { $("#c-eff-wrap", sh.el).hidden = !e.target.checked; };
@@ -253,7 +253,7 @@ export function contractSheet(c) {
           $("#c-mail", sh.el).value = email || $("#c-mail", sh.el).value;
           $("#c-addr", sh.el).value = address || $("#c-addr", sh.el).value;
         } catch (error) {
-          toast(error.message);
+          toast(error.message, { error: true });
         } finally {
           button.disabled = false;
         }
@@ -334,7 +334,7 @@ export async function letterSheet(c, mode) {
         cancellationEventId = event.id;
         await draw();
         window.location.href = mailto;
-      } catch (error) { toast(error.message); button.disabled = false; }
+      } catch (error) { toast(error.message, { error: true }); button.disabled = false; }
     };
     if ($("#l-confirm-sent", sh.el)) $("#l-confirm-sent", sh.el).onclick = async () => {
       const button = $("#l-confirm-sent", sh.el);
@@ -345,7 +345,7 @@ export async function letterSheet(c, mode) {
         });
         toast("Versand von dir bestätigt und dokumentiert");
         sh.close();
-      } catch (error) { toast(error.message); button.disabled = false; }
+      } catch (error) { toast(error.message, { error: true }); button.disabled = false; }
     };
   };
   draw();
@@ -370,6 +370,6 @@ export function manualContractSheet(intervals) {
       await api("contracts", { method: "POST", body: { name: $("#m-name", sh.el).value, amount_cents: parseMoney($("#m-amt", sh.el).value), interval: $("#m-int", sh.el).value,
         next_due: $("#m-next", sh.el).value, account_id: Number($("#m-acc", sh.el).value) || null, match_pattern: $("#m-pat", sh.el).value } });
       sh.close(); toast("Vertrag hinzugefügt"); rerender();
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(e.message, { error: true }); }
   };
 }

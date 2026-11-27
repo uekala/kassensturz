@@ -115,7 +115,7 @@ export function importSheet(res) {
           if (acc && acc.in_forecast) balanceSheet(acc);
         }
         rerender();
-      } catch (e) { toast(e.message); $("#im-go", sh.el).disabled = false; }
+      } catch (e) { toast(e.message, { error: true }); $("#im-go", sh.el).disabled = false; }
     };
   };
   draw();
@@ -196,7 +196,7 @@ export function finanzguruSheet(res) {
         const next = await api("import/finanzguru/preview", { method: "POST", body: { token: res.token, accounts: choices() } });
         res = { ...res, accounts: next.accounts };
         draw();
-      } catch (e) { toast(e.message); }
+      } catch (e) { toast(e.message, { error: true }); }
     });
     on(sh.el, "[data-fg-name]", "input", (_e, el) => { accChoice.get(res.accounts[Number(el.dataset.fgName)].ref).name = el.value; });
     on(sh.el, "[data-fg-kind]", "change", (_e, el) => { accChoice.get(res.accounts[Number(el.dataset.fgKind)].ref).kind = el.value; });
@@ -218,7 +218,7 @@ export function finanzguruSheet(res) {
           <div class="actions"><button class="btn primary" data-close>Fertig</button></div>`.s);
         await loadBase();
         rerender();
-      } catch (e) { toast(e.message); $("#fg-go", sh.el).disabled = false; }
+      } catch (e) { toast(e.message, { error: true }); $("#fg-go", sh.el).disabled = false; }
     };
   };
   draw();
