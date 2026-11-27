@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.3.76
+
+- Weboberfläche: Fehlermeldungen sind rot und werden von Screenreadern sofort vorgelesen; Bestätigungen bleiben dunkel.
+
 ## 0.3.75
 
 - Weboberfläche: Ohne Verbindung zum Add-on erscheint ein verständlicher Hinweis statt „Failed to fetch“.
@@ -7,7 +11,7 @@
   schließt offene Fenster.
 - Knöpfe mit Rückfrage („Wirklich löschen?“) färben sich beim ersten Klick rot und lassen sich während der Aktion
   nicht doppelt auslösen; Fehler erscheinen als Meldung.
-- Längere Meldungen bleiben länger stehen. Fehlermeldungen sind rot und werden von Screenreadern sofort vorgelesen.
+- Längere Meldungen bleiben länger stehen.
 - „Mit Beispieldaten ausprobieren“ bleibt nach einem Fehler nicht ausgegraut.
 
 ## 0.3.74
