@@ -26,7 +26,13 @@ export async function api(path, { method = "GET", body, form } = {}) {
   const opts = { method, headers: {} };
   if (form) opts.body = form;
   else if (body !== undefined) { opts.body = JSON.stringify(body); opts.headers["Content-Type"] = "application/json"; }
-  const res = await fetch("api/" + path, opts);
+  let res;
+  try {
+    res = await fetch("api/" + path, opts);
+  } catch {
+    // fetch wirft nur ohne Antwort: Netz weg, Add-on neu gestartet oder Home Assistant nicht erreichbar.
+    throw new Error("Keine Verbindung zu Kassensturz. Bitte Netz prüfen und gleich noch einmal versuchen.");
+  }
   let data = null;
   try { data = await res.json(); } catch { /* leer */ }
   if (!res.ok) {
@@ -98,7 +104,9 @@ export function toast(text) {
   el.textContent = text;
   el.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+  // Längere Meldungen bleiben länger stehen, damit man sie zu Ende lesen kann.
+  const ms = Math.min(9000, Math.max(3200, String(text || "").length * 60));
+  toastTimer = setTimeout(() => el.classList.remove("show"), ms);
 }
 
 /* ------------------------------------------------------------------ Zustand */
@@ -124,16 +132,30 @@ export function openSheet(content, { onClose, wide = false } = {}) {
   back.className = "sheet-backdrop";
   back.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" ${wide ? 'style="max-width:820px"' : ""}><div class="sheet-grip"></div>${content}</div>`;
   root.appendChild(back);
+  document.documentElement.classList.add("sheet-open");
   const sheet = $(".sheet", back);
   const prevFocus = document.activeElement;
   const close = () => {
     back.remove();
     sheetStack = sheetStack.filter((s) => s !== api_);
+    if (!sheetStack.length) document.documentElement.classList.remove("sheet-open");
     document.removeEventListener("keydown", onKey);
     if (onClose) onClose();
     if (prevFocus && prevFocus.focus) prevFocus.focus();
   };
-  const onKey = (e) => { if (e.key === "Escape" && sheetStack[sheetStack.length - 1] === api_) close(); };
+  const onKey = (e) => {
+    if (sheetStack[sheetStack.length - 1] !== api_) return;
+    if (e.key === "Escape") { close(); return; }
+    // Tab bleibt im offenen Fenster, statt hinter dem Fenster weiterzuspringen.
+    if (e.key === "Tab") {
+      const items = $$('a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])', sheet)
+        .filter((el) => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && (document.activeElement === first || !sheet.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  };
   document.addEventListener("keydown", onKey);
   back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
   on(sheet, "[data-close]", "click", close);
@@ -147,7 +169,13 @@ export const sheetHead = (title) => html`<div class="sheet-head"><h2>${title}</h
 export function confirmButton(btn, label, fn) {
   let armed = false;
   btn.addEventListener("click", async () => {
-    if (!armed) { armed = true; btn.dataset.label = btn.textContent; btn.textContent = label; setTimeout(() => { armed = false; btn.textContent = btn.dataset.label; }, 4000); return; }
-    await fn();
+    if (!armed) {
+      armed = true; btn.dataset.label = btn.textContent; btn.textContent = label; btn.classList.add("armed");
+      setTimeout(() => { armed = false; btn.textContent = btn.dataset.label; btn.classList.remove("armed"); }, 4000);
+      return;
+    }
+    armed = false; btn.classList.remove("armed");
+    btn.disabled = true;
+    try { await fn(); } catch (err) { toast(err.message); } finally { btn.disabled = false; }
   });
 }

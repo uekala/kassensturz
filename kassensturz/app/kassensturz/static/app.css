@@ -1191,3 +1191,8 @@ a.row:hover .title, button.row:hover .title { color: var(--accent-text); }
 
 /* Abgleich mit Finanzguru: alles da */
 .alert.ok { background: var(--accent-soft); border-color: transparent; }
+
+/* Offenes Fenster: Seite dahinter scrollt nicht mit */
+html.sheet-open, html.sheet-open body { overflow: hidden; }
+/* Zweiter Klick nötig: Knopf sichtbar „scharf“ */
+.btn.armed, button.armed { background: var(--neg-chart); border-color: var(--neg-chart); color: #fff; }

@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.3.75
+
+- Weboberfläche: Ohne Verbindung zum Add-on erscheint ein verständlicher Hinweis statt „Failed to fetch“.
+- Ein offenes Fenster hält die Tab-Taste bei sich, und die Seite dahinter scrollt nicht mehr mit. Ein Seitenwechsel
+  schließt offene Fenster.
+- Knöpfe mit Rückfrage („Wirklich löschen?“) färben sich beim ersten Klick rot und lassen sich während der Aktion
+  nicht doppelt auslösen; Fehler erscheinen als Meldung.
+- Längere Meldungen bleiben länger stehen.
+- „Mit Beispieldaten ausprobieren“ bleibt nach einem Fehler nicht ausgegraut.
+
 ## 0.3.74
 
 - Eigenständiger Betrieb (Docker ohne Home Assistant): Die Weboberfläche lässt sich über einen HTTPS-Proxy auf
