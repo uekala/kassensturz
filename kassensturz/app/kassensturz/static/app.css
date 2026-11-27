@@ -1196,3 +1196,5 @@ a.row:hover .title, button.row:hover .title { color: var(--accent-text); }
 html.sheet-open, html.sheet-open body { overflow: hidden; }
 /* Zweiter Klick nötig: Knopf sichtbar „scharf“ */
 .btn.armed, button.armed { background: var(--neg-chart); border-color: var(--neg-chart); color: #fff; }
+/* Fehlermeldungen heben sich von Bestätigungen ab */
+#toast.error { background: #b3261e; color: #fff; }

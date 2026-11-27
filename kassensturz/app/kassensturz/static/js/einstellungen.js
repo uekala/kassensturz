@@ -22,7 +22,7 @@ export async function changesSheet() {
     const q = new URLSearchParams({ offset: state.offset, limit: 100 });
     if (state.actor) q.set("actor", state.actor);
     let r;
-    try { r = await api("changes?" + q); } catch (err) { toast(err.message); return; }
+    try { r = await api("changes?" + q); } catch (err) { toast(err.message, { error: true }); return; }
     state.items.push(...r.items);
     state.offset += r.items.length;
     const sel = $("#chg-actor", sh.el);
@@ -52,14 +52,14 @@ export function calendarBox(cal) {
 export function bindCalendar(box) {
   const act = async (action, text) => {
     try { box.innerHTML = calendarBox(await api("calendar", { method: "POST", body: { action } })); bindCalendar(box); toast(text); }
-    catch (err) { toast(err.message); }
+    catch (err) { toast(err.message, { error: true }); }
   };
   if ($("#cal-on", box)) $("#cal-on", box).onclick = () => act("on", "Kalender-Adresse erstellt");
   if ($("#cal-renew", box)) $("#cal-renew", box).onclick = () => act("renew", "Neue Adresse. Trag sie in Home Assistant neu ein");
   if ($("#cal-off", box)) $("#cal-off", box).onclick = () => act("off", "Kalender ausgeschaltet");
   if ($("#cal-copy", box)) $("#cal-copy", box).onclick = async () => {
     try { await navigator.clipboard.writeText($("#cal-url", box).textContent); toast("Adresse kopiert"); }
-    catch { toast("Kopieren ging nicht. Bitte die Adresse markieren und kopieren"); }
+    catch { toast("Kopieren ging nicht. Bitte die Adresse markieren und kopieren", { error: true }); }
   };
 }
 
@@ -236,7 +236,7 @@ export async function renderSettings(view, _params, seq) {
       };
       button.textContent = "Neuen Code erzeugen";
     } catch (err) {
-      toast(err.message);
+      toast(err.message, { error: true });
     } finally {
       button.disabled = false;
     }
@@ -247,7 +247,7 @@ export async function renderSettings(view, _params, seq) {
       toast("Gerät wurde widerrufen");
       rerender();
     } catch (err) {
-      toast(err.message);
+      toast(err.message, { error: true });
     }
   }));
   $("#p-add").onclick = () => personSheet();
@@ -255,7 +255,7 @@ export async function renderSettings(view, _params, seq) {
   bindCalendar($("#cal-box"));
   if ($("#st-add")) $("#st-add").onclick = () => settlementSheet(sharing.balances[0]);
   $$("[data-st-del]", view).forEach((button) => confirmButton(button, "Wirklich entfernen?", async () => {
-    try { await api(`household/settlements/${button.dataset.stDel}`, { method: "DELETE" }); toast("Zahlung entfernt"); } catch (e) { toast(e.message); }
+    try { await api(`household/settlements/${button.dataset.stDel}`, { method: "DELETE" }); toast("Zahlung entfernt"); } catch (e) { toast(e.message, { error: true }); }
     rerender();
   }));
   on(view, "[data-person]", "click", (_e, el) => personSheet(store.persons.find((x) => x.id === Number(el.dataset.person))));
@@ -263,7 +263,7 @@ export async function renderSettings(view, _params, seq) {
     try {
       await api(`mobile/devices/${encodeURIComponent(el.dataset.mobilePerson)}`, { method: "PATCH", body: { person_id: Number(el.value) || null } });
       toast("Zuordnung gespeichert");
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(err.message, { error: true }); }
     rerender();
   });
   $("#s-save").onclick = async () => {
@@ -304,10 +304,10 @@ export function personSheet(person) {
     try {
       if (person) await api(`persons/${person.id}`, { method: "PATCH", body }); else await api("persons", { method: "POST", body });
       sh.close(); toast("Gespeichert"); rerender();
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(e.message, { error: true }); }
   };
   if (person) confirmButton($("#pe-del", sh.el), "Wirklich entfernen?", async () => {
-    try { await api(`persons/${person.id}`, { method: "DELETE" }); sh.close(); toast("Person entfernt"); rerender(); } catch (e) { toast(e.message); }
+    try { await api(`persons/${person.id}`, { method: "DELETE" }); sh.close(); toast("Person entfernt"); rerender(); } catch (e) { toast(e.message, { error: true }); }
   });
 }
 
@@ -325,7 +325,7 @@ export function settlementSheet(open) {
   $("#st-save", sh.el).onclick = async () => {
     const body = { from_person_id: Number($("#st-from", sh.el).value), to_person_id: Number($("#st-to", sh.el).value),
       cents: Math.abs(parseMoney($("#st-cents", sh.el).value) || 0), note: $("#st-note", sh.el).value };
-    try { await api("household/settlements", { method: "POST", body }); sh.close(); toast("Zahlung eingetragen"); rerender(); } catch (e) { toast(e.message); }
+    try { await api("household/settlements", { method: "POST", body }); sh.close(); toast("Zahlung eingetragen"); rerender(); } catch (e) { toast(e.message, { error: true }); }
   };
 }
 
@@ -340,7 +340,7 @@ export function ruleSheet() {
   $("#ru-save", sh.el).onclick = async () => {
     if (!cat) { toast("Bitte eine Kategorie wählen"); return; }
     try { const r = await api("rules", { method: "POST", body: { pattern: $("#ru-pat", sh.el).value, sign: $("#ru-sign", sh.el).value, category_id: cat } }); sh.close(); toast(`Regel angelegt, ${r.recategorized} Buchungen neu zugeordnet`); rerender(); }
-    catch (e) { toast(e.message); }
+    catch (e) { toast(e.message, { error: true }); }
   };
 }
 
@@ -351,6 +351,6 @@ export function categorySheet() {
     <div class="actions"><button class="btn primary" id="ka-save">Hinzufügen</button></div>`.s);
   $("#ka-save", sh.el).onclick = async () => {
     try { await api("categories", { method: "POST", body: { name: $("#ka-name", sh.el).value, parent_id: Number($("#ka-parent", sh.el).value) } }); sh.close(); toast("Kategorie hinzugefügt"); rerender(); }
-    catch (e) { toast(e.message); }
+    catch (e) { toast(e.message, { error: true }); }
   };
 }

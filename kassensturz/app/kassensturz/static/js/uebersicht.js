@@ -35,7 +35,7 @@ function chargingHint(ch) {
 
 async function linkSheet(c, parent) {
   let data;
-  try { data = await api(`charging/${c.id}/suggestions`); } catch (e) { toast(e.message); return; }
+  try { data = await api(`charging/${c.id}/suggestions`); } catch (e) { toast(e.message, { error: true }); return; }
   const rows = data.items.map((t) => html`<li class="row" data-tx="${t.id}"><span class="title">${t.counterparty || t.purpose || "Ohne Bezeichnung"}</span>
       <span class="sub">${dFull(t.booking_date)}, ${t.account_name}${t.amount_cents === -c.total_cents ? ", gleicher Betrag" : ""}</span>
       <span class="amount">${money(t.amount_cents)}</span></li>`);
@@ -46,7 +46,7 @@ async function linkSheet(c, parent) {
   on(sh.el, "[data-tx]", "click", async (_e, el) => {
     let fresh;
     try { fresh = await api(`charging/${c.id}/link`, { method: "POST", body: { tx_id: Number(el.dataset.tx) } }); }
-    catch (e) { toast(e.message); return; }
+    catch (e) { toast(e.message, { error: true }); return; }
     toast("Zugeordnet");
     sh.close(); parent.close(); chargingSheet(fresh); rerender();
   });
@@ -162,7 +162,7 @@ export async function renderOverview(view, _params, seq) {
     e.preventDefault();
     const cents = parseMoney($("#afford-amt").value);
     if (cents === null || cents === 0) { toast("Bitte einen Betrag eintragen"); return; }
-    try { $("#afford-out").innerHTML = affordHtml(await api("afford?amount_cents=" + Math.abs(cents)), true); } catch (err) { toast(err.message); }
+    try { $("#afford-out").innerHTML = affordHtml(await api("afford?amount_cents=" + Math.abs(cents)), true); } catch (err) { toast(err.message, { error: true }); }
   };
   on(view, "[data-acc]", "click", (_e, el) => go("umsaetze", { account: el.dataset.acc }));
   on(view, "[data-alert]", "click", async (_e, el) => {
@@ -208,7 +208,7 @@ export function expectedSheet(e) {
     <div class="actions"><button class="btn primary" id="exp-done">${e.candidates.length ? "Anders angekommen" : "Ist angekommen"}</button><button class="btn" id="exp-drop">Kommt nicht mehr</button></div>`.s);
   const act = async (path, body, text) => {
     try { await api(`expected/${e.id}/${path}`, { method: "POST", body: body || {} }); sh.close(); toast(text); rerender(); }
-    catch (err) { toast(err.message); }
+    catch (err) { toast(err.message, { error: true }); }
   };
   on(sh.el, "[data-exp-take]", "click", (_e, el) => act("received", { tx_id: Number(el.dataset.expTake) }, "Abgehakt"));
   $("#exp-done", sh.el).onclick = () => act("received", {}, "Abgehakt");
@@ -236,7 +236,7 @@ export function expectedNewSheet(t) {
     if (t) body.tx_id = t.id;
     else { body.label = $("#exp-label", sh.el).value; body.account_id = Number($("#exp-acc", sh.el).value); }
     try { await api("expected", { method: "POST", body }); sh.close(); toast("Gemerkt. Bleibt offen, bis das Geld da ist"); rerender(); }
-    catch (err) { toast(err.message); }
+    catch (err) { toast(err.message, { error: true }); }
   };
 }
 
@@ -257,7 +257,7 @@ export function plannedSheet(p) {
     <div class="actions"><button class="btn primary" id="plan-done">${p.candidates.length ? "Anders bezahlt" : "Ist bezahlt"}</button><button class="btn" id="plan-edit">Ändern</button><button class="btn" id="plan-drop">Entfällt</button></div>`.s);
   const act = async (path, body, text) => {
     try { await api(`planned/${p.id}/${path}`, { method: "POST", body: body || {} }); sh.close(); toast(text); rerender(); }
-    catch (err) { toast(err.message); }
+    catch (err) { toast(err.message, { error: true }); }
   };
   on(sh.el, "[data-plan-take]", "click", (_e, el) => act("paid", { tx_id: Number(el.dataset.planTake) }, "Abgehakt"));
   $("#plan-done", sh.el).onclick = () => act("paid", {}, "Abgehakt");
@@ -285,7 +285,7 @@ export function plannedEditSheet(p, cents) {
     const body = { label: $("#plan-label", sh.el).value, cents: amount, due_date: $("#plan-due", sh.el).value,
       account_id: Number($("#plan-acc", sh.el).value), note: $("#plan-note", sh.el).value };
     try { await api(p ? `planned/${p.id}` : "planned", { method: "POST", body }); sh.close(); toast(p ? "Gespeichert" : "Eingeplant. Zählt jetzt in der Prognose mit"); rerender(); }
-    catch (err) { toast(err.message); }
+    catch (err) { toast(err.message, { error: true }); }
   };
 }
 
@@ -307,7 +307,7 @@ export function anomalySheet(a) {
     <div class="actions"><button class="btn primary" id="an-ok">Passt, ausblenden</button><button class="btn" id="an-show">Umsätze ansehen</button></div>`.s);
   $("#an-ok", sh.el).onclick = async () => {
     try { await api("anomalies/ack", { method: "POST", body: { key: a.key } }); sh.close(); toast("Hinweis ausgeblendet"); rerender(); }
-    catch (e) { toast(e.message); }
+    catch (e) { toast(e.message, { error: true }); }
   };
   $("#an-show", sh.el).onclick = () => { sh.close(); go("umsaetze", { q: n.counterparty || "" }); };
 }

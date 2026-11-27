@@ -38,7 +38,7 @@ export async function connectionSheet(c) {
         const conns = await api("connections");
         syncSheet(conns.find((x) => x.id === r.id));
       } else { await api(`connections/${c.id}`, { method: "PATCH", body }); sh.close(); toast("Gespeichert"); rerender(); }
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(e.message, { error: true }); }
   };
   if (!isNew) {
     $("#cn-tan", sh.el).onclick = async () => { await api(`connections/${c.id}/reset-tan`, { method: "POST" }); toast("Beim nächsten Abruf wird das TAN-Verfahren neu abgefragt"); };

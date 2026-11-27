@@ -7,7 +7,7 @@
   schließt offene Fenster.
 - Knöpfe mit Rückfrage („Wirklich löschen?“) färben sich beim ersten Klick rot und lassen sich während der Aktion
   nicht doppelt auslösen; Fehler erscheinen als Meldung.
-- Längere Meldungen bleiben länger stehen.
+- Längere Meldungen bleiben länger stehen. Fehlermeldungen sind rot und werden von Screenreadern sofort vorgelesen.
 - „Mit Beispieldaten ausprobieren“ bleibt nach einem Fehler nicht ausgegraut.
 
 ## 0.3.74
