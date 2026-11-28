@@ -1,5 +1,4 @@
 """Budgets aus der App setzen – nur erfundene Daten."""
-from kassensturz.mobile_security import InMemoryRateLimiter
 from test_mobile_write import https_client, paired_headers, reset_mobile_guards
 
 

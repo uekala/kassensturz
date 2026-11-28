@@ -1,5 +1,4 @@
 """Advanzia-Abrechnung als PDF: erfundener Aufbau, erfundene Umsätze."""
-from datetime import date
 
 import pytest
 

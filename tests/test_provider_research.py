@@ -100,7 +100,6 @@ def test_public_url_preflight_reports_only_dns_check(monkeypatch):
 
 
 def test_page_evidence_fetch_uses_pinned_ip_and_never_follows_redirects(monkeypatch):
-    import http.client
 
     captured = {}
 

@@ -2,7 +2,7 @@
 
 def test_restore_rehearsal_leaves_live_data_alone(client, db, tmp_path, monkeypatch):
     import hashlib
-    from kassensturz import backup, health
+    from kassensturz import backup
     acc = db.insert("accounts", {"name": "KS-Testgiro", "kind": "giro"})
     for n in range(3):
         db.insert("transactions", {"account_id": acc, "booking_date": f"2026-11-0{n + 1}", "amount_cents": -100 * (n + 1),

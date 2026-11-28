@@ -1,5 +1,4 @@
 import ipaddress
-from collections import deque
 
 import pytest
 from starlette.requests import Request

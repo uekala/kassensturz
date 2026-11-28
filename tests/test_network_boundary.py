@@ -146,7 +146,6 @@ def test_mobile_pairing_rate_limit_is_enforced_before_route_dispatch(monkeypatch
     assert third.headers["cache-control"] == "no-store"
 
 def test_mobile_client_network_allowlist_is_empty_by_default(monkeypatch, db):
-    from kassensturz.mobile_security import parse_trusted_proxy_networks
 
     monkeypatch.setattr(main, "MOBILE_CLIENT_NETWORKS", ())
     with TestClient(

@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
-from kassensturz import calendar_feed, ledger, main
+from kassensturz import calendar_feed, main
 
 TODAY = date.today()
 

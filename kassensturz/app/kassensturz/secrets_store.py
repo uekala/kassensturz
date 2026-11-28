@@ -7,7 +7,6 @@ import os
 import secrets
 import stat
 import threading
-from pathlib import Path
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM

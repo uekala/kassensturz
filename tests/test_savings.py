@@ -1,7 +1,7 @@
 """Rücklage für Jahreskosten und Sparziele – nur erfundene Daten."""
 from datetime import date
 
-from kassensturz import analytics, ledger, savings
+from kassensturz import analytics, savings
 
 
 def _contract(**extra):
