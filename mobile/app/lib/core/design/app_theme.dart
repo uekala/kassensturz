@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Die Farben einer Helligkeit. Widgets lesen sie mit
 /// `KlarColors.of(context)`, damit dasselbe Layout hell und dunkel funktioniert.

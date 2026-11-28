@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/networking/mobile_connection_controller.dart';
 import '../../core/widgets/pdf_bytes_view.dart';
