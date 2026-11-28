@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.77
+
+- Navigation: „Budgets“ heißt jetzt „Planung“ wie in der Handy-App, die Reihenfolge ist Übersicht, Umsätze, Planung, Konten, Verträge. Die Handy-App nennt „Heute“ jetzt ebenfalls „Übersicht“. Die alte Adresse `#/budgets` funktioniert weiter.
+- Einstellungen in fünf Gruppen mit Sprungleiste: Du & Haushalt, Verbindungen, Kategorien & Regeln, Steuer & Garantien, Daten & Verlauf.
+- Übersicht: „Bank abrufen“ und „Datei importieren“ direkt bei den Konten, „Projekte“ springt in der Planung zu den Projekten.
+
 ## 0.3.76
 
 - Weboberfläche: Fehlermeldungen sind rot und werden von Screenreadern sofort vorgelesen; Bestätigungen bleiben dunkel.

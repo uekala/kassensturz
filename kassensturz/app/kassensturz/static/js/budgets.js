@@ -86,7 +86,7 @@ export async function renderBudgets(view, params, seq) {
             : g.monthly_cents ? `${money(g.monthly_cents)} im Monat bis ${dFull(g.due_date)}` : `Es fehlen ${money(g.rest_cents)}`}${g.account_name ? ` · ${g.account_name}` : ""}</span></button>`)}</div>`
           : html`<p class="small muted">Noch keine Ziele. Lege fest, wofür du sparst, etwa einen Notgroschen oder einen Urlaub, und bis wann.</p>`}
       </section>
-      <section class="section"><div class="section-head"><h2>Projekte</h2><button class="link-btn" id="pr-add">Projekt anlegen</button></div>
+      <section class="section" id="sec-projekte" tabindex="-1"><div class="section-head"><h2>Projekte</h2><button class="link-btn" id="pr-add">Projekt anlegen</button></div>
         ${projects.items.length ? html`<ul class="list">${projects.items.map((p) => html`<li><button class="row" data-project="${p.id}">
           <span class="title">${p.name}${p.archived ? html` <span class="chip neutral">abgeschlossen</span>` : ""}</span>
           <span class="sub">${p.count ? `${p.count} ${p.count === 1 ? "Buchung" : "Buchungen"}, ${p.first === p.last ? dFull(p.first) : `${dShort(p.first)} bis ${dFull(p.last)}`}` : "Noch keine Buchungen"}${p.budget_cents ? (p.left_cents >= 0 ? `. Noch ${money(p.left_cents)} im Rahmen` : `. ${money(-p.left_cents)} über dem Rahmen`) : ""}</span>
@@ -111,6 +111,8 @@ export async function renderBudgets(view, params, seq) {
           : html`<p class="muted">Keine Ausgaben in diesem Monat.</p>`}
       </section>
     </div></div>`.s;
+  // Sprung von der Übersicht direkt zu den Projekten.
+  if (params.focus === "projekte") { const sec = $("#sec-projekte", view); if (sec) { sec.scrollIntoView({ block: "start" }); sec.focus({ preventScroll: true }); } }
   $("#b-prev").onclick = () => go("budgets", here({ month: key(prev) }));
   on(view, "[data-bperson]", "click", (_e, el) => go("budgets", el.dataset.bperson ? { month, person: el.dataset.bperson } : { month }));
   $("#b-year").onclick = () => yearSheet(y);

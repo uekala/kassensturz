@@ -2,7 +2,8 @@
 
 import { affordHtml, budgetSheet } from "./budgets.js";
 import { $, D, ICON, NF0, VALUE_KINDS, api, dFull, dShort, esc, fmtMonth, fmtShort, html, money, moneyRound, on, openSheet, parseMoney, raw, relDay, sheetHead, store, toInput, toast, todayIso } from "./core.js";
-import { balanceSheet, ebConnectSheet } from "./konten.js";
+import { balanceSheet, bankChooser, ebConnectSheet } from "./konten.js";
+import { pickImportFile } from "./import.js";
 import { go, renderSeq, rerender } from "./router.js";
 import { contractSheet } from "./vertraege.js";
 
@@ -144,12 +145,12 @@ export async function renderOverview(view, _params, seq) {
             : html`<p class="muted">Nichts offen. Kommt Geld zurück, etwa nach einer Retoure, merk es an der Ausgabe an.</p>`}
         </section>
         <section class="section">
-          <div class="section-head"><h2>Budgets im ${fmtMonth.format(new Date()).split(" ")[0]}</h2><a href="#/budgets">Alle Budgets</a></div>
+          <div class="section-head"><h2>Budgets im ${fmtMonth.format(new Date()).split(" ")[0]}</h2><span class="head-links"><a href="#/budgets?focus=projekte">Projekte</a><a href="#/budgets">Alle Budgets</a></span></div>
           ${o.budgets.length ? html`<div>${budgets}</div>` : html`<p class="muted">Noch keine Budgets. <a href="#/budgets">Budget festlegen</a></p>`}
         </section>
         ${ch && ch.count ? chargingSection(ch) : ""}
         <section class="section">
-          <div class="section-head"><h2>Konten</h2><a href="#/konten">Verwalten</a></div>
+          <div class="section-head"><h2>Konten</h2><span class="head-links"><button class="link-btn" id="ov-bank">Bank abrufen</button><button class="link-btn" id="ov-import">Datei importieren</button><a href="#/konten">Verwalten</a></span></div>
           <div class="accounts-strip">${accounts}</div>
           <p class="small muted" style="margin-top:12px">Diesen Monat: Einnahmen <span class="num pos">${money(o.month.income_cents, { plus: true })}</span>,
             Ausgaben <span class="num">${money(-o.month.expense_cents)}</span>. Fixkosten insgesamt ${money(o.fixed_monthly_cents)} im Monat.</p>
@@ -180,6 +181,8 @@ export async function renderOverview(view, _params, seq) {
     else if (d.k.startsWith("budget")) go("budgets");
   });
   $("#plan-add").onclick = () => plannedEditSheet(null);
+  $("#ov-import").onclick = () => pickImportFile();
+  $("#ov-bank").onclick = async () => { try { bankChooser(await api("eb")); } catch (err) { toast(err.message, { error: true }); } };
   on(view, "[data-plan]", "click", (_e, el) => plannedSheet(o.planned.open.find((x) => x.id === Number(el.dataset.plan))));
   // Der Knopf entsteht erst mit dem Ergebnis, darum hört der Rahmen zu.
   $("#afford-out").addEventListener("click", (e) => {
