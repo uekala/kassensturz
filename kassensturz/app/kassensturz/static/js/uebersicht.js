@@ -91,6 +91,7 @@ export async function renderOverview(view, _params, seq) {
       <button class="acc-tile" data-acc="${a.id}"><div class="name">${a.name}</div>
       <div class="bal num">${a.balance_known ? money(a.balance_now) : "Stand fehlt"}</div></button>`);
   view.innerHTML = html`
+    <h1 class="sr-only">Übersicht</h1>
     ${o.alerts.length ? html`<div class="alerts">${alerts}</div>` : ""}
     <div class="overview">
       <div>

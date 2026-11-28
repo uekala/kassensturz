@@ -147,7 +147,9 @@ p { margin: .4em 0; }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0 8px; flex-wrap: wrap; }
 
 /* --- Kassensturz-Rechnung (Hero) -------------------------------------------------- */
-.overview { display: grid; gap: 0 40px; }
+/* Ohne feste Spalte wird das Raster so breit wie sein breitester Inhalt (Diagramm, nowrap-Zeilen)
+   und läuft auf 360-px-Handys über den Rand. */
+.overview { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 40px; }
 @media (min-width: 1000px) { .overview { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); } }
 .tally { padding: 18px 0 8px; max-width: 520px; }
 .tally-lines { list-style: none; margin: 0 0 6px; padding: 0; font-size: .95rem; color: var(--muted); }
@@ -256,7 +258,7 @@ p { margin: .4em 0; }
 .budget-row .state.over { color: var(--crit); }
 .budget-row .state.warn { color: var(--warn); }
 
-.cols { display: grid; gap: 0 40px; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 40px; }
 @media (min-width: 1000px) { .cols { grid-template-columns: 1fr 1fr; } }
 
 /* --- Filter & Formulare ----------------------------------------------------------------- */
@@ -1208,3 +1210,8 @@ html.sheet-open, html.sheet-open body { overflow: hidden; }
 .group-title + .section { border-top: 0; }
 .group-title:focus { outline: none; }
 .head-links { display: flex; flex-wrap: wrap; gap: 14px; align-items: baseline; }
+
+/* Textknöpfe: mindestens 24 px Tippfläche (WCAG 2.2), ohne die Zeile optisch zu vergrößern */
+.link-btn, .section-head a { display: inline-block; min-height: 24px; padding-block: 2px; line-height: 20px; }
+/* Nur für Screenreader sichtbar */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

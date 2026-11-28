@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.78
+
+- Weboberfläche auf schmalen Handys: Die Übersicht war immer mindestens 375 px breit. Auf 360-px-Handys liefen Beträge, „Prüfen“ und das Diagramm über den Rand. Jetzt passt sie ab 320 px.
+- Textknöpfe wie „Hinzufügen“, „Bank abrufen“ oder „Übernehmen“ haben mindestens 24 px Tippfläche.
+- Screenreader: Die Übersicht hat eine Überschrift, die Monatspfeile in der Planung nennen den sichtbaren Monat („Okt (Vormonat)“).
+
 ## 0.3.77
 
 - Navigation: „Budgets“ heißt jetzt „Planung“ wie in der Handy-App, die Reihenfolge ist Übersicht, Umsätze, Planung, Konten, Verträge. Die Handy-App nennt „Heute“ jetzt ebenfalls „Übersicht“. Die alte Adresse `#/budgets` funktioniert weiter.
