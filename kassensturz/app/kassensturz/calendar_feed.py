@@ -16,11 +16,11 @@ Bankfreigaben. Ganztägige Termine, ein Jahr im Voraus.
 from __future__ import annotations
 
 import hmac
-import re
 import ipaddress
+import re
 import secrets
 import socket
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from . import contracts as contracts_mod
 from .db import Database
@@ -72,7 +72,7 @@ FORWARD_HEADERS = ("x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "
 def forwarded(headers) -> bool:
     """Ob ein Proxy die Anfrage weitergereicht hat. Home Assistant Core fragt direkt, der Tailscale-Proxy nicht."""
     return any(headers.get(name) for name in FORWARD_HEADERS) or any(
-        key.lower().startswith("tailscale-") for key in headers.keys())
+        key.lower().startswith("tailscale-") for key in headers)
 
 
 def address(value: str | None) -> str | None:
@@ -155,7 +155,7 @@ def _fold(line: str) -> list[str]:
 
 
 def ics(items: list[dict], now: datetime | None = None) -> str:
-    stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = (now or datetime.now(UTC)).astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Kassensturz//Zahlungskalender//DE", "CALSCALE:GREGORIAN",
              "METHOD:PUBLISH", "X-WR-CALNAME:Kassensturz", "X-WR-TIMEZONE:Europe/Berlin"]
     for e in items:

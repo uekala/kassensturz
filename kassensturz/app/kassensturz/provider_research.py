@@ -5,11 +5,11 @@ dass eine gefundene Adresse ein bestätigter Kündigungskontakt ist.
 """
 from __future__ import annotations
 
-from html.parser import HTMLParser
 import http.client
 import ipaddress
 import socket
 import ssl
+from html.parser import HTMLParser
 from urllib.parse import parse_qs, urlparse
 
 import requests

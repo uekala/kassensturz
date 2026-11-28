@@ -4,13 +4,14 @@ Im „eingeschränkten Produktivmodus“ ist Enable Banking für eigene Konten k
 verknüpft die eigenen Konten im Control Panel und kann sie danach über die API lesen."""
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
 import threading
 import time
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
 import requests
@@ -70,7 +71,7 @@ def _token(app_id: str, pem: str) -> str:
     try:
         token = jwt.encode({"iss": "enablebanking.com", "aud": "api.enablebanking.com", "iat": iat, "exp": iat + 3600},
                            pem, algorithm="RS256", headers={"kid": app_id, "typ": "JWT"})
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise EBError("Der private Schlüssel ließ sich nicht lesen. Lade die .pem-Datei hoch, die Enable Banking beim "
                       "Anlegen der App heruntergeladen hat.") from exc
     _token_cache[app_id] = (token, iat + 3600, hash(pem))
@@ -177,7 +178,7 @@ def start_auth(db: Database, aspsp_name: str, country: str, renew_id: int | None
     days = MAX_CONSENT_DAYS
     if max_secs:
         days = max(1, min(days, int(max_secs) // 86400))
-    valid_until = (datetime.now(timezone.utc) + timedelta(days=days)).replace(microsecond=0).isoformat()
+    valid_until = (datetime.now(UTC) + timedelta(days=days)).replace(microsecond=0).isoformat()
     state = uuid.uuid4().hex
     body = {"access": {"valid_until": valid_until}, "aspsp": {"name": aspsp_name, "country": country.upper()},
             "state": state, "redirect_url": get_config(db)["redirect_url"], "psu_type": "personal"}
@@ -250,13 +251,11 @@ def complete_auth(db: Database, text: str, psu: dict | None = None) -> dict:
     if not accounts:
         # Eine Freigabe ohne Konten bringt nichts; nicht speichern und bei Enable Banking gleich wieder schließen.
         # Eine bestehende Freigabe, die erneuert werden sollte, bleibt dabei, wie sie war.
-        try:
+        with contextlib.suppress(EBError):
             call("DELETE", f"/sessions/{session_id}", db=db)
-        except EBError:
-            pass
         raise EBError(NO_ACCOUNTS)
     valid_until = ((data.get("access") or {}).get("valid_until")
-                   or (datetime.now(timezone.utc) + timedelta(days=pend["days"])).isoformat())
+                   or (datetime.now(UTC) + timedelta(days=pend["days"])).isoformat())
     aspsp = (data.get("aspsp") or {}).get("name") or pend["aspsp"]
     with db.tx():
         if pend.get("renew"):
@@ -270,10 +269,8 @@ def complete_auth(db: Database, text: str, psu: dict | None = None) -> dict:
                                               "valid_until": valid_until, "status": "active", "created": now_iso()})
         linked = link_accounts(db, eb_id, aspsp, accounts)
     if old and old.get("session_id") and old["session_id"] != session_id:
-        try:
+        with contextlib.suppress(EBError):
             call("DELETE", f"/sessions/{old['session_id']}", db=db)
-        except EBError:
-            pass
     return {"id": eb_id, "aspsp": aspsp, "valid_until": valid_until, "accounts": linked}
 
 
@@ -350,7 +347,7 @@ def delete_session(db: Database, eb_id: int) -> None:
 
 def list_sessions(db: Database) -> list[dict]:
     out = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for s in db.query("SELECT * FROM eb_sessions ORDER BY id"):
         s.pop("session_id", None)
         s["accounts"] = db.query("SELECT id, name FROM accounts WHERE eb_session_id = ?", (s["id"],))
@@ -359,7 +356,7 @@ def list_sessions(db: Database) -> list[dict]:
             try:
                 vu = datetime.fromisoformat(s["valid_until"].replace("Z", "+00:00"))
                 if vu.tzinfo is None:
-                    vu = vu.replace(tzinfo=timezone.utc)
+                    vu = vu.replace(tzinfo=UTC)
                 s["days_left"] = (vu - now).days
                 if vu < now and s["status"] == "active":
                     s["status"] = "expired"
@@ -446,7 +443,7 @@ def _sync(job: Job, eb_id: int, psu: dict | None) -> dict:
     if vu:
         try:
             end = datetime.fromisoformat(vu.replace("Z", "+00:00"))
-            if (end.tzinfo and end < datetime.now(timezone.utc)) or (not end.tzinfo and end < datetime.now()):
+            if (end.tzinfo and end < datetime.now(UTC)) or (not end.tzinfo and end < datetime.now()):
                 db.update("eb_sessions", "id", eb_id, {"status": "expired"})
                 raise EBError("Die Freigabe bei der Bank ist abgelaufen. Erneuere sie unter Konten.")
         except ValueError:
@@ -523,7 +520,7 @@ def start_sync(eb_id: int, psu: dict | None = None, on_done=None, background: bo
             db.update("eb_sessions", "id", eb_id, {"last_sync": now_iso(), "last_status": "ok"})
             if on_done:
                 on_done()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             job.state = "error"
             job.error = str(exc) if isinstance(exc, UserFacingError) else f"Abruf fehlgeschlagen: {exc}"
             log.warning("Open-Banking-Abruf fehlgeschlagen: %s", exc, exc_info=not isinstance(exc, UserFacingError))

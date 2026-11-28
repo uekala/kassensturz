@@ -2,10 +2,10 @@
 from datetime import date, timedelta
 
 import pytest
-
-from kassensturz import allowance, analytics, household, ledger, services, sharing
 from test_household import READ_PATHS, booking, pair
 from test_mobile_write import https_client, reset_mobile_guards
+
+from kassensturz import allowance, analytics, household, ledger, services, sharing
 
 TODAY = date.today()
 

@@ -1,7 +1,7 @@
 """Nachgebaute Enable-Banking-API für Tests: prüft das JWT und spielt eine N26-Freigabe durch."""
 import json
 import threading
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -62,7 +62,7 @@ def start(bank: Bank):
                 jwt.decode(token, bank.public_key, algorithms=["RS256"], audience="api.enablebanking.com", issuer="enablebanking.com")
                 if hdr.get("kid") != APP_ID:
                     raise ValueError("kid")
-            except Exception:  # noqa: BLE001
+            except Exception:
                 self._send(401, {"code": 401, "message": "Invalid JWT"})
                 return False
             return True
@@ -129,7 +129,7 @@ def start(bank: Bank):
                 bank.sessions[sid] = True
                 bank.expired = False
                 bank.fresh.add("acc-1")
-                vu = (datetime.now(timezone.utc) + timedelta(days=180)).isoformat()
+                vu = (datetime.now(UTC) + timedelta(days=180)).isoformat()
                 return self._send(200, {"session_id": sid, "aspsp": {"name": "N26", "country": "DE"}, "psu_type": "personal",
                                         "access": {"valid_until": vu},
                                         "accounts": [{"uid": "acc-1", "account_id": {"iban": IBAN}, "name": "Hauptkonto",

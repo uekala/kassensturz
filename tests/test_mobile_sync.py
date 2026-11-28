@@ -1,10 +1,10 @@
 """Stand des Bankabrufs und Abruf aus der App – ohne echte Bank, nur erfundene Daten."""
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
+from test_mobile_write import https_client, paired_headers, reset_mobile_guards
 
 from kassensturz import banksync, fints_sync, openbanking, secrets_store
-from test_mobile_write import https_client, paired_headers, reset_mobile_guards
 
 
 class FakeJob:
@@ -17,7 +17,7 @@ class FakeJob:
 def bank(db, monkeypatch):
     """Eine erfundene Freigabe mit einem Konto; Abrufe laufen gegen eine Attrappe."""
     banksync._jobs.clear()
-    valid = (datetime.now(timezone.utc) + timedelta(days=100)).isoformat()
+    valid = (datetime.now(UTC) + timedelta(days=100)).isoformat()
     eb = db.insert("eb_sessions", {"session_id": "geheim-erfunden", "aspsp_name": "Erfundene Bank", "aspsp_country": "DE",
                                    "valid_until": valid, "status": "active", "last_sync": "2026-11-14T06:30:05", "last_status": "ok"})
     db.insert("accounts", {"name": "Testgiro", "kind": "giro", "eb_session_id": eb})
@@ -125,7 +125,7 @@ def test_start_is_rate_limited(db, bank, monkeypatch):
 
 
 def _expiring(db, days):
-    until = (datetime.now(timezone.utc) + timedelta(days=days, hours=1)).isoformat()
+    until = (datetime.now(UTC) + timedelta(days=days, hours=1)).isoformat()
     db.execute("UPDATE eb_sessions SET valid_until = ?", (until,))
 
 

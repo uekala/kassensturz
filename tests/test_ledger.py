@@ -1,7 +1,8 @@
 from datetime import date, timedelta
 
-from kassensturz import analytics, categorize, contracts, demo, ledger
 from kassensturz.db import now_iso
+
+from kassensturz import analytics, categorize, contracts, demo, ledger
 
 
 def _acc(db, **kw):
@@ -25,7 +26,7 @@ def test_overlapping_imports_do_not_duplicate(db):
          _row("2026-10-02", -1000, "REWE Markt GmbH")]
     assert ledger.import_rows(db, aid, b, "fints")["added"] == 0
     # ein dritter Kaffee am selben Tag ist neu
-    c = b + [_row("2026-10-01", -350, "BAECKER GMBH")]
+    c = [*b, _row("2026-10-01", -350, "BAECKER GMBH")]
     assert ledger.import_rows(db, aid, c, "fints")["added"] == 1
 
 

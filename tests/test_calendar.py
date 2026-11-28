@@ -1,5 +1,5 @@
 """Zahlungskalender – nur erfundene Daten."""
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -61,7 +61,7 @@ def test_events_cover_payments_deadlines_and_reminders(db):
 def test_ics_is_valid_folded_and_escaped():
     items = [{"uid": "x-1@kassensturz", "date": date(2027, 1, 31), "summary": "KS; Komma, Strich\\ und Umlaute äöü " * 4,
               "description": "Zeile 1\nZeile 2"}]
-    text = calendar_feed.ics(items, now=datetime(2027, 1, 1, 12, tzinfo=timezone.utc))
+    text = calendar_feed.ics(items, now=datetime(2027, 1, 1, 12, tzinfo=UTC))
     lines = text.split("\r\n")
     assert lines[0] == "BEGIN:VCALENDAR" and lines[-2] == "END:VCALENDAR" and lines[-1] == ""
     assert "DTSTART;VALUE=DATE:20270131" in lines and "DTEND;VALUE=DATE:20270201" in lines and "DTSTAMP:20270101T120000Z" in lines

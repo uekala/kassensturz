@@ -1,8 +1,9 @@
 """App: Wert eines Depots und Restschuld eines Kredits eintragen – nur erfundene Daten."""
 from datetime import date
 
-from kassensturz import household
 from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+
+from kassensturz import household
 
 
 def test_value_of_deposit_and_loan(db, monkeypatch):

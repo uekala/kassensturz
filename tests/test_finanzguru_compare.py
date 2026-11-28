@@ -47,7 +47,7 @@ def test_everything_there_means_ready(db):
 
 def test_missing_bookings_and_no_own_fetch_are_named(db):
     setup(db, automatic=False)
-    rows = rows_matching() + [fg("2026-11-15", -4242, "Nur in Finanzguru")]
+    rows = [*rows_matching(), fg("2026-11-15", -4242, "Nur in Finanzguru")]
     rows += [fg("2026-11-10", -900, "Zweite Karte", ref="DE89370400440532013000", name="Erfundene Kreditkarte")]
     r = finanzguru.compare(db, {"rows": rows}, today=TODAY)
     giro, card = r["accounts"]
@@ -62,7 +62,8 @@ def test_missing_bookings_and_no_own_fetch_are_named(db):
 def test_hanging_fetch_future_rows_paypal_and_manual_accounts(db, client):
     setup(db)
     db.insert("accounts", {"name": "Mein PayPal", "kind": "paypal", "eb_uid": "erfunden-pp"})
-    rows = rows_matching() + [
+    rows = [
+        *rows_matching(),
         # nach der letzten Buchung in Kassensturz, aber schon einige Tage alt: Abruf hängt
         fg("2026-11-25", -1234, "Später Laden"),
         # erwartete Buchung in der Zukunft
@@ -78,7 +79,7 @@ def test_hanging_fetch_future_rows_paypal_and_manual_accounts(db, client):
     assert paypal["account"] == "Mein PayPal"
     assert cash["manual"] and cash["label"] == "" and "von Hand" in cash["problems"][0]
     # frische Buchungen der letzten zwei Tage dürfen noch fehlen; ein ruhiges Konto ist kein Problem
-    calm = finanzguru.compare(db, {"rows": rows_matching() + [fg("2026-11-30", -1, "Frisch")]}, today=date(2026, 12, 1))
+    calm = finanzguru.compare(db, {"rows": [*rows_matching(), fg("2026-11-30", -1, "Frisch")]}, today=date(2026, 12, 1))
     assert calm["accounts"][0]["problems"] == [] and calm["ready"]
     assert client.post("/api/import/finanzguru/compare", json={"token": "gibtsnicht"}).status_code == 400
 
@@ -92,11 +93,10 @@ def test_account_kept_by_file_is_no_obstacle_but_gaps_still_count(db):
     a = r["accounts"][0]
     assert a["file"] and a["problems"] == [] and r["ready"]
     # nach dem Stichtag der letzten Abrechnung: zählt noch nicht
-    later = rows + [fg("2026-11-10", -500, "Später", ref="f773a799d2129edc", name="Master-Card")]
+    later = [*rows, fg("2026-11-10", -500, "Später", ref="f773a799d2129edc", name="Master-Card")]
     assert finanzguru.compare(db, {"rows": later}, {"f773a799d2129edc": card}, today=TODAY)["ready"]
     # davor: fehlt
-    gap = rows + [fg("2026-11-04", -500, "Fehlt", ref="f773a799d2129edc", name="Master-Card"),
-                  fg("2026-11-05", -700, "Auch da", ref="f773a799d2129edc", name="Master-Card")]
+    gap = [*rows, fg("2026-11-04", -500, "Fehlt", ref="f773a799d2129edc", name="Master-Card"), fg("2026-11-05", -700, "Auch da", ref="f773a799d2129edc", name="Master-Card")]
     ledger.import_rows(db, card, [{"booking_date": "2026-11-05", "amount_cents": -700, "counterparty": "Auch da",
                                    "purpose": "y"}], "datei")
     assert finanzguru.compare(db, {"rows": gap}, {"f773a799d2129edc": card}, today=TODAY)["accounts"][0]["missing_count"] == 1

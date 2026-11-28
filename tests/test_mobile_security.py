@@ -1,8 +1,6 @@
 import ipaddress
 
 import pytest
-from starlette.requests import Request
-
 from kassensturz.mobile_security import (
     InMemoryRateLimiter,
     effective_client_ip,
@@ -11,6 +9,7 @@ from kassensturz.mobile_security import (
     request_rate_limit_key,
     socket_peer,
 )
+from starlette.requests import Request
 
 
 def make_request(

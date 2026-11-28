@@ -180,7 +180,7 @@ def start(connection_id: int, pin: str | None, save_pin: bool = False, history_d
         except JobCancelled:
             job.state = "cancelled"
             job.step = "Abgebrochen"
-        except Exception as exc:  # noqa: BLE001 – alles in eine verständliche Meldung übersetzen
+        except Exception as exc:
             job.error = _explain(exc, job.bank_replies)
             log.warning("FinTS-Abruf fehlgeschlagen: %s", exc, exc_info=not isinstance(exc, UserFacingError))
             if job.bank_replies:
@@ -249,8 +249,13 @@ def _bank_said(replies: list | None) -> str:
 
 
 def _explain(exc: Exception, replies: list | None = None) -> str:
-    from fints.exceptions import (FinTSClientPINError, FinTSClientTemporaryAuthError, FinTSConnectionError,
-                                  FinTSDialogInitError, FinTSSCARequiredError)
+    from fints.exceptions import (
+        FinTSClientPINError,
+        FinTSClientTemporaryAuthError,
+        FinTSConnectionError,
+        FinTSDialogInitError,
+        FinTSSCARequiredError,
+    )
 
     if isinstance(exc, UserFacingError):
         return str(exc)
@@ -301,13 +306,13 @@ def _challenge_payload(res) -> dict:
             from fints.hhd.flicker import code_to_bitstream
 
             payload["flicker"] = code_to_bitstream(hhduc)
-        except Exception:  # noqa: BLE001
+        except Exception:
             try:
                 from fints.utils import decode_phototan_image
 
                 img = decode_phototan_image(hhduc if isinstance(hhduc, bytes) else hhduc.encode("iso-8859-1"))
                 payload["image"] = f"data:{img['mime_type']};base64,{base64.b64encode(img['image']).decode()}"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
     return payload
 
@@ -413,9 +418,9 @@ def _sync(job: Job, conn: dict, pin: str, history_days: int | None, background: 
                     job.set_step(f"Lade Kontostand für {acc['name']} …")
                     bal = _resolve(client, client.get_balance(sa), job, background)
                     if bal is not None and getattr(bal, "amount", None) is not None:
-                        cents = int(round(bal.amount.amount * 100))
+                        cents = round(bal.amount.amount * 100)
                         res_meta = {"balance_cents": cents, "balance_date": (bal.date or date.today()).isoformat()}
-                except Exception as exc:  # noqa: BLE001 – Saldo ist optional
+                except Exception as exc:
                     log.info("Saldo nicht verfügbar: %s", exc)
             r = ledger.import_rows(db, acc["id"], rows, "fints", f"FinTS {conn['name']}", res_meta)
             if res_meta:

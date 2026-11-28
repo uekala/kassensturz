@@ -2,7 +2,8 @@
 import sqlite3
 import stat
 
-from kassensturz import db as dbmod, umzug
+from kassensturz import db as dbmod
+from kassensturz import umzug
 
 
 def _account(database, name="Girokonto"):
@@ -34,7 +35,6 @@ def test_export_is_a_complete_database(client, db, tmp_path):
 
 def test_export_is_closed_for_other_networks(db):
     from fastapi.testclient import TestClient
-
     from kassensturz.main import app
 
     with TestClient(app, client=("192.168.50.20", 40000)) as outside:

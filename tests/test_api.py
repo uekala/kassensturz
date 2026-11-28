@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+
 from conftest import fixture_bytes
 
 
@@ -81,7 +82,7 @@ def test_export_csv_includes_transaction_splits(client, db):
     db.insert("splits", {"tx_id": tx_id, "amount_cents": -2000, "category_id": None})
 
     response = client.get("/api/export.csv")
-    rows = list(csv.DictReader(io.StringIO(response.text.lstrip("\\ufeff")), delimiter=";"))
+    rows = list(csv.DictReader(io.StringIO(response.text.lstrip("\ufeff")), delimiter=";"))
 
     assert response.status_code == 200
     assert len(rows) == 1

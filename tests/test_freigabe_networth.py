@@ -1,14 +1,14 @@
 """Erinnerung vor Ablauf der Bankfreigabe und Vermögensverlauf für die App – erfundene Daten."""
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
+from test_mobile_write import https_client, paired_headers, reset_mobile_guards
 
 from kassensturz import ledger, openbanking, services
-from test_mobile_write import https_client, paired_headers, reset_mobile_guards
 
 
 def _grant(db, days):
-    valid = (datetime.now(timezone.utc) + timedelta(days=days, hours=1)).isoformat()
+    valid = (datetime.now(UTC) + timedelta(days=days, hours=1)).isoformat()
     return db.insert("eb_sessions", {"session_id": "x", "aspsp_name": "Erfundene Bank", "aspsp_country": "DE",
                                      "valid_until": valid, "status": "active"})
 
@@ -33,7 +33,7 @@ def test_no_reminder_early_and_expired_is_named(db, monkeypatch):
     monkeypatch.setattr(openbanking, "is_configured", lambda _db: True)
     _grant(db, 15)
     assert _alerts(db) == []
-    db.execute("UPDATE eb_sessions SET valid_until = ?", ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),))
+    db.execute("UPDATE eb_sessions SET valid_until = ?", ((datetime.now(UTC) - timedelta(days=1)).isoformat(),))
     assert [a["title"] for a in _alerts(db)] == ["Freigabe für Erfundene Bank abgelaufen"]
 
 

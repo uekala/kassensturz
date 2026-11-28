@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import os
 import secrets
@@ -92,10 +93,8 @@ def _create_key_file() -> bytes:
             view = view[written:]
         os.fsync(fd)
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(_KEY_PATH)
-        except OSError:
-            pass
         raise
     finally:
         os.close(fd)
@@ -239,10 +238,8 @@ def _save(data: dict) -> None:
     except Exception:
         if fd is not None:
             os.close(fd)
-        try:
+        with contextlib.suppress(FileNotFoundError):
             tmp.unlink()
-        except FileNotFoundError:
-            pass
         raise
 
 

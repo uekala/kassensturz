@@ -57,7 +57,7 @@ def test_what_is_not_ticked_off_by_itself(db, giro):
     expected.create(db, {"label": "Auslagen Dienstreise", "cents": 12000, "account_id": giro})
     book(db, giro, 0, 12000, "Erfundener Arbeitgeber")
     assert expected.settle(db) == 0
-    alone = [i for i in expected.overview(db)["open"] if i["tx_id"] is None][0]
+    alone = next(i for i in expected.overview(db)["open"] if i["tx_id"] is None)
     assert [c["amount_cents"] for c in alone["candidates"]] == [12000]
 
 

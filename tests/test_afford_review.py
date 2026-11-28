@@ -1,9 +1,9 @@
 """„Kann ich mir das leisten?“ und Monatsabschluss – nur erfundene Daten."""
 from datetime import date
 
-from kassensturz import analytics, ledger, services
-
 from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+
+from kassensturz import analytics, ledger, services
 
 
 def _fc(free=50000, days=10, daily=3000, low=40000):

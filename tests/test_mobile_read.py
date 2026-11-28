@@ -1,7 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from kassensturz.mobile_read import (
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
@@ -65,7 +64,7 @@ def test_overview_dto_allowlists_fields_and_uses_integer_cents():
 
     dto = serialize_overview(
         summary, alerts,
-        as_of=datetime(2026, 11, 3, 12, 0, tzinfo=timezone.utc),
+        as_of=datetime(2026, 11, 3, 12, 0, tzinfo=UTC),
     )
 
     assert dto["as_of"] == "2026-11-03T12:00:00+00:00"
@@ -245,7 +244,6 @@ def test_transaction_kind_splits_income_and_expenses_without_transfers(db):
 
 def test_transaction_search_rejects_invalid_parameters(db):
     import pytest
-
     from kassensturz.mobile_read import MAX_SEARCH_LENGTH, MobileQueryError
 
     for arguments in ({"kind": "transfer"}, {"kind": "IN"}, {"q": "x" * (MAX_SEARCH_LENGTH + 1)}, {"q": 5}):
@@ -307,7 +305,6 @@ def test_stats_group_spending_by_top_category_without_transfers(db):
 
 def test_stats_for_another_month_and_invalid_month(db):
     import pytest
-
     from kassensturz.mobile_read import MobileQueryError, get_stats
 
     _stats_fixture(db)

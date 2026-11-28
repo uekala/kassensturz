@@ -1,9 +1,8 @@
 import pytest
-
-from kassensturz import importers
+from conftest import fixture_bytes
 from kassensturz.util import parse_amount, parse_date, split_sepa_purpose
 
-from conftest import fixture_bytes
+from kassensturz import importers
 
 
 @pytest.mark.parametrize("raw,cents", [

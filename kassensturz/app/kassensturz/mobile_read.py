@@ -6,12 +6,11 @@ Feldern zurück und legen nie rohe SQLite-Zeilen oder Felder von Anbietern/Zugan
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any
 
 from . import analytics, contracts, expected, mobile_write, options, planned, savings, services
 from .db import Database
-
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 100
@@ -179,10 +178,10 @@ def serialize_overview(
     viewer: int | None = None,
 ) -> dict:
     """Map domain summaries to a stable, strictly allowlisted mobile DTO."""
-    timestamp = as_of or datetime.now(timezone.utc)
+    timestamp = as_of or datetime.now(UTC)
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
         raise ValueError("as_of must be timezone-aware.")
-    timestamp = timestamp.astimezone(timezone.utc).replace(microsecond=0)
+    timestamp = timestamp.astimezone(UTC).replace(microsecond=0)
 
     accounts = []
     for account in summary.get("accounts", []):

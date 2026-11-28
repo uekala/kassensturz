@@ -1,7 +1,8 @@
 """App: Umsätze und Auswertung nach „Ich“ und „Gemeinsam“ – nur erfundene Daten."""
-from kassensturz import household
 from test_household import home, pair  # noqa: F401  (Fixture)
 from test_mobile_write import https_client
+
+from kassensturz import household
 
 
 def names(client, headers, part=None):
@@ -17,7 +18,7 @@ def spent(client, headers, part):
     return got.json()["month"]["expense_cents"]
 
 
-def test_own_and_shared_parts(home):
+def test_own_and_shared_parts(home):  # noqa: F811 – pytest-Fixture aus test_household
     db, anna = home["db"], home["anna"]
     child = household.create_person(db, {"name": "Kim", "is_child": True})["id"]
     with https_client() as client:

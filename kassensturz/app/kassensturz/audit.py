@@ -17,6 +17,7 @@ tun ``note`` und ``subject`` nichts.
 """
 from __future__ import annotations
 
+import contextlib
 from contextvars import ContextVar, Token
 from datetime import date, datetime, timedelta
 
@@ -155,10 +156,8 @@ _REQUEST: ContextVar[dict | None] = ContextVar("kassensturz_audit", default=None
 def _header(request, name: str) -> str:
     """Kopfzeile als Text. Der Supervisor schickt Namen als UTF-8; Starlette liest sie als Latin-1."""
     value = (request.headers.get(name) or "").strip()
-    try:
+    with contextlib.suppress(UnicodeEncodeError, UnicodeDecodeError):
         value = value.encode("latin-1").decode("utf-8")
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        pass
     return " ".join(value.split())[:60]
 
 

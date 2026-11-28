@@ -16,7 +16,8 @@ FIXTURES = ROOT / "tests" / "fixtures"
 
 @pytest.fixture()
 def db(tmp_path, monkeypatch):
-    from kassensturz import categorize, db as dbmod, secrets_store
+    from kassensturz import categorize, secrets_store
+    from kassensturz import db as dbmod
 
     monkeypatch.setattr(dbmod, "DATA_DIR", tmp_path)
     monkeypatch.setattr(secrets_store, "_PATH", tmp_path / "secrets.json")
@@ -31,7 +32,6 @@ def db(tmp_path, monkeypatch):
 @pytest.fixture()
 def client(db):
     from fastapi.testclient import TestClient
-
     from kassensturz.main import app
 
     with TestClient(app, client=("127.0.0.1", 50123)) as c:

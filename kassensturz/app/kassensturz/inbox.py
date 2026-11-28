@@ -139,7 +139,7 @@ def scan(db: Database) -> dict:
                 if prof:
                     import json
                     res = importers.analyze(data, f.name, json.loads(prof["mapping"]))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _remember(db, f, st, "error", f"Datei nicht lesbar: {exc}", None, 0)
             continue
         if res.get("kind") == "finanzguru":

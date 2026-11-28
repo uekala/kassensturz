@@ -9,7 +9,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from kassensturz import backup, db as dbmod, health, ledger, options, papers, services, umzug
+from kassensturz import backup, health, ledger, options, papers, services, umzug
+from kassensturz import db as dbmod
 
 JPEG = b"\xff\xd8\xff\xe0" + b"erfundenes Foto" * 20
 PDF = b"%PDF-1.4\n% erfundener Beleg\n"
@@ -71,7 +72,6 @@ def test_archive_holds_database_receipts_and_checksums(client, db):
 
 def test_archive_is_closed_for_other_networks(db):
     from fastapi.testclient import TestClient
-
     from kassensturz.main import app
 
     with TestClient(app, client=("192.168.50.20", 40000)) as outside:

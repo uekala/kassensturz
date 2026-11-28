@@ -1,6 +1,7 @@
 """Erkennung wiederkehrender Zahlungen (Verträge, Abos, Gehalt) samt Preisänderungen."""
 from __future__ import annotations
 
+import itertools
 import re
 import statistics
 from collections import Counter, defaultdict
@@ -61,7 +62,7 @@ def _analyze(txs: list[dict], tol_ratio: float) -> dict | None:
         values = by_day[day]
         median = statistics.median(values)
         amounts.append(min(values, key=lambda value: abs(value - median)))
-    gaps = [(b - a).days for a, b in zip(dates, dates[1:])]
+    gaps = [(b - a).days for a, b in itertools.pairwise(dates)]
     best = None
     for name, length, tol, min_n, _months in INTERVALS:
         if len(dates) < min_n:
@@ -241,7 +242,7 @@ def deadline_for(c: dict) -> str | None:
 
 def enrich(c: dict) -> dict:
     c = dict(c)
-    c["monthly_cents"] = int(round((c["amount_cents"] or 0) * monthly_factor(c["interval"])))
+    c["monthly_cents"] = round((c["amount_cents"] or 0) * monthly_factor(c["interval"]))
     c["price_change_cents"] = None
     if c.get("prev_amount_cents") is not None and c.get("price_change_ack") != c.get("amount_cents"):
         c["price_change_cents"] = c["amount_cents"] - c["prev_amount_cents"]
@@ -260,7 +261,7 @@ def list_contracts(db: Database) -> list[dict]:
 
 def is_running(c: dict, on: date) -> bool:
     """Ob der Vertrag an diesem Tag noch Zahlungen auslöst."""
-    if c["status"] == "ignored" or not c["active"] and not c["manual"]:
+    if c["status"] == "ignored" or (not c["active"] and not c["manual"]):
         return False
     if c["status"] == "cancelled":
         eff = c.get("cancel_effective")

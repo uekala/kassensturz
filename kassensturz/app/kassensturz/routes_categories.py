@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
+
 from fastapi import APIRouter, Body
 
 from . import analytics, audit, categorize, household

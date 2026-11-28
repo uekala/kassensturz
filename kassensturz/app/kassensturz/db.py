@@ -521,7 +521,7 @@ class ScopedDatabase:
     hier nicht; das läuft über die Hauptverbindung und wird dort einzeln geprüft.
     """
 
-    def __init__(self, parent: "Database", person_id: int | None, part: str = "all"):
+    def __init__(self, parent: Database, person_id: int | None, part: str = "all"):
         """``part``: "all" zeigt eigene und gemeinsame Konten, "own" nur die eigenen, "shared" nur die gemeinsamen."""
         self.parent = parent
         self.person_id = person_id

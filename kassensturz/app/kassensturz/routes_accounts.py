@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 from datetime import date
+
 from fastapi import APIRouter, Body
 
 from . import allowance, audit, categorize, household, ledger, loans, sharing
 from .db import get_db, now_iso
+from .routes_transactions import _note_tx
 from .util import euro
 from .web import _changed, _err
-from .routes_transactions import _note_tx
 
 router = APIRouter()
 

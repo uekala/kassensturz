@@ -22,7 +22,6 @@ from . import categorize, contracts, ledger, letters, papers
 from .db import Database, now_iso
 from .util import euro, tx_hash
 
-
 MANUAL_SOURCE = "manual"
 MAX_AMOUNT_CENTS = 10**11
 MAX_COUNTERPARTY_LENGTH = 100

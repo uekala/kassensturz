@@ -16,7 +16,7 @@ EXPORT_DE = ("﻿Datum;Start;Ende;Standort;kWh;Preis pro kWh;Ladekosten;Blockier
              "21.10.2026;18:18;18:47;Erfundenhausen;18,000;0,3700;6,66;0,00;6,66;EUR;37;ks-s1;Supercharger;0,4500;0,00;6,66;;\r\n"
              "02.11.2026;07:05;07:40;Musterstadt;30,500;0,4100;12,51;1,00;13,51;EUR;52;ks-s2;Supercharger;;0,00;13,51;;\r\n"
              "03.11.2026;12:00;12:30;Beispielort;10,000;0,5900;5,90;0,00;5,90;EUR;40;ks-s3;MultiPass;;;;Erfundene GmbH;\r\n"
-             "kaputt;;;;;;;;;;;;;;;;;\r\n").encode("utf-8")
+             "kaputt;;;;;;;;;;;;;;;;;\r\n").encode()
 
 
 def test_export_is_read_and_matched_to_bank_bookings(db):
@@ -50,9 +50,9 @@ def test_export_is_read_and_matched_to_bank_bookings(db):
 
 def test_english_export_and_wrong_files(db):
     import pytest
-    english = ("Date,Start,End,Site,kWh,Price per kWh,Charging cost,Idle fee,Total,Currency,Avg kW,Session ID,Network\r\n"
-               "2026-11-05,09:10,09:40,Testville,22.250,0.4000,8.90,0.00,8.90,EUR,45,ks-e1,Supercharger\r\n"
-               "2026-11-06,09:10,09:40,Testville,22.250,0.4000,8.90,0.00,8.90,USD,45,ks-e2,Supercharger\r\n").encode()
+    english = (b"Date,Start,End,Site,kWh,Price per kWh,Charging cost,Idle fee,Total,Currency,Avg kW,Session ID,Network\r\n"
+               b"2026-11-05,09:10,09:40,Testville,22.250,0.4000,8.90,0.00,8.90,EUR,45,ks-e1,Supercharger\r\n"
+               b"2026-11-06,09:10,09:40,Testville,22.250,0.4000,8.90,0.00,8.90,USD,45,ks-e2,Supercharger\r\n")
     assert charging.import_csv(db, english)["added"] == 1
     with pytest.raises(charging.ImportError_, match="kein Export von Ladecockpit"):
         charging.import_csv(db, b"Buchungstag;Betrag;Empfaenger\r\n01.11.2026;-5,00;Erfunden\r\n")
@@ -92,8 +92,9 @@ def test_web_routes(client, db):
 
 
 def test_mobile_routes(db, monkeypatch):
-    from kassensturz import household
     from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+
+    from kassensturz import household
     reset_mobile_guards(monkeypatch)
     acc = _giro(db)
     anna = household.create_person(db, {"name": "Anna"})["id"]
@@ -156,6 +157,7 @@ def test_analyze_recognises_export_and_web_pages(client, db):
 def test_inbox_takes_the_export(db, tmp_path, monkeypatch):
     import os
     import time as _time
+
     from kassensturz import inbox
     monkeypatch.setattr(inbox, "ensure_folder", lambda: tmp_path)
     f = tmp_path / "ladecockpit-sessions.csv"

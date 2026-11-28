@@ -1,6 +1,7 @@
 """App-Optionen aus /data/options.json (von Home Assistant gepflegt)."""
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 
@@ -28,10 +29,8 @@ VERSION = "0.3.76"
 
 def load() -> dict:
     opts = dict(DEFAULTS)
-    try:
+    with contextlib.suppress(OSError, ValueError):
         opts.update(json.loads((DATA_DIR / "options.json").read_text("utf-8")))
-    except (OSError, ValueError):
-        pass
     if os.environ.get("KASSENSTURZ_FINTS_PRODUCT_ID"):
         opts["fints_product_id"] = os.environ["KASSENSTURZ_FINTS_PRODUCT_ID"]
     return opts

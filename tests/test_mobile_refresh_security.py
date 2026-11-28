@@ -11,12 +11,10 @@ Regeln, die hier festgeschrieben sind:
 Alle Tokens entstehen in einer leeren Testdatenbank.
 """
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-
-from kassensturz import main, mobile_auth
 from kassensturz.mobile_auth import (
     ACCESS_TTL,
     EXPIRED_TOKEN_RETENTION,
@@ -27,10 +25,12 @@ from kassensturz.mobile_auth import (
 )
 from kassensturz.mobile_security import InMemoryRateLimiter
 
+from kassensturz import main, mobile_auth
+
 
 class Clock:
     def __init__(self):
-        self.current = datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc)
+        self.current = datetime(2026, 11, 10, 12, 0, tzinfo=UTC)
 
     def __call__(self):
         return self.current
@@ -180,7 +180,7 @@ def test_B8_clock_running_backwards_never_opens_the_window(env):
 
 def test_B9_retired_access_token_is_rejected_without_locking_the_device(env):
     """Nur ein entwertetes Refresh-Token zeigt einen Konflikt an; ein altes Zugriffstoken ergibt nur 401."""
-    service, clock, initial, _ = env
+    service, _clock, initial, _ = env
     lost = service.rotate_refresh_token(initial["refresh_token"])
     retried = service.rotate_refresh_token(initial["refresh_token"])
     assert not works(service, lost["access_token"])
@@ -225,7 +225,7 @@ def test_C4_expired_token_rows_are_cleaned_up(env):
 
 
 def test_C5_cleanup_keeps_every_token_that_is_still_valid(env):
-    service, clock, initial, db = env
+    service, clock, initial, _db = env
     other = service.redeem_pairing(service.create_pairing()["pairing_secret"], "Zweitgerät")
     clock.advance(days=29)
     rotated = service.rotate_refresh_token(initial["refresh_token"])
@@ -252,7 +252,7 @@ def test_C6_expired_rows_survive_the_retention_period_then_disappear(env):
 
 
 def test_C7_rejected_requests_do_not_delete_anything(env):
-    service, clock, initial, db = env
+    service, clock, _initial, db = env
     clock.advance(days=3)
     before = db.scalar("SELECT COUNT(*) FROM mobile_tokens")
     with pytest.raises(InvalidCredential):
@@ -345,7 +345,7 @@ def test_D3c_after_lockout_no_token_of_the_device_works_and_pairing_again_is_pos
 
 
 def test_D4_revoked_device_cannot_refresh_even_inside_window(env):
-    service, clock, initial, _ = env
+    service, _clock, initial, _ = env
     service.rotate_refresh_token(initial["refresh_token"])
     service.revoke_device(initial["device"]["id"])
     with pytest.raises(InvalidCredential):
@@ -470,7 +470,7 @@ def test_P4_parallel_refresh_and_access_checks_stay_consistent(db):
         for _ in range(40):
             try:
                 MobileAuthService(db).authenticate_access_token(initial["access_token"])
-            except Exception as error:  # noqa: BLE001
+            except Exception as error:
                 errors.append(error)
 
     threads = [threading.Thread(target=reader) for _ in range(4)]

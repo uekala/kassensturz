@@ -1,9 +1,9 @@
-from fastapi.testclient import TestClient
-
 from datetime import timedelta
 
-from kassensturz import main, mobile_auth, options
+from fastapi.testclient import TestClient
 from kassensturz.mobile_security import InMemoryRateLimiter, parse_trusted_proxy_networks
+
+from kassensturz import main, mobile_auth, options
 
 
 def https_client(peer="127.0.0.1"):

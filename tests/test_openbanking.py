@@ -1,9 +1,8 @@
 import time
 from datetime import date
 
-import pytest
-
 import eb_mock
+import pytest
 
 
 @pytest.fixture()

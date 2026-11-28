@@ -2,10 +2,10 @@
 from datetime import date
 
 import pytest
-
-from kassensturz import household, sharing
 from test_household import booking, pair
 from test_mobile_write import https_client, reset_mobile_guards
+
+from kassensturz import household, sharing
 
 TODAY = date.today().isoformat()
 

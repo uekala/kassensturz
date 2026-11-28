@@ -1,9 +1,10 @@
 """App: Hinweise erledigen, geplante Ausgaben und erwartete Eingänge – nur erfundene Daten."""
 from datetime import date, timedelta
 
-from kassensturz import expected, household, ledger, planned
 from test_household import pair
 from test_mobile_write import https_client, reset_mobile_guards
+
+from kassensturz import expected, household, ledger, planned
 
 TODAY = date.today()
 

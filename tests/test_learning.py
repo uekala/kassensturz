@@ -1,7 +1,7 @@
 """Lernen aus Korrekturen – nur erfundene Daten."""
-from kassensturz import categorize, ledger
-
 from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+
+from kassensturz import categorize, ledger
 
 
 def _account(db, name="Testkonto", kind="giro"):

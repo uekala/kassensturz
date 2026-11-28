@@ -6,7 +6,29 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
-from . import allowance, analytics, anomalies, audit, backup, charging, contracts, expected, fints_sync, ha, household, inbox, ledger, health, openbanking, options, papers, planned, projects, savings, secrets_store
+from . import (
+    allowance,
+    analytics,
+    anomalies,
+    audit,
+    backup,
+    charging,
+    contracts,
+    expected,
+    fints_sync,
+    ha,
+    health,
+    household,
+    inbox,
+    ledger,
+    openbanking,
+    options,
+    papers,
+    planned,
+    projects,
+    savings,
+    secrets_store,
+)
 from .db import Database, get_db
 from .util import euro
 
@@ -359,7 +381,7 @@ def refresh(db: Database | None = None, notify: bool = True) -> dict:
     try:
         if not charging.poll(db):
             charging.match(db)  # neue Abbuchungen zu bekannten Ladevorgängen
-    except Exception:  # noqa: BLE001 – Ladecockpit ist eine Zugabe, nie ein Grund für einen Fehler
+    except Exception:
         log.exception("Ladevorgänge aus Ladecockpit nicht gelesen")
     planned.settle(db)  # geplante Ausgaben abhaken, die eindeutig bezahlt sind
     summary = build_summary(db)
@@ -410,7 +432,7 @@ def _refresh_loop() -> None:
         _pending.clear()
         try:
             refresh()
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("Neuberechnung fehlgeschlagen")
 
 
@@ -432,7 +454,7 @@ def _scheduler_loop() -> None:
         if time.monotonic() >= backup_retry_at:
             try:
                 backup.run_if_due(get_db())
-            except Exception:  # noqa: BLE001
+            except Exception:
                 # Nicht alle 30 Sekunden erneut versuchen und protokollieren.
                 backup_retry_at = time.monotonic() + 3600
                 log.exception("Sicherungskopie fehlgeschlagen, nächster Versuch in einer Stunde")
@@ -449,7 +471,7 @@ def _scheduler_loop() -> None:
             if time.time() - last_push > 900:
                 last_push = time.time()
                 schedule_refresh()
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("Zeitplan-Fehler")
         time.sleep(30)
 

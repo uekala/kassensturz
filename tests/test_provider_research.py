@@ -67,6 +67,7 @@ def test_public_url_preflight_rejects_private_and_non_https(monkeypatch):
 
 def test_public_url_preflight_checks_every_dns_address(monkeypatch):
     import socket
+
     import pytest
 
     public = ("93.184.216.34", 443)

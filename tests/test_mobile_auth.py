@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from kassensturz.mobile_auth import (
     ACCESS_TTL,
     MAX_ACTIVE_PAIRINGS,
@@ -17,7 +16,7 @@ from kassensturz.mobile_auth import (
 
 class FrozenClock:
     def __init__(self):
-        self.current = datetime(2026, 11, 3, 12, 0, tzinfo=timezone.utc)
+        self.current = datetime(2026, 11, 3, 12, 0, tzinfo=UTC)
 
     def __call__(self):
         return self.current

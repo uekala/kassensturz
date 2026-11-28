@@ -7,12 +7,26 @@ import re
 import shutil
 import tempfile
 from datetime import date
+from pathlib import Path
+
 from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import FileResponse, Response
-from pathlib import Path
 from starlette.background import BackgroundTask
 
-from . import analytics, audit, contracts, db as dbmod, demo, ha, health, options, report, savings, services, umzug
+from . import (
+    analytics,
+    audit,
+    contracts,
+    demo,
+    ha,
+    health,
+    options,
+    report,
+    savings,
+    services,
+    umzug,
+)
+from . import db as dbmod
 from .db import get_db
 from .web import _changed, _err
 

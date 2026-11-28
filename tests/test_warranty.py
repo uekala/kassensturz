@@ -1,8 +1,9 @@
 """Garantiefristen – nur erfundene Daten."""
 from datetime import date, timedelta
 
-from kassensturz import ha, ledger, papers, services
 from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+
+from kassensturz import ha, ledger, papers, services
 
 
 def _tx(db, who="Erfundener Elektromarkt", cents=-59900, archived=0):

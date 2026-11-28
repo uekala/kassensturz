@@ -82,9 +82,10 @@ def test_text_width_and_wrapping():
 
 
 def test_reports_on_the_phone_show_only_visible_accounts(db, monkeypatch):
-    from kassensturz import household
     from test_household import pair
     from test_mobile_write import https_client, reset_mobile_guards
+
+    from kassensturz import household
 
     reset_mobile_guards(monkeypatch)
     anna = household.create_person(db, {"name": "Anna"})["id"]

@@ -9,9 +9,8 @@ from __future__ import annotations
 import zlib
 from datetime import date
 
-from . import analytics, ledger
+from . import analytics, ledger, sharing
 from .db import Database
-from . import sharing
 from .util import add_months, euro, month_end
 
 # Breiten der Zeichen 32 bis 255 in Windows-1252, in Tausendsteln der Schriftgröße
@@ -138,7 +137,7 @@ class Pdf:
 
         def cells(values, bold, gray=0.0):
             for i, value in enumerate(values):
-                label, _pos, align = columns[i]
+                _label, _pos, align = columns[i]
                 if align == "right":
                     self.text(edge(i), self.y, value, 9.5, bold, "right", gray)
                 else:
@@ -170,10 +169,10 @@ class Pdf:
         self.need(60)
         self.y -= 16
         step = (_RIGHT - _LEFT) / max(1, len(items))
-        for i, (label, value) in enumerate(items):
+        for i, (label, _value) in enumerate(items):
             self.text(_LEFT + i * step, self.y, label, 9, gray=0.4)
         self.y -= 20
-        for i, (label, value) in enumerate(items):
+        for i, (_label, value) in enumerate(items):
             self.text(_LEFT + i * step, self.y, value, 15, bold=True)
         self.y -= 6
 
@@ -258,7 +257,7 @@ def month_pdf(db: Database, month: str, today: date | None = None) -> bytes:
     today = today or date.today()
     y, m = (int(x) for x in month.split("-"))
     start = date(y, m, 1)
-    if not (2000 <= y and start <= today):
+    if not (y >= 2000 and start <= today):
         raise ValueError("month")
     review = analytics.month_review(db, month)
     stats = analytics.month_stats(db, month)
@@ -357,7 +356,7 @@ def year_pdf(db: Database, year: int, today: date | None = None) -> bytes:
             for c in r["categories"]]
     if p:
         columns.append(("Vorjahr", 1.0, "right"))
-        for row, c in zip(rows, r["categories"]):
+        for row, c in zip(rows, r["categories"], strict=False):
             row.append(euro(c["previous_cents"]) if c["previous_cents"] is not None else "–")
     pdf.table(columns, rows)
     if r["moved"]:

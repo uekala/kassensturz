@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+
 from fastapi import APIRouter, Body, File, UploadFile
 
 from . import audit, categorize, charging, contracts, finanzguru, importers, inbox, ledger, services
@@ -103,7 +104,7 @@ async def import_analyze(file: UploadFile = File(...)):
                 import json
                 profile = json.loads(prof["mapping"])
                 res = importers.analyze(data, file.filename or "", profile)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.exception("Import-Analyse fehlgeschlagen")
         _err(400, f"Die Datei ließ sich nicht lesen: {exc}")
     token = uuid.uuid4().hex

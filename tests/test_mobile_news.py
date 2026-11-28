@@ -1,8 +1,9 @@
 """Neuigkeiten je Gerät und Papierkram-Übersicht – nur erfundene Daten."""
 from datetime import date, timedelta
 
-from kassensturz import ledger, papers
 from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+
+from kassensturz import ledger, papers
 
 
 def _book(db, acc, day, cents, who, transfer=0):

@@ -8,12 +8,11 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Callable
+from datetime import UTC, datetime, timedelta
 
 from .db import Database
-
 
 PAIRING_TTL = timedelta(minutes=5)
 ACCESS_TTL = timedelta(minutes=10)
@@ -61,7 +60,7 @@ class MobileDevice:
 def _utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("Mobile authentication clock must be timezone-aware.")
-    return value.astimezone(timezone.utc).replace(microsecond=0)
+    return value.astimezone(UTC).replace(microsecond=0)
 
 
 def _stamp(value: datetime) -> str:
@@ -110,7 +109,7 @@ class MobileAuthService:
         clock: Callable[[], datetime] | None = None,
     ):
         self._db = db
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     def _now(self) -> datetime:
         return _utc(self._clock())
