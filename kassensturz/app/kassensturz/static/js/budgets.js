@@ -56,8 +56,8 @@ export async function renderBudgets(view, params, seq) {
   };
   view.innerHTML = html`
     <div class="page-head"><h1>${fmtMonth.format(new Date(y, m - 1, 1))}</h1>
-      <div class="segmented"><button id="b-prev" aria-label="Vormonat">‹ ${fmtMonth.format(prev).split(" ")[0]}</button>
-      ${!isCurrent ? html`<button id="b-next" aria-label="Folgemonat">${fmtMonth.format(next).split(" ")[0]} ›</button>` : ""}</div>
+      <div class="segmented"><button id="b-prev"><span aria-hidden="true">‹ </span>${fmtMonth.format(prev).split(" ")[0]}<span class="sr-only"> (Vormonat)</span></button>
+      ${!isCurrent ? html`<button id="b-next">${fmtMonth.format(next).split(" ")[0]}<span class="sr-only"> (Folgemonat)</span><span aria-hidden="true"> ›</span></button>` : ""}</div>
       <span><button class="link-btn" id="b-year">Jahresrückblick ${y}</button>
       <a class="link-btn" href="api/report/month.pdf?month=${month}" download style="margin-left:12px">Monatsbericht als PDF</a></span></div>
     <ul class="tally-lines" style="max-width:420px;font-size:1rem">
