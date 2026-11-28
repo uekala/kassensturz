@@ -1,7 +1,8 @@
 """Steuerart und Belege – nur mit erfundenen Daten."""
 import stat
 
-from kassensturz import db as dbmod, ledger, papers, services
+from kassensturz import db as dbmod
+from kassensturz import ledger, papers, services
 
 JPEG = b"\xff\xd8\xff\xe0" + b"erfundenes Foto" * 10
 PDF = b"%PDF-1.4\n% erfundener Beleg\n"

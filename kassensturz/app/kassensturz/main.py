@@ -14,10 +14,23 @@ from fastapi import Body, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import (audit, calendar_feed, categorize, inbox, options, routes_accounts, routes_banks, routes_categories,
-               routes_contracts, routes_import, routes_overview, routes_settings, routes_transactions, services)
+from . import (
+    audit,
+    calendar_feed,
+    categorize,
+    inbox,
+    options,
+    routes_accounts,
+    routes_banks,
+    routes_categories,
+    routes_contracts,
+    routes_import,
+    routes_overview,
+    routes_settings,
+    routes_transactions,
+    services,
+)
 from .db import close_db, get_db
-from .web import _err
 from .mobile_api import router as mobile_api_router
 from .mobile_security import (
     InMemoryRateLimiter,
@@ -28,6 +41,7 @@ from .mobile_security import (
     request_rate_limit_key,
     socket_peer,
 )
+from .web import _err
 
 log = logging.getLogger("kassensturz")
 STATIC = Path(__file__).parent / "static"
@@ -129,7 +143,7 @@ def _web_login_refusal(request: Request) -> JSONResponse | None:
     if user or password:
         if len(WEB_LOGIN_FAILURES) > 1000:
             WEB_LOGIN_FAILURES.clear()
-        WEB_LOGIN_FAILURES[key] = recent + [now]
+        WEB_LOGIN_FAILURES[key] = [*recent, now]
         log.warning("Fehlgeschlagene Anmeldung an der Weboberfläche von %s", key)
     return JSONResponse({"detail": "Anmeldung erforderlich."}, status_code=401,
                         headers={"WWW-Authenticate": 'Basic realm="Kassensturz", charset="UTF-8"', **_NO_STORE})
@@ -218,7 +232,7 @@ async def audit_trail(request: Request, call_next):
     if response.status_code < 400 and route is not None:
         try:
             audit.finish(get_db(), holder, request.method, route.path)
-        except Exception:  # noqa: BLE001 – das Protokoll darf keine Änderung scheitern lassen
+        except Exception:
             log.warning("Änderungsprotokoll nicht geschrieben", exc_info=True)
     return response
 
@@ -397,7 +411,7 @@ def healthz():
                 database.conn.execute("SELECT 1").fetchone()
             finally:
                 database.lock.release()
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("Datenbank antwortet nicht")
         problems.append("database")
     if not os.environ.get("KASSENSTURZ_NO_BACKGROUND") and services.scheduler_age_seconds() > SCHEDULER_STALE_SECONDS:

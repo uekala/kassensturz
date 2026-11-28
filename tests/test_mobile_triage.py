@@ -1,8 +1,9 @@
 """Zuordnen im Stapel und Budget-Vorschläge – nur erfundene Daten."""
 from datetime import date
 
-from kassensturz import analytics, ledger
 from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+
+from kassensturz import analytics, ledger
 
 
 def _cat(db, key):
@@ -42,7 +43,7 @@ def test_triage_lists_unassigned_largest_first(db, monkeypatch):
         first = data["items"][0]["id"]
         done = client.patch(f"/api/v1/transactions/{first}", json={"category_id": _cat(db, "lebensmittel")}, headers=headers)
         assert done.status_code == 200
-        assert [i["counterparty"] for i in client.get("/api/v1/triage", headers=headers).json()["items"]][0] == "Erfundener Unbekannt"
+        assert client.get("/api/v1/triage", headers=headers).json()["items"][0]["counterparty"] == "Erfundener Unbekannt"
         # Die gewöhnliche Liste bleibt nach Datum sortiert.
         assert client.get("/api/v1/transactions", headers=headers).json()["items"][0]["counterparty"] == "Erfundener Supermarkt"
 
@@ -90,6 +91,7 @@ def test_suggestions_endpoint(db, monkeypatch):
 
 def test_web_budgets_carry_suggestions_for_shared_accounts(client, db):
     from datetime import timedelta
+
     from kassensturz import household
 
     today = date.today()

@@ -13,9 +13,10 @@ Finanzguru exportiert alle Konten in eine Excel- oder CSV-Datei. Jede Zeile nenn
 from __future__ import annotations
 
 import io
+import itertools
 import re
-import zipfile
 import xml.etree.ElementTree as ET
+import zipfile
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 
@@ -516,8 +517,8 @@ def _closing_balance(rows: list[dict]) -> tuple[int, str] | None:
     if len(seq) < 4 or len(seq) < 0.9 * len(rows):
         return None
     pairs = len(seq) - 1
-    forward = sum(1 for a, b in zip(seq, seq[1:]) if b["balance_cents"] - a["balance_cents"] == b["amount_cents"])
-    backward = sum(1 for a, b in zip(seq, seq[1:]) if a["balance_cents"] - b["balance_cents"] == a["amount_cents"])
+    forward = sum(1 for a, b in itertools.pairwise(seq) if b["balance_cents"] - a["balance_cents"] == b["amount_cents"])
+    backward = sum(1 for a, b in itertools.pairwise(seq) if a["balance_cents"] - b["balance_cents"] == a["amount_cents"])
     if forward >= 0.9 * pairs and seq[-1]["booking_date"] >= seq[0]["booking_date"]:
         last = seq[-1]
     elif backward >= 0.9 * pairs and seq[0]["booking_date"] >= seq[-1]["booking_date"]:

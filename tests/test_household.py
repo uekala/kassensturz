@@ -1,11 +1,12 @@
 """Haushalt: Personen, Kontobesitz und was ein Handy sehen darf – nur erfundene Daten."""
+import sqlite3
 from datetime import date
 
 import pytest
+from test_mobile_write import https_client, reset_mobile_guards
 
 from kassensturz import db as dbmod
 from kassensturz import household
-from test_mobile_write import https_client, reset_mobile_guards
 
 TODAY = date.today().isoformat()
 
@@ -79,7 +80,7 @@ def test_every_read_endpoint_hides_the_other_persons_data(home):
         ben = pair(client, home["ben"], "Bens Handy")
         nobody = pair(client, None, "Altes Handy")
         for path in READ_PATHS:
-            for headers, foreign, own in ((anna, ("KS-BEN",), "KS-ANNA"), (ben, ("KS-ANNA",), "KS-BEN"),
+            for headers, foreign, _own in ((anna, ("KS-BEN",), "KS-ANNA"), (ben, ("KS-ANNA",), "KS-BEN"),
                                           (nobody, ("KS-ANNA", "KS-BEN"), None)):
                 response = client.get(path, headers=headers)
                 assert response.status_code == 200, (path, response.text)
@@ -172,7 +173,7 @@ def test_the_view_of_a_person_cannot_write(home):
                  lambda: view.update("accounts", "id", 1, {"name": "x"}), lambda: view.tx()):
         with pytest.raises(RuntimeError):
             call()
-    with pytest.raises(Exception):
+    with pytest.raises(sqlite3.OperationalError):
         view.query("DELETE FROM main.accounts")
     assert home["db"].scalar("SELECT COUNT(*) FROM accounts") == 3
 

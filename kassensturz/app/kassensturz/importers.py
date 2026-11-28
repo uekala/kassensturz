@@ -5,13 +5,12 @@ import csv
 import hashlib
 import io
 import re
-import zipfile
 import xml.etree.ElementTree as ET
+import zipfile
 from collections import Counter
 from datetime import date
 
 from .util import clean_purpose, norm, parse_amount, parse_date
-
 
 # Ressourcengrenzen gelten für Uploads und Importe aus überwachten Ordnern gleichermaßen.
 MAX_IMPORT_BYTES = 25 * 1024 * 1024
@@ -588,7 +587,7 @@ def _advanzia_pdf(data: bytes) -> dict:
         text = advanzia_pdf.text_of(data)
     except ValueError:
         raise
-    except Exception as exc:  # noqa: BLE001 – kaputte oder ungewöhnliche PDF
+    except Exception as exc:
         raise ValueError("Die PDF ließ sich nicht lesen.") from exc
     if not text.strip():
         raise ValueError("Die PDF enthält keinen Text, vermutlich ein Scan. Lade die Abrechnung aus dem Portal herunter.")

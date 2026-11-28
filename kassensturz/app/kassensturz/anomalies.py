@@ -14,6 +14,7 @@ nicht als auffällig.
 """
 from __future__ import annotations
 
+import itertools
 import re
 from bisect import bisect_left
 from collections import defaultdict
@@ -129,7 +130,7 @@ def _search(db: Database, today: date) -> list[dict]:
         if tx["payee"] and -tx["amount_cents"] >= DOUBLE_MIN_CENTS:
             groups[(tx["account_id"], tx["amount_cents"], tx["payee"])].append(tx)
     for group in groups.values():
-        for before, tx in zip(group, group[1:]):
+        for before, tx in itertools.pairwise(group):
             gap = (date.fromisoformat(tx["booking_date"]) - date.fromisoformat(before["booking_date"])).days
             if gap <= DOUBLE_DAYS:
                 when = (f"zweimal am {_day(tx['booking_date'])}" if gap == 0

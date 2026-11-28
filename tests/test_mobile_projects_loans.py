@@ -1,9 +1,10 @@
 """App: Projekte und Tilgungsplan – nur erfundene Daten."""
 from datetime import date
 
-from kassensturz import household, ledger, projects
 from test_household import pair
 from test_mobile_write import https_client, reset_mobile_guards
+
+from kassensturz import household, ledger, projects
 
 
 def book(db, acc, day, cents, who):

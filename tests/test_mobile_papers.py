@@ -1,6 +1,7 @@
 """Steuerart und Belege aus der App – nur erfundene Daten."""
-from kassensturz import ledger, papers
 from test_mobile_write import https_client, paired_headers, reset_mobile_guards
+
+from kassensturz import ledger, papers
 
 JPEG = b"\xff\xd8\xff\xe0" + b"erfundenes Foto" * 10
 PDF = b"%PDF-1.4\n% erfundener Beleg\n"

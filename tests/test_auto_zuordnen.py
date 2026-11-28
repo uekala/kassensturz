@@ -1,8 +1,8 @@
 """Zuordnen ohne Zutun: mehr Merkmale beim Lernen, größeres Wörterbuch, Vorschläge – erfundene Daten."""
 import pytest
+from test_mobile_write import https_client, paired_headers, reset_mobile_guards
 
 from kassensturz import categorize, ledger
-from test_mobile_write import https_client, paired_headers, reset_mobile_guards
 
 
 def _cat(db, key):

@@ -68,9 +68,9 @@ def test_close_writes_the_wal_into_the_database(tmp_path):
 
 def test_app_shutdown_closes_the_database(db, tmp_path):
     from fastapi.testclient import TestClient
+    from kassensturz.main import app
 
     from kassensturz import db as dbmod
-    from kassensturz.main import app
 
     with TestClient(app, client=("127.0.0.1", 50123)) as client:
         assert client.post("/api/accounts", json={"name": "Testkonto"}).status_code == 200

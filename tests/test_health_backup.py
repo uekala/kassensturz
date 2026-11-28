@@ -5,7 +5,8 @@ from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
 
-from kassensturz import backup, db as dbmod, options, services
+from kassensturz import backup, options, services
+from kassensturz import db as dbmod
 
 
 def _account(database, name="Bargeld"):
@@ -95,9 +96,8 @@ def test_snapshot_runs_once_per_day_and_keeps_seven(db):
 def test_snapshot_refuses_to_run_inside_a_transaction(db):
     import pytest
 
-    with db.tx():
-        with pytest.raises(RuntimeError):
-            backup.snapshot(db)
+    with db.tx(), pytest.raises(RuntimeError):
+        backup.snapshot(db)
 
 
 def test_first_start_of_a_new_version_saves_the_previous_state(tmp_path, monkeypatch):

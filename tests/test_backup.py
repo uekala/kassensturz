@@ -2,6 +2,7 @@
 
 def test_restore_rehearsal_leaves_live_data_alone(client, db, tmp_path, monkeypatch):
     import hashlib
+
     from kassensturz import backup
     acc = db.insert("accounts", {"name": "KS-Testgiro", "kind": "giro"})
     for n in range(3):
@@ -27,7 +28,8 @@ def test_restore_rehearsal_leaves_live_data_alone(client, db, tmp_path, monkeypa
     assert hashlib.sha256(copy.read_bytes()).hexdigest() == copy_before
     assert db.scalar("SELECT COUNT(*) FROM transactions") == 3
     assert hashlib.sha256(db.path.read_bytes()).hexdigest() == before
-    import glob, tempfile
+    import glob
+    import tempfile
     assert not glob.glob(tempfile.gettempdir() + "/kassensturz-probe-*")
 
 

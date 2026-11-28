@@ -1,9 +1,9 @@
 """Advanzia-Abrechnung als PDF: erfundener Aufbau, erfundene Umsätze."""
 
 import pytest
+from kassensturz.report import Pdf
 
 from kassensturz import advanzia_pdf, importers
-from kassensturz.report import Pdf
 
 
 def statement(lines, marker="Advanzia Bank S.A. · Mastercard Gold · gebührenfrei.de", balances=True) -> bytes:
@@ -43,7 +43,7 @@ def test_without_balances_purchases_are_expenses_and_year_is_guessed():
 
 
 def test_mismatch_is_reported_and_other_pdfs_are_refused():
-    res = importers.analyze(statement(LINES[:2] + ["05.11.2026 05.11.2026 Zahlung erhalten 50,00 -"]), "r.pdf")
+    res = importers.analyze(statement([*LINES[:2], "05.11.2026 05.11.2026 Zahlung erhalten 50,00 -"]), "r.pdf")
     assert res["pdf_check"]["matches"] is False and res["pdf_check"]["difference_cents"]
     with pytest.raises(ValueError, match="nur als Monatsabrechnung"):
         importers.analyze(statement(LINES, marker="Erfundene Sparkasse Kontoauszug"), "k.pdf")

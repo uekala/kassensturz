@@ -3,7 +3,6 @@ import shutil
 import time
 
 import pytest
-
 from conftest import FIXTURES
 
 

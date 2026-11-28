@@ -1,7 +1,8 @@
 """App: Änderungsprotokoll – nur erfundene Daten."""
-from kassensturz import household
 from test_household import pair
 from test_mobile_write import https_client, reset_mobile_guards
+
+from kassensturz import household
 
 
 def entry(db, text, account_id=None, route="PATCH /api/accounts/{aid}", person_id=None, actor="Lokal", kind="local"):

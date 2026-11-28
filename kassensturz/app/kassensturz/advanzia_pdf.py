@@ -10,6 +10,7 @@ bei dem, was als Umsatz zählt, und sagt im Ergebnis, ob die Summe zur Abrechnun
 """
 from __future__ import annotations
 
+import contextlib
 import io
 import re
 from datetime import date
@@ -45,7 +46,7 @@ def text_of(data: bytes) -> str:
         try:
             if not reader.decrypt(""):
                 raise ValueError("Die PDF ist mit einem Passwort geschützt. Speichere sie ohne Passwort.")
-        except Exception as exc:  # noqa: BLE001 – pypdf meldet hier verschiedene Fehler
+        except Exception as exc:
             raise ValueError("Die PDF ist mit einem Passwort geschützt. Speichere sie ohne Passwort.") from exc
     if len(reader.pages) > MAX_PAGES:
         raise ValueError(f"Die PDF hat mehr als {MAX_PAGES} Seiten. Lade eine einzelne Abrechnung hoch.")
@@ -53,7 +54,7 @@ def text_of(data: bytes) -> str:
     for page in reader.pages:
         try:
             parts.append(page.extract_text(extraction_mode="layout") or "")
-        except Exception:  # noqa: BLE001 – ältere PDFs ohne Layout-Angaben
+        except Exception:
             parts.append(page.extract_text() or "")
     return "\n".join(parts)
 
@@ -95,10 +96,8 @@ def parse(text: str, today: date | None = None) -> dict:
     found = _STATEMENT_DATE.search(text)
     ref = today
     if found:
-        try:
+        with contextlib.suppress(ValueError):
             ref = date(int(found.group(3)), int(found.group(2)), int(found.group(1)))
-        except ValueError:
-            pass
     raw, skipped = [], 0
     for line in text.splitlines():
         m = _LINE.match(line)
@@ -163,7 +162,7 @@ def rows_from(parsed: dict) -> tuple[list[dict], dict]:
         plain_is_expense = True
     amounts = _signed(lines, plain_is_expense)
     rows = []
-    for r, cents in zip(lines, amounts):
+    for r, cents in zip(lines, amounts, strict=False):
         if not cents:
             continue
         day = r["day"].isoformat()

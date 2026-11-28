@@ -3,9 +3,9 @@ import base64
 
 import pytest
 from fastapi.testclient import TestClient
+from kassensturz.mobile_security import InMemoryRateLimiter, parse_trusted_proxy_networks
 
 from kassensturz import ha, main
-from kassensturz.mobile_security import InMemoryRateLimiter, parse_trusted_proxy_networks
 
 PROXY = "127.0.0.1"  # der Proxy läuft auf demselben Rechner und kommt über Loopback an
 VIA_PROXY = {"X-Forwarded-Proto": "https", "X-Forwarded-For": "100.101.102.103",

@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import date
+
 from fastapi import APIRouter, Body
 
 from . import analytics, contracts, letters
@@ -259,7 +260,7 @@ def cancellation_research(key: str):
         result = provider_research.search_provider(provider_name)
     except ValueError as exc:
         _err(400, str(exc))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("Anbietersuche fehlgeschlagen: %s", exc)
         _err(502, "Die Anbietersuche ist momentan nicht verfügbar. Bitte später erneut versuchen.")
     return result

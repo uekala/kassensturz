@@ -10,6 +10,7 @@ Datenbank und ziehen deshalb nicht mit um.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -144,10 +145,8 @@ def write_archive(source: sqlite3.Connection, data_dir: Path, target: Path, vers
         return manifest
     finally:
         copy.unlink(missing_ok=True)
-        try:
+        with contextlib.suppress(OSError):
             work.rmdir()
-        except OSError:
-            pass
 
 
 def _extract(archive: zipfile.ZipFile, name: str, expected: dict, target: Path, limit: int) -> None:
@@ -220,14 +219,10 @@ def _adopt_archive(source_path: Path, path: Path) -> int:
         return len(receipts)
     finally:
         for leftover in sorted(work.rglob("*"), reverse=True):
-            try:
+            with contextlib.suppress(OSError):
                 leftover.rmdir() if leftover.is_dir() else leftover.unlink()
-            except OSError:
-                pass
-        try:
+        with contextlib.suppress(OSError):
             work.rmdir()
-        except OSError:
-            pass
 
 
 def adopt_if_fresh(path: Path, inbox: Path | None) -> bool:

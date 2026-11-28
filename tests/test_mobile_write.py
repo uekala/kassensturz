@@ -1,11 +1,11 @@
 import sqlite3
 
 from fastapi.testclient import TestClient
-
-from kassensturz import main
 from kassensturz.db import Database
 from kassensturz.ledger import import_rows
 from kassensturz.mobile_security import InMemoryRateLimiter
+
+from kassensturz import main
 
 REQUEST_ID = "5b0f6c1e-7d0a-4a55-9a0e-2f7f5a3f9c11"
 

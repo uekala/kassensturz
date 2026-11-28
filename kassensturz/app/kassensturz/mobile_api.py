@@ -14,14 +14,32 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import qrcode
-from qrcode.image.svg import SvgPathImage
-
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
+from qrcode.image.svg import SvgPathImage
 
-from . import analytics, anomalies, audit, banksync, expected, household, charging, ledger, loans, mobile_read, mobile_write, openbanking, options, papers, planned, projects, report, services, sharing
+from . import (
+    analytics,
+    anomalies,
+    audit,
+    banksync,
+    charging,
+    expected,
+    household,
+    ledger,
+    loans,
+    mobile_read,
+    mobile_write,
+    openbanking,
+    options,
+    papers,
+    planned,
+    projects,
+    report,
+    services,
+    sharing,
+)
 from .db import get_db
-from .util import euro
 from .mobile_auth import (
     InvalidCredential,
     MobileAuthService,
@@ -29,7 +47,7 @@ from .mobile_auth import (
     PairingRejected,
 )
 from .mobile_security import address_in_networks, parse_trusted_proxy_networks, socket_peer
-
+from .util import euro
 
 router = APIRouter()
 CAPABILITIES = (

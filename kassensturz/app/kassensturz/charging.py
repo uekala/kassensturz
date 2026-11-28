@@ -138,7 +138,7 @@ def import_csv(db: Database, raw: bytes) -> dict:
     for cells in rows[1:MAX_ROWS + 1]:
         def cell(key):
             i = index.get(key)
-            return cells[i].strip() if i is not None and i < len(cells) else ""
+            return cells[i].strip() if i is not None and i < len(cells) else ""  # noqa: B023 – wird in derselben Schleifenrunde benutzt
         if not any(c.strip() for c in cells):
             continue
         day = cell("date")

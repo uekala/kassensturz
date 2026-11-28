@@ -1,6 +1,7 @@
 """Zustand der Installation: Datenbank, Belege, Sicherungen."""
 from __future__ import annotations
 
+import contextlib
 from datetime import date, datetime
 
 from . import backup, papers
@@ -29,10 +30,8 @@ def status(db: Database, today: date | None = None) -> dict:
             latest = None
     size = 0
     for suffix in ("", "-wal"):  # frische Änderungen liegen zuerst im Schreibprotokoll
-        try:
+        with contextlib.suppress(OSError):
             size += db.path.with_name(db.path.name + suffix).stat().st_size
-        except OSError:
-            pass
     try:
         copies = len(list(backup.folder().glob("*.sqlite")))
     except OSError:
@@ -169,8 +168,6 @@ def rehearse_restore(db: Database, latest=None) -> dict:
         return out
     finally:
         if copy is not None:
-            try:
+            with contextlib.suppress(sqlite3.Error):
                 copy.close()
-            except sqlite3.Error:
-                pass
         shutil.rmtree(work, ignore_errors=True)

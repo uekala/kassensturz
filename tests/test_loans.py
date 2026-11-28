@@ -1,4 +1,5 @@
 """Kredite mit Tilgungsplan – nur erfundene Zahlen."""
+import itertools
 import math
 from datetime import date
 
@@ -30,7 +31,7 @@ def test_plan_matches_the_annuity_formula(db):
     assert [y["year"] for y in years][:2] == [2027, 2028] and years[-1]["rest_cents"] == 0 and years[-1]["year"] == 2037
     assert years[0]["paid_cents"] == 9 * 100_000 and years[1]["paid_cents"] == 12 * 100_000
     assert sum(y["paid_cents"] for y in years) == plan["total_cents"]
-    assert all(a["rest_cents"] > b["rest_cents"] for a, b in zip(years, years[1:]))
+    assert all(a["rest_cents"] > b["rest_cents"] for a, b in itertools.pairwise(years))
 
 
 def test_schedule_rows_add_up_and_the_last_payment_is_only_what_is_left():

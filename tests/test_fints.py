@@ -182,6 +182,7 @@ def _wait(job):
 
 def test_rejected_login_stops_automatic_fetches(db, monkeypatch, tmp_path):
     import pytest
+
     from kassensturz import banksync, secrets_store, services
 
     cid = db.insert("connections", {"name": "KS-Testbank", "blz": "00000000", "login": "erfunden",
@@ -195,7 +196,7 @@ def test_rejected_login_stops_automatic_fetches(db, monkeypatch, tmp_path):
 
     _wait(fints_sync.start(cid, None, background=True))
     assert fints_sync.login_rejected(db, cid)
-    source = [s for s in banksync.status(db)["sources"] if s["id"] == f"fints:{cid}"][0]
+    source = next(s for s in banksync.status(db)["sources"] if s["id"] == f"fints:{cid}")
     assert (source["automatic"], source["state"]) == (False, "error")
 
     # Weder der tägliche Abruf noch ein Abruf mit der gespeicherten PIN versucht es noch einmal.
@@ -225,7 +226,7 @@ def test_changing_login_data_lifts_the_stop(client, db):
     cid = db.insert("connections", {"name": "KS-Testbank", "blz": "00000000", "login": "erfunden",
                                     "server": "https://example.invalid/fints", "created": "2026-01-01"})
     db.set_setting(f"fints_login_rejected:{cid}", "2026-11-18T20:47:59")
-    listed = [c for c in client.get("/api/connections").json() if c["id"] == cid][0]
+    listed = next(c for c in client.get("/api/connections").json() if c["id"] == cid)
     assert listed["login_rejected"] is True
     client.patch(f"/api/connections/{cid}", json={"name": "KS-Umbenannt"})
     assert fints_sync.login_rejected(db, cid)
