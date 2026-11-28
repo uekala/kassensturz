@@ -20,7 +20,6 @@ from kassensturz import main, mobile_auth
 from kassensturz.mobile_auth import (
     ACCESS_TTL,
     EXPIRED_TOKEN_RETENTION,
-    REFRESH_RETRY_GRACE,
     REFRESH_TTL,
     InvalidCredential,
     MobileAuthService,
