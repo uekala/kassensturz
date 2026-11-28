@@ -1198,3 +1198,13 @@ html.sheet-open, html.sheet-open body { overflow: hidden; }
 .btn.armed, button.armed { background: var(--neg-chart); border-color: var(--neg-chart); color: #fff; }
 /* Fehlermeldungen heben sich von Bestätigungen ab */
 #toast.error { background: #b3261e; color: #fff; }
+/* Einstellungen: Gruppen mit Sprungleiste */
+.group-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.group-nav .chip { font-size: .85rem; padding: 5px 12px; border: 1px solid var(--rule); background: transparent; cursor: pointer; font: inherit; font-size: .85rem; color: var(--ink); }
+.group-nav .chip:hover { background: var(--accent-soft); }
+.group-title { display: flex; flex-direction: column; gap: 2px; margin: 28px 0 10px; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); scroll-margin-top: 72px; }
+.group-title:first-child { margin-top: 8px; }
+.group-title .small { text-transform: none; letter-spacing: 0; }
+.group-title + .section { border-top: 0; }
+.group-title:focus { outline: none; }
+.head-links { display: flex; flex-wrap: wrap; gap: 14px; align-items: baseline; }

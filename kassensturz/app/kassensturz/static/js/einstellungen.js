@@ -79,8 +79,12 @@ export async function renderSettings(view, _params, seq) {
   const unassigned = store.accounts.some((a) => a.owner_person_id) ? devices.items.filter((d) => !d.revoked_at && !d.person_id).length : 0;
   view.innerHTML = html`
     <div class="page-head"><h1>Einstellungen</h1></div>
+    <nav class="chips group-nav" aria-label="Bereiche der Einstellungen">
+      <button class="chip" data-jump="du">Du &amp; Haushalt</button><button class="chip" data-jump="verbindungen">Verbindungen</button><button class="chip" data-jump="kategorien">Kategorien &amp; Regeln</button><button class="chip" data-jump="steuer">Steuer &amp; Garantien</button><button class="chip" data-jump="daten">Daten &amp; Verlauf</button>
+    </nav>
     <div class="cols"><div>
-      <section class="section" style="border-top:0">
+      <h2 class="group-title" id="grp-du" tabindex="-1">Du &amp; Haushalt<span class="small muted">Angaben, Puffer, Personen</span></h2>
+      <section class="section">
         <div class="section-head"><h2>Deine Angaben für Kündigungen</h2></div>
         <label class="field"><span>Vor- und Nachname</span><input class="input" id="s-name" value="${p.name || ""}" autocomplete="name"></label>
         <label class="field"><span>Straße und Hausnummer</span><input class="input" id="s-street" value="${p.street || ""}" autocomplete="street-address"></label>
@@ -91,14 +95,6 @@ export async function renderSettings(view, _params, seq) {
         <label class="check"><input type="checkbox" id="s-reserve" ${s.deduct_reserve ? raw("checked") : ""}><span>Rücklage für viertel-, halb- und jährliche Kosten von „frei verfügbar“ abziehen
           <span class="muted small">Lass das aus, wenn du dafür schon Geld auf einem Tagesgeld- oder Sparkonto zurücklegst.</span></span></label>
         <div class="actions"><button class="btn primary" id="s-save">Speichern</button></div>
-      </section>
-      <section class="section">
-        <div class="section-head"><h2>Home Assistant</h2></div>
-        <p class="small">${s.ha ? "Verbunden. Kassensturz stellt diese Sensoren bereit:" : "Keine Verbindung zu Home Assistant – Sensoren und Benachrichtigungen sind aus."}</p>
-        ${s.ha ? html`<p class="small muted">sensor.kassensturz_kontostand, _frei_verfuegbar, _prognose_monatsende, _tiefster_stand, _fixkosten_monat, _ausgaben_monat, _naechste_zahlung sowie je Konto und Budget einen Sensor.</p>` : ""}
-        <p class="small muted">Warnschwelle ${s.options.warn_threshold} €, täglicher Abruf um ${s.options.sync_time} Uhr, Benachrichtigung über ${s.options.notify_service || "persistente Meldungen"}. Ändern lässt sich das in der Konfiguration der App.</p>
-        <div class="section-head" style="margin-top:22px"><h2>Zahlungskalender</h2></div>
-        <div id="cal-box">${raw(calendarBox(cal))}</div>
       </section>
       <section class="section">
         <div class="section-head"><h2>Haushalt</h2><button class="link-btn" id="p-add">Person hinzufügen</button></div>
@@ -121,6 +117,15 @@ export async function renderSettings(view, _params, seq) {
             <span class="title">${x.from} an ${x.to}</span><span class="sub">${dFull(x.on_date)}${x.note ? ` · ${x.note}` : ""}</span>
             <span class="amount" style="display:flex;gap:6px;align-items:center">${money(x.cents)}<button class="btn small" data-st-del="${x.id}">Entfernen</button></span></li>`)}</ul>` : ""}` : ""}
       </section>
+      <h2 class="group-title" id="grp-verbindungen" tabindex="-1">Verbindungen<span class="small muted">Home Assistant, Kalender, Handys</span></h2>
+      <section class="section">
+        <div class="section-head"><h2>Home Assistant</h2></div>
+        <p class="small">${s.ha ? "Verbunden. Kassensturz stellt diese Sensoren bereit:" : "Keine Verbindung zu Home Assistant – Sensoren und Benachrichtigungen sind aus."}</p>
+        ${s.ha ? html`<p class="small muted">sensor.kassensturz_kontostand, _frei_verfuegbar, _prognose_monatsende, _tiefster_stand, _fixkosten_monat, _ausgaben_monat, _naechste_zahlung sowie je Konto und Budget einen Sensor.</p>` : ""}
+        <p class="small muted">Warnschwelle ${s.options.warn_threshold} €, täglicher Abruf um ${s.options.sync_time} Uhr, Benachrichtigung über ${s.options.notify_service || "persistente Meldungen"}. Ändern lässt sich das in der Konfiguration der App.</p>
+        <div class="section-head" style="margin-top:22px"><h2>Zahlungskalender</h2></div>
+        <div id="cal-box">${raw(calendarBox(cal))}</div>
+      </section>
       <section class="section">
         <div class="section-head">
           <h2>Mobile Geräte</h2>
@@ -139,13 +144,9 @@ export async function renderSettings(view, _params, seq) {
             </li>` )}</ul>` : html`<p class="small muted">Noch keine gekoppelten Geräte.</p>`}
         </div>
       </section>
-      <section class="section">
-        <div class="section-head"><h2>Änderungen</h2>${changes.total > changes.items.length ? html`<button class="link-btn" id="chg-all">Alle ${changes.total} ansehen</button>` : ""}</div>
-        ${changes.items.length ? changeList(changes.items) : html`<p class="small muted">Noch nichts geändert.</p>`}
-        <p class="small muted">Wer wann was geändert hat, in Home Assistant oder am Handy. Bankabrufe und was Kassensturz von selbst erledigt, stehen nicht darin. Einträge bleiben gut ein Jahr.</p>
-      </section>
     </div><div>
-      <section class="section" style="border-top:0">
+      <h2 class="group-title" id="grp-kategorien" tabindex="-1">Kategorien &amp; Regeln<span class="small muted">Wie Buchungen einsortiert werden</span></h2>
+      <section class="section">
         <div class="section-head"><h2>Regeln für Kategorien</h2><button class="link-btn" id="r-add">Regel hinzufügen</button></div>
         ${rules.length ? html`<ul class="list">${rules.map((r) => html`<li class="row static"><span class="title">„${r.pattern}“</span>
           <span class="sub">${r.mark_transfer ? "Umbuchung" : r.category_name || "–"}${r.sign === "in" ? ", nur Eingänge" : r.sign === "out" ? ", nur Ausgänge" : ""}</span>
@@ -163,6 +164,7 @@ export async function renderSettings(view, _params, seq) {
         <div class="section-head"><h2>Kategorien</h2><button class="link-btn" id="k-add">Unterkategorie hinzufügen</button></div>
         <p class="small muted">${topCats().map((c) => c.name).join(", ")}.</p>
       </section>
+      <h2 class="group-title" id="grp-steuer" tabindex="-1">Steuer &amp; Garantien<span class="small muted">Belege für später</span></h2>
       <section class="section">
         <div class="section-head"><h2>Steuer</h2></div>
         <div id="tax-box"></div>
@@ -171,10 +173,7 @@ export async function renderSettings(view, _params, seq) {
         <div class="section-head"><h2>Garantien</h2></div>
         <div id="warranty-box"></div>
       </section>
-      <section class="section">
-        <div class="section-head"><h2>Zustand</h2></div>
-        <div id="health-box"></div>
-      </section>
+      <h2 class="group-title" id="grp-daten" tabindex="-1">Daten &amp; Verlauf<span class="small muted">Sicherung, Zustand, Änderungen</span></h2>
       <section class="section">
         <div class="section-head"><h2>Daten</h2></div>
         <div class="actions" style="margin-top:0">
@@ -186,7 +185,18 @@ export async function renderSettings(view, _params, seq) {
         </div>
         <p class="small muted" style="margin-top:14px">Kassensturz ${s.options ? store.state.version : ""}. Alle Daten liegen nur auf diesem Home-Assistant-Gerät.</p>
       </section>
+      <section class="section">
+        <div class="section-head"><h2>Zustand</h2></div>
+        <div id="health-box"></div>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>Änderungen</h2>${changes.total > changes.items.length ? html`<button class="link-btn" id="chg-all">Alle ${changes.total} ansehen</button>` : ""}</div>
+        ${changes.items.length ? changeList(changes.items) : html`<p class="small muted">Noch nichts geändert.</p>`}
+        <p class="small muted">Wer wann was geändert hat, in Home Assistant oder am Handy. Bankabrufe und was Kassensturz von selbst erledigt, stehen nicht darin. Einträge bleiben gut ein Jahr.</p>
+      </section>
     </div></div>`.s;
+  // Sprungleiste: scrollt zur Gruppe und setzt den Fokus dorthin, damit Tastatur und Screenreader mitkommen.
+  $$("[data-jump]", view).forEach((b) => { b.onclick = () => { const g = $("#grp-" + b.dataset.jump, view); g.scrollIntoView({ behavior: "smooth", block: "start" }); g.focus({ preventScroll: true }); }; });
   drawTax($("#tax-box"));
   drawWarranties($("#warranty-box"));
   drawHealth($("#health-box"));

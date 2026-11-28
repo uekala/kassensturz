@@ -11,10 +11,10 @@ import { renderContracts } from "./vertraege.js";
 
 /* ------------------------------------------------------------------ Router */
 export const routes = {
-  "": renderOverview, umsaetze: renderTransactions, vertraege: renderContracts, budgets: renderBudgets,
+  "": renderOverview, umsaetze: renderTransactions, vertraege: renderContracts, budgets: renderBudgets, planung: renderBudgets,
   konten: renderAccounts, einstellungen: renderSettings,
 };
-export const TAB_FOR = { "": "uebersicht", umsaetze: "umsaetze", vertraege: "vertraege", budgets: "budgets", konten: "konten" };
+export const TAB_FOR = { "": "uebersicht", umsaetze: "umsaetze", vertraege: "vertraege", budgets: "budgets", planung: "budgets", konten: "konten" };
 export function parseHash() {
   const h = location.hash.replace(/^#\/?/, "");
   const [path, qs] = h.split("?");

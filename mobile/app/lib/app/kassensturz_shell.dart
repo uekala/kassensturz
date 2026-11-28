@@ -105,7 +105,7 @@ class _KassensturzShellState extends State<KassensturzShell>
     super.dispose();
   }
 
-  static const _titles = ['Heute', 'Umsätze', 'Planung', 'Konten'];
+  static const _titles = ['Übersicht', 'Umsätze', 'Planung', 'Konten'];
 
   void _openTransactions() {
     setState(() => _selectedIndex = 1);
@@ -406,7 +406,7 @@ class _ShellNavigation extends StatelessWidget {
             child: Row(
               children: [
                 _NavigationItem(
-                  label: 'Heute',
+                  label: 'Übersicht',
                   icon: Icons.home_outlined,
                   selected: selectedIndex == 0,
                   onTap: () => onSelected(0),
